@@ -1,4 +1,4 @@
 # perseid
 
-🌠 Web development, coming from space.
+🌠 Web development, coming from space
 
