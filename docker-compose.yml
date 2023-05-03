@@ -1,0 +1,129 @@
+version: "3.6"
+
+
+services:
+
+  core:
+    tty: true
+    user: node:node
+    image: openizr/node:6.0.0-dev
+    container_name: ${PROJECT_NAME}_core
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./packages/core:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    profiles:
+      - all
+      - core
+
+  # jobs:
+  #   tty: true
+  #   user: node:node
+  #   image: openizr/node:6.0.0-dev
+  #   container_name: ${PROJECT_NAME}_jobs
+  #   env_file:
+  #     - .env
+  #   command: sh -c "yarn && yarn run dev"
+  #   volumes:
+  #     - ./packages/jobs:/var/www/html
+  #     - ~/.cache/yarn:/home/node/.cache/yarn
+  #   profiles:
+  #     - all
+  #     - jobs
+
+  # server:
+  #   tty: true
+  #   user: node:node
+  #   image: openizr/node:6.0.0-dev
+  #   container_name: ${PROJECT_NAME}_server
+  #   env_file:
+  #     - .env
+  #   command: sh -c "yarn && yarn run dev"
+  #   volumes:
+  #     - ./packages/server:/var/www/html
+  #     - ~/.cache/yarn:/home/node/.cache/yarn
+  #   ports:
+  #     - "${HOST_IP}:${BACKEND_EXAMPLES_PORT}:${BACKEND_EXAMPLES_PORT}"
+  #   depends_on:
+  #     - mongodb
+  #   profiles:
+  #     - all
+  #     - client
+  #     - server
+
+  # client:
+  #   tty: true
+  #   user: node:node
+  #   image: openizr/node:6.0.0-dev
+  #   container_name: ${PROJECT_NAME}_client
+  #   env_file:
+  #     - .env
+  #   command: sh -c "yarn && yarn run dev"
+  #   volumes:
+  #     - ./packages/client:/var/www/html
+  #     - ~/.cache/yarn:/home/node/.cache/yarn
+  #   ports:
+  #     - "${HOST_IP}:${FRONTEND_EXAMPLES_PORT}:${FRONTEND_EXAMPLES_PORT}"
+  #   depends_on:
+  #     - server
+  #   profiles:
+  #     - all
+  #     - client
+
+  dev-kit:
+    tty: true
+    user: node:node
+    image: openizr/node:6.0.0-dev
+    container_name: ${PROJECT_NAME}_dev-kit
+    env_file:
+      - .env
+    command: sh -c "cd package && yarn && tail -f /dev/null"
+    volumes:
+      - ./packages/dev-kit:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    restart: unless-stopped
+    profiles:
+      - all
+      - dev-kit
+
+  examples:
+    tty: true
+    user: node:node
+    image: openizr/node:6.0.0-dev
+    container_name: ${PROJECT_NAME}_examples
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    working_dir: /var/www/html/${EXAMPLES_PROJECT}
+    volumes:
+      - ./examples:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    ports:
+      - "${HOST_IP}:${BACKEND_EXAMPLES_PORT}:${BACKEND_EXAMPLES_PORT}"
+      - "${HOST_IP}:${FRONTEND_EXAMPLES_PORT}:${FRONTEND_EXAMPLES_PORT}"
+    depends_on:
+      - mongodb
+    profiles:
+      - all
+      - jobs
+      - core
+      - server
+      - client
+
+  mongodb:
+    tty: true
+    image: mongo:6.0.5
+    container_name: ${PROJECT_NAME}_mongodb
+    command: mongod --quiet --logpath /dev/null
+    ports:
+      - "${HOST_IP}:27018:27017"
+
+# For people that use a VPN
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET}

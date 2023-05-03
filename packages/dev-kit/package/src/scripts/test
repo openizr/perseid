@@ -1,0 +1,4 @@
+#!/bin/sh
+
+command=$([ "$1" == "-w" ] && echo "watch" || echo "run")
+ENV=test NODE_ENV=test ./node_modules/.bin/vitest "$command" --passWithNoTests --config=./node_modules/@perseid/dev-kit/config/vite.config.js --coverage

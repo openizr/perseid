@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`routes/v1/getMessage > correctly handles request 1`] = `
+{
+  "response": {
+    "200": {
+      "properties": {
+        "message": {
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+  },
+}
+`;

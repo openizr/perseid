@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`pages/HomePage > renders correctly - basic 1`] = `
+<p
+  data-v-16997bca=""
+>
+  <img
+    alt="test"
+    data-v-16997bca=""
+    src="/images/test.jpg"
+  />
+  <img
+    alt="test"
+    data-v-16997bca=""
+    src="/images/test.svg"
+  />
+  <a
+    data-v-16997bca=""
+  >
+    Test
+  </a>
+</p>
+`;

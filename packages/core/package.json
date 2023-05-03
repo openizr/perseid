@@ -1,0 +1,77 @@
+{
+  "name": "@perseid/core",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./main.js",
+  "types": "./types.d.ts",
+  "description": "Contains isomorphic core features, types definitions and helpers necessary to other @perseid packages",
+  "repository": "https://github.com/openizr/perseid",
+  "bugs": "https://github.com/openizr/perseid/issues",
+  "contributors": [
+    {
+      "name": "Matthieu Jabbour",
+      "email": "matthieu.jabbour@gmail.com",
+      "homepage": "https://github.com/matthieujabbour"
+    }
+  ],
+  "keywords": [
+    "perseid",
+    "core",
+    "helpers",
+    "isomorphic"
+  ],
+  "devDependencies": {
+    "@perseid/dev-kit": "^7.0.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/@perseid/dev-kit/main.cjs"
+    ],
+    "overrides": [
+      {
+        "files": "src/scripts/classes/Id.ts",
+        "rules": {
+          "no-bitwise": "off",
+          "global-require": "off",
+          "@typescript-eslint/no-var-requires": "off"
+        }
+      },
+      {
+        "files": "*.d.ts",
+        "rules": {
+          "no-use-before-define": "off",
+          "max-classes-per-file": "off"
+        }
+      },
+      {
+        "files": "src/scripts/helpers/forEach.ts",
+        "rules": {
+          "no-await-in-loop": "off"
+        }
+      }
+    ]
+  },
+  "dependencies": {},
+  "devKitConfig": {
+    "target": "node",
+    "entries": {
+      "main": "./scripts/main.ts"
+    },
+    "srcPath": "src",
+    "distPath": "dist",
+    "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
+  },
+  "engines": {
+    "node": ">= 18.0.0",
+    "npm": ">= 8.0.0"
+  },
+  "scripts": {
+    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "build:types": "cp src/scripts/types.d.ts dist",
+    "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types",
+    "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
+    "postinstall": "rm -f node_modules/.eslintcache"
+  }
+}

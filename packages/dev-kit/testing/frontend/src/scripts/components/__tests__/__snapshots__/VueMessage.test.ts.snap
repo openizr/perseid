@@ -1,0 +1,14 @@
+// Vitest Snapshot v1
+
+exports[`vue/Message > renders correctly - basic 1`] = `
+<p>
+  <img
+    alt="test"
+    src="/src/images/test.jpg"
+  />
+  <img
+    alt="test"
+    src="/src/images/test.svg"
+  />
+</p>
+`;

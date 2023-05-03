@@ -1,0 +1,61 @@
+{
+  "name": "library",
+  "main": "./typescript.js",
+  "types": "./types.d.ts",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "@perseid/dev-kit": "file:../../package/dist",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/svelte": "^4.0.4",
+    "@testing-library/vue": "^8.0.0",
+    "@types/prop-types": "^15.7.5",
+    "@types/react": "^18.0.31",
+    "@types/react-dom": "^18.0.3",
+    "prop-types": "^15.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "svelte": "^4.2.7",
+    "vue": "^3.3.9"
+  },
+  "peerDependencies": {
+    "prop-types": "^15.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "svelte": "^4.2.2",
+    "vue": "^3.3.7"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/@perseid/dev-kit/main.cjs"
+    ]
+  },
+  "devKitConfig": {
+    "target": "node",
+    "splitChunks": true,
+    "entries": {
+      "main": "./scripts/main.ts",
+      "react": "./scripts/react.js",
+      "vue": "./scripts/vue.ts",
+      "svelte": "./scripts/svelte.ts"
+    },
+    "srcPath": "src",
+    "distPath": "dist",
+    "banner": "/*!\n * Copyright (c) Openizr.\n * All rights reserved.\n */"
+  },
+  "scripts": {
+    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "build": "node node_modules/@perseid/dev-kit/scripts/build.js",
+    "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
+    "postinstall": "rm -f node_modules/.eslintcache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer prop-types react react-dom vue svelte"
+  },
+  "dependencies": {
+    "biuty": "^2.0.0"
+  }
+}

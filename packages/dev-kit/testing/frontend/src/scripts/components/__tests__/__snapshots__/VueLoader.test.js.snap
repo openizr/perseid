@@ -1,0 +1,7 @@
+// Vitest Snapshot v1
+
+exports[`vue/Loader > renders correctly - basic 1`] = `
+<div>
+  Loading...
+</div>
+`;

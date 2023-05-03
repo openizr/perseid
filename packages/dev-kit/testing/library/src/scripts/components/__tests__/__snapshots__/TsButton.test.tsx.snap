@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/TsButton > renders correctly - basic 1`] = `
+<button
+  type="button"
+>
+  <p
+    class="ui-p"
+  >
+    test
+  </p>
+  Test
+</button>
+`;

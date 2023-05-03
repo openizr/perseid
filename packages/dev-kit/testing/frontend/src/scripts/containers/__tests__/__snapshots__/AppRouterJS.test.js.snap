@@ -1,0 +1,25 @@
+// Vitest Snapshot v1
+
+exports[`containers/AppRouterJS > renders correctly - loading page 1`] = `<!---->`;
+
+exports[`containers/AppRouterJS > renders correctly - page found 1`] = `
+<p
+  data-v-4ddc690e=""
+>
+  <img
+    alt="test"
+    data-v-4ddc690e=""
+    src="/src/images/test.jpg"
+  />
+  <img
+    alt="test"
+    data-v-4ddc690e=""
+    src="/src/images/test.svg"
+  />
+  <a
+    data-v-4ddc690e=""
+  >
+    TEST
+  </a>
+</p>
+`;

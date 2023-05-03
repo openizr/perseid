@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/HomeJS > renders correctly - basic 1`] = `
+<p>
+  <img
+    alt="test"
+    src="/images/test.jpg"
+  />
+  <img
+    alt="test"
+    src="/images/test.svg"
+  />
+  LABEL_TEST
+</p>
+`;

@@ -1,0 +1,9 @@
+.button {
+  @include resp(m) {
+    padding: 16px 20px;
+  }
+
+  @include resp(l) {
+    width: auto;
+  }
+}

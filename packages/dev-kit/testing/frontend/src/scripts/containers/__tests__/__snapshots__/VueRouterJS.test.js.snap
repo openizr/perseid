@@ -1,0 +1,16 @@
+// Vitest Snapshot v1
+
+exports[`vue/RouterJs > renders correctly - loading page 1`] = `
+<p
+  locale="[object Object]"
+>
+  <img
+    alt="test"
+    src="/src/images/test.jpg"
+  />
+  <img
+    alt="test"
+    src="/src/images/test.svg"
+  />
+</p>
+`;

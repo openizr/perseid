@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/Router > renders correctly - found page 1`] = `
+<div>
+  Loading...
+</div>
+`;
+
+exports[`react/Router > renders correctly - loading page 1`] = `
+<div>
+  Loading...
+</div>
+`;
+
+exports[`react/Router > renders correctly - not found page 1`] = `null`;

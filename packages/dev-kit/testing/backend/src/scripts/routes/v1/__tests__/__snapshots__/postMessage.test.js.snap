@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`routes/v1/postMessage > correctly handles request 1`] = `
+{
+  "body": {
+    "additionalProperties": false,
+    "errorMessage": {
+      "properties": {
+        "message": "Body.message must be a string",
+      },
+      "required": {
+        "message": "Body.message is required",
+      },
+      "type": "Request body should be a valid object",
+    },
+    "properties": {
+      "message": {
+        "type": "string",
+      },
+    },
+    "required": [
+      "message",
+    ],
+    "type": "object",
+  },
+  "response": {
+    "200": {
+      "type": "string",
+    },
+  },
+}
+`;

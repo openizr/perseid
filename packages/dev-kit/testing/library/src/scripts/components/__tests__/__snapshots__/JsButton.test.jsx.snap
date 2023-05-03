@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/JsButton > renders correctly - basic 1`] = `
+<button
+  type="button"
+>
+  <p>
+    TEST
+  </p>
+  Test
+</button>
+`;

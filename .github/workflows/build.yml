@@ -1,0 +1,37 @@
+name: build
+
+on: workflow_call
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: openizr/node:5.0.0-dev
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Install cache-compatible tar version
+        run: apk add tar
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: /usr/local/share/.cache/yarn/v6
+          key: yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: yarn-
+
+      - name: Install dependencies
+        run: cd library && yarn --frozen-lockfile
+
+      - name: Run linter and builder
+        run: cd library && yarn run build && echo "DIST_DIRECTORY=$(pwd)/dist" >> $GITHUB_ENV
+
+      - name: Store build result
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: ${{ env.DIST_DIRECTORY }}
