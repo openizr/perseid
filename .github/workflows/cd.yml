@@ -1,0 +1,41 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
+  publish:
+    runs-on: ubuntu-latest
+    container:
+      image: openizr/node:5.0.0-dev
+      env:
+        NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+    needs:
+      - test
+      - build
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Restore build result
+        uses: actions/download-artifact@v3
+        with:
+          name: dist
+          path: dist
+
+      - name: Log into NPM
+        run: npm config set '//registry.npmjs.org/:_authToken' "${NPM_AUTH_TOKEN}"
+
+      - name: Publish package on NPM
+        run: cp README.md dist && cp LICENSE dist && sed -i "s/PACKAGE_VERSION/$GITHUB_REF_NAME/g" dist/package.json && npm publish ./dist

@@ -1,0 +1,77 @@
+version: "3.6"
+
+
+services:
+
+  core:
+    tty: true
+    user: node:node
+    image: openizr/node:5.0.0-dev
+    container_name: ${PROJECT_NAME}_core
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./core:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    restart: unless-stopped
+    profiles:
+      - all
+      - core
+
+  jobs:
+    tty: true
+    user: node:node
+    image: openizr/node:5.0.0-dev
+    container_name: ${PROJECT_NAME}_jobs
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./jobs:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    restart: unless-stopped
+    profiles:
+      - all
+      - jobs
+
+  examples:
+    tty: true
+    user: node:node
+    image: openizr/node:5.0.0-dev
+    container_name: ${PROJECT_NAME}_examples
+    env_file:
+      - .env
+    command: sh -c "
+      dsync /jobs/dist/ node_modules/@perseid/jobs/ &
+      dsync /core/dist/ node_modules/@perseid/core/"
+    working_dir: /var/www/html/${EXAMPLES_PROJECT}
+    volumes:
+      - ./jobs:/jobs
+      - ./core:/core
+      - ./examples:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    ports:
+      - "${HOST_IP}:${EXAMPLES_PORT}:${EXAMPLES_PORT}"
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    profiles:
+      - all
+      - jobs
+      - core
+
+  mongodb:
+    tty: true
+    image: mongo:6.0.5
+    container_name: ${PROJECT_NAME}_mongodb
+    restart: unless-stopped
+
+
+# For people that use a VPN
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET}

@@ -1,0 +1,42 @@
+name: CI
+
+on: workflow_call
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: openizr/node:5.0.0-dev
+      env:
+        COVERALLS_SERVICE_NAME: github-actions
+        GITHUB_RUN_ID: ${{ vars.GITHUB_RUN_ID }}
+        COVERALLS_GIT_COMMIT: ${{ vars.GITHUB_SHA }}
+        GITHUB_EVENT_NAME: ${{ vars.GITHUB_EVENT_NAME }}
+        COVERALLS_GIT_BRANCH: ${{ vars.GITHUB_HEAD_REF }}
+        GITHUB_REPOSITORY: ${{ vars.GITHUB_REPOSITORY }}
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Install cache-compatible tar version
+        run: apk add tar
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: /usr/local/share/.cache/yarn/v6
+          key: yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: yarn-
+
+      - name: Install dependencies
+        run: cd library && yarn --frozen-lockfile
+
+      - name: Run unit tests
+        run: cd library && yarn run test
+
+      - name: Update Coveralls
+        run: cd library && sed -i "s/:scripts/:src\/scripts/g" coverage/lcov.info && node_modules/coveralls/bin/coveralls.js < coverage/lcov.info
