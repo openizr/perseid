@@ -1,0 +1,87 @@
+{
+  "name": "@perseid/jobs",
+  "version": "0.0.22",
+  "license": "MIT",
+  "type": "module",
+  "main": "./main.js",
+  "types": "./types.d.ts",
+  "description": "Fast, scalable job scheduler, based on @perseid/server",
+  "repository": "https://github.com/openizr/perseid",
+  "bugs": "https://github.com/openizr/perseid/issues",
+  "contributors": [
+    {
+      "name": "Matthieu Jabbour",
+      "email": "matthieu.jabbour@gmail.com",
+      "homepage": "https://github.com/matthieujabbour"
+    }
+  ],
+  "keywords": [
+    "perseid",
+    "job",
+    "scheduler",
+    "tasks",
+    "cron"
+  ],
+  "devDependencies": {
+    "typescript-dev-kit": "^6.0.7"
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/typescript-dev-kit/main.cjs"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "*.d.ts",
+          "src/__mocks__/**/*.ts"
+        ],
+        "rules": {
+          "max-classes-per-file": "off",
+          "no-await-in-loop": "off"
+        }
+      },
+      {
+        "files": [
+          "*.d.ts"
+        ],
+        "rules": {
+          "import/no-unresolved": "off",
+          "import/no-extraneous-dependencies": "off",
+          "import/export": "off",
+          "import/no-relative-packages": "off",
+          "import/no-cycle": "off",
+          "import/no-self-import": "off",
+          "max-classes-per-file": "off"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "@perseid/core": "^0.0.2",
+    "@perseid/server": "^0.0.55",
+    "mongodb": "^5.4.0",
+    "pino": "^8.14.1",
+    "pino-pretty": "^10.0.0"
+  },
+  "tsDevKitConfig": {
+    "target": "node",
+    "entries": {
+      "main": "./scripts/main.ts"
+    },
+    "srcPath": "src",
+    "distPath": "dist",
+    "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
+  },
+  "engines": {
+    "node": ">= 18.0.0",
+    "npm": ">= 8.0.0"
+  },
+  "scripts": {
+    "test": "cd node_modules/typescript-dev-kit/ && scripts/test",
+    "dev": "cd node_modules/typescript-dev-kit/ && node scripts/dev",
+    "check": "cd node_modules/typescript-dev-kit/ && node scripts/check",
+    "build": "cd node_modules/typescript-dev-kit/ && node scripts/build && cd ../../ && yarn run build:types",
+    "build:types": "cp src/scripts/types.d.ts dist",
+    "postinstall": "rm -f node_modules/.eslintcache"
+  }
+}
