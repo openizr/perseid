@@ -1,0 +1,31 @@
+{
+  "type": "module",
+  "main": "./main.js",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript-dev-kit": "^6.0.7"
+  },
+  "dependencies": {
+    "@perseid/jobs": "file:../../../../jobs/dist",
+    "@perseid/server": "^0.0.55",
+    "axios": "^1.4.0"
+  },
+  "tsDevKitConfig": {
+    "target": "node",
+    "entries": {
+      "main": "./scripts/main.ts",
+      "runJob": "./scripts/runJob.ts"
+    },
+    "srcPath": "src",
+    "distPath": "dist",
+    "runInDev": true,
+    "splitChunks": false
+  },
+  "scripts": {
+    "test": "cd node_modules/typescript-dev-kit/ && scripts/test",
+    "dev": "cd node_modules/typescript-dev-kit/ && node scripts/dev",
+    "build": "cd node_modules/typescript-dev-kit/ && node scripts/build",
+    "check": "cd node_modules/typescript-dev-kit/ && node scripts/check",
+    "postinstall": "rm -f node_modules/.eslintcache"
+  }
+}

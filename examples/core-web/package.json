@@ -1,0 +1,32 @@
+{
+  "devDependencies": {
+    "typescript-dev-kit": "^6.0.7"
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/typescript-dev-kit/main.cjs"
+    ]
+  },
+  "dependencies": {
+    "@perseid/core": "file:../../../../core/dist"
+  },
+  "tsDevKitConfig": {
+    "target": "web",
+    "html": "./html/index.html",
+    "devServer": {
+      "host": "0.0.0.0",
+      "port": 5070
+    },
+    "srcPath": "src",
+    "distPath": "public"
+  },
+  "scripts": {
+    "init": "node_modules/typescript-dev-kit/scripts/init",
+    "test": "cd node_modules/typescript-dev-kit/ && scripts/test",
+    "dev": "cd node_modules/typescript-dev-kit/ && node scripts/dev",
+    "build": "cd node_modules/typescript-dev-kit/ && node scripts/build",
+    "check": "cd node_modules/typescript-dev-kit/ && node scripts/check",
+    "doc": "node_modules/.bin/typedoc --out ./doc/ --exclude \"**/*.js\" --exclude \"**/__+(tests|mocks)__/**\" src/scripts/react.tsx",
+    "postinstall": "rm -f node_modules/.eslintcache"
+  }
+}
