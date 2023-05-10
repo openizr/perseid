@@ -66,7 +66,7 @@ In order to improve issues management and to make information clearer and easily
 set of pre-defined labels has been created. Those labels are strictly structured in three main
 groups, each group giving a particular useful information about the issue. It means that for each
 issue you open, you must assign it exactly one label of each group, and update them all along the
-issue's lifecycle as it evolves.
+issue lifecycle as it evolves.
 
 ### Type
  - ![#fbca04](https://place-hold.it/15/fbca04/000000?text=+) **[type: breaking change](https://github.com/openizr/perseid/labels/type%3A%20breaking%20change)**:

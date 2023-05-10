@@ -2,6 +2,9 @@
 
 🌠 Web development, coming from space
 
+This monorepo contains the following packages:
+- [@perseid/core](https://github.com/openizr/perseid/tree/main/core)
+- [@perseid/jobs](https://github.com/openizr/perseid/tree/main/jobs)
 
 ## Table of Contents
 
