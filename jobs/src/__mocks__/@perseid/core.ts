@@ -15,6 +15,6 @@ export async function forEach<T>(
   callback: (item: T, index: number) => Promise<void>,
 ): Promise<void> {
   for (let index = 0; index < items.length; index += 1) {
-    await callback(items[index], index); // eslint-disable-line no-await-in-loop
+    await callback(items[index], index);
   }
 }
