@@ -1,6 +1,6 @@
 {
   "name": "@perseid/core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",
@@ -39,6 +39,12 @@
         "files": "*.d.ts",
         "rules": {
           "max-classes-per-file": "off"
+        }
+      },
+      {
+        "files": "src/scripts/forEach.ts",
+        "rules": {
+          "no-await-in-loop": "off"
         }
       }
     ]

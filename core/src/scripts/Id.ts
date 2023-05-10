@@ -10,7 +10,7 @@ import { randomBytes } from 'crypto';
 
 /**
  * Isomorphic universally unique identifiers generator.
- * Inspired from mongodb's ObjectId implementation and Snowflake algorithm.
+ * Inspired from mongodb ObjectId implementation and Snowflake algorithm.
  * An id is a 12-byte value, constructed as follows:
  *  - A 4-byte timestamp
  *  - A 5-byte process-specific id
@@ -23,10 +23,10 @@ export default class Id {
   /** Bytes mask. */
   protected mask = 0xffffff;
 
-  /** Id's value. */
+  /** Id value. */
   protected value: Buffer;
 
-  /** Id's string representation. */
+  /** Id string representation. */
   protected id: string;
 
   /** Unique set of bytes, specific to current process. */
@@ -105,22 +105,22 @@ export default class Id {
   /**
    * Class constructor.
    *
-   * @param value Id's string representation. If not defined, a new id will be generated.
+   * @param value Id string representation. If not defined, a new id will be generated.
    */
   constructor(value?: string) {
     if (typeof window !== 'undefined') {
       this.value = this.idRegExp.test(`${value}`) ? value as unknown as Buffer : this.generate();
       this.id = this.value as unknown as string;
     } else {
-      this.value = this.idRegExp.test(`${value}`) ? Buffer.from(value, 'hex') : this.generate();
+      this.value = this.idRegExp.test(`${value}`) ? Buffer.from(value as string, 'hex') : this.generate();
       this.id = this.value.toString('hex');
     }
   }
 
   /**
-   * Returns id's string representation.
+   * Returns id string representation.
    *
-   * @returns Id's string representation.
+   * @returns Id string representation.
    */
   public toString(): string {
     return this.id;

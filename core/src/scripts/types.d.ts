@@ -8,34 +8,96 @@
 
 /** Collections with an `_id` field. */
 export interface Ids {
+  /** Resource id. */
   _id: Id;
 }
 
 /** Collections with authors-related automatic fields. */
 export interface Authors {
-  _createdBy: Id | Belett.User;
-  _updatedBy: Id | Belett.User | null;
+  /** Resource creation author. */
+  _createdBy: Id | User;
+
+  /** Resource modification author. */
+  _updatedBy: Id | User | null;
 }
 
 /** Collections with timestamps-related automatic fields. */
 export interface Timestamps {
+  /** Resource creation date. */
   _createdAt: Date;
+
+  /** Resource modification date. */
   _updatedAt: Date | null;
 }
 
 /** Soft-deletable collections. */
 export interface Deletion {
+  /** Whether resource has been deleted. */
   _isDeleted: boolean;
 }
 
 /** Versionnable collections. */
 export interface Version {
+  /** Resource version. */
   _version: number;
 }
 
-/** List of user's permissions. */
+/** Set of permissions, grouped for a specific purpose. */
+export interface Role extends Ids, Version, Timestamps, Authors {
+  /** Role name. */
+  name: string;
+
+  /** List of permissions.
+   * Each key is a permission name, and its related value is:
+   *  - `1` if permission is granted
+   *  - `0` otherwise
+   */
+  permissions: {
+    [name: string]: number;
+  },
+}
+
+/** User. */
+export interface User extends Ids, Version, Timestamps, Authors {
+  /** User verification date. */
+  _verifiedAt: Date | null;
+
+  /** User permissions. */
+  _permissions?: UserPermissions;
+
+  /** User email. */
+  email: string;
+
+  /** User first name. */
+  firstName: string;
+
+  /** User last name. */
+  lastName: string;
+
+  /** User password. */
+  password: string;
+
+  /** User roles. */
+  roles: (Id | Role)[];
+
+  /** List of user devices. */
+  _devices: {
+    [deviceId: string]: {
+      /** Deivce user agent. */
+      userAgent: string;
+
+      /** Refresh token expiration. */
+      expiration: string;
+
+      /** Refresh token to use for that device. */
+      refreshToken: string;
+    };
+  };
+}
+
+/** List of user permissions. */
 export interface UserPermissions {
-  [name: string]: number;
+  [name: string]: number; // TODO 0 | 1  ? boolean ?
 }
 
 /**
@@ -52,7 +114,7 @@ export async function forEach<T>(
 
 /**
  * Isomorphic universally unique identifiers generator.
- * Inspired from mongodb's ObjectId implementation and Snowflake algorithm.
+ * Inspired from mongodb ObjectId implementation and Snowflake algorithm.
  * An id is a 12-byte value, constructed as follows:
  *  - A 4-byte timestamp
  *  - A 5-byte process-specific id
@@ -62,10 +124,10 @@ export class Id {
   /** Bytes mask. */
   protected mask = number;
 
-  /** Id's value. */
+  /** Id value. */
   protected value: Buffer;
 
-  /** Id's string representation. */
+  /** Id string representation. */
   protected id: string;
 
   /** Unique set of bytes, specific to current process. */
@@ -92,14 +154,14 @@ export class Id {
   /**
    * Class constructor.
    *
-   * @param value Id's string representation. If not defined, a new id will be generated.
+   * @param value Id string representation. If not defined, a new id will be generated.
    */
   constructor(value?: string);
 
   /**
-   * Returns id's string representation.
+   * Returns id string representation.
    *
-   * @returns Id's string representation.
+   * @returns Id string representation.
    */
   public toString(): string;
 }
