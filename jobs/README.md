@@ -1,6 +1,6 @@
 # @perseid/jobs
 
-🔄 Fast, scalable job scheduler, based on @perseid/server
+🔄 Fast, scalable job scheduler, based on `@perseid/server`
 
 
 ## Installation
