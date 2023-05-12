@@ -97,7 +97,7 @@ export interface User extends Ids, Version, Timestamps, Authors {
 
 /** List of user permissions. */
 export interface UserPermissions {
-  [name: string]: number; // TODO 0 | 1  ? boolean ?
+  [name: string]: boolean;
 }
 
 /**

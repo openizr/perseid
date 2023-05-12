@@ -61,7 +61,7 @@ export default class DatabaseClient extends BaseDatabaseClient<DataModel> {
     this.logger.debug('[DatabaseClient][getRunningTasks] Calling MongoDB aggregate method with pipeline:');
     this.logger.debug(pipeline);
     const response = await this.database.collection('tasks').aggregate<Task>(pipeline).toArray();
-    const formattedResults = response.map(this.formatOutput.bind(this)) as Task[];// TODO rm type.
+    const formattedResults = response.map(this.formatOutput<Task>);
     this.logger.debug('[DatabaseClient][getRunningTasks] Formatted results:');
     this.logger.debug(formattedResults);
     return formattedResults;
@@ -113,7 +113,7 @@ export default class DatabaseClient extends BaseDatabaseClient<DataModel> {
     this.logger.debug('[DatabaseClient][getCandidatePendingTasks] Calling MongoDB aggregate method with pipeline:');
     this.logger.debug(pipeline);
     const response = await this.database.collection('tasks').aggregate<Task>(pipeline).toArray();
-    const formattedResults = response.map(this.formatOutput.bind(this)) as Task[];// TODO rm type.
+    const formattedResults = response.map(this.formatOutput<Task>);
     this.logger.debug('[DatabaseClient][getCandidatePendingTasks] Formatted results:');
     this.logger.debug(formattedResults);
     return formattedResults;

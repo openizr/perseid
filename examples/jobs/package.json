@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@perseid/jobs": "file:../../../../jobs/dist",
-    "@perseid/server": "^0.0.55",
+    "@perseid/server": "^0.0.56",
     "axios": "^1.4.0"
   },
   "tsDevKitConfig": {

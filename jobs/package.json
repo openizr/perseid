@@ -58,8 +58,8 @@
   },
   "dependencies": {
     "@perseid/core": "^0.0.2",
-    "@perseid/server": "^0.0.55",
-    "mongodb": "^5.4.0",
+    "@perseid/server": "^0.0.56",
+    "mongodb": "^5.5.0",
     "pino": "^8.14.1",
     "pino-pretty": "^10.0.0"
   },
