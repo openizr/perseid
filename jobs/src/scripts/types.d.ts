@@ -83,19 +83,50 @@ export interface DataModel {
 }
 
 /**
+ * MongoDB database client.
+ */
+export class DatabaseClient extends BaseDatabaseClient<DataModel> {
+  /**
+   * Class constructor.
+   *
+   * @param logger Logging system to use.
+   *
+   * @param cache Cache client instance to use for results caching.
+   *
+   * @param settings Database client settings.
+   */
+  constructor(
+    logger: Logger,
+    cache: CacheClient,
+    settings: DatabaseClientSettings,
+  );
+
+  /**
+   * Fetches list of running tasks.
+   *
+   * @returns Running tasks list.
+   */
+  public async getRunningTasks(): Promise<Task[]>;
+
+  /**
+   * Fetches the list of pending tasks that are candidate for execution.
+   *
+   * @returns Pending tasks list.
+   */
+  public async getCandidatePendingTasks(): Promise<Task[]>;
+
+  /**
+   * Resets the whole underlying database, re-creating collections, indexes, and such.
+   */
+  public async reset(): Promise<void>;
+}
+
+/**
  * Job scheduler settings.
  */
 export interface JobSchedulerSettings {
-  logs: {
-    /** Path to the tasks logs directory. */
-    path: string;
-
-    /** Minimum logging level (all logs below that level won't be logs). */
-    logLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
-
-    /** Whether to pretty-print logs. */
-    prettyPrint: boolean;
-  };
+  /** Path to the tasks logs directory. */
+  logsPath: string;
 
   /** Amount of initially available slots for that scheduler to run jobs. */
   availableSlots: number;
@@ -108,8 +139,11 @@ export interface JobSchedulerSettings {
  * Handles tasks lifecycle.
  */
 export class JobScheduler extends Engine<DataModel, Model, DatabaseClient> {
-  /** Logger settings. */
-  protected loggerSettings: JobSchedulerSettings['logs'];
+  /** Job scheduler instance unique id. */
+  protected instanceId: Id;
+
+  /** Path to the tasks logs directory. */
+  protected logsPath: string;
 
   /** Bucket client. */
   protected bucketClient: BucketClient;
@@ -168,7 +202,7 @@ export class JobScheduler extends Engine<DataModel, Model, DatabaseClient> {
   /**
    * Processes tasks in progress.
    */
-  protected async processInProgressTasks(): Promise<void>;
+  protected async processRunningTasks(): Promise<void>;
 
   /**
    * Class constructor.
@@ -189,15 +223,25 @@ export class JobScheduler extends Engine<DataModel, Model, DatabaseClient> {
   );
 
   /**
+   * Runs the job passed as a command line argument to the script. This method is meant to be called
+   * in its own dedicated script, and should not be mixed up with `run`.
+   *
+   * @param jobs List of jobs to register.
+   *
+   * @param logsPath Path to the tasks logs directory.
+   *
+   * @param logsLevel Minimum logging level (all logs below that level won't be logs).
+   */
+  public static async runJob(
+    jobs: JobSchedulerSettings['jobs'],
+    logsPath: string,
+    logsLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
+  ): Promise<void>;
+
+  /**
    * Executes job scheduler.
    */
   public async run(): Promise<void>;
-
-  /**
-   * Runs the job passed as a command line argument to the script. This method is meant to be called
-   * in its own dedicated script, and should not be mixed up with `run`.
-   */
-  public async runJob(): Promise<void>;
 
   /**
    * Creates a new resource into `collection`.
@@ -218,43 +262,4 @@ export class JobScheduler extends Engine<DataModel, Model, DatabaseClient> {
     options: CommandOptions,
     context: CommandContext,
   ): Promise<DataModel[U]>;
-}
-
-/**
- * MongoDB database client.
- */
-export class DatabaseClient extends BaseDatabaseClient<DataModel> {
-  /**
-   * Class constructor.
-   *
-   * @param logger Logging system to use.
-   *
-   * @param cache Cache client instance to use for results caching.
-   *
-   * @param settings Database client settings.
-   */
-  constructor(
-    logger: Logger,
-    cache: CacheClient,
-    settings: DatabaseClientSettings,
-  );
-
-  /**
-   * Fetches list of running tasks.
-   *
-   * @returns Running tasks list.
-   */
-  public async getRunningTasks(): Promise<Task[]>;
-
-  /**
-   * Fetches the list of pending tasks that are candidate for execution.
-   *
-   * @returns Pending tasks list.
-   */
-  public async getCandidatePendingTasks(): Promise<Task[]>;
-
-  /**
-   * Resets the whole underlying database, re-creating collections, indexes, and such.
-   */
-  public async reset(): Promise<void>;
 }

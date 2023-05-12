@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "main": "./main.js",
+  "main": "./init.js",
   "license": "UNLICENSED",
   "devDependencies": {
     "typescript-dev-kit": "^6.0.7"
@@ -14,6 +14,7 @@
     "target": "node",
     "entries": {
       "main": "./scripts/main.ts",
+      "init": "./scripts/init.ts",
       "runJob": "./scripts/runJob.ts"
     },
     "srcPath": "src",

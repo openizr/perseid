@@ -6,13 +6,15 @@ This monorepo contains the following packages:
 - [@perseid/core](https://github.com/openizr/perseid/tree/main/core)
 - [@perseid/jobs](https://github.com/openizr/perseid/tree/main/jobs)
 
+
 ## Table of Contents
 
 1. [Installation](#Installation)
-5. [Contributing](#Contributing)
-6. [Sponsor](#Sponsor)
-7. [Maintainers](#Maintainers)
-8. [License](#License)
+2. [Documentation](#Documentation)
+3. [Contributing](#Contributing)
+4. [Sponsor](#Sponsor)
+5. [Maintainers](#Maintainers)
+6. [License](#License)
 
 
 ## Installation
@@ -34,6 +36,11 @@ For a job scheduler:
 ```bash
 yarn add @perseid/jobs
 ```
+
+
+## Documentation
+
+The complete documentation is available [here](https://openizr.gitbook.io/perseid).
 
 
 ## Contributing

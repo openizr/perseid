@@ -90,11 +90,7 @@ describe('services/JobScheduler', () => {
     delete process.env.FS_ERROR;
     jobScheduler = new JobScheduler(logger, databaseClient, bucketClient, {
       availableSlots: 1024,
-      logs: {
-        path: '/logs/',
-        logLevel: 'info',
-        prettyPrint: true,
-      },
+      logsPath: '/logs/',
       jobs: { test: jobScript },
     });
   });
@@ -264,6 +260,33 @@ describe('services/JobScheduler', () => {
     });
   });
 
+  test('[runJob] no error', async () => {
+    Object.assign(process, { argv: [null, null, 'test', '632cdbdf71bc1db513a0c8e5'] });
+    vi.spyOn(process, 'exit').mockImplementation((code: number | undefined) => code as unknown as never);
+    vi.clearAllMocks();
+    const NewJobScheduler = (await import('scripts/services/JobScheduler')).default;
+    await NewJobScheduler.runJob({ test: jobScript }, '/logs/', 'info');
+    expect(logger.waitForReady).toHaveBeenCalledTimes(1);
+    expect(jobScript).toHaveBeenCalledTimes(1);
+    expect(jobScript).toHaveBeenCalledWith('632cdbdf71bc1db513a0c8e5', {}, expect.any(Logger));
+    expect(logger.close).toHaveBeenCalledTimes(1);
+    expect(Profiler.formatMetrics).toHaveBeenCalledTimes(1);
+    expect(process.exit).toHaveBeenCalledWith(0);
+  });
+
+  test('[runJob] job error', async () => {
+    Object.assign(process, { argv: [null, null, 'unknown', '632cdbdf71bc1db513a0c8e5'] });
+    vi.spyOn(process, 'exit').mockImplementation((code: number | undefined) => code as unknown as never);
+    vi.clearAllMocks();
+    const NewJobScheduler = (await import('scripts/services/JobScheduler')).default;
+    await NewJobScheduler.runJob({ test: jobScript }, '/logs/', 'info');
+    expect(logger.waitForReady).toHaveBeenCalledTimes(1);
+    expect(jobScript).not.toHaveBeenCalled();
+    expect(logger.close).toHaveBeenCalledTimes(1);
+    expect(Profiler.formatMetrics).not.toHaveBeenCalled();
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
   test('[run]', async () => {
     process.env.NO_TASK = 'true';
     const processPendingTasks = vi.fn();
@@ -375,51 +398,6 @@ describe('services/JobScheduler', () => {
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalledWith('[JobScheduler][processRunningTasks] Task with id "626adcd0bfffbd0fec9e1470" canceled itself.');
     expect(closeTask.mock.calls).toMatchSnapshot();
-  });
-
-  test('[runJob] no error', async () => {
-    Object.assign(process, { argv: [null, null, 'test', '632cdbdf71bc1db513a0c8e5'] });
-    vi.spyOn(process, 'exit').mockImplementation((code: number | undefined) => code as unknown as never);
-    vi.clearAllMocks();
-    const NewJobScheduler = (await import('scripts/services/JobScheduler')).default;
-    const newJobScheduler = new NewJobScheduler(logger, databaseClient, bucketClient, {
-      availableSlots: 1024,
-      logs: {
-        path: '/logs/',
-        logLevel: 'info',
-        prettyPrint: true,
-      },
-      jobs: { test: jobScript },
-    });
-    await newJobScheduler.runJob();
-    expect(logger.waitForReady).toHaveBeenCalledTimes(1);
-    expect(jobScript).toHaveBeenCalledTimes(1);
-    expect(jobScript).toHaveBeenCalledWith('632cdbdf71bc1db513a0c8e5', {}, expect.any(Logger));
-    expect(logger.close).toHaveBeenCalledTimes(1);
-    expect(Profiler.formatMetrics).toHaveBeenCalledTimes(1);
-    expect(process.exit).toHaveBeenCalledWith(0);
-  });
-
-  test('[runJob] job error', async () => {
-    Object.assign(process, { argv: [null, null, 'unknown', '632cdbdf71bc1db513a0c8e5'] });
-    vi.spyOn(process, 'exit').mockImplementation((code: number | undefined) => code as unknown as never);
-    vi.clearAllMocks();
-    const NewJobScheduler = (await import('scripts/services/JobScheduler')).default;
-    const newJobScheduler = new NewJobScheduler(logger, databaseClient, bucketClient, {
-      availableSlots: 1024,
-      logs: {
-        path: '/logs/',
-        logLevel: 'info',
-        prettyPrint: true,
-      },
-      jobs: { test: jobScript },
-    });
-    await newJobScheduler.runJob();
-    expect(logger.waitForReady).toHaveBeenCalledTimes(1);
-    expect(jobScript).not.toHaveBeenCalled();
-    expect(logger.close).toHaveBeenCalledTimes(1);
-    expect(Profiler.formatMetrics).not.toHaveBeenCalled();
-    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   test('[create] tasks', async () => {

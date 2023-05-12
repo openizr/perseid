@@ -1,19 +1,10 @@
 import testJob from 'scripts/testJob';
+import { JobScheduler, DatabaseClient } from '@perseid/jobs';
 import { CacheClient, Logger, BucketClient } from '@perseid/server';
-import { JobScheduler, DatabaseClient, JobSchedulerSettings } from '@perseid/jobs';
 
 
 const logger = new Logger({ logLevel: 'info', prettyPrint: true });
 const bucketClient = new BucketClient(logger);
-const configuration: JobSchedulerSettings = {
-  jobs: { testJob },
-  availableSlots: 512,
-  logs: {
-    path: '/var/www/html/jobs/dist/',
-    prettyPrint: true,
-    logLevel: 'info',
-  }
-};
 
 const databaseClient = new DatabaseClient(logger, new CacheClient(), {
   host: 'mongodb',
@@ -29,26 +20,18 @@ const databaseClient = new DatabaseClient(logger, new CacheClient(), {
   queueLimit: 0,
 });
 
-const jobSchedulerOne = new JobScheduler(logger, databaseClient, bucketClient, configuration);
-const jobSchedulerTwo = new JobScheduler(logger, databaseClient, bucketClient, configuration);
+const jobScheduler = new JobScheduler(logger, databaseClient, bucketClient, {
+  jobs: { testJob },
+  availableSlots: 512,
+  logsPath: '/var/www/html/jobs/dist/',
+});
+// If you want to test load balancing...
+// const jobSchedulerTwo = new JobScheduler(logger, databaseClient, bucketClient, {
+//   jobs: { testJob },
+//   availableSlots: 512,
+//   logsPath: '/var/www/html/jobs/dist/',
+// });
 
-async function main() {
-  await databaseClient.reset();
-  const job = await jobSchedulerOne.create('jobs', {
-    maximumExecutionTime: 10,
-    requiredSlots: 256,
-    scriptPath: '/var/www/html/jobs/dist/runJob.js testJob'
-  }, {}, {});
-  await jobSchedulerOne.create('tasks', {
-    job: job._id,
-    metaData: '{}',
-    startAt: new Date(),
-    recurrence: 10,
-    startAfter: null,
-  }, {}, {});
+jobScheduler.run();
+// jobSchedulerTwo.run();
 
-  jobSchedulerOne.run();
-  jobSchedulerTwo.run();
-}
-
-main();

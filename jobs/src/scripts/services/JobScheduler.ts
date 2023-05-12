@@ -6,8 +6,6 @@
  *
  */
 
-/* eslint-disable */
-
 import {
   Engine,
   Logger,
@@ -29,16 +27,8 @@ import type DatabaseClient from 'scripts/services/DatabaseClient';
  * Job scheduler settings.
  */
 export interface JobSchedulerSettings {
-  logs: {
-    /** Path to the tasks logs directory. */
-    path: string;
-
-    /** Minimum logging level (all logs below that level won't be logs). */
-    logLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
-
-    /** Whether to pretty-print logs. */
-    prettyPrint: boolean;
-  };
+  /** Path to the tasks logs directory. */
+  logsPath: string;
 
   /** Amount of initially available slots for that scheduler to run jobs. */
   availableSlots: number;
@@ -54,8 +44,8 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
   /** Job scheduler instance unique id. */
   protected instanceId: Id;
 
-  /** Logger settings. */
-  protected loggerSettings: JobSchedulerSettings['logs'];
+  /** Path to the tasks logs directory. */
+  protected logsPath: string;
 
   /** Bucket client. */
   protected bucketClient: BucketClient;
@@ -143,7 +133,7 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
    */
   protected async uploadLogs(task: Task): Promise<void> {
     try {
-      const filePath = `${this.loggerSettings.path}${task._id}.log`;
+      const filePath = `${this.logsPath}${task._id}.log`;
       await this.bucketClient.upload('text/x-log', `logs/${task._id}.log`, createReadStream(filePath));
       await fs.unlink(filePath);
     } catch (error) {
@@ -205,7 +195,7 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
     // re-scheduling the same periodic task.
     const taskWasUpdated = await this.databaseClient.exclusiveUpdate('tasks', {
       _status: 'IN_PROGRESS',
-      _id: task._id
+      _id: task._id,
     }, {
       _status: status,
       _endedAt: new Date(),
@@ -337,8 +327,49 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
     this.jobs = settings.jobs;
     this.instanceId = new Id();
     this.bucketClient = bucketClient;
-    this.loggerSettings = settings.logs;
+    this.logsPath = settings.logsPath;
     this.availableSlots = settings.availableSlots;
+  }
+
+  /**
+   * Runs the job passed as a command line argument to the script. This method is meant to be called
+   * in its own dedicated script, and should not be mixed up with `run`.
+   *
+   * @param jobs List of jobs to register.
+   *
+   * @param logsPath Path to the tasks logs directory.
+   *
+   * @param logsLevel Minimum logging level (all logs below that level won't be logs).
+   */
+  public static async runJob(
+    jobs: JobSchedulerSettings['jobs'],
+    logsPath: string,
+    logsLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
+  ): Promise<void> {
+    const jobId = workerData?.jobId ?? process.argv[2];
+    const taskId = workerData?.id ?? process.argv[3];
+    const metaData = JSON.parse(workerData?.metaData ?? process.argv[4] ?? '{}');
+    const profiler = new Profiler();
+    const logger = new Logger({
+      prettyPrint: false,
+      logLevel: logsLevel,
+      destination: pino.destination(`${logsPath}${taskId}.log`),
+    });
+    await logger.waitForReady();
+    try {
+      profiler.reset();
+      if (typeof jobs[jobId] !== 'function') {
+        throw new Error(`Job with id "${jobId}" does not exist.`);
+      }
+      await jobs[jobId](taskId, metaData, logger);
+      logger.info(Profiler.formatMetrics(profiler.getMetrics()));
+      logger.close();
+      process.exit(0);
+    } catch (error) {
+      logger.error(error);
+      logger.close();
+      process.exit(1);
+    }
   }
 
   /**
@@ -349,36 +380,6 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
     await this.processPendingTasks();
     await this.processRunningTasks();
     setTimeout(this.run.bind(this), 5000);
-  }
-
-  /**
-   * Runs the job passed as a command line argument to the script. This method is meant to be called
-   * in its own dedicated script, and should not be mixed up with `run`.
-   */
-  public async runJob(): Promise<void> {
-    const jobId = workerData?.jobId ?? process.argv[2];
-    const taskId = workerData?.id ?? process.argv[3];
-    const metaData = JSON.parse(workerData?.metaData ?? process.argv[4] ?? '{}');
-    const profiler = new Profiler();
-    const logger = new Logger({
-      ...this.loggerSettings,
-      destination: pino.destination(`${this.loggerSettings.path}${taskId}.log`),
-    });
-    await logger.waitForReady();
-    try {
-      profiler.reset();
-      if (typeof this.jobs[jobId] !== 'function') {
-        throw new Error(`Job with id "${jobId}" does not exist.`);
-      }
-      await this.jobs[jobId](taskId, metaData, logger);
-      logger.info(Profiler.formatMetrics(profiler.getMetrics()));
-      logger.close();
-      process.exit(0);
-    } catch (error) {
-      logger.error(error);
-      logger.close();
-      process.exit(1);
-    }
   }
 
   /**
