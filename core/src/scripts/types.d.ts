@@ -49,11 +49,11 @@ export interface Role extends Ids, Version, Timestamps, Authors {
 
   /** List of permissions.
    * Each key is a permission name, and its related value is:
-   *  - `1` if permission is granted
-   *  - `0` otherwise
+   *  - `true` if permission is granted
+   *  - `false` otherwise
    */
   permissions: {
-    [name: string]: number;
+    [name: string]: boolean;
   },
 }
 

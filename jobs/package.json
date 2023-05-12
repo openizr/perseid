@@ -1,6 +1,6 @@
 {
   "name": "@perseid/jobs",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",
@@ -57,7 +57,7 @@
     ]
   },
   "dependencies": {
-    "@perseid/core": "^0.0.2",
+    "@perseid/core": "^0.0.3",
     "@perseid/server": "^0.0.56",
     "mongodb": "^5.5.0",
     "pino": "^8.14.1",

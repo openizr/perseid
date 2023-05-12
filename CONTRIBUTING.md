@@ -159,8 +159,10 @@ To technically contribute to this project, here are the software you will need:
 2. `cd perseid`
 3. `cp .env.example .env`
 4. Fill or change environment variables in your `.env` file if necessary
-5. `docker-compose up`
-6. `docker exec -it <PROJECT_NAME>_library sh -c "yarn run test -w"` if you want to run unit tests
+5. `docker-compose --profile core up` to run `@perseid/core` related containers
+5. `docker-compose --profile jobs up` to run `@perseid/jobs` related containers
+5. `docker-compose --profile all up` to run all containers
+6. `docker exec -it <PROJECT_NAME>_<jobs|core> sh -c "yarn run test -w"` if you want to run unit tests
 7. `docker exec -it <PROJECT_NAME>_examples sh -c "yarn && yarn run dev"` if you want to run examples
 
 This will run the project locally and allow you to develop and see changes in real-time.

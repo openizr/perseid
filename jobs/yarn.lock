@@ -521,6 +521,11 @@
   resolved "https://registry.yarnpkg.com/@perseid/core/-/core-0.0.2.tgz#931523568e0e83741c958855912bd597fa719228"
   integrity sha512-n8/1+OA6UfxjmxSrUUfjbi1tG9c2RrnnE9f+Ll7SROAyb1tv6MSuQDyXUh9WqRUpok6q/6yiaSW2Nxc3urRDkA==
 
+"@perseid/core@^0.0.3":
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/@perseid/core/-/core-0.0.3.tgz#2d4f92989a5a2274ea2158f8953db5e049abe430"
+  integrity sha512-HSNRhRotA5lo7L2qoaA0qFiaWImJAqNF+FTlW7jUODgLTkWSbXE1+XQAwCZcTBaENaGo66epHkcQmRb1Pe39Zw==
+
 "@perseid/server@^0.0.56":
   version "0.0.56"
   resolved "https://registry.yarnpkg.com/@perseid/server/-/server-0.0.56.tgz#c6fa8e7485578e5606e855ca13422d8aad163234"
