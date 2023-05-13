@@ -230,12 +230,12 @@ export class JobScheduler extends Engine<DataModel, Model, DatabaseClient> {
    *
    * @param logsPath Path to the tasks logs directory.
    *
-   * @param logsLevel Minimum logging level (all logs below that level won't be logs).
+   * @param logLevel Minimum logging level (all logs below that level won't be logs).
    */
   public static async runJob(
     jobs: JobSchedulerSettings['jobs'],
     logsPath: string,
-    logsLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
+    logLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
   ): Promise<void>;
 
   /**

@@ -7,10 +7,12 @@
  */
 
 import { CacheClient, Logger } from '@perseid/server';
-import { Db } from 'mongodb';
 import DatabaseClient from 'scripts/services/DatabaseClient';
 
-type TestDatabase = DatabaseClient & { database: Db; handleConnection: unknown; };
+type TestDatabase = DatabaseClient & {
+  database: DatabaseClient['database'];
+  handleConnection: unknown;
+};
 
 describe('services/DatabaseClient', () => {
   vi.mock('@perseid/server');

@@ -42,19 +42,23 @@ export interface Version {
   _version: number;
 }
 
+/** List of user permissions. */
+export interface UserPermissions {
+  [name: string]: boolean;
+}
+
 /** Set of permissions, grouped for a specific purpose. */
 export interface Role extends Ids, Version, Timestamps, Authors {
   /** Role name. */
   name: string;
 
-  /** List of permissions.
+  /**
+   * List of permissions.
    * Each key is a permission name, and its related value is:
    *  - `true` if permission is granted
    *  - `false` otherwise
    */
-  permissions: {
-    [name: string]: boolean;
-  },
+  permissions: UserPermissions;
 }
 
 /** User. */
@@ -95,9 +99,12 @@ export interface User extends Ids, Version, Timestamps, Authors {
   };
 }
 
-/** List of user permissions. */
-export interface UserPermissions {
-  [name: string]: boolean;
+/**
+ * Default perseid data model.
+ */
+export interface DataModel {
+  users: User;
+  roles: Role;
 }
 
 /**
@@ -180,7 +187,7 @@ export abstract class Logger {
 
   /**
    * Generally useful information to log (service start/stop, configuration assumptions, etc).
-   * Info I want to always have available but usually don't care about under normal circumstances.
+   * Info we want to always have available but usually don't care about under normal circumstances.
    * This should be the minimum logging level in (pre)production.
    */
   public abstract info(...args: unknown[]): void;

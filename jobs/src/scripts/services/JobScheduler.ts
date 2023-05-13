@@ -339,20 +339,20 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
    *
    * @param logsPath Path to the tasks logs directory.
    *
-   * @param logsLevel Minimum logging level (all logs below that level won't be logs).
+   * @param logLevel Minimum logging level (all logs below that level won't be logs).
    */
   public static async runJob(
     jobs: JobSchedulerSettings['jobs'],
     logsPath: string,
-    logsLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
+    logLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
   ): Promise<void> {
     const jobId = workerData?.jobId ?? process.argv[2];
     const taskId = workerData?.id ?? process.argv[3];
     const metaData = JSON.parse(workerData?.metaData ?? process.argv[4] ?? '{}');
     const profiler = new Profiler();
     const logger = new Logger({
+      logLevel,
       prettyPrint: false,
-      logLevel: logsLevel,
       destination: pino.destination(`${logsPath}${taskId}.log`),
     });
     await logger.waitForReady();

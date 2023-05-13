@@ -20,7 +20,7 @@ export default abstract class Logger {
 
   /**
    * Generally useful information to log (service start/stop, configuration assumptions, etc).
-   * Info I want to always have available but usually don't care about under normal circumstances.
+   * Info we want to always have available but usually don't care about under normal circumstances.
    * This should be the minimum logging level in (pre)production.
    */
   public abstract info(...args: unknown[]): void;

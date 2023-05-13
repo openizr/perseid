@@ -1,6 +1,6 @@
 {
   "name": "@perseid/jobs",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",
@@ -57,11 +57,9 @@
     ]
   },
   "dependencies": {
-    "@perseid/core": "^0.0.3",
-    "@perseid/server": "^0.0.56",
-    "mongodb": "^5.5.0",
-    "pino": "^8.14.1",
-    "pino-pretty": "^10.0.0"
+    "@perseid/core": "^0.0.5",
+    "@perseid/server": "^0.0.62",
+    "pino": "^8.14.1"
   },
   "tsDevKitConfig": {
     "target": "node",

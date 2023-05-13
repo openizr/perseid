@@ -6,7 +6,7 @@
 ## Installation
 
 ```bash
-yarn add @perseid/server @perseid/jobs
+yarn add @perseid/jobs
 ```
 
 
