@@ -530,10 +530,10 @@
   resolved "https://registry.yarnpkg.com/@perseid/core/-/core-0.0.5.tgz#013a523fef314a44d681b25675e5b04d0872456f"
   integrity sha512-cKVWgWw2FjtKzrS1WmtaZLK73YuwhMtWthLz6Npq0+KFDL088FeVp2OQMkr/JcCj7LMrHk6ubarVXUf14ACnqg==
 
-"@perseid/server@^0.0.62":
-  version "0.0.62"
-  resolved "https://registry.yarnpkg.com/@perseid/server/-/server-0.0.62.tgz#e8b64ecd6b079ea52c9930daffd4728980beb0e9"
-  integrity sha512-FMXh9BMbivytZVtfspio2gBPngrFNytL48oY9T/mn8enLenwsjda8lzc7V6MP6r0XLAHdSnAhjZrR6+lCVg95Q==
+"@perseid/server@^0.0.64":
+  version "0.0.64"
+  resolved "https://registry.yarnpkg.com/@perseid/server/-/server-0.0.64.tgz#db8f37afbd88daf88ab3fe095ba6aa9a3b081c9f"
+  integrity sha512-9oRxDujEkwRGkQ/RLiHP3v6YEg8FT0xKOMXHEeLzqWoaPc87iaRg+AKJi2yeUUHqX2Lus2Pa2KbcQaOdnYQvdQ==
   dependencies:
     "@perseid/core" "^0.0.5"
     add "^2.0.6"
