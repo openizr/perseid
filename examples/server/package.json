@@ -6,15 +6,16 @@
     "typescript-dev-kit": "^6.0.7"
   },
   "dependencies": {
-    "@perseid/jobs": "file:../../../../jobs/dist",
-    "@perseid/server": "^0.0.56"
+    "@perseid/core": "^0.0.5",
+    "@perseid/server": "file:../../../../server/dist",
+    "fastify": "^4.17.0"
   },
   "tsDevKitConfig": {
     "target": "node",
     "entries": {
       "main": "./scripts/main.ts",
       "init": "./scripts/init.ts",
-      "runJob": "./scripts/runJob.ts"
+      "repl": "./scripts/repl.ts"
     },
     "srcPath": "src",
     "distPath": "dist",
@@ -22,6 +23,7 @@
     "splitChunks": false
   },
   "scripts": {
+    "repl": "node --enable-source-maps dist/repl.js",
     "test": "cd node_modules/typescript-dev-kit/ && scripts/test",
     "dev": "cd node_modules/typescript-dev-kit/ && node scripts/dev",
     "build": "cd node_modules/typescript-dev-kit/ && node scripts/build",

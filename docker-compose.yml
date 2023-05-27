@@ -33,6 +33,21 @@ services:
       - all
       - jobs
 
+  server:
+    tty: true
+    user: node:node
+    image: openizr/node:5.0.0-dev
+    container_name: ${PROJECT_NAME}_server
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./server:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    profiles:
+      - all
+      - server
+
   examples:
     tty: true
     user: node:node
@@ -42,11 +57,13 @@ services:
       - .env
     command: sh -c "
       dsync /jobs/dist/ node_modules/@perseid/jobs/ &
+      dsync /server/dist/ node_modules/@perseid/server/ &
       dsync /core/dist/ node_modules/@perseid/core/"
     working_dir: /var/www/html/${EXAMPLES_PROJECT}
     volumes:
       - ./jobs:/jobs
       - ./core:/core
+      - ./server:/server
       - ./examples:/var/www/html
       - ~/.cache/yarn:/home/node/.cache/yarn
     ports:
@@ -57,12 +74,14 @@ services:
       - all
       - jobs
       - core
+      - server
 
   mongodb:
     tty: true
     image: mongo:6.0.5
     container_name: ${PROJECT_NAME}_mongodb
-
+    ports:
+      - "${HOST_IP}:27018:27017"
 
 # For people that use a VPN
 networks:

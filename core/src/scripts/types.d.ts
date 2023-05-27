@@ -52,13 +52,8 @@ export interface Role extends Ids, Version, Timestamps, Authors {
   /** Role name. */
   name: string;
 
-  /**
-   * List of permissions.
-   * Each key is a permission name, and its related value is:
-   *  - `true` if permission is granted
-   *  - `false` otherwise
-   */
-  permissions: UserPermissions;
+  /** List of permissions granted by this role. */
+  permissions: string[];
 }
 
 /** User. */
@@ -72,12 +67,6 @@ export interface User extends Ids, Version, Timestamps, Authors {
   /** User email. */
   email: string;
 
-  /** User first name. */
-  firstName: string;
-
-  /** User last name. */
-  lastName: string;
-
   /** User password. */
   password: string;
 
@@ -86,17 +75,18 @@ export interface User extends Ids, Version, Timestamps, Authors {
 
   /** List of user devices. */
   _devices: {
-    [deviceId: string]: {
-      /** Deivce user agent. */
-      userAgent: string;
+    /** Device id. */
+    id: string;
 
-      /** Refresh token expiration. */
-      expiration: string;
+    /** Device user agent. */
+    userAgent: string;
 
-      /** Refresh token to use for that device. */
-      refreshToken: string;
-    };
-  };
+    /** Refresh token expiration. */
+    expiration: string;
+
+    /** Refresh token to use for that device. */
+    refreshToken: string;
+  }[];
 }
 
 /**
@@ -114,7 +104,7 @@ export interface DataModel {
  *
  * @param callback Asynchronous function to execute for each item.
  */
-export async function forEach<T>(
+export function forEach<T>(
   items: T[],
   callback: (item: T, index: number) => Promise<void>,
 ): Promise<void>;
@@ -129,7 +119,7 @@ export async function forEach<T>(
  */
 export class Id {
   /** Bytes mask. */
-  protected mask = number;
+  protected mask: number;
 
   /** Id value. */
   protected value: Buffer;

@@ -93,7 +93,7 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
         const nextStartAt = new Date(startAt + executionsToSkip * recurrenceInMilliseconds);
 
         await this.databaseClient.create('tasks', {
-          _runBy: null,
+          // _runBy: null,
           _endedAt: null,
           _startedAt: null,
           _parent: task._id,
@@ -110,7 +110,7 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
           filters: { _parent: task.startAfter },
         });
         await this.databaseClient.create('tasks', {
-          _runBy: null,
+          // _runBy: null,
           _endedAt: null,
           _startedAt: null,
           _parent: task._id,
@@ -273,35 +273,32 @@ export default class JobScheduler extends Engine<DataModel, Model, DatabaseClien
         if (startedAt.getTime() + (job.maximumExecutionTime * 1000) < now) {
           this.logger.error(`[JobScheduler][processRunningTasks] Task with id "${task._id}" timed out.`);
           this.tasksRegistry[`${task._id}`].worker.terminate();
-          return this.closeTask(task, 'FAILED');
+          await this.closeTask(task, 'FAILED');
         }
 
         // Task exited with an error...
         if (this.tasksRegistry[`${task._id}`]._status === 'FAILED') {
           this.logger.error(`[JobScheduler][processRunningTasks] Task with id "${task._id}" failed.`);
-          return this.closeTask(task, 'FAILED');
+          await this.closeTask(task, 'FAILED');
         }
 
         // Task canceled itself...
         if (this.tasksRegistry[`${task._id}`]._status === 'CANCELED') {
           this.logger.warn(`[JobScheduler][processRunningTasks] Task with id "${task._id}" canceled itself.`);
-          return this.closeTask(task, 'CANCELED');
+          await this.closeTask(task, 'CANCELED');
         }
 
         // Task successfully ended...
         if (this.tasksRegistry[`${task._id}`]._status === 'COMPLETED') {
           this.logger.info(`[JobScheduler][processRunningTasks] Task with id "${task._id}" successfully ended.`);
-          return this.closeTask(task, 'COMPLETED');
+          await this.closeTask(task, 'COMPLETED');
         }
       }
 
       // Task related job scheduler crashed...
       if ((startedAt.getTime() + ((job.maximumExecutionTime + 60) * 1000)) < now) {
-        return this.closeTask(task, 'FAILED');
+        await this.closeTask(task, 'FAILED');
       }
-
-      // Task is still running or is not run by this job scheduler...
-      return Promise.resolve();
     });
   }
 

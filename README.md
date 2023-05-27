@@ -5,6 +5,7 @@
 This monorepo contains the following packages:
 - [@perseid/core](https://github.com/openizr/perseid/tree/main/core)
 - [@perseid/jobs](https://github.com/openizr/perseid/tree/main/jobs)
+- [@perseid/server](https://github.com/openizr/perseid/tree/main/server)
 
 
 ## Table of Contents
@@ -28,7 +29,7 @@ yarn add @perseid/server
 For a front-end project:
 
 ```bash
-yarn add @perseid/server
+yarn add @perseid/client
 ```
 
 For a job scheduler:
