@@ -7,13 +7,8 @@
  */
 
 /**
- * `services/CacheClient` mock.
+ * `@perseid/core` mock.
  */
 
-export default class {
-  public set = vi.fn();
-
-  public get = vi.fn(() => 'test');
-
-  public delete = vi.fn();
-}
+export const Id = String;
+export const test = true;

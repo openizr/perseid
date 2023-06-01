@@ -1,0 +1,549 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`services/DatabaseClient > [createSchema] 1`] = `
+{
+  "$jsonSchema": {
+    "additionalProperties": false,
+    "bsonType": [
+      "object",
+      "null",
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": [
+          "objectId",
+          "null",
+        ],
+      },
+      "arrayFive": {
+        "bsonType": [
+          "array",
+          "null",
+        ],
+        "items": {
+          "additionalProperties": false,
+          "bsonType": [
+            "object",
+            "null",
+          ],
+          "properties": {
+            "fieldOne": {
+              "bsonType": [
+                "string",
+                "null",
+              ],
+            },
+          },
+          "required": [
+            "fieldOne",
+          ],
+        },
+      },
+      "arrayFour": {
+        "bsonType": [
+          "array",
+          "null",
+        ],
+        "items": {
+          "bsonType": [
+            "string",
+            "null",
+          ],
+        },
+      },
+      "arrayOne": {
+        "bsonType": [
+          "array",
+          "null",
+        ],
+        "items": {
+          "additionalProperties": false,
+          "bsonType": [
+            "object",
+            "null",
+          ],
+          "properties": {
+            "dynamicObject": {
+              "additionalProperties": false,
+              "bsonType": [
+                "object",
+                "null",
+              ],
+              "patternProperties": {
+                "^special(.*)$": {
+                  "bsonType": [
+                    "objectId",
+                    "null",
+                  ],
+                },
+                "^testOne$": {
+                  "bsonType": [
+                    "objectId",
+                    "null",
+                  ],
+                },
+                "^testTwo$": {
+                  "bsonType": [
+                    "objectId",
+                    "null",
+                  ],
+                },
+              },
+            },
+            "object": {
+              "additionalProperties": false,
+              "bsonType": [
+                "object",
+                "null",
+              ],
+              "properties": {
+                "fieldOne": {
+                  "bsonType": [
+                    "string",
+                    "null",
+                  ],
+                },
+              },
+              "required": [
+                "fieldOne",
+              ],
+            },
+          },
+          "required": [
+            "dynamicObject",
+            "object",
+          ],
+        },
+      },
+      "arrayThree": {
+        "bsonType": [
+          "array",
+          "null",
+        ],
+        "items": {
+          "bsonType": [
+            "objectId",
+            "null",
+          ],
+        },
+      },
+      "arrayTwo": {
+        "bsonType": [
+          "array",
+          "null",
+        ],
+        "items": {
+          "bsonType": [
+            "objectId",
+            "null",
+          ],
+        },
+      },
+      "dynamicOne": {
+        "additionalProperties": false,
+        "bsonType": [
+          "object",
+          "null",
+        ],
+        "patternProperties": {
+          "^special(.*)$": {
+            "bsonType": [
+              "objectId",
+              "null",
+            ],
+          },
+          "^testOne$": {
+            "bsonType": [
+              "objectId",
+              "null",
+            ],
+          },
+          "^testThree$": {
+            "additionalProperties": false,
+            "bsonType": [
+              "object",
+              "null",
+            ],
+            "properties": {
+              "test": {
+                "bsonType": [
+                  "string",
+                  "null",
+                ],
+              },
+            },
+            "required": [
+              "test",
+            ],
+          },
+          "^testTwo$": {
+            "bsonType": [
+              "objectId",
+              "null",
+            ],
+          },
+        },
+      },
+      "dynamicTwo": {
+        "additionalProperties": false,
+        "bsonType": [
+          "object",
+          "null",
+        ],
+        "patternProperties": {
+          "^testOne$": {
+            "bsonType": [
+              "objectId",
+              "null",
+            ],
+          },
+          "^testTwo$": {
+            "additionalProperties": false,
+            "bsonType": [
+              "object",
+              "null",
+            ],
+            "properties": {
+              "test": {
+                "bsonType": [
+                  "string",
+                  "null",
+                ],
+              },
+            },
+            "required": [
+              "test",
+            ],
+          },
+        },
+      },
+      "primitiveOne": {
+        "bsonType": [
+          "objectId",
+          "null",
+        ],
+      },
+      "primitiveThree": {
+        "bsonType": [
+          "string",
+          "null",
+        ],
+      },
+      "primitiveTwo": {
+        "bsonType": [
+          "binData",
+          "null",
+        ],
+      },
+    },
+    "required": [
+      "_id",
+      "primitiveOne",
+      "primitiveTwo",
+      "primitiveThree",
+      "arrayOne",
+      "arrayTwo",
+      "arrayThree",
+      "arrayFour",
+      "arrayFive",
+      "dynamicOne",
+      "dynamicTwo",
+    ],
+  },
+}
+`;
+
+exports[`services/DatabaseClient > [createSchema] 2`] = `
+{
+  "$jsonSchema": {
+    "additionalProperties": false,
+    "bsonType": [
+      "object",
+      "null",
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": [
+          "objectId",
+          "null",
+        ],
+      },
+      "array": {
+        "bsonType": [
+          "array",
+          "null",
+        ],
+        "items": {
+          "bsonType": [
+            "string",
+            "null",
+          ],
+        },
+        "maxItems": 10,
+        "minItems": 1,
+        "uniqueItems": true,
+      },
+      "boolean": {
+        "bsonType": [
+          "bool",
+          "null",
+        ],
+      },
+      "date": {
+        "bsonType": [
+          "date",
+          "null",
+        ],
+        "enum": [
+          "2023-01-01T00:00:00.000Z",
+          null,
+        ],
+      },
+      "dynamicObject": {
+        "additionalProperties": false,
+        "bsonType": [
+          "object",
+          "null",
+        ],
+        "maxProperties": 10,
+        "minProperties": 1,
+        "patternProperties": {
+          "test": {
+            "bsonType": [
+              "string",
+              "null",
+            ],
+          },
+        },
+      },
+      "enum": {
+        "bsonType": [
+          "string",
+          "null",
+        ],
+        "enum": [
+          "test",
+          null,
+        ],
+      },
+      "float": {
+        "bsonType": [
+          "int",
+          "double",
+          "null",
+        ],
+        "enum": [
+          1,
+          null,
+        ],
+        "exclusiveMaximum": true,
+        "exclusiveMinimum": true,
+        "maximum": 10,
+        "minimum": 0,
+        "multipleOf": 2,
+      },
+      "id": {
+        "bsonType": [
+          "objectId",
+          "null",
+        ],
+        "enum": [
+          "6478a6c5392350aaced68cf9",
+          null,
+        ],
+      },
+      "integer": {
+        "bsonType": [
+          "int",
+          "null",
+        ],
+        "enum": [
+          1,
+          null,
+        ],
+        "exclusiveMaximum": true,
+        "exclusiveMinimum": true,
+        "maximum": 10,
+        "minimum": 0,
+        "multipleOf": 2,
+      },
+      "null": {
+        "bsonType": [
+          "null",
+        ],
+      },
+      "string": {
+        "bsonType": [
+          "string",
+          "null",
+        ],
+        "enum": [
+          "test",
+          null,
+        ],
+        "maxLength": 10,
+        "minLength": 1,
+        "pattern": "test",
+      },
+    },
+    "required": [
+      "float",
+      "integer",
+      "string",
+      "_id",
+      "null",
+      "boolean",
+      "enum",
+      "date",
+      "id",
+      "array",
+      "dynamicObject",
+    ],
+  },
+}
+`;
+
+exports[`services/DatabaseClient > [generateLookupsPipelineFrom] 1`] = `
+[
+  {
+    "$lookup": {
+      "as": "__arrayOne.dynamicObject.testOne",
+      "foreignField": "_id",
+      "from": "externalRelation",
+      "localField": "arrayOne.dynamicObject.testOne",
+    },
+  },
+  {
+    "$addFields": {
+      "arrayOne.dynamicObject": {
+        "$map": {
+          "in": {
+            "$mergeObjects": [
+              "$$this",
+              {
+                "testOne": {
+                  "$arrayElemAt": [
+                    "$__arrayOne.dynamicObject.testOne",
+                    {
+                      "$indexOfArray": [
+                        "$__arrayOne.dynamicObject.testOne._id",
+                        "$$this.testOne",
+                      ],
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+          "input": "$arrayOne.dynamicObject",
+        },
+      },
+    },
+  },
+  {
+    "$project": {
+      "__arrayOne": 0,
+    },
+  },
+  {
+    "$lookup": {
+      "as": "arrayTwo",
+      "foreignField": "_id",
+      "from": "externalRelation",
+      "localField": "arrayTwo",
+    },
+  },
+  {
+    "$lookup": {
+      "as": "dynamicOne.testOne",
+      "foreignField": "_id",
+      "from": "externalRelation",
+      "localField": "dynamicOne.testOne",
+      "pipeline": [
+        {
+          "$lookup": {
+            "as": "relations",
+            "foreignField": "_id",
+            "from": "otherExternalRelation",
+            "localField": "relations",
+          },
+        },
+      ],
+    },
+  },
+  {
+    "$addFields": {
+      "dynamicOne.testOne": {
+        "$arrayElemAt": [
+          "$dynamicOne.testOne",
+          0,
+        ],
+      },
+    },
+  },
+  {
+    "$lookup": {
+      "as": "dynamicOne.testTwo",
+      "foreignField": "_id",
+      "from": "otherExternalRelation",
+      "localField": "dynamicOne.testTwo",
+    },
+  },
+  {
+    "$addFields": {
+      "dynamicOne.testTwo": {
+        "$arrayElemAt": [
+          "$dynamicOne.testTwo",
+          0,
+        ],
+      },
+    },
+  },
+]
+`;
+
+exports[`services/DatabaseClient > [generateProjectionsFrom] valid fields 1`] = `
+{
+  "_id": 1,
+  "arrayFour": 1,
+  "arrayOne": {
+    "dynamicObject": {
+      "testOne": {
+        "_id": 1,
+      },
+    },
+    "object": {
+      "fieldOne": 1,
+    },
+  },
+  "arrayTwo": {
+    "_id": 1,
+  },
+  "dynamicOne": {
+    "specialTest": 1,
+    "specialTestThree": 1,
+    "specialTestTwo": {
+      "_id": 1,
+      "name": 1,
+    },
+    "testOne": {
+      "_id": 1,
+      "name": 1,
+      "relations": {
+        "_id": 1,
+        "type": 1,
+      },
+    },
+    "testThree": {
+      "test": 1,
+    },
+    "testTwo": {
+      "_id": 1,
+      "type": 1,
+    },
+  },
+  "dynamicTwo": 1,
+  "primitiveOne": 1,
+  "primitiveTwo": 1,
+}
+`;

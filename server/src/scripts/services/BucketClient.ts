@@ -36,6 +36,6 @@ export default class BucketClient {
    */
   public async upload(_type: string, path: string, body: Stream): Promise<void> {
     await new Promise((resolve) => { body.once('open', resolve); });
-    this.logger.warn(`[BucketClient][upload] "upload" method is not implemented - skipping file upload at ${path}...`);
+    this.logger.warn(`[BucketClient][upload] method is not implemented - skipping file upload at ${path}...`);
   }
 }

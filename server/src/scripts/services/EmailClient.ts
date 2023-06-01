@@ -6,44 +6,66 @@
  *
  */
 
-/**
- * Email options.
- */
-export interface EmailOptions {
-  /** List of recipients to send email to. */
-  to: string[];
-
-  /** Variables to inject in email template. */
-  variables: Record<string, unknown>;
-}
+import Logger from 'scripts/services/Logger';
 
 /**
- * Default email client.
+ * Handles emails sending.
  */
 export default class EmailClient {
-  /** Verification request email's content. */
-  private verifyEmailMessage = 'SENDING VERIFICATION EMAIL WITH OPTIONS';
-
-  /** User invite request email's content. */
-  private inviteEmailMessage = 'SENDING INVITE EMAIL WITH OPTIONS';
+  /** Logging system. */
+  protected logger: Logger;
 
   /**
-   * Sends a verification email with `options`.
+   * Class constructor.
    *
-   * @param options Email options.
+   * @param logger Logging system to use.
    */
-  public async sendVerifyEmail(options: EmailOptions): Promise<void> {
-    const { log } = console;
-    log(this.verifyEmailMessage, options);
+  constructor(logger: Logger) {
+    this.logger = logger;
   }
 
   /**
-   * Sends a user invite email with `options`.
+   * Sends a verification email to `to`.
    *
-   * @param options Email options.
+   * @param verificationUrl Verification URL to indicate in the email.
    */
-  public async sendInviteEmail(options: EmailOptions): Promise<void> {
-    const { log } = console;
-    log(this.inviteEmailMessage, options);
+  public async sendVerificationEmail(to: string, verificationUrl: string): Promise<void> {
+    this.logger.warn(
+      `[EmailClient][sendVerificationEmail] method is not implemented - skipping email sending to ${to} with:`,
+    );
+    this.logger.warn(verificationUrl);
+  }
+
+  /**
+   * Sends a password reset email to `to`.
+   *
+   * @param passwordResetUrl Password reset URL to indicate in the email.
+   */
+  public async sendPasswordResetEmail(to: string, passwordResetUrl: string): Promise<void> {
+    this.logger.warn(
+      `[EmailClient][sendPasswordResetEmail] method is not implemented - skipping email sending to ${to} with:`,
+    );
+    this.logger.warn(passwordResetUrl);
+  }
+
+  /**
+   * Sends a user invite email to `to`.
+   *
+   * @param to Recipient email address.
+   *
+   * @param signInUrl Sign-in URL to indicate in the email.
+   *
+   * @param temporaryPassword Temporary password to indicate in the email.
+   */
+  public async sendInviteEmail(
+    to: string,
+    signInUrl: string,
+    temporaryPassword: string,
+  ): Promise<void> {
+    this.logger.warn(
+      `[EmailClient][sendInviteEmail] method is not implemented - skipping email sending to ${to} with:`,
+    );
+    this.logger.warn(signInUrl);
+    this.logger.warn(temporaryPassword);
   }
 }

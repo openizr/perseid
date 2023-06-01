@@ -1,8 +1,3 @@
-/**
- * Copyright (c) Selfcity Inc.
- * All rights reserved.
- */
-
 import { REPLServer } from 'repl';
 import { Id } from '@perseid/core';
 import {
@@ -26,17 +21,15 @@ const repl = new (REPLServer as any)();
     return textEncoder.encode(value).buffer;
   };
 
+  const model = new Model(Model.DEFAULT_MODEL);
+
   const logger = new Logger({ logLevel: 'debug', prettyPrint: true });
 
+  const emailClient = new EmailClient(logger);
 
-  const model = new Model({
-    types: {},
-    collections: {},
+  const cacheClient = new CacheClient({
+    cachePath: '/var/www/html/server/node_modules/.cache'
   });
-
-  const emailClient = new EmailClient();
-
-  const cacheClient = new CacheClient();
 
   const databaseClient = new DatabaseClient(model, logger, cacheClient, {
     host: 'mongodb',
@@ -55,9 +48,9 @@ const repl = new (REPLServer as any)();
   const engine = new OAuthEngine(
     model,
     logger,
+    databaseClient,
     emailClient,
     cacheClient,
-    databaseClient,
     {
       baseUrl: 'https://test.test',
       oAuth: {

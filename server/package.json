@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.2",
+    "@types/multiparty": "^0.0.33",
     "typescript-dev-kit": "^6.0.7"
   },
   "eslintConfig": {

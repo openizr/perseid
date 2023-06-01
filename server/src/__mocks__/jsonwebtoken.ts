@@ -7,13 +7,10 @@
  */
 
 /**
- * `services/CacheClient` mock.
+ * `jsonwebtoken` mock.
  */
 
-export default class {
-  public set = vi.fn();
-
-  public get = vi.fn(() => 'test');
-
-  public delete = vi.fn();
-}
+export default {
+  sign: vi.fn(() => 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9'),
+  verify: vi.fn(() => ({ sub: '64723318e84f943f1ad6578b_test' })),
+};

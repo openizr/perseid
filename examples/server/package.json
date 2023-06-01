@@ -28,6 +28,6 @@
     "dev": "cd node_modules/typescript-dev-kit/ && node scripts/dev",
     "build": "cd node_modules/typescript-dev-kit/ && node scripts/build",
     "check": "cd node_modules/typescript-dev-kit/ && node scripts/check",
-    "postinstall": "rm -f node_modules/.eslintcache"
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache"
   }
 }

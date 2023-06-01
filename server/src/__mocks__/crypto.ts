@@ -6,8 +6,9 @@
  *
  */
 
-export default {
-  formatters: {
-    forms: {},
-  },
-};
+/**
+ * `crypto` mock.
+ */
+
+export const randomBytes = vi.fn(() => '12345azerty');
+export const createHash = vi.fn(() => ({ update: vi.fn(() => ({ digest: vi.fn(() => 'abcde8997') })) }));

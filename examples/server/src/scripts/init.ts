@@ -1,17 +1,15 @@
 import { CacheClient, Logger, EmailClient } from '@perseid/server';
 import { Model, OAuthEngine, DatabaseClient } from '@perseid/server';
 
-
-const model = new Model({
-  types: {},
-  collections: {},
-});
+const model = new Model(Model.DEFAULT_MODEL);
 
 const logger = new Logger({ logLevel: 'debug', prettyPrint: true });
 
-const emailClient = new EmailClient();
+const emailClient = new EmailClient(logger);
 
-const cacheClient = new CacheClient();
+const cacheClient = new CacheClient({
+  cachePath: '/var/www/html/server/node_modules/.cache'
+});
 
 const databaseClient = new DatabaseClient(model, logger, cacheClient, {
   host: 'mongodb',
@@ -30,9 +28,9 @@ const databaseClient = new DatabaseClient(model, logger, cacheClient, {
 const engine = new OAuthEngine(
   model,
   logger,
+  databaseClient,
   emailClient,
   cacheClient,
-  databaseClient,
   {
     baseUrl: 'https://test.test',
     oAuth: {
@@ -47,8 +45,8 @@ const engine = new OAuthEngine(
 
 // Now things get interesting:
 // 1. We reset our database.
-engine.reset('test@test.com', 'Bonjour123!')
-  .then(async () => {
-    // 2. We launch our API!
-    import('./main');
-  });
+// engine.reset('test@test.com', 'Bonjour123!')
+//   .then(async () => {
+// 2. We launch our API!
+import('./main');
+  // });

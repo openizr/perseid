@@ -7,13 +7,13 @@
  */
 
 /**
- * `services/CacheClient` mock.
+ * `services/EmailClient` mock.
  */
 
 export default class {
-  public set = vi.fn();
+  public sendInviteEmail = vi.fn();
 
-  public get = vi.fn(() => 'test');
+  public sendVerificationEmail = vi.fn();
 
-  public delete = vi.fn();
+  public sendPasswordResetEmail = vi.fn();
 }

@@ -50,6 +50,9 @@ interface DataModel {
       };
     };
   };
+  test2: {
+    null: null;
+  };
   externalRelation: {
     _id: Id;
     name: string;
@@ -62,36 +65,17 @@ interface DataModel {
 }
 
 type TestDatabaseClient = DatabaseClient<DataModel> & {
-  checkForeignKeys: (foreignKeys: Map<string, Set<string>>) => Promise<void>;
-  formatInput: <Collection extends keyof DataModel>(
-    input: Partial<DataModel[Collection]>,
-    model: FieldDataModel<DataModel>,
-    foreignKeys?: Map<string, Set<string>>,
-  ) => Partial<DataModel[Collection]>;
-  formatOutput: <Collection extends keyof DataModel>(
-    output: Partial<DataModel[Collection]>,
-    model: FieldDataModel<DataModel>,
-    projections: Document,
-  ) => Partial<DataModel[Collection]>;
-  generateProjectionsFrom: <Collection extends keyof DataModel>(
-    fields: string[],
-    model: FieldDataModel<Collection>,
-  ) => Document;
-  generateLookupsPipelineFrom: <Collection extends keyof DataModel>(
-    projections: Document,
-    model: FieldDataModel<Collection>,
-    path?: string[],
-    isFlatArray?: boolean,
-  ) => Document[];
-  generateSortingPipelineFrom: (
-    sortBy?: CommandOptions['sortBy'],
-    sortOrder?: CommandOptions['sortOrder'],
-  ) => Document[];
-  generatePaginationPipelineFrom: (
-    offset?: number,
-    limit?: number
-  ) => Document[];
-  handleError: () => Promise<void>;
+  handleError: DatabaseClient<DataModel>['handleError'];
+  formatInput: DatabaseClient<DataModel>['formatInput'];
+  formatOutput: DatabaseClient<DataModel>['formatOutput'];
+  createSchema: DatabaseClient<DataModel>['createSchema'];
+  checkForeignKeys: DatabaseClient<DataModel>['checkForeignKeys'];
+  generateProjectionsFrom: DatabaseClient<DataModel>['generateProjectionsFrom'];
+  getCollectionIndexedFields: DatabaseClient<DataModel>['getCollectionIndexedFields'];
+  generateSearchPipelineFrom: DatabaseClient<DataModel>['generateSearchPipelineFrom'];
+  generateSortingPipelineFrom: DatabaseClient<DataModel>['generateSortingPipelineFrom'];
+  generateLookupsPipelineFrom: DatabaseClient<DataModel>['generateLookupsPipelineFrom'];
+  generatePaginationPipelineFrom: DatabaseClient<DataModel>['generatePaginationPipelineFrom'];
 };
 
 describe('services/DatabaseClient', () => {
@@ -100,16 +84,17 @@ describe('services/DatabaseClient', () => {
   vi.mock('scripts/services/Logger');
   vi.mock('scripts/services/CacheClient');
 
-  const cacheClient = new CacheClient();
   let databaseClient: TestDatabaseClient;
   const mongoClient = new MongoClient('', {});
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
+  const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
   const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionDataModel<DataModel>>);
 
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.NO_RESULT;
     delete process.env.VIEW_MODE;
+    delete process.env.NO_COLLECTION;
     delete process.env.MISSING_FOREIGN_KEYS;
     databaseClient = new DatabaseClient<DataModel>(model, logger, cacheClient, {
       protocol: 'mongo+srv',
@@ -329,6 +314,198 @@ describe('services/DatabaseClient', () => {
     });
   });
 
+  test('[createSchema]', () => {
+    expect(databaseClient.createSchema({
+      type: 'object',
+      fields: model.getCollection('test').fields,
+    })).toEqual({
+      $jsonSchema: {
+        bsonType: ['object', 'null'],
+        additionalProperties: false,
+        required: [
+          '_id',
+          'primitiveOne',
+          'primitiveTwo',
+          'primitiveThree',
+          'arrayOne',
+          'arrayTwo',
+          'arrayThree',
+          'arrayFour',
+          'arrayFive',
+          'dynamicOne',
+          'dynamicTwo',
+        ],
+        properties: {
+          _id: { bsonType: ['objectId', 'null'] },
+          primitiveOne: { bsonType: ['objectId', 'null'] },
+          primitiveTwo: { bsonType: ['binData', 'null'] },
+          primitiveThree: { bsonType: ['string', 'null'] },
+          arrayOne: {
+            bsonType: ['array', 'null'],
+            items: {
+              bsonType: ['object', 'null'],
+              additionalProperties: false,
+              required: ['dynamicObject', 'object'],
+              properties: {
+                dynamicObject: {
+                  bsonType: ['object', 'null'],
+                  additionalProperties: false,
+                  patternProperties: {
+                    '^testOne$': { bsonType: ['objectId', 'null'] },
+                    '^testTwo$': { bsonType: ['objectId', 'null'] },
+                    '^special(.*)$': { bsonType: ['objectId', 'null'] },
+                  },
+                },
+                object: {
+                  bsonType: ['object', 'null'],
+                  additionalProperties: false,
+                  required: ['fieldOne'],
+                  properties: { fieldOne: { bsonType: ['string', 'null'] } },
+                },
+              },
+            },
+          },
+          arrayTwo: {
+            bsonType: ['array', 'null'],
+            items: { bsonType: ['objectId', 'null'] },
+          },
+          arrayThree: {
+            bsonType: ['array', 'null'],
+            items: { bsonType: ['objectId', 'null'] },
+          },
+          arrayFour: {
+            bsonType: ['array', 'null'],
+            items: { bsonType: ['string', 'null'] },
+          },
+          arrayFive: {
+            bsonType: ['array', 'null'],
+            items: {
+              bsonType: ['object', 'null'],
+              additionalProperties: false,
+              required: ['fieldOne'],
+              properties: { fieldOne: { bsonType: ['string', 'null'] } },
+            },
+          },
+          dynamicOne: {
+            bsonType: ['object', 'null'],
+            additionalProperties: false,
+            patternProperties: {
+              '^testOne$': { bsonType: ['objectId', 'null'] },
+              '^testTwo$': { bsonType: ['objectId', 'null'] },
+              '^testThree$': {
+                bsonType: ['object', 'null'],
+                additionalProperties: false,
+                required: ['test'],
+                properties: { test: { bsonType: ['string', 'null'] } },
+              },
+              '^special(.*)$': { bsonType: ['objectId', 'null'] },
+            },
+          },
+          dynamicTwo: {
+            bsonType: ['object', 'null'],
+            additionalProperties: false,
+            patternProperties: {
+              '^testOne$': { bsonType: ['objectId', 'null'] },
+              '^testTwo$': {
+                bsonType: ['object', 'null'],
+                additionalProperties: false,
+                required: ['test'],
+                properties: { test: { bsonType: ['string', 'null'] } },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(databaseClient.createSchema({
+      type: 'object',
+      fields: model.getCollection('test2').fields,
+    })).toEqual({
+      $jsonSchema: {
+        bsonType: ['object', 'null'],
+        additionalProperties: false,
+        required: [
+          'float',
+          'integer',
+          'string',
+          '_id',
+          'null',
+          'boolean',
+          'enum',
+          'date',
+          'id',
+          'array',
+          'dynamicObject',
+        ],
+        properties: {
+          float: {
+            bsonType: ['int', 'double', 'null'],
+            minimum: 0,
+            maximum: 10,
+            exclusiveMinimum: true,
+            exclusiveMaximum: true,
+            multipleOf: 2,
+            enum: [1, null],
+          },
+          integer: {
+            bsonType: ['int', 'null'],
+            minimum: 0,
+            maximum: 10,
+            exclusiveMinimum: true,
+            exclusiveMaximum: true,
+            multipleOf: 2,
+            enum: [1, null],
+          },
+          string: {
+            bsonType: ['string', 'null'],
+            maxLength: 10,
+            minLength: 1,
+            pattern: 'test',
+            enum: ['test', null],
+          },
+          _id: { bsonType: ['objectId', 'null'] },
+          null: { bsonType: ['null'] },
+          boolean: { bsonType: ['bool', 'null'] },
+          enum: { bsonType: ['string', 'null'], enum: ['test', null] },
+          date: {
+            bsonType: ['date', 'null'],
+            enum: ['2023-01-01T00:00:00.000Z', null],
+          },
+          id: {
+            bsonType: ['objectId', 'null'],
+            enum: ['6478a6c5392350aaced68cf9', null],
+          },
+          array: {
+            bsonType: ['array', 'null'],
+            items: { bsonType: ['string', 'null'] },
+            minItems: 1,
+            maxItems: 10,
+            uniqueItems: true,
+          },
+          dynamicObject: {
+            bsonType: ['object', 'null'],
+            additionalProperties: false,
+            minProperties: 1,
+            maxProperties: 10,
+            patternProperties: { test: { bsonType: ['string', 'null'] } },
+          },
+        },
+      },
+    });
+  });
+
+  test('[getCollectionIndexedFields]', () => {
+    expect(databaseClient.getCollectionIndexedFields({
+      type: 'object',
+      fields: model.getCollection('test').fields,
+    })).toEqual([
+      { key: { _id: 1 } },
+      { key: { primitiveOne: 1 }, unique: true },
+      { key: { 'arrayOne.dynamicObject.^testOne$': 1 } },
+      { key: { arrayTwo: 1 } },
+    ]);
+  });
+
   test('[checkForeignKeys] - all foreign keys are valid', async () => {
     await databaseClient.checkForeignKeys(new Map([
       ['externalRelation', new Set([
@@ -379,46 +556,59 @@ describe('services/DatabaseClient', () => {
 
   test('[generateProjectionsFrom] invalid field', () => {
     expect(() => {
-      databaseClient.generateProjectionsFrom([
-        'arrayFour._id',
-      ], { type: 'object', fields: model.getCollection('test').fields });
+      databaseClient.generateProjectionsFrom({
+        classic: ['arrayFour._id'],
+      }, { type: 'object', fields: model.getCollection('test').fields }, 3);
     }).toThrow(new DatabaseError('INVALID_FIELD', { path: 'arrayFour._id' }));
     expect(() => {
-      databaseClient.generateProjectionsFrom([
-        'invalid.test',
-      ], { type: 'object', fields: model.getCollection('test').fields });
+      databaseClient.generateProjectionsFrom({
+        classic: ['invalid.test'],
+      }, { type: 'object', fields: model.getCollection('test').fields }, 3);
     }).toThrow(new DatabaseError('INVALID_FIELD', { path: 'invalid.test' }));
+  });
+
+  test('[generateProjectionsFrom] maximum depth exceeded', () => {
+    expect(() => {
+      databaseClient.generateProjectionsFrom({
+        classic: ['arrayTwo._id'],
+      }, { type: 'object', fields: model.getCollection('test').fields }, 1);
+    }).toThrow(new DatabaseError('MAXIMUM_DEPTH_EXCEEDED', { path: 'arrayTwo._id' }));
   });
 
   test('[generateProjectionsFrom] invalid index', () => {
     expect(() => {
-      databaseClient.generateProjectionsFrom([
-        'arrayFour',
-      ], { type: 'object', fields: model.getCollection('test').fields }, true);
+      databaseClient.generateProjectionsFrom({
+        classic: [],
+        indexed: ['arrayFour'],
+      }, { type: 'object', fields: model.getCollection('test').fields }, 3);
     }).toThrow(new DatabaseError('INVALID_INDEX', { path: 'arrayFour' }));
   });
 
   test('[generateProjectionsFrom] valid fields', () => {
-    expect(databaseClient.generateProjectionsFrom([
-      'primitiveOne',
-      'primitiveOne',
-      'primitiveTwo',
-      'arrayOne.object',
-      'dynamicOne.testThree.test',
-      'arrayTwo._id',
-      'arrayFour',
-      'dynamicOne.testTwo.type',
-      'dynamicOne.testOne.relations._id',
-      'dynamicOne.testOne.relations.type',
-      'arrayOne.dynamicObject.testOne._id',
-      'dynamicOne.testOne.name',
-      'dynamicOne.testTwo._id',
-      'dynamicOne.specialTest',
-      'dynamicOne.specialTestTwo.name',
-      'dynamicOne.specialTestTwo',
-      'dynamicOne.specialTestThree',
-      'dynamicTwo',
-    ], { type: 'object', fields: model.getCollection('test').fields })).toEqual({
+    expect(databaseClient.generateProjectionsFrom({
+      classic: [
+        'primitiveOne',
+        'primitiveOne',
+        'primitiveTwo',
+        'arrayOne.object.fieldOne',
+        'dynamicOne.testThree.test',
+        'arrayTwo._id',
+        'arrayFour',
+        'dynamicOne.testTwo.type',
+        'dynamicOne.testOne.relations._id',
+        'arrayOne.dynamicObject.testOne._id',
+        'dynamicOne.testOne.name',
+        'dynamicOne.testTwo._id',
+        'dynamicOne.testOne.relations.type',
+        'dynamicOne.specialTest',
+        'dynamicOne.specialTestTwo.name',
+        'dynamicOne.specialTestThree',
+        'dynamicTwo',
+        'dynamicOne.specialTestTwo',
+        'arrayOne.object',
+        'dynamicOne.testOne.relations',
+      ],
+    }, { type: 'object', fields: model.getCollection('test').fields }, 10)).toEqual({
       _id: 1,
       primitiveOne: 1,
       primitiveTwo: 1,
@@ -428,7 +618,9 @@ describe('services/DatabaseClient', () => {
             _id: 1,
           },
         },
-        object: 1,
+        object: {
+          fieldOne: 1,
+        },
       },
       arrayTwo: {
         _id: 1,
@@ -451,7 +643,10 @@ describe('services/DatabaseClient', () => {
           test: 1,
         },
         specialTest: 1,
-        specialTestTwo: 1,
+        specialTestTwo: {
+          _id: 1,
+          name: 1,
+        },
         specialTestThree: 1,
       },
       dynamicTwo: 1,
@@ -503,7 +698,6 @@ describe('services/DatabaseClient', () => {
           from: 'externalRelation',
           foreignField: '_id',
           localField: 'arrayOne.dynamicObject.testOne',
-          pipeline: [],
         },
       },
       {
@@ -535,7 +729,6 @@ describe('services/DatabaseClient', () => {
           from: 'externalRelation',
           foreignField: '_id',
           localField: 'arrayTwo',
-          pipeline: [],
         },
       },
       {
@@ -551,7 +744,6 @@ describe('services/DatabaseClient', () => {
                 from: 'otherExternalRelation',
                 foreignField: '_id',
                 localField: 'relations',
-                pipeline: [],
               },
             },
           ],
@@ -568,7 +760,6 @@ describe('services/DatabaseClient', () => {
           from: 'otherExternalRelation',
           foreignField: '_id',
           localField: 'dynamicOne.testTwo',
-          pipeline: [],
         },
       },
       {
@@ -604,6 +795,39 @@ describe('services/DatabaseClient', () => {
     expect(databaseClient.generatePaginationPipelineFrom()).toEqual([
       { $skip: 0 },
       { $limit: 20 },
+    ]);
+  });
+
+  test('[generateSearchPipelineFrom]', () => {
+    const searchQuery = { on: ['testOne'], text: 'test' };
+    const searchFilters = {
+      testOne: [new Id('646b9be5e921d0ef42f8a147')],
+      testTwo: [new Date('2023-01-01'), new Date('2023-01-02')],
+      testThree: new Date('2023-01-01'),
+      testFour: [1, 2, 3],
+      testFive: 'test',
+      testSix: new Id('646b9be5e921d0ef42f8a147'),
+    };
+    expect(databaseClient.generateSearchPipelineFrom(null, null)).toEqual([]);
+    expect(databaseClient.generateSearchPipelineFrom(searchQuery, searchFilters)).toEqual([
+      {
+        $match: {
+          $and: [
+            { $or: [{ testOne: { $regex: /(?=.*test)/i } }] },
+            {
+              testOne: { $in: [new ObjectId('646b9be5e921d0ef42f8a147')] },
+              testTwo: {
+                $gte: new Date('2023-01-01T00:00:00.000Z'),
+                $lte: new Date('2023-01-02T00:00:00.000Z'),
+              },
+              testThree: { $gte: new Date('2023-01-01T00:00:00.000Z') },
+              testFour: { $in: [1, 2, 3] },
+              testFive: { $eq: 'test' },
+              testSix: { $eq: new ObjectId('646b9be5e921d0ef42f8a147') },
+            },
+          ],
+        },
+      },
     ]);
   });
 
@@ -659,6 +883,12 @@ describe('services/DatabaseClient', () => {
     expect(response).toEqual({ total: 0, results: [] });
   });
 
+  test('[checkFields]', async () => {
+    expect(() => {
+      databaseClient.checkFields('test', ['invalid']);
+    }).toThrow(new DatabaseError('INVALID_FIELD'));
+  });
+
   test('[list] collection that enables deletion', async () => {
     const response = await databaseClient.list('test');
     expect(mongoClient.db().collection('test').aggregate).toHaveBeenCalledTimes(1);
@@ -679,6 +909,49 @@ describe('services/DatabaseClient', () => {
 
   test('[list] collection that does not enables deletion', async () => {
     const response = await databaseClient.list('externalRelation');
+    expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledWith([
+      { $match: { _isDeleted: false } },
+      { $project: { _id: 1 } },
+      {
+        $facet: {
+          total: [{ $group: { _id: null, total: { $sum: 1 } } }],
+          results: [{ $skip: 0 }, { $limit: 20 }],
+        },
+      },
+    ]);
+    expect(response).toEqual({
+      total: 1,
+      results: [{ _id: new Id('64723318e84f943f1ad6578b') }],
+    });
+  });
+
+  test('[search] no result', async () => {
+    process.env.NO_RESULT = 'true';
+    const response = await databaseClient.search('test', { query: { on: ['_id'], text: 'test' } });
+    expect(response).toEqual({ total: 0, results: [] });
+  });
+
+  test('[search] collection that enables deletion', async () => {
+    const response = await databaseClient.search('test', {});
+    expect(mongoClient.db().collection('test').aggregate).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().collection('test').aggregate).toHaveBeenCalledWith([
+      { $project: { _id: 1 } },
+      {
+        $facet: {
+          total: [{ $group: { _id: null, total: { $sum: 1 } } }],
+          results: [{ $skip: 0 }, { $limit: 20 }],
+        },
+      },
+    ]);
+    expect(response).toEqual({
+      total: 1,
+      results: [{ _id: new Id('64723318e84f943f1ad6578b') }],
+    });
+  });
+
+  test('[search] collection that does not enables deletion', async () => {
+    const response = await databaseClient.search('externalRelation', {});
     expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledTimes(1);
     expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledWith([
       { $match: { _isDeleted: false } },
@@ -807,5 +1080,120 @@ describe('services/DatabaseClient', () => {
       _id: new ObjectId('64723318e84f943f1ad6578b'),
     }, { $set: { _isDeleted: true, name: 'deleted' } });
     expect(isDeleted).toBe(true);
+  });
+
+  test('[dropDatabase]', async () => {
+    await databaseClient.dropDatabase();
+    expect(mongoClient.db().dropDatabase).toHaveBeenCalledTimes(1);
+  });
+
+  test('[createDatabase]', async () => {
+    await databaseClient.createDatabase();
+    expect(mongoClient.db).toHaveBeenCalledTimes(2);
+  });
+
+  test('[resetCollection]', async () => {
+    await databaseClient.resetCollection('externalRelation');
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('externalRelation');
+    expect(mongoClient.db().createCollection).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().createCollection).toHaveBeenCalledWith('externalRelation', {
+      validator: {
+        $jsonSchema: {
+          bsonType: ['object', 'null'],
+          additionalProperties: false,
+          required: ['_id', 'name', '_isDeleted', 'relations'],
+          properties: {
+            _id: { bsonType: ['objectId', 'null'] },
+            name: { bsonType: ['string', 'null'] },
+            _isDeleted: { bsonType: ['bool', 'null'] },
+            relations: {
+              bsonType: ['array', 'null'],
+              items: { bsonType: ['objectId', 'null'] },
+            },
+          },
+        },
+      },
+    });
+    expect(mongoClient.db().collection('externalRelation').createIndexes).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().collection('externalRelation').createIndexes).toHaveBeenCalledWith([
+      { key: { _id: 1 } },
+    ]);
+  });
+
+  test('[updateCollection] collection does not exist', async () => {
+    process.env.NO_COLLECTION = 'true';
+    expect(async () => {
+      await databaseClient.updateCollection('test');
+    }).rejects.toThrow(new DatabaseError('NO_COLLECTION', { collection: 'test' }));
+  });
+
+  test('[updateCollection] collection exists', async () => {
+    await databaseClient.updateCollection('externalRelation');
+    expect(mongoClient.startSession).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().command).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().command).toHaveBeenCalledWith({
+      collMod: 'externalRelation',
+      validationLevel: 'strict',
+      validator: {
+        $jsonSchema: {
+          bsonType: ['object', 'null'],
+          additionalProperties: false,
+          required: ['_id', 'name', '_isDeleted', 'relations'],
+          properties: {
+            _id: { bsonType: ['objectId', 'null'] },
+            name: { bsonType: ['string', 'null'] },
+            _isDeleted: { bsonType: ['bool', 'null'] },
+            relations: {
+              bsonType: ['array', 'null'],
+              items: { bsonType: ['objectId', 'null'] },
+            },
+          },
+        },
+      },
+    }, {
+      session: expect.any(Object),
+    });
+    expect(mongoClient.db().collection('externalRelation').dropIndexes).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().collection('externalRelation').dropIndexes).toHaveBeenCalledWith({
+      session: expect.any(Object),
+    });
+    expect(mongoClient.db().collection('externalRelation').createIndexes).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().collection('externalRelation').createIndexes).toHaveBeenCalledWith([
+      { key: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('externalRelation').insertOne).toHaveBeenCalledTimes(1);
+  });
+
+  test('[dropCollection]', async () => {
+    await databaseClient.dropCollection('test');
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('test');
+  });
+
+  test('[reset]', async () => {
+    await databaseClient.reset();
+    expect(logger.info).toHaveBeenCalledTimes(3);
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Dropping database...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Re-creating database...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Initializing collections...');
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('users');
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('roles');
+    expect(mongoClient.db().createCollection).toHaveBeenCalledTimes(3);
+    expect(mongoClient.db().createCollection).toHaveBeenCalledWith('_config', {
+      validator: {
+        $jsonSchema: {
+          bsonType: 'object',
+          patternProperties: {
+            '^[A-Z0-9_]+$': {
+              bsonType: 'string',
+            },
+          },
+        },
+      },
+    });
+    expect(mongoClient.db().collection('_config').insertOne).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().collection('_config').insertOne).toHaveBeenCalledWith({});
   });
 });

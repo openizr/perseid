@@ -1,24 +1,23 @@
 import {
   Model,
   Logger,
-  Controller,
   CacheClient,
   EmailClient,
   OAuthEngine,
   DatabaseClient,
+  FastifyController,
 } from '@perseid/server';
 import fastify from 'fastify';
 
-const model = new Model({
-  types: {},
-  collections: {},
-});
+const model = new Model(Model.DEFAULT_MODEL);
 
 const logger = new Logger({ logLevel: 'debug', prettyPrint: true });
 
-const emailClient = new EmailClient();
+const emailClient = new EmailClient(logger);
 
-const cacheClient = new CacheClient();
+const cacheClient = new CacheClient({
+  cachePath: '/var/www/html/server/node_modules/.cache'
+});
 
 const databaseClient = new DatabaseClient(model, logger, cacheClient, {
   host: 'mongodb',
@@ -37,9 +36,9 @@ const databaseClient = new DatabaseClient(model, logger, cacheClient, {
 const engine = new OAuthEngine(
   model,
   logger,
+  databaseClient,
   emailClient,
   cacheClient,
-  databaseClient,
   {
     baseUrl: 'https://test.test',
     oAuth: {
@@ -52,36 +51,64 @@ const engine = new OAuthEngine(
   }
 );
 
-const controller = new Controller(model, logger, engine, {
+const controller = new FastifyController(model, logger, engine, {
   maxDepth: 3,
   endpoints: {
-    signIn: { path: '/oauth/sign-in' },
-    signOut: { path: '/oauth/sign-out' },
-    refreshToken: { path: '/oauth/refresh-token' },
-    view: {
-      roles: { path: '/:collection/:id' },
+    // signIn: { path: '/oauth/sign-in' },
+    // signOut: { path: '/oauth/sign-out' },
+    // refreshToken: { path: '/oauth/refresh-token' },
+    oAuth: {
+      signUp: { path: '/oauth/sign-up' },
+      signIn: { path: '/oauth/sign-in' },
+      signOut: { path: '/oauth/sign-out' },
+      verifyEmail: { path: '/oauth/verify-email' },
+      refreshToken: { path: '/oauth/refresh-token' },
+      resetPassword: { path: '/oauth/reset-password' },
+      requestPasswordReset: { path: '/oauth/reset-password' },
+      requestEmailVerification: { path: '/oauth/verify-email' },
     },
-    list: {
-      roles: { path: '/:collection' },
-    },
-    create: {
-      roles: { path: '/:collection' },
-    },
-    search: {
-      roles: { path: '/:collection/search' },
-    },
-    delete: {
-      roles: { path: '/:collection/:id' },
-    },
-    update: {
-      roles: { path: '/:collection/:id' },
-    },
+    collections: {
+      roles: {
+        list: { path: '/roles', maximumDepth: 6 },
+        create: { path: '/roles' },
+        view: { path: '/roles/:id' },
+        update: { path: '/roles/:id' },
+        search: { path: '/roles/:id' },
+        delete: { path: '/roles/:id' },
+      },
+      users: {
+        list: { path: '/users' },
+        create: { path: '/users' },
+        view: { path: '/users/:id' },
+        update: { path: '/users/:id' },
+        search: { path: '/users/:id' },
+        delete: { path: '/users/:id' },
+      },
+    }
+    // view: {
+    // },
+    // list: {
+    //   roles: { path: '/:collection' },
+    // },
+    // create: {
+    //   roles: { path: '/:collection' },
+    // },
+    // search: {
+    //   roles: { path: '/:collection/search' },
+    // },
+    // delete: {
+    //   roles: { path: '/:collection/:id' },
+    // },
+    // update: {
+    //   roles: { path: '/:collection/:id' },
+    // },
   }
 });
 
 // Initializing fastify server...
 const app = fastify({
   logger: logger.child(),
+  ignoreTrailingSlash: true,
 });
 
 app.get('/hello', {
@@ -91,7 +118,7 @@ app.get('/hello', {
 });
 
 app.register((instance, _opts, done) => {
-  (controller as any).registerEndpoints(instance);
+  (controller as any).createEndpoints(instance);
   done();
 }, { prefix: '/perseid' })
 

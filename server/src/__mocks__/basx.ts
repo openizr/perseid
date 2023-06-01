@@ -7,7 +7,7 @@
  */
 
 /**
- * basx mock.
+ * `basx` mock.
  */
 export const deepMerge = vi.fn((obj1, obj2) => {
   const newObject = obj1;

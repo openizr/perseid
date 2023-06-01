@@ -9,6 +9,9 @@
 import { deepMerge, deepCopy } from 'basx';
 import { type DataModel as DefaultTypes } from '@perseid/core';
 
+/** Data model types definitions. */
+export type DataModel<Types> = Record<keyof Types, CollectionDataModel<Types>>;
+
 /**
  * Data model.
  */
@@ -30,7 +33,7 @@ export default class Model<
         _verifiedAt: {
           index: true,
           type: 'date',
-          permissions: ['O_AUTH_DETAILS'],
+          permissions: ['USERS_DETAILS_VIEW'],
         },
         _devices: {
           type: 'array',
@@ -45,20 +48,16 @@ export default class Model<
               id: { type: 'string', pattern: /^[0-9a-fA-F]{24}$/.source, required: true },
             },
           },
-          permissions: ['O_AUTH_DETAILS'],
+          permissions: ['O_AUTH_CREDENTIALS_VIEW'],
         },
         _apiKeys: {
           type: 'array',
           required: true,
-          fields: { type: 'token', required: true, index: true },
-          permissions: ['O_AUTH_DETAILS'],
+          fields: Model.token(true, true),
+          permissions: ['O_AUTH_CREDENTIALS_VIEW'],
         },
-        email: Model.email(true, true, true),
-        password: {
-          required: true,
-          type: 'password',
-          permissions: ['O_AUTH_DETAILS'],
-        },
+        email: Model.email({ unique: true }),
+        password: { ...Model.password(), permissions: ['O_AUTH_CREDENTIALS_VIEW'] },
         roles: {
           type: 'array',
           required: true,
@@ -68,6 +67,7 @@ export default class Model<
             required: true,
             relation: 'roles',
           },
+          permissions: ['USERS_DETAILS_VIEW'],
         },
       },
     },
@@ -77,7 +77,7 @@ export default class Model<
       enableDeletion: true,
       enableTimestamps: true,
       fields: {
-        name: Model.tinyText(true, true, true),
+        name: Model.tinyText(true, true, true), // TODO capitalized
         permissions: {
           type: 'array',
           required: true,
@@ -94,25 +94,20 @@ export default class Model<
   /**
    * `email` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
-   *
-   * @param index Whether field needs to be indexed. Defaults to `false`.
-   *
-   * @param unique Whether field needs to be unique. Defaults to `false`.
+   * @param overrides Additional properties to override field with. Defaults to `{}`.
    *
    * @returns Generated custom data model.
    */
-  public static email(required = true, index = false, unique = false): StringDataModel {
+  public static email(overrides: Partial<StringDataModel> = {}): StringDataModel {
     return {
-      index,
-      unique,
-      required,
       type: 'string',
       customType: 'email',
       errorMessages: {
         type: 'must be a valid email.',
         pattern: 'must be a valid email.',
       },
+      ...overrides,
+      required: overrides.required !== false,
       pattern: /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/.source,
     };
   }
@@ -384,11 +379,11 @@ export default class Model<
           default: false,
         };
       }
-      if (automaticFields.enableAuthors) {
+      if (automaticFields.enableAuthors && (model as { users: unknown; }).users !== undefined) {
         automaticFields.fields._createdBy = {
           type: 'id',
           index: true,
-          required: true,
+          required: collection !== 'users',
           relation: 'users' as keyof Types,
         };
         automaticFields.fields._updatedBy = {
@@ -420,8 +415,8 @@ export default class Model<
    *
    * @returns Data model collections names.
    */
-  public getCollections(): Readonly<string[]> {
-    return Object.keys(this.model);
+  public getCollections(): (keyof Types)[] {
+    return Object.keys(this.model) as (keyof Types)[];
   }
 
   /**

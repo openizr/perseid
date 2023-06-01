@@ -6,12 +6,10 @@
  *
  */
 
-/* eslint-disable max-classes-per-file */
-
 import { Document } from 'mongodb';
 
 /**
- * mongodb mock.
+ * `mongodb` mock.
  */
 
 export class Binary {
@@ -23,6 +21,11 @@ const methodsPerCollection: Record<string, unknown> = {};
 
 const collection = vi.fn((name) => {
   methodsPerCollection[name] ??= {
+    dropIndexes: vi.fn(),
+    createIndexes: vi.fn(),
+    find: vi.fn(() => ({
+      toArray: vi.fn(() => [{ _id: new ObjectId('64723318e84f943f1ad6578b') }]),
+    })),
     deleteOne: vi.fn(() => ((process.env.NO_RESULT === 'true')
       ? { deletedCount: 0 }
       : { deletedCount: 1 }
@@ -94,14 +97,29 @@ export class MongoServerError {
 }
 
 const connect = vi.fn();
+const command = vi.fn();
+const dropDatabase = vi.fn();
+const dropCollection = vi.fn();
+const createCollection = vi.fn();
+const startSession = vi.fn(() => ({ endSession: vi.fn() }));
+const listCollections = vi.fn(() => ({
+  toArray: vi.fn(() => ((process.env.NO_COLLECTION === 'true') ? [] : ['test'])),
+}));
 
 const db = vi.fn(() => ((process.env.NO_DATABASE === 'true') ? null : ({
   connect,
+  command,
   collection,
+  dropDatabase,
+  dropCollection,
+  listCollections,
+  createCollection,
 })));
 
 export class MongoClient {
   public db = db;
 
   public connect = connect;
+
+  public startSession = startSession;
 }

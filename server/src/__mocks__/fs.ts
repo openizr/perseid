@@ -7,10 +7,13 @@
  */
 
 /**
- * fs-extra mock.
+ * `fs` mock.
  */
+
 const writeFile = vi.fn();
-const remove = vi.fn();
+
+const unlink = vi.fn();
+
 const createWriteStream = vi.fn(() => ({
   end: vi.fn(),
   write: vi.fn(),
@@ -27,7 +30,9 @@ const createWriteStream = vi.fn(() => ({
     }, 100);
   }),
 }));
+
 const existsSync = vi.fn((path) => (path === '/var/www/html/node_modules/.cache/test'));
+
 const readFile = vi.fn(() => {
   if (process.env.FS_ERROR === 'true') {
     throw new Error('fs_error');
@@ -37,18 +42,10 @@ const readFile = vi.fn(() => {
   return '{"data":"{\\"data\\":\\"test\\"}","expiration":100000}';
 });
 
-export default {
-  remove,
+export { existsSync };
+export const promises = {
+  unlink,
   readFile,
   writeFile,
-  existsSync,
-  createWriteStream,
-};
-
-export {
-  remove,
-  readFile,
-  writeFile,
-  existsSync,
   createWriteStream,
 };

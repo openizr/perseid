@@ -7,13 +7,17 @@
  */
 
 /**
- * `services/CacheClient` mock.
+ * `services/Logger` mock.
  */
 
 export default class {
-  public set = vi.fn();
+  public debug = vi.fn();
 
-  public get = vi.fn(() => 'test');
+  public info = vi.fn();
 
-  public delete = vi.fn();
+  public warn = vi.fn();
+
+  public error = vi.fn();
+
+  public fatal = vi.fn();
 }

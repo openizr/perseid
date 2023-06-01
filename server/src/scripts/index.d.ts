@@ -6,9 +6,7 @@
  *
  */
 
-import Controller from 'scripts/services/Controller';
-import DatabaseClient from 'scripts/services/DatabaseClient';
-import { type User, type Id, type Role } from '@perseid/core';
+import { type User, type Id } from '@perseid/core';
 
 declare global {
   /**
@@ -68,6 +66,14 @@ declare global {
 
     /** List of fields to return for each resource. Defaults to `[]`. */
     fields?: string[];
+
+    /**
+     * Maximum allowed level of resources depth. For instance, `1` means you can only fetch fields
+     * from the requested resource, `2` means you can also fetch fields from direct sub-resources,
+     * `3` means you can also fetch fields from their own direct sub-resources, and so on.
+     * Defaults to `3`.
+     */
+    maximumDepth?: number;
   }
 
   /**
@@ -75,6 +81,19 @@ declare global {
    */
   export interface CommandContext {
     user: User;
+    deviceId?: string;
+    userAgent?: string;
+  }
+
+  /**
+   * Database results.
+   */
+  export interface Results<T> {
+    /** Total number of results that matched query. */
+    total: number;
+
+    /** Limited list of results that are actually returned. */
+    results: T[];
   }
 
   /**
@@ -276,6 +295,14 @@ declare global {
   }
 
   /**
+   * Null field data model.
+   */
+  export interface NullDataModel extends GenericFieldDataModel {
+    /** Data type. */
+    type: 'null';
+  }
+
+  /**
    * Object field data model.
    */
   export interface ObjectDataModel<Types> extends GenericFieldDataModel {
@@ -329,26 +356,12 @@ declare global {
   }
 
   /**
-   * Any custom field data model.
-   */
-  export interface CustomDataModel extends GenericFieldDataModel {
-    /** Data type. */
-    type: Exclude<string, 'array' | 'id' | 'string' | 'date' | 'binary' | 'object' | 'dynamicObject' | 'number' | 'boolean'>;
-
-    /**
-     * Whether enable indexing for this field. If different than `true`, all the `index` and
-     * `unique` statements in the actual (inferred) type data model will be ignored.
-     */
-    index?: boolean;
-  }
-
-  /**
    * Any field data model.
    */
   export type FieldDataModel<Types> = (
+    NullDataModel |
     DateDataModel |
     NumberDataModel |
-    CustomDataModel |
     StringDataModel |
     BinaryDataModel |
     BooleanDataModel |
@@ -382,282 +395,4 @@ declare global {
       [fieldName: string]: FieldDataModel<Types>;
     };
   }
-
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  export type DataModel<Types> = Record<keyof Types, CollectionDataModel<Types>>;
-
-  interface ModelWithMetadata {
-    realPath: string;
-    collection: string;
-    expandPaths: string[];
-    permissions: string[];
-    canonicalPath: string;
-    realExpandPaths: string[];
-    model: CollectionModel | FieldDataModel | Model;
-  }
-
-  export interface OAuthParams {
-    deviceId: string;
-    loggedUser: User;
-    loggedUserId: Id;
-  }
-
-  interface OAuthConfiguration {
-    issuer: string;
-    algorithm: 'RS256';
-    clientId: string;
-    privateKey: string;
-    publicKey: string;
-  }
-
-  /**
-   * Perseid server configuration.
-   */
-  interface ServerConfiguration {
-    maxDepth?: number;
-    version: string;
-    rootUser?: {
-      email: string;
-      password: string;
-    };
-    endpoints: {
-      signIn?: { path: string; };
-      signUp?: { path: string; };
-      signOut?: { path: string; };
-      verifyEmail?: { path: string; };
-      refreshToken?: { path: string; };
-      resetPassword?: { path: string; };
-      requestVerifyEmail?: { path: string; };
-      requestPasswordReset?: { path: string; };
-      view?: { [collection: string]: { path: string; }; };
-      list?: { [collection: string]: { path: string; }; };
-      create?: { [collection: string]: { path: string; }; };
-      delete?: { [collection: string]: { path: string; }; };
-      update?: { [collection: string]: { path: string; }; };
-      search?: { [collection: string]: { path: string; }; };
-    };
-  }
-
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  /** MongoDB projections object. */
-  interface Projections {
-    [fieldName: string]: Projections | 0 | 1;
-  }
-
-  /**
-   * Database results.
-   */
-  export interface Results<T> {
-    /** Total number of results that match given query. */
-    total: number;
-
-    /** Limited list of results that are actually returned. */
-    results: T[];
-  }
-
-  /**
-   * Database client settings.
-   */
-  export interface DatabaseClientSettings {
-    protocol: string;
-    host: string;
-    port: number | null;
-    user: string | null
-    password: string | null
-    database: string
-    maxPoolSize: number;
-    connectTimeout: number;
-    connectionLimit: number;
-    queueLimit: number;
-    cacheDuration: number;
-  }
-
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-  // DB CLIENT
-
-  type Json = string | number | boolean | Json[] | {
-    [key: string]: Json;
-  } | null;
-
-  interface JsonField {
-    id: string;
-    url?: string;
-    value?: Value;
-    label?: string;
-    component: string;
-    modifiers?: string;
-    fields?: JsonFields;
-  }
-
-  type JsonFields = JsonField[];
-
-  interface AjvFieldSchema {
-    $ref?: string;
-    notEmpty?: boolean;
-    items?: AjvFieldSchema;
-    maxLength?: number;
-    minLength?: number;
-    pattern?: string;
-    nullable?: boolean;
-    minimum?: number;
-    maximum?: number;
-    multipleOf?: number;
-    required?: string[];
-    minItems?: number;
-    maxItems?: number;
-    uniqueItems?: boolean;
-    minProperties?: number;
-    maxProperties?: number;
-    exclusiveMinimum?: number;
-    exclusiveMaximum?: number;
-    additionalProperties?: boolean;
-    default?: string | integer | number;
-    enum?: (string | integer | number)[];
-    errorMessage?: {
-      [errorType: string]: string;
-    };
-    properties?: {
-      [fieldName: string]: AjvFieldSchema;
-    };
-    patternProperties?: {
-      [pattern: string]: AjvFieldSchema;
-    };
-    type: 'string' | 'null' | 'boolean' | 'integer' | 'number' | 'date' | 'binary' | 'object' | 'array';
-  }
-
-  interface AjvRequestSchema {
-    body?: AjvFieldSchema;
-    query?: AjvFieldSchema;
-    params?: AjvFieldSchema;
-    headers?: AjvFieldSchema;
-    [other: string]: AjvFieldSchema;
-    response?: { '2xx': AjvFieldSchema; };
-  }
-
-  interface Endpoint {
-    handler: (request: FastifyRequest, response: FastifyReply) => Promise<void>;
-    schema?: any | AjvRequestSchema;
-  }
-
-  type EndpointName = 'list' | 'search' | 'view' | 'create' | 'update' | 'delete';
-
-  interface Serializers {
-    [schemaId: string]: (payload: any) => string;
-  }
-
-  export interface FieldSchema {
-    type: 'id' | 'string' | 'date' | 'integer' | 'object';
-    required?: boolean;
-    default?: string | Date | number | null;
-    enum?: string[];
-    relation?: {
-      collection: string;
-      field: string;
-    };
-  }
-
-  export interface ModelApiSchema {
-    fields: {
-      [fieldName: string]: FieldSchema;
-    }
-  }
-
 }

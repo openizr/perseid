@@ -7,13 +7,13 @@
  */
 
 import {
-  Db,
-  Document,
+  Binary,
+  type Db,
   ObjectId,
   MongoClient,
-  MongoServerError,
-  Binary,
-  ClientSession,
+  type Document,
+  type ClientSession,
+  type MongoServerError,
 } from 'mongodb';
 import isNested from 'scripts/common/isNested';
 import type Logger from 'scripts/services/Logger';
@@ -22,25 +22,66 @@ import DatabaseError from 'scripts/errors/Database';
 import type CacheClient from 'scripts/services/CacheClient';
 import { Id, forEach, type DataModel as DefaultTypes } from '@perseid/core';
 
-// // TODO: statically validate (ts typecheck) schemas
-// // https://www.mongodb.com/docs/manual/reference/operator/query/jsonSchema/#mongodb-query-op.-jsonSchema
-// // https://www.mongodb.com/docs/manual/reference/bson-types/
-// https://www.mongodb.com/docs/manual/core/schema-validation/
-// https://www.mongodb.com/docs/manual/reference/operator/query/jsonSchema/#std-label-jsonSchema-keywords
-
-// interface MongoValidationSchema {
-//   bsonType: 'object';
-//   required: string[];
-//   properties: {
-//     [name: string]: {
-//       bsonType: BSONTypeAlias;
-//       enum?: string[];
-//     };
-//   }
-// }
-
-type MigrationCallback = (session: ClientSession) => Promise<void>;
 const defaultMigration: MigrationCallback = (): Promise<void> => Promise.resolve();
+
+/** Mongo index. */
+export interface Index {
+  unique?: boolean;
+  key: { [path: string]: 1; };
+}
+
+/** Mongo validation schema. */
+export interface MongoValidationSchema {
+  bsonType: ('null' | 'object' | 'string' | 'bool' | 'binData' | 'objectId' | 'date' | 'int' | 'double' | 'array')[];
+  minimum?: number;
+  maximum?: number;
+  pattern?: string;
+  minItems?: number;
+  maxItems?: number;
+  minLength?: number;
+  maxLength?: number;
+  multipleOf?: number;
+  uniqueItems?: boolean;
+  minProperties?: number;
+  maxProperties?: number;
+  exclusiveMinimum?: boolean;
+  exclusiveMaximum?: boolean;
+  required?: string[];
+  additionalProperties?: boolean;
+  enum?: (string | null | number)[];
+  items?: MongoValidationSchema;
+  properties?: {
+    [name: string]: MongoValidationSchema;
+  };
+  patternProperties?: {
+    [pattern: string]: MongoValidationSchema;
+  };
+}
+
+/** Perseid data model to Mongo validation schema formatters. */
+export interface MongoFormatters<Types> {
+  [type: string]: (model: FieldDataModel<Types>) => MongoValidationSchema;
+}
+
+/** Migration callback. */
+export type MigrationCallback = (session: ClientSession) => Promise<void>;
+
+/**
+ * Database client settings.
+ */
+export interface DatabaseClientSettings {
+  protocol: string;
+  host: string;
+  port: number | null;
+  user: string | null
+  password: string | null
+  database: string
+  maxPoolSize: number;
+  connectTimeout: number;
+  connectionLimit: number;
+  queueLimit: number;
+  cacheDuration: number;
+}
 
 /**
  * MongoDB database client.
@@ -55,6 +96,9 @@ export default class DatabaseClient<
   /** Default sorting pipeline. */
   protected readonly DEFAULT_SORTING_PIPELINE: Document[] = [];
 
+  /** Pattern used to split full-text search queries into separate tokens. */
+  protected readonly SPLITTING_TOKENS = /[ \-,.?=*\\/()'"`|+!:;[\]{}]/;
+
   /** Pipeline to use first when fetching results from collections that don't enable deletion. */
   protected readonly DELETION_FILTER_PIPELINE: Document[] = [{ $match: { _isDeleted: false } }];
 
@@ -66,6 +110,9 @@ export default class DatabaseClient<
 
   /** Default pagination limit value. */
   protected readonly DEFAULT_LIMIT = 20;
+
+  /** Default maximum level of resources depth. */
+  protected readonly DEFAULT_MAXIMUM_DEPTH = 3;
 
   /** Default query options. */
   protected readonly DEFAULT_QUERY_OPTIONS: CommandOptions = {};
@@ -90,6 +137,211 @@ export default class DatabaseClient<
 
   /** Whether MongoDB client is connected to the server. */
   protected isConnected: boolean;
+
+  /** List of formatters, used to format a perseid data model into its MongoDB equivalent. */
+  protected readonly FORMATTERS: MongoFormatters<Types> = {
+    null() {
+      return { bsonType: ['null'] };
+    },
+    id(model) {
+      const { enum: enumerations } = model as IdDataModel<Types>;
+      const formattedField: MongoValidationSchema = { bsonType: ['objectId'] };
+      if (enumerations !== undefined) {
+        formattedField.enum = enumerations.map((id) => `${id}`);
+      }
+      if (!model.required) {
+        formattedField.enum?.push(null);
+        formattedField.bsonType.push('null');
+      }
+      return formattedField;
+    },
+    binary(model) {
+      const formattedField: MongoValidationSchema = { bsonType: ['binData'] };
+      if (!model.required) {
+        formattedField.bsonType.push('null');
+      }
+      return formattedField;
+    },
+    boolean(model) {
+      const formattedField: MongoValidationSchema = { bsonType: ['bool'] };
+      if (!model.required) {
+        formattedField.bsonType.push('null');
+      }
+      return formattedField;
+    },
+    date(model) {
+      const formattedField: MongoValidationSchema = { bsonType: ['date'] };
+      const { enum: enumerations } = model as DateDataModel;
+      if (enumerations !== undefined) {
+        formattedField.enum = enumerations.map((date) => date.toISOString());
+      }
+      if (!model.required) {
+        formattedField.enum?.push(null);
+        formattedField.bsonType.push('null');
+      }
+      return formattedField;
+    },
+    float(model) {
+      const formattedField: MongoValidationSchema = { bsonType: ['int', 'double'] };
+      const {
+        minimum,
+        maximum,
+        multipleOf,
+        exclusiveMinimum,
+        exclusiveMaximum,
+        enum: enumerations,
+      } = model as NumberDataModel;
+      if (minimum !== undefined) {
+        formattedField.minimum = minimum;
+      }
+      if (maximum !== undefined) {
+        formattedField.maximum = maximum;
+      }
+      if (exclusiveMinimum !== undefined) {
+        formattedField.exclusiveMinimum = true;
+        formattedField.minimum = exclusiveMinimum;
+      }
+      if (exclusiveMaximum !== undefined) {
+        formattedField.exclusiveMaximum = true;
+        formattedField.maximum = exclusiveMaximum;
+      }
+      if (multipleOf !== undefined) {
+        formattedField.multipleOf = multipleOf;
+      }
+      if (enumerations !== undefined) {
+        formattedField.enum = enumerations;
+      }
+      if (!model.required) {
+        formattedField.enum?.push(null);
+        formattedField.bsonType.push('null');
+      }
+      return formattedField;
+    },
+    integer(model) {
+      const formattedField: MongoValidationSchema = { bsonType: ['int'] };
+      const {
+        minimum,
+        maximum,
+        multipleOf,
+        exclusiveMinimum,
+        exclusiveMaximum,
+        enum: enumerations,
+      } = model as NumberDataModel;
+      if (minimum !== undefined) {
+        formattedField.minimum = minimum;
+      }
+      if (maximum !== undefined) {
+        formattedField.maximum = maximum;
+      }
+      if (exclusiveMinimum !== undefined) {
+        formattedField.exclusiveMinimum = true;
+        formattedField.minimum = exclusiveMinimum;
+      }
+      if (exclusiveMaximum !== undefined) {
+        formattedField.exclusiveMaximum = true;
+        formattedField.maximum = exclusiveMaximum;
+      }
+      if (multipleOf !== undefined) {
+        formattedField.multipleOf = multipleOf;
+      }
+      if (enumerations !== undefined) {
+        formattedField.enum = enumerations;
+      }
+      if (!model.required) {
+        formattedField.enum?.push(null);
+        formattedField.bsonType.push('null');
+      }
+      return formattedField;
+    },
+    string(model) {
+      const formattedField: MongoValidationSchema = { bsonType: ['string'] };
+      const {
+        pattern,
+        maxLength,
+        minLength,
+        enum: enumerations,
+      } = model as StringDataModel;
+      if (maxLength !== undefined) {
+        formattedField.maxLength = maxLength;
+      }
+      if (minLength !== undefined) {
+        formattedField.minLength = minLength;
+      }
+      if (pattern !== undefined) {
+        formattedField.pattern = pattern;
+      }
+      if (enumerations !== undefined) {
+        formattedField.enum = [...enumerations];
+      }
+      if (!model.required) {
+        formattedField.enum?.push(null);
+        formattedField.bsonType.push('null');
+      }
+      return formattedField;
+    },
+    object: (model) => {
+      const formattedField: MongoValidationSchema = {
+        bsonType: ['object'],
+        additionalProperties: false,
+      };
+      const { fields } = model as ObjectDataModel<Types>;
+      if (!model.required) {
+        formattedField.bsonType.push('null');
+      }
+      formattedField.required = Object.keys(fields);
+      formattedField.properties = formattedField.required.reduce((properties, key) => ({
+        ...properties,
+        [key]: this.FORMATTERS[fields[key].type](fields[key]),
+      }), {});
+      return formattedField;
+    },
+    dynamicObject: (model) => {
+      const formattedField: MongoValidationSchema = {
+        bsonType: ['object'],
+        additionalProperties: false,
+      };
+      const { fields, minItems, maxItems } = model as DynamicObjectDataModel<Types>;
+      if (minItems !== undefined) {
+        formattedField.minProperties = minItems;
+      }
+      if (maxItems !== undefined) {
+        formattedField.maxProperties = maxItems;
+      }
+      if (!model.required) {
+        formattedField.bsonType.push('null');
+      }
+      formattedField.patternProperties = Object.keys(fields).reduce((properties, key) => ({
+        ...properties,
+        [key]: this.FORMATTERS[fields[key].type](fields[key]),
+      }), {});
+      return formattedField;
+    },
+    array: (model) => {
+      const {
+        fields,
+        maxItems,
+        minItems,
+        uniqueItems,
+      } = model as ArrayDataModel<Types>;
+      const formattedField: MongoValidationSchema = {
+        bsonType: ['array'],
+        items: this.FORMATTERS[fields.type](fields),
+      };
+      if (minItems !== undefined) {
+        formattedField.minItems = minItems;
+      }
+      if (maxItems !== undefined) {
+        formattedField.maxItems = maxItems;
+      }
+      if (uniqueItems !== undefined) {
+        formattedField.uniqueItems = uniqueItems;
+      }
+      if (!model.required) {
+        formattedField.bsonType.push('null');
+      }
+      return formattedField;
+    },
+  };
 
   /**
    * Formats `input` to match MongoDB data types specifications.
@@ -297,17 +549,66 @@ export default class DatabaseClient<
   }
 
   /**
+   * Returns all indexed fields for `collection`.
+   *
+   * @param collection Name of the collection for which to get indexes.
+   *
+   * @returns Collection's indexed fields.
+   */
+  protected getCollectionIndexedFields(model: FieldDataModel<Types>, path: string[] = []): Index[] {
+    if (model.type === 'object') {
+      const { fields } = model;
+      return Object.keys(fields).reduce((indexedFields, fieldName) => indexedFields.concat(
+        this.getCollectionIndexedFields(fields[fieldName], path.concat([fieldName])),
+      ), [] as Index[]);
+    }
+    if (model.type === 'dynamicObject') {
+      const { fields } = model;
+      return Object.keys(fields).reduce((indexedFields, fieldName) => indexedFields.concat(
+        this.getCollectionIndexedFields(fields[fieldName], path.concat([fieldName])),
+      ), [] as Index[]);
+    }
+    if (model.type === 'array') {
+      const { fields } = model;
+      return this.getCollectionIndexedFields(fields, path);
+    }
+
+    const indexedFields: Index[] = [];
+    if ((model as StringDataModel).unique) {
+      indexedFields.push({ key: { [path.join('.')]: 1 }, unique: true });
+    } else if ((model as StringDataModel).index) {
+      indexedFields.push({ key: { [path.join('.')]: 1 } });
+    }
+    return indexedFields;
+  }
+
+  /**
+   * Creates a Mongo validation schema from `model`.
+   *
+   * @param model Model from which to create validation schema.
+   *
+   * @returns Mongo validation schema.
+   */
+  protected createSchema(model: ObjectDataModel<Types>): { $jsonSchema: MongoValidationSchema; } {
+    return { $jsonSchema: this.FORMATTERS.object(model) };
+  }
+
+  /**
    * Generates MongoDB-flavored projections object, from `path`.
    *
    * @param path Full path in the data model from which to generate projection.
+   *
+   * @param maximumDepth Maximum allowed level of resources depth.
+   *
+   * @param checkIndexing Whether to check that field is indexed.
    *
    * @param splittedPath Remaining path to analyze.
    *
    * @param model Current path data model.
    *
-   * @param checkIndexing Whether to check that field is indexed. Defaults to `false`.
-   *
    * @param projections Current path projections object.
+   *
+   * @param currentDepth Current level of resources depth. Used internally. Defaults to `1`.
    *
    * @returns MongoDB projections object.
    *
@@ -317,13 +618,18 @@ export default class DatabaseClient<
    */
   protected projectFromPath(
     path: string,
+    maximumDepth: number,
+    checkIndexing: boolean,
     splittedPath: string[],
     model?: FieldDataModel<Types>,
-    checkIndexing = false,
     projections: Document = {},
+    currentDepth = 1,
   ): Document {
     if (model === undefined) {
       throw new DatabaseError('INVALID_FIELD', { path });
+    }
+    if (currentDepth > maximumDepth) {
+      throw new DatabaseError('MAXIMUM_DEPTH_EXCEEDED', { path });
     }
 
     // Primitives...
@@ -331,7 +637,7 @@ export default class DatabaseClient<
       if (checkIndexing && !(model as DateDataModel).unique && !(model as DateDataModel).index) {
         throw new DatabaseError('INVALID_INDEX', { path });
       }
-      return 1 as unknown as Document;
+      return Object.keys(projections).length === 0 ? 1 as unknown as Document : projections;
     }
 
     const { type } = model;
@@ -340,35 +646,56 @@ export default class DatabaseClient<
 
     // Arrays...
     if (type === 'array') {
-      const { fields: subModel } = model as ArrayDataModel<Types>;
-      return this.projectFromPath(path, splittedPath, subModel, checkIndexing, projections);
+      const { fields: subModel } = model;
+      return this.projectFromPath(
+        path,
+        maximumDepth,
+        checkIndexing,
+        splittedPath,
+        subModel,
+        projections,
+        currentDepth,
+      );
     }
 
     // Dynamic objects...
     if (type === 'dynamicObject') {
-      const { fields: subFields } = model as DynamicObjectDataModel<Types>;
+      const { fields: subFields } = model;
       const patterns = Object.keys(subFields).map((pattern) => new RegExp(pattern));
       const subModel = subFields[(patterns.find((p) => p.test(field)) as RegExp).source];
       return {
         ...projections,
-        [field]: this.projectFromPath(path, subPath, subModel, checkIndexing, projections[field]),
+        [field]: this.projectFromPath(
+          path,
+          maximumDepth,
+          checkIndexing,
+          subPath,
+          subModel,
+          projections[field],
+          currentDepth,
+        ),
       };
     }
 
     // External relations...
     const { relation } = model as IdDataModel<Types>;
     if (type === 'id' && relation !== undefined) {
-      const subModel = { type: 'object', fields: this.model.getCollection(relation).fields };
+      const subModel: ObjectDataModel<Types> = {
+        type: 'object',
+        fields: this.model.getCollection(relation).fields,
+      };
       return {
         ...projections,
         _id: 1,
-        [field]: this.projectFromPath(
+        ...this.projectFromPath(
           path,
+          maximumDepth,
+          checkIndexing,
           [''].concat(subPath),
           subModel,
-          checkIndexing,
-          projections[field],
-        )[field],
+          projections,
+          currentDepth + 1,
+        ),
       };
     }
 
@@ -377,34 +704,50 @@ export default class DatabaseClient<
     const subModel = fields?.[field];
     return {
       ...projections,
-      [field]: this.projectFromPath(path, subPath, subModel, checkIndexing, projections[field]),
+      [field]: this.projectFromPath(
+        path,
+        maximumDepth,
+        checkIndexing,
+        subPath,
+        subModel,
+        projections[field],
+        currentDepth,
+      ),
     };
   }
 
   /**
    * Generates MongoDB-flavored list of fields to project in results, from `fields`.
+   * The most specific path takes precedence, which means if you have the following classic fields:
+   * `['object.field', 'object']`, the output will be `{ object: { field: 1 } }`.
    *
    * @param fields Fields from which to generate projections object.
    *
    * @param model Root collection data model.
    *
-   * @param checkIndexing Whether to check that fields are indexed. Defaults to `false`.
+   * @param maximumDepth Maximum allowed level of resources depth.
    *
    * @returns MongoDB projections.
    */
-  protected generateProjectionsFrom<Collection extends keyof Types>(
-    fields: string[],
-    model: FieldDataModel<Collection>,
-    checkIndexing = false,
+  protected generateProjectionsFrom(
+    fields: { classic: string[]; indexed?: string[] },
+    model: FieldDataModel<Types>,
+    maximumDepth: number,
   ): Document {
     let projections: Document = {};
 
     // No matter what, we ALWAYS project the `_id` field.
-    const uniqueFields = [...new Set(fields.concat(['_id']))];
-    for (let index = 0, { length } = uniqueFields; index < length; index += 1) {
-      const path = uniqueFields[index];
+    const uniqueClassicFields = [...new Set(fields.classic.concat(['_id']))];
+    for (let index = 0, { length } = uniqueClassicFields; index < length; index += 1) {
+      const path = uniqueClassicFields[index];
       const rootPath = [''].concat(path.split('.'));
-      projections = this.projectFromPath(path, rootPath, model, checkIndexing, projections);
+      projections = this.projectFromPath(path, maximumDepth, false, rootPath, model, projections);
+    }
+    const uniqueIndexedFields = [...new Set(fields.indexed)];
+    for (let index = 0, { length } = uniqueIndexedFields; index < length; index += 1) {
+      const path = uniqueIndexedFields[index];
+      const rootPath = [''].concat(path.split('.'));
+      projections = this.projectFromPath(path, maximumDepth, true, rootPath, model, projections);
     }
 
     return projections;
@@ -439,16 +782,18 @@ export default class DatabaseClient<
         const fullPath = path.join('.');
         const fieldName = path.at(-1) as string;
         const rootPath = path.slice(0, path.length - 1).join('.');
+        const subPipeline = this.generateLookupsPipelineFrom(
+          projections,
+          { type: 'object', fields: this.model.getCollection(relation).fields },
+        );
         return ([{
           $lookup: {
             as: isFlatArray ? `__${fullPath}` : fullPath,
             from: relation,
             foreignField: '_id',
             localField: fullPath,
-            pipeline: this.generateLookupsPipelineFrom(
-              projections,
-              { type: 'object', fields: this.model.getCollection(relation).fields },
-            ),
+            // MongoDB < 4 throws an error when dealing with empty pipelines in lookups.
+            ...(subPipeline.length > 0 ? { pipeline: subPipeline } : {}),
           },
         }] as Document[]).concat(isFlatArray
           ? [{
@@ -572,9 +917,7 @@ export default class DatabaseClient<
   }
 
   /**
-   * Generates MongoDB search pipeline from `searchBody`.
-   *
-   * @param collection Collection for which to generate search pipeline.
+   * Generates MongoDB search pipeline from `query` and `filters`.
    *
    * @param query Search query.
    *
@@ -582,77 +925,56 @@ export default class DatabaseClient<
    *
    * @returns Generated search pipeline.
    */
-  protected generateSearchPipelineFrom<U extends keyof Types>(
-    collection: U,
-    searchBody: SearchBody,
+  protected generateSearchPipelineFrom(
+    query: SearchQuery | null,
     filters: SearchFilters | null,
-  ): (Document | null)[] {
-    // This optimization splits search pipeline in two different stages: a first one on root
-    // document's fields (to avoid performing lookups on unecessary documents), and a second one on
-    // looked-up fields.
-    const firstSearchStage: Document = { $match: { $and: [] } };
-    const secondSearchStage: Document = { $match: { $and: [] } };
+  ): Document[] {
+    const stage: Document = { $match: { $and: [] } };
 
     // Query fields...
-    const queryFields = searchBody.query?.on ?? [];
-    const queryText = (<SearchQuery>searchBody.query).text;
-    const firstQueryStage: Document = { $or: [] };
-    const secondQueryStage: Document = { $or: [] };
-    queryFields.forEach((path) => {
-      const field = this.model.get(`${collection as string}.${path}`);
-      const isRootField = field !== null && field.canonicalPath.split('.')[0] === collection;
-      (isRootField ? firstQueryStage : secondQueryStage).$or.push({
+    const queryText = query?.text ?? '';
+    const queryFields = query?.on ?? [];
+    const queryStage: Document = {
+      $or: queryFields.map((path) => ({
         [path]: {
-          $regex: new RegExp(queryText.split(/[ \-,.?=*\\/()'"`|+!:;[\]{}]/).map((t) => (
+          $regex: new RegExp(queryText.split(this.SPLITTING_TOKENS).map((t) => (
             `(?=.*${t.replace(/[[\]/()]/ig, (match) => `\\${match}`)})`
           )).join(''), 'i'),
         },
-      });
-    });
-    if (firstQueryStage.$or.length > 0) {
-      firstSearchStage.$match.$and.push(firstQueryStage);
-    }
-    if (secondQueryStage.$or.length > 0) {
-      secondSearchStage.$match.$and.push(secondQueryStage);
+      })),
+    };
+    if (queryStage.$or.length > 0) {
+      stage.$match.$and.push(queryStage);
     }
 
     // Filters fields...
-    const filterPaths = Object.keys(filters || {});
-    const firstFiltersStage: Document = {};
-    const secondFiltersStage: Document = {};
-    filterPaths.forEach((path) => {
-      const values = (<SearchFilters>filters)[path];
-      const condition: Document = {};
-      const isArray = Array.isArray(values);
-      const field = this.model.get(`${collection as string}.${path}`);
-      if (isArray) {
+    const filtersStage: Document = Object.keys(filters ?? {}).reduce((conditions, path) => {
+      const values = (filters as SearchFilters)[path];
+      if (Array.isArray(values)) {
         if (values.length > 1 && values[0] instanceof Date && values[1] instanceof Date) {
-          [condition.$gte, condition.$lte] = values;
-        } else {
-          condition.$in = values.map((value) => ((value instanceof Id) ? new ObjectId(`${value}`) : value));
+          return { ...conditions, [path]: { $gte: values[0], $lte: values[1] } };
         }
-      } else {
-        const value = values;
-        if (value instanceof Date) {
-          condition.$gte = value;
-        } else {
-          condition.$eq = (value instanceof Id) ? new ObjectId(`${value}`) : value;
-        }
+        return {
+          ...conditions,
+          [path]: {
+            $in: values.map((value) => ((value instanceof Id) ? new ObjectId(`${value}`) : value)),
+          },
+        };
       }
-      const isRootField = field !== null && field.canonicalPath.split('.')[0] === collection;
-      (isRootField ? firstFiltersStage : secondFiltersStage)[path] = condition;
-    });
-    if (Object.keys(firstFiltersStage).length > 0) {
-      firstSearchStage.$match.$and.push(firstFiltersStage);
-    }
-    if (Object.keys(secondFiltersStage).length > 0) {
-      secondSearchStage.$match.$and.push(secondFiltersStage);
+      if (values instanceof Date) {
+        return { ...conditions, [path]: { $gte: values } };
+      }
+      return {
+        ...conditions,
+        [path]: { $eq: (values instanceof Id) ? new ObjectId(`${values}`) : values },
+      };
+    }, {});
+
+    if (Object.keys(filtersStage).length > 0) {
+      stage.$match.$and.push(filtersStage);
     }
 
-    return [
-      (firstSearchStage.$match.$and.length > 0) ? firstSearchStage : null,
-      (secondSearchStage.$match.$and.length > 0) ? secondSearchStage : null,
-    ];
+    return (stage.$match.$and.length > 0) ? [stage] : [];
   }
 
   /**
@@ -718,14 +1040,32 @@ export default class DatabaseClient<
 
     // Connection URI.
     const portString = (port !== null) ? `:${port}` : '';
-    const parameters = 'retryWrites=true&w=majority';
     const credentials = (user !== null && password !== null) ? `${user}:${password}@` : '';
-    const uri = `${protocol}//${credentials}${host}${portString}/${database}?${parameters}`;
+    const uri = `${protocol}//${credentials}${host}${portString}/${database}`;
 
     this.client = new MongoClient(uri, { maxPoolSize });
     this.database = this.client.db(`${database}`);
     this.formatOutput = this.formatOutput.bind(this);
     this.formatInput = this.formatInput.bind(this);
+  }
+
+  /**
+   * Exposes `generateProjectionsFrom` method in order to make sure that all `fields` are valid.
+   *
+   * @param collection Root collection from which to check fields.
+   *
+   * @param fields Fields to check.
+   *
+   * @param maximumDepth Maximum allowed level of resources depth. Defaults to `3`.
+   */
+  public checkFields(
+    collection: keyof Types,
+    fields: string[],
+    maximumDepth = this.DEFAULT_MAXIMUM_DEPTH,
+  ): void {
+    const { fields: collectionFields } = this.model.getCollection(collection);
+    const collectionModel: ObjectDataModel<Types> = { type: 'object', fields: collectionFields };
+    this.generateProjectionsFrom({ classic: fields }, collectionModel, maximumDepth);
   }
 
   /**
@@ -740,7 +1080,8 @@ export default class DatabaseClient<
     resource: Types[Collection],
   ): Promise<void> {
     const foreignKeys = new Map();
-    const model = { type: 'object', fields: this.model.getCollection(collection).fields };
+    const { fields } = this.model.getCollection(collection);
+    const model: ObjectDataModel<Types> = { type: 'object', fields };
     const newResource = this.formatInput(resource, model, foreignKeys);
     await this.checkForeignKeys(foreignKeys);
 
@@ -750,7 +1091,7 @@ export default class DatabaseClient<
     this.logger.debug(resource);
 
     await this.handleError(async () => {
-      this.database.collection(collection as string).insertOne(newResource);
+      await this.database.collection(collection as string).insertOne(newResource);
     });
   }
 
@@ -773,7 +1114,7 @@ export default class DatabaseClient<
     const filter = enableDeletion
       ? { _id: new ObjectId(`${id}`) }
       : { ...this.DELETION_FILTER_PIPELINE[0].$match, _id: new ObjectId(`${id}`) };
-    const model = { type: 'object', fields };
+    const model: ObjectDataModel<Types> = { type: 'object', fields };
     const updates = this.formatInput(payload, model, foreignKeys);
     await this.checkForeignKeys(foreignKeys);
 
@@ -805,7 +1146,7 @@ export default class DatabaseClient<
   ): Promise<boolean> {
     const foreignKeys = new Map();
     const { enableDeletion, fields } = this.model.getCollection(collection);
-    const model = { type: 'object', fields };
+    const model: ObjectDataModel<Types> = { type: 'object', fields };
     const updates = this.formatInput(payload, model, foreignKeys);
     await this.checkForeignKeys(foreignKeys);
 
@@ -844,11 +1185,12 @@ export default class DatabaseClient<
     id: Id,
     options = this.DEFAULT_QUERY_OPTIONS,
   ): Promise<Types[Collection] | null> {
-    const requestedFields = options.fields ?? [];
+    const requestedFields = { classic: options.fields ?? [] };
+    const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const { fields, enableDeletion } = this.model.getCollection(collection);
-    const fieldDataModel = { type: 'object', fields };
-    const projections = this.generateProjectionsFrom(requestedFields, fieldDataModel);
-    const lookupPipeline = this.generateLookupsPipelineFrom(projections, fieldDataModel);
+    const model: ObjectDataModel<Types> = { type: 'object', fields };
+    const projections = this.generateProjectionsFrom(requestedFields, model, maximumDepth);
+    const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
 
     const resultsPipeline = (enableDeletion
       ? [{ $match: { _id: new ObjectId(`${id}`) } }]
@@ -866,7 +1208,7 @@ export default class DatabaseClient<
       const databaseCollection = this.database.collection(collection as string);
       const response = await databaseCollection.aggregate(resultsPipeline).toArray();
       const result = (response[0] ?? null) as unknown as Partial<Types[Collection]>;
-      return this.formatOutput(result, fieldDataModel, projections) as Types[Collection];
+      return this.formatOutput(result, model, projections) as Types[Collection];
     });
   }
 
@@ -881,71 +1223,60 @@ export default class DatabaseClient<
    *
    * @returns Paginated list of resources.
    */
-  // public async search<U extends keyof Types>(
-  //   collection: U,
-  //   body: SearchBody,
-  //   options = this.DEFAULT_QUERY_OPTIONS,
-  // ): Promise<Results<T[U]>> {
-  //   await this.handleConnection();
-  //   const query = body.query ?? null;
-  //   const filters = body.filters ?? null;
-  //   const requestedFields = options.fields ?? [];
-  //   const allFields = requestedFields.concat(query?.on ?? []).concat(Object.keys(filters ?? {}));
-  //   const { fields, enableDeletion } = (<any>(this.model.get())).collections[collection];
-  //   const resultsPipeline: any[] = (enableDeletion !== false)
-  //     ? []
-  //     : [{ $match: { _isDeleted: false } }];
-  //   const searchProjections = this.generateProjectionsFrom(collection, allFields);
-  //   // TODO change allFields. This patch is a temporary solution to prevent returning the whole
-  //   // relation object whenever we query/filter on one of its fields (e.g. filtering on
-  //   // _createdBy.email will return the whole user object when we pass fields=* or
-  // fields=createdBy)
-  //   // because project: 1 will return the whole object in mongo and if this object has
-  // been looked
-  //   // up then we're fucked.
-  //   const projections = this.generateProjectionsFrom(collection, allFields);
-  //   const lookupPipeline = this.generateLookupsPipeline(fields, searchProjections);
-  //   const searchPipeline = this.generateSearchPipeline(collection, query, filters);
-  //   const sortingPipeline = this.generateSortingPipeline(options.sortBy, options.sortOrder);
-  //   const paginationPipeline = this.generatePaginationPipeline(options.offset, options.limit);
+  public async search<Collection extends keyof Types>(
+    collection: Collection,
+    body: SearchBody,
+    options = this.DEFAULT_QUERY_OPTIONS,
+  ): Promise<Results<Types[Collection]>> {
+    const query = body.query ?? null;
+    const filters = body.filters ?? null;
+    const sortBy = options.sortBy ?? [];
+    const sortOrder = options.sortOrder ?? [];
+    const requestedFields = options.fields ?? [];
+    const allFields = {
+      classic: requestedFields,
+      indexed: sortBy.concat(query?.on ?? []).concat(Object.keys(filters ?? {})),
+    };
+    const { fields, enableDeletion } = this.model.getCollection(collection);
+    const model: ObjectDataModel<Types> = { type: 'object', fields };
+    const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
+    const projections = this.generateProjectionsFrom(allFields, model, maximumDepth);
+    const searchPipeline = this.generateSearchPipelineFrom(query, filters);
+    const sortingPipeline = this.generateSortingPipelineFrom(sortBy, sortOrder);
+    const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
+    const paginationPipeline = this.generatePaginationPipelineFrom(options.offset, options.limit);
 
-  //   // First search stage...
-  //   if (searchPipeline[0] !== null) {
-  //     resultsPipeline.push(searchPipeline[0]);
-  //   }
-  //   // Lookup stages...
-  //   if (lookupPipeline.length > 0) {
-  //     resultsPipeline.push(...lookupPipeline);
-  //   }
-  //   // Second search stage...
-  //   if (searchPipeline[1] !== null) {
-  //     resultsPipeline.push(searchPipeline[1]);
-  //   }
-  //   // Sorting stages...
-  //   if (sortingPipeline.length > 0) {
-  //     resultsPipeline.push(...sortingPipeline);
-  //   }
-  //   // Projection stage...
-  //   resultsPipeline.push({ $project: projections });
-  //   resultsPipeline.push({ $project: { _isDeleted: 0 } });
-  //   // Pagination stage...
-  //   resultsPipeline.push({
-  //     $facet: {
-  //       total: this.totalPipeline,
-  //       results: paginationPipeline,
-  //     },
-  //   });
+    const resultsPipeline = (enableDeletion ? [] : this.DELETION_FILTER_PIPELINE)
+      .concat(lookupPipeline)
+      .concat(searchPipeline)
+      .concat(sortingPipeline)
+      .concat([
+        { $project: projections },
+        {
+          $facet: {
+            total: this.TOTAL_PIPELINE,
+            results: paginationPipeline,
+          },
+        },
+      ]);
 
-  //   const databaseCollection = this.database.collection(collection as string);
+    this.logger.debug(
+      '[DatabaseClient][search] Calling MongoDB aggregate method on collection '
+      + `"${String(collection)}" with pipeline:`,
+    );
+    this.logger.debug(resultsPipeline);
 
-  //   const [response] = await databaseCollection.aggregate(resultsPipeline).toArray();
-
-  //   return {
-  //     total: response.total[0]?.total ?? 0,
-  //     results: response.results.map((result: Document) =>
-  // this.formatOutput(collection, result, projections)) as T[U][],
-  //   };
-  // }
+    return this.handleError(async () => {
+      const databaseCollection = this.database.collection(collection as string);
+      const [response] = await databaseCollection.aggregate(resultsPipeline).toArray();
+      return {
+        total: response.total[0]?.total ?? 0,
+        results: response.results.map((result: Partial<Types[Collection]>) => (
+          this.formatOutput(result, model, projections)
+        )),
+      };
+    });
+  }
 
   /**
    * Fetches a paginated list of resources from `collection`.
@@ -963,25 +1294,27 @@ export default class DatabaseClient<
     const sortBy = options.sortBy ?? [];
     const sortOrder = options.sortOrder ?? [];
     const requestedFields = options.fields ?? [];
+    const allFields = { classic: requestedFields, indexed: sortBy };
     const { fields, enableDeletion } = this.model.getCollection(collection);
-    const fieldDataModel = { type: 'object', fields };
-    // We make sure that sorting fields exist in data model...
-    this.generateProjectionsFrom(sortBy, fieldDataModel, true);
+    const model: ObjectDataModel<Types> = { type: 'object', fields };
+    const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
+    const projections = this.generateProjectionsFrom(allFields, model, maximumDepth);
+    const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
     const sortingPipeline = this.generateSortingPipelineFrom(sortBy, sortOrder);
-    const projections = this.generateProjectionsFrom(requestedFields, fieldDataModel);
-    const lookupPipeline = this.generateLookupsPipelineFrom(projections, fieldDataModel);
     const paginationPipeline = this.generatePaginationPipelineFrom(options.offset, options.limit);
 
     const resultsPipeline = (enableDeletion ? [] : this.DELETION_FILTER_PIPELINE)
       .concat(lookupPipeline)
       .concat(sortingPipeline)
-      .concat({ $project: projections })
-      .concat([{
-        $facet: {
-          total: this.TOTAL_PIPELINE,
-          results: paginationPipeline,
+      .concat([
+        { $project: projections },
+        {
+          $facet: {
+            total: this.TOTAL_PIPELINE,
+            results: paginationPipeline,
+          },
         },
-      }]);
+      ]);
 
     this.logger.debug(
       '[DatabaseClient][list] Calling MongoDB aggregate method on collection '
@@ -995,7 +1328,7 @@ export default class DatabaseClient<
       return {
         total: response.total[0]?.total ?? 0,
         results: response.results.map((result: Partial<Types[Collection]>) => (
-          this.formatOutput(result, fieldDataModel, projections)
+          this.formatOutput(result, model, projections)
         )),
       };
     });
@@ -1019,7 +1352,7 @@ export default class DatabaseClient<
     payload: Partial<Types[Collection]> = {},
   ): Promise<boolean> {
     const { fields, enableDeletion } = this.model.getCollection(collection);
-    const model = { type: 'object', fields };
+    const model: ObjectDataModel<Types> = { type: 'object', fields };
     const resourceId = new ObjectId(`${id}`);
 
     return this.handleError(async () => {
@@ -1048,297 +1381,14 @@ export default class DatabaseClient<
     });
   }
 
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  protected formatters: Record<string, (
-    field: any,
-  ) => any> = {
-      null() {
-        return { bsonType: 'null' };
-      },
-      string(field) {
-        const formattedField: any = { bsonType: ['string'] };
-        const {
-          pattern,
-          maxLength,
-          minLength,
-          enum: enumerations,
-        } = <any>field;
-        if (maxLength !== undefined) {
-          formattedField.maxLength = maxLength;
-        }
-        if (minLength !== undefined) {
-          formattedField.minLength = minLength;
-        }
-        if (pattern !== undefined) {
-          formattedField.pattern = pattern;
-        }
-        if (enumerations !== undefined) {
-          formattedField.enum = [...enumerations];
-        }
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-          if (formattedField.enum !== undefined) {
-            formattedField.enum.push(null);
-          }
-        }
-        return formattedField;
-      },
-      boolean(field) {
-        const formattedField: any = { bsonType: ['bool'] };
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-        }
-        return formattedField;
-      },
-      date(field) {
-        const formattedField: any = { bsonType: ['date'] };
-        const {
-          enum: enumerations,
-        } = (<any>field);
-        if (enumerations !== undefined) {
-          formattedField.enum = [...enumerations];
-        }
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-          if (formattedField.enum !== undefined) {
-            formattedField.enum.push(null);
-          }
-        }
-        return formattedField;
-      },
-      id(field) {
-        const {
-          enum: enumerations,
-        } = <any>field;
-        const formattedField: any = { bsonType: ['objectId'] };
-        if (enumerations !== undefined) {
-          formattedField.enum = [...enumerations];
-        }
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-          if (formattedField.enum !== undefined) {
-            formattedField.enum.push(null);
-          }
-        }
-        return formattedField;
-      },
-      binary(field) {
-        const formattedField: any = { bsonType: ['binData'] };
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-        }
-        return formattedField;
-      },
-      integer(field) {
-        const formattedField: any = { bsonType: ['int'] };
-        const {
-          minimum,
-          maximum,
-          multipleOf,
-          exclusiveMinimum,
-          exclusiveMaximum,
-          enum: enumerations,
-        } = <any>field;
-        if (minimum !== undefined) {
-          formattedField.minimum = minimum;
-        }
-        if (maximum !== undefined) {
-          formattedField.maximum = maximum;
-        }
-        if (exclusiveMinimum !== undefined) {
-          formattedField.exclusiveMinimum = true;
-          formattedField.minimum = exclusiveMinimum;
-        }
-        if (exclusiveMaximum !== undefined) {
-          formattedField.exclusiveMaximum = true;
-          formattedField.maximum = exclusiveMaximum;
-        }
-        if (multipleOf !== undefined) {
-          formattedField.multipleOf = multipleOf;
-        }
-        if (enumerations !== undefined) {
-          formattedField.enum = [...enumerations];
-        }
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-          if (formattedField.enum !== undefined) {
-            formattedField.enum.push(null);
-          }
-        }
-        return formattedField;
-      },
-      float: (field) => {
-        const formattedField: any = { bsonType: ['int', 'double'] };
-        const {
-          minimum,
-          maximum,
-          multipleOf,
-          exclusiveMinimum,
-          exclusiveMaximum,
-          enum: enumerations,
-        } = <any>field;
-        if (minimum !== undefined) {
-          formattedField.minimum = minimum;
-        }
-        if (maximum !== undefined) {
-          formattedField.maximum = maximum;
-        }
-        if (exclusiveMinimum !== undefined) {
-          formattedField.exclusiveMinimum = true;
-          formattedField.minimum = exclusiveMinimum;
-        }
-        if (exclusiveMaximum !== undefined) {
-          formattedField.exclusiveMaximum = true;
-          formattedField.maximum = exclusiveMaximum;
-        }
-        if (multipleOf !== undefined) {
-          formattedField.multipleOf = multipleOf;
-        }
-        if (enumerations !== undefined) {
-          formattedField.enum = [...enumerations];
-        }
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-          if (formattedField.enum !== undefined) {
-            formattedField.enum.push(null);
-          }
-        }
-        return formattedField;
-      },
-      object: (field) => {
-        const formattedField: any = { bsonType: ['object'], additionalProperties: false };
-        const {
-          fields,
-        } = <any>field;
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-        }
-        formattedField.required = Object.keys(fields);
-        formattedField.properties = this.createSchema(
-          fields,
-          (schema) => schema,
-          false,
-        );
-        return formattedField;
-      },
-      dynamicObject: (field) => {
-        const formattedField: any = { bsonType: ['object'], additionalProperties: false };
-        const {
-          fields,
-          minProperties,
-          maxProperties,
-        } = <any>field;
-        if (minProperties !== undefined) {
-          formattedField.minProperties = minProperties;
-        }
-        if (maxProperties !== undefined) {
-          formattedField.maxProperties = maxProperties;
-        }
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-        }
-        formattedField.patternProperties = this.createSchema(
-          fields,
-          (schema) => schema,
-          false,
-        );
-        return formattedField;
-      },
-      array: (field) => {
-        const {
-          fields,
-          maxItems,
-          minItems,
-          uniqueItems,
-        } = <any>field;
-        const formattedField: any = {
-          bsonType: ['array'],
-          items: this.createSchema({ items: fields }, (schema) => schema, false).items,
-        };
-        if (minItems !== undefined) {
-          formattedField.minItems = minItems;
-        }
-        if (maxItems !== undefined) {
-          formattedField.maxItems = maxItems;
-        }
-        if (uniqueItems !== undefined) {
-          formattedField.uniqueItems = [...uniqueItems];
-        }
-        if (!field.required) {
-          formattedField.bsonType.push('null');
-        }
-        return formattedField;
-      },
-    };
-
-  public createSchema(
-    fields: any,
-    transformer: (schema: any) => any = (schema): any => schema,
-    isRoot = true,
-  ): any {
-    const properties = Object.keys(fields).reduce((schema, fieldName) => {
-      const field = ((<any>(this.model.get())).types[fields[fieldName].type] === undefined)
-        ? fields[fieldName]
-        : {
-          ...fields[fieldName],
-          ...(<any>(this.model.get())).types[fields[fieldName].type],
-        };
-      const format = this.formatters[field.type] || this.formatters.null;
-
-      // Classic field...
-      return {
-        ...schema,
-        [fieldName]: format(field),
-      };
-    }, {});
-    return isRoot ? transformer({
-      $jsonSchema: {
-        bsonType: 'object',
-        required: Object.keys(fields),
-        additionalProperties: false,
-        properties,
-      },
-    })
-      : properties;
-  }
-
   /**
    * Drops entire database`.
    */
   public async dropDatabase(): Promise<void> {
-    await this.client.connect();
-    await this.client.db(this.database.databaseName).dropDatabase();
-    this.isConnected = false;
+    await this.handleError(async () => {
+      await this.client.db(this.database.databaseName).dropDatabase();
+      this.isConnected = false;
+    });
   }
 
   /**
@@ -1354,103 +1404,60 @@ export default class DatabaseClient<
    *
    * @param collection Name of the collection to create.
    */
-  public async resetCollection<U extends keyof T>(collection: U): Promise<void> {
-    const collectionName = collection as string;
-    if ((<any>(this.model.get())).collections[collectionName] === undefined) {
-      throw new DatabaseError('NO_COLLECTION', { collection: collectionName });
-    }
-    await this.handleConnection();
-    const collectionExists = (await this.database
-      .listCollections({ name: collectionName }).toArray()).length > 0;
-    if (collectionExists) {
-      await this.database.dropCollection(collectionName);
-    }
-    await this.database.createCollection(collectionName, {
-      validator: this.createSchema((<any>(this.model.get())).collections[collectionName].fields),
+  public async resetCollection<Collection extends keyof Types>(
+    collection: Collection,
+  ): Promise<void> {
+    const { fields } = this.model.getCollection(collection);
+    await this.handleError(async () => {
+      const collectionExists = (await this.database
+        .listCollections({ name: collection }).toArray()).length > 0;
+      if (collectionExists) {
+        await this.database.dropCollection(collection as string);
+      }
+      await this.database.createCollection(collection as string, {
+        validator: this.createSchema({ type: 'object', fields }),
+      });
+      await this.database.collection(collection as string)
+        .createIndexes(this.getCollectionIndexedFields({ type: 'object', fields }));
     });
-    await this.database.collection(collectionName)
-      .createIndexes(this.getCollectionIndexedFields(collectionName));
   }
 
   /**
    * Performs a validation schema update and a data migration on collection with name `name`.
    *
    * @param collection Name of the collection to update.
+   *
+   * @param migration Optional migration to perform. Defaults to an empty Promise.
    */
-  public async updateCollection<U extends keyof T>(
-    collection: U,
+  public async updateCollection<Collection extends keyof Types>(
+    collection: Collection,
     migration = defaultMigration,
   ): Promise<void> {
-    const collectionName = collection as string;
-    if ((<any>(this.model.get())).collections[collectionName] === undefined) {
-      throw new DatabaseError('NO_COLLECTION', { collection });
-    }
-    await this.handleConnection();
-    const collectionExists = (await this.database
-      .listCollections({ name: collectionName }).toArray()).length > 0;
-    if (!collectionExists) {
-      throw new DatabaseError('NO_COLLECTION', { collection });
-    }
-    const session = await this.client.startSession();
-    await this.database.command({
-      collMod: collectionName,
-      validator: this.createSchema((<any>(this.model.get())).collections[collectionName].fields),
-      validationLevel: 'strict',
-    }, { session });
-    await this.database.collection(collectionName).dropIndexes({ session });
-    await migration(session as any);
-    await this.database.collection(collectionName)
-      .createIndexes(this.getCollectionIndexedFields(collectionName));
-    await session.endSession();
-    const invalidDocuments = await this.database.collection(collectionName).find({
-      $nor: [this.createSchema((<any>(this.model.get())).collections[collectionName].fields)],
-    }, { limit: 1 }).toArray();
-    if (invalidDocuments.length > 0) {
-      await this.database.collection(collectionName).insertOne(invalidDocuments[0]);
-    }
-  }
-
-  /**
-   * Returns all indexed fields for `collection`.
-   *
-   * @param collection Name of the collection for which to get indexes.
-   *
-   * @returns Collection's indexed fields.
-   */
-  protected getCollectionIndexedFields(collection: string, path?: string, field?: any): any {
-    // TODO handle inferred fields
-    if (field === undefined) {
-      const { fields } = (<any>(this.model.get())).collections[collection];
-      return Object.keys(fields).reduce((indexedFields, fieldName) => indexedFields.concat(
-        this.getCollectionIndexedFields(collection, fieldName, fields[fieldName]),
-      ), []);
-    }
-
-    const { fields, patternProperties } = field;
-    if (field.type === 'object' && fields) {
-      return Object.keys(fields).reduce((indexedFields, fieldName) => indexedFields.concat(
-        this.getCollectionIndexedFields(collection, `${path}.${fieldName}`, fields[fieldName]),
-      ), []);
-    }
-
-    if (field.type === 'object' && patternProperties) {
-      // TODO
-      // https://www.mongodb.com/docs/manual/core/index-wildcard/
-      return [];
-    }
-
-    const indexedFields: any[] = [];
-    if (field.unique) {
-      indexedFields.push({ key: { [path as string]: 1 }, unique: true });
-    } else if (field.index) {
-      indexedFields.push({ key: { [path as string]: 1 } });
-    }
-
-    if (field.type === 'array') {
-      return indexedFields.concat(this.getCollectionIndexedFields(collection, path, fields));
-    }
-
-    return indexedFields;
+    const { fields } = this.model.getCollection(collection);
+    await this.handleError(async () => {
+      const collectionExists = (await this.database
+        .listCollections({ name: collection }).toArray()).length > 0;
+      if (!collectionExists) {
+        throw new DatabaseError('NO_COLLECTION', { collection });
+      }
+      const session = await this.client.startSession();
+      const collectionIndexedFields = this.getCollectionIndexedFields({ type: 'object', fields });
+      await this.database.command({
+        validationLevel: 'strict',
+        collMod: collection as string,
+        validator: this.createSchema({ type: 'object', fields }),
+      }, { session });
+      await this.database.collection(collection as string).dropIndexes({ session });
+      await migration(session);
+      await this.database.collection(collection as string).createIndexes(collectionIndexedFields);
+      await session.endSession();
+      const invalidDocuments = await this.database.collection(collection as string).find({
+        $nor: [this.createSchema({ type: 'object', fields })],
+      }, { limit: 1 }).toArray();
+      if (invalidDocuments.length > 0) {
+        await this.database.collection(collection as string).insertOne(invalidDocuments[0]);
+      }
+    });
   }
 
   /**
@@ -1458,54 +1465,36 @@ export default class DatabaseClient<
    *
    * @param collection Name of the collection to drop from database.
    */
-  public async dropCollection(collection: string): Promise<void> {
-    await this.database.dropCollection(collection);
+  public async dropCollection(collection: keyof Types): Promise<void> {
+    await this.database.dropCollection(collection as string);
   }
 
   /**
    * Resets the whole underlying database, re-creating collections, indexes, and such.
    */
   public async reset(): Promise<void> {
-    await this.handleConnection();
-    this.logger.info('[DatabaseClient][reset] Dropping database...');
-    await this.dropDatabase();
-    this.logger.info('[DatabaseClient][reset] Re-creating database...');
-    await this.createDatabase();
-    this.logger.info('[DatabaseClient][reset] Initializing collections...');
-    await forEach(Object.keys((this.model.get() as any).collections), async (collection) => {
-      await this.resetCollection(collection as keyof T);
-    });
-    await this.database.createCollection('_config', {
-      validator: {
-        $jsonSchema: {
-          bsonType: 'object',
-          patternProperties: {
-            '^[A-Z0-9_]+$': {
-              bsonType: 'string',
+    await this.handleError(async () => {
+      this.logger.info('[DatabaseClient][reset] Dropping database...');
+      await this.dropDatabase();
+      this.logger.info('[DatabaseClient][reset] Re-creating database...');
+      await this.createDatabase();
+      this.logger.info('[DatabaseClient][reset] Initializing collections...');
+      await forEach(this.model.getCollections(), async (collection) => {
+        await this.resetCollection(collection);
+      });
+      await this.database.createCollection('_config', {
+        validator: {
+          $jsonSchema: {
+            bsonType: 'object',
+            patternProperties: {
+              '^[A-Z0-9_]+$': {
+                bsonType: 'string',
+              },
             },
           },
         },
-      },
-    });
-    await this.database.collection('_config').insertOne({});
-    this.logger.info('[DatabaseClient][reset] Creating root user...');
-    const collectionModel = this.model.getCollection('users' as keyof T);
-    const now = new Date();
-    const rootUserId = new ObjectId();
-    await this.database.collection('users').insertOne({
-      _id: rootUserId,
-      _version: collectionModel?.version,
-      _createdBy: rootUserId,
-      _updatedBy: null,
-      _createdAt: now,
-      _updatedAt: null,
-      _isDeleted: false,
-      _apiKeys: [],
-      _devices: {},
-      _verifiedAt: now,
-      email: 'root@root.io',
-      password: 'Root123456!',
-      roles: [],
+      });
+      await this.database.collection('_config').insertOne({});
     });
   }
 }

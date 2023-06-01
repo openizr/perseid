@@ -26,6 +26,7 @@ import NotAcceptable from 'scripts/errors/NotAcceptable';
 import BucketClient from 'scripts/services/BucketClient';
 import TooManyRequests from 'scripts/errors/TooManyRequests';
 import DatabaseClient from 'scripts/services/DatabaseClient';
+import FastifyController from 'scripts/services/FastifyController';
 import UnprocessableEntity from 'scripts/errors/UnprocessableEntity';
 import RequestEntityTooLarge from 'scripts/errors/RequestEntityTooLarge';
 
@@ -36,6 +37,7 @@ export { Profiler };
 export { Controller };
 export { OAuthEngine };
 export { BucketClient };
+export { FastifyController };
 export { RequestEntityTooLarge };
 export { BadRequest, Gone, Conflict };
 export { EngineError, DatabaseError };

@@ -550,6 +550,13 @@
   dependencies:
     "@types/node" "*"
 
+"@types/multiparty@^0.0.33":
+  version "0.0.33"
+  resolved "https://registry.yarnpkg.com/@types/multiparty/-/multiparty-0.0.33.tgz#60a5c23a3bb313961afe1fb49ba418559c30c34a"
+  integrity sha512-Il6cJUpSqgojT7NxbVJUvXkCblm50/yEJYtblISDsNIeNYf4yMAhdizzidUk6h8pJ8yhwK/3Fkb+3Dwcgtwl8w==
+  dependencies:
+    "@types/node" "*"
+
 "@types/node@*":
   version "20.1.7"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-20.1.7.tgz#ce10c802f7731909d0a44ac9888e8b3a9125eb62"

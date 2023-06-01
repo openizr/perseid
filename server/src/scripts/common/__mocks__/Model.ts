@@ -6,12 +6,33 @@
  *
  */
 
+import { Id } from '@perseid/core';
 import { type Document } from 'mongodb';
 
-/** `src/common/Model` mock. */
+/** `common/Model` mock. */
 
 export default class Model {
   protected defaultCollection = { fields: {} };
+
+  public static email = vi.fn(() => ({ type: 'string' }));
+
+  public static password = vi.fn(() => ({ type: 'string' }));
+
+  public static tinyText = vi.fn(() => ({ type: 'string' }));
+
+  public static shortText = vi.fn(() => ({ type: 'string' }));
+
+  public static mediumText = vi.fn(() => ({ type: 'string' }));
+
+  public static longText = vi.fn(() => ({ type: 'string' }));
+
+  public static hugeText = vi.fn(() => ({ type: 'string' }));
+
+  public static token = vi.fn(() => ({ type: 'string' }));
+
+  public static credentials = vi.fn(() => ({ type: 'string' }));
+
+  public getCollections = vi.fn(() => ['users', 'roles']);
 
   public getCollection(collection: string): CollectionDataModel<Document> {
     if (collection === 'test') {
@@ -19,9 +40,9 @@ export default class Model {
         enableDeletion: true,
         fields: {
           _id: { type: 'id', index: true },
-          primitiveOne: { type: 'id' },
+          primitiveOne: { type: 'id', unique: true },
           primitiveTwo: { type: 'binary' },
-          primitiveThree: { type: 'string' },
+          primitiveThree: { type: 'string', permissions: ['PRIMITIVE_THREE_VIEW'] },
           arrayOne: {
             type: 'array',
             fields: {
@@ -32,6 +53,7 @@ export default class Model {
                   fields: {
                     '^testOne$': {
                       type: 'id',
+                      index: true,
                       relation: 'externalRelation',
                     },
                     '^testTwo$': {
@@ -47,16 +69,18 @@ export default class Model {
                 object: {
                   type: 'object',
                   fields: {
-                    fieldOne: { type: 'string' },
+                    fieldOne: { type: 'string', permissions: ['ARRAY_ONE_OBJECT_VIEW'] },
                   },
                 },
               },
             },
+            permissions: ['ARRAY_ONE_VIEW'],
           },
           arrayTwo: {
             type: 'array',
             fields: {
               type: 'id',
+              index: true,
               relation: 'externalRelation',
             },
           },
@@ -118,6 +142,59 @@ export default class Model {
                   test: { type: 'string' },
                 },
               },
+            },
+          },
+        },
+      };
+    }
+    if (collection === 'test2') {
+      return {
+        enableDeletion: true,
+        fields: {
+          float: {
+            enum: [1],
+            maximum: 10,
+            minimum: 0,
+            type: 'float',
+            multipleOf: 2,
+            exclusiveMinimum: 0,
+            exclusiveMaximum: 10,
+          },
+          integer: {
+            enum: [1],
+            maximum: 10,
+            minimum: 0,
+            multipleOf: 2,
+            type: 'integer',
+            exclusiveMinimum: 0,
+            exclusiveMaximum: 10,
+          },
+          string: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10,
+            enum: ['test'],
+            pattern: 'test',
+          },
+          _id: { type: 'id' },
+          null: { type: 'null' },
+          boolean: { type: 'boolean' },
+          enum: { type: 'string', enum: ['test'] },
+          date: { type: 'date', enum: [new Date('2023-01-01')] },
+          id: { type: 'id', enum: [new Id('6478a6c5392350aaced68cf9')] },
+          array: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 10,
+            uniqueItems: true,
+            fields: { type: 'string' },
+          },
+          dynamicObject: {
+            type: 'dynamicObject',
+            minItems: 1,
+            maxItems: 10,
+            fields: {
+              test: { type: 'string' },
             },
           },
         },

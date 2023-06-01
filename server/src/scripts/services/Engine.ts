@@ -13,7 +13,6 @@ import {
   type Version,
   type Deletion,
   type Timestamps,
-  type DataModel as DefaultTypes,
 } from '@perseid/core';
 import Logger from 'scripts/services/Logger';
 import isNested from 'scripts/common/isNested';
@@ -26,7 +25,7 @@ import type BaseDatabaseClient from 'scripts/services/DatabaseClient';
  */
 export default class Engine<
   /** Data model types definitions. */
-  Types = DefaultTypes,
+  Types,
 
   /** Model class types definitions. */
   Model extends BaseModel<Types> = BaseModel<Types>,
@@ -142,7 +141,7 @@ export default class Engine<
     if (collectionModel.enableAuthors !== false) {
       if (isCreation) {
         automaticFields._updatedBy = this.defaultUpdatedBy;
-        automaticFields._createdBy = context.user._id;
+        automaticFields._createdBy = context.user?._id ?? null;
       } else {
         automaticFields._updatedBy = context.user._id;
       }
@@ -190,14 +189,14 @@ export default class Engine<
    * @throws If collection does not exist in data model.
    */
   protected async checkAndUpdatePayload<Collection extends keyof Types>(
-    command: 'create' | 'update' | 'delete',
+    command: 'CREATE' | 'UPDATE' | 'DELETE',
     collection: Collection,
-    payload: Partial<WithoutAutomaticFields<Types[Collection]>>,
+    payload: WithoutAutomaticFields<Types[Collection]>,
     context: CommandContext,
     resourceId?: Id,
   ): Promise<Types[Collection]> {
-    const isUpdate = (command === 'update');
-    const isCreation = (command === 'create');
+    const isUpdate = (command === 'UPDATE');
+    const isCreation = (command === 'CREATE');
     const collectionModel = this.model.getCollection(collection);
     const updatedPayload = this.generateAutomaticFields(collectionModel, context, isCreation);
 
@@ -260,8 +259,8 @@ export default class Engine<
     options: CommandOptions,
     context: CommandContext,
   ): Promise<Types[Collection]> {
-    const data = payload as unknown as Partial<WithoutAutomaticFields<Types[Collection]>>;
-    const fullPayload = await this.checkAndUpdatePayload('create', collection, data, context);
+    const fullPayload = await this.checkAndUpdatePayload('CREATE', collection, payload, context);
+    this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
     await this.databaseClient.create(collection, fullPayload);
     return this.view(collection, (fullPayload as Ids)._id, options);
   }
@@ -290,7 +289,9 @@ export default class Engine<
     options: CommandOptions,
     context: CommandContext,
   ): Promise<Types[Collection]> {
-    const fullPayload = await this.checkAndUpdatePayload('update', collection, payload, context, id);
+    const data = payload as unknown as WithoutAutomaticFields<Types[Collection]>;
+    const fullPayload = await this.checkAndUpdatePayload('UPDATE', collection, data, context, id);
+    this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
     await this.databaseClient.update(collection, id, fullPayload);
     return this.view(collection, id, options);
   }
@@ -373,8 +374,8 @@ export default class Engine<
     id: Id,
     context: CommandContext,
   ): Promise<void> {
-    const payload = {} as Partial<WithoutAutomaticFields<Types[Collection]>>;
-    const fullPayload = await this.checkAndUpdatePayload('delete', collection, payload, context);
+    const payload = {} as WithoutAutomaticFields<Types[Collection]>;
+    const fullPayload = await this.checkAndUpdatePayload('DELETE', collection, payload, context);
 
     if (!await this.databaseClient.delete(collection, id, fullPayload)) {
       throw new EngineError('NO_RESOURCE', { id });

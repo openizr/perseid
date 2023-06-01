@@ -6,6 +6,11 @@
  *
  */
 
-export default function createLabel(...args: string[]): string {
-  return args.filter((part) => `${part}`.trim() !== '').join('.').toUpperCase();
-}
+/**
+ * `bcrypt` mock.
+ */
+
+export default {
+  hash: vi.fn((text) => `HASHED_TEXT_${text}`),
+  compare: vi.fn(() => process.env.PASSWORDS_MISMATCH !== 'true'),
+};

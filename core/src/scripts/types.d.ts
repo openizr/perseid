@@ -73,6 +73,9 @@ export interface User extends Ids, Version, Timestamps, Authors {
   /** User roles. */
   roles: (Id | Role)[];
 
+  /** List of user API keys. */
+  _apiKeys: string[];
+
   /** List of user devices. */
   _devices: {
     /** Device id. */
@@ -81,8 +84,8 @@ export interface User extends Ids, Version, Timestamps, Authors {
     /** Device user agent. */
     userAgent: string;
 
-    /** Refresh token expiration. */
-    expiration: string;
+    /** Refresh token expiration date. */
+    expiration: Date;
 
     /** Refresh token to use for that device. */
     refreshToken: string;

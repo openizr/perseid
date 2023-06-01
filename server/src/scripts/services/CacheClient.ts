@@ -9,11 +9,28 @@
 import { existsSync, promises } from 'fs';
 
 /**
- * Cache client.
+ * Cache client settings.
+ */
+export interface CacheClientSettings {
+  /** Path to the cache directory on file system. */
+  cachePath: string;
+}
+
+/**
+ * Handles data caching for faster access.
  */
 export default class CacheClient {
   /** Cache file path. */
-  private cachePath = '/var/www/html/node_modules/.cache';
+  protected cachePath: string;
+
+  /**
+   * Class constructor.
+   *
+   * @param settings Cache client settings.
+   */
+  constructor(settings: CacheClientSettings) {
+    this.cachePath = settings.cachePath;
+  }
 
   /**
    * Deletes cached data stored at `key`.
