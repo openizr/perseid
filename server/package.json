@@ -1,11 +1,11 @@
 {
   "name": "@perseid/server",
-  "version": "0.0.27",
+  "version": "0.0.65",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",
   "types": "./types.d.ts",
-  "description": "Fast, scalable job scheduler, based on @perseid/server",
+  "description": "Dynamic, model-based REST APIs generator",
   "repository": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
   "contributors": [
@@ -60,7 +60,7 @@
     ]
   },
   "dependencies": {
-    "@perseid/core": "^0.0.5",
+    "@perseid/core": "^0.0.7",
     "ajv": "^8.12.0",
     "ajv-errors": "^3.0.0",
     "basx": "^2.0.1",
@@ -68,7 +68,7 @@
     "fast-json-stringify": "^5.7.0",
     "fastify": "^4.17.0",
     "jsonwebtoken": "^9.0.0",
-    "mongodb": "^5.5.0",
+    "mongodb": "^5.6.0",
     "multiparty": "^4.2.3",
     "pino": "^8.14.1",
     "pino-pretty": "^10.0.0"

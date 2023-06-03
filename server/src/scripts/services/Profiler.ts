@@ -54,9 +54,9 @@ export default class Profiler {
   /**
    * Formats the given profiler metrics into a human-readable string.
    *
-   * @param {Measurement[]} Profiler metrics.
+   * @param metrics Profiler metrics.
    *
-   * @returns {string} Formatted metrics.
+   * @returns Formatted metrics.
    */
   public static formatMetrics(metrics: Measurement[]): string {
     const formattedMetrics = metrics.map((measurement) => `Snapshot Name: ${measurement.name}\nMemory used: ${measurement.memory.toFixed(3)} Mb\nElapsed time: ${measurement.elapsedTime} ms\nAverage CPU load: ${((1 - (measurement.cpuAverage.idle / measurement.cpuAverage.total)) * 100).toFixed(2)}%`).join('\n----\n');

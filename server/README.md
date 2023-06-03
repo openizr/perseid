@@ -1,6 +1,6 @@
 # @perseid/server
 
-💻 Dynamic, model-based API generator.
+💻 Dynamic, model-based REST APIs generator.
 
 
 ## Installation

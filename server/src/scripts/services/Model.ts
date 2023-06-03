@@ -47,17 +47,16 @@ export default class Model<
               refreshToken: { type: 'string', required: true },
               id: { type: 'string', pattern: /^[0-9a-fA-F]{24}$/.source, required: true },
             },
+            permissions: ['O_AUTH_CREDENTIALS_VIEW'],
           },
-          permissions: ['O_AUTH_CREDENTIALS_VIEW'],
         },
         _apiKeys: {
           type: 'array',
           required: true,
-          fields: Model.token(true, true),
-          permissions: ['O_AUTH_CREDENTIALS_VIEW'],
+          fields: Model.token({ permissions: ['O_AUTH_CREDENTIALS_VIEW'] }),
         },
         email: Model.email({ unique: true }),
-        password: { ...Model.password(), permissions: ['O_AUTH_CREDENTIALS_VIEW'] },
+        password: Model.password({ permissions: ['O_AUTH_CREDENTIALS_VIEW'] }),
         roles: {
           type: 'array',
           required: true,
@@ -66,8 +65,8 @@ export default class Model<
             index: true,
             required: true,
             relation: 'roles',
+            permissions: ['USERS_DETAILS_VIEW'],
           },
-          permissions: ['USERS_DETAILS_VIEW'],
         },
       },
     },
@@ -77,7 +76,7 @@ export default class Model<
       enableDeletion: true,
       enableTimestamps: true,
       fields: {
-        name: Model.tinyText(true, true, true), // TODO capitalized
+        name: Model.tinyText(), // TODO capitalized
         permissions: {
           type: 'array',
           required: true,
@@ -94,7 +93,8 @@ export default class Model<
   /**
    * `email` custom data model type generator.
    *
-   * @param overrides Additional properties to override field with. Defaults to `{}`.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
@@ -103,225 +103,161 @@ export default class Model<
       type: 'string',
       customType: 'email',
       errorMessages: {
-        type: 'must be a valid email.',
-        pattern: 'must be a valid email.',
+        type: 'must be a valid email',
+        pattern: 'must be a valid email',
       },
+      pattern: /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/.source,
       ...overrides,
       required: overrides.required !== false,
-      pattern: /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/.source,
     };
   }
 
   /**
    * `tinyText` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
-   *
-   * @param index Whether field needs to be indexed. Defaults to `false`.
-   *
-   * @param unique Whether field needs to be unique. Defaults to `false`.
-   *
-   * @param minLength Optional minimum length constraint to apply to the field.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
-  public static tinyText(
-    required = true,
-    index = false,
-    unique = false,
-    minLength: number | undefined = undefined,
-  ): StringDataModel {
+  public static tinyText(overrides: Partial<StringDataModel> = {}): StringDataModel {
     return {
-      index,
-      unique,
-      required,
-      minLength,
       maxLength: 50,
       type: 'string',
       customType: 'tinyText',
+      required: overrides.required !== false,
+      ...overrides,
     };
   }
 
   /**
    * `shortText` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
-   *
-   * @param index Whether field needs to be indexed. Defaults to `false`.
-   *
-   * @param unique Whether field needs to be unique. Defaults to `false`.
-   *
-   * @param minLength Optional minimum length constraint to apply to the field.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
-  public static shortText(
-    required = true,
-    index = false,
-    unique = false,
-    minLength: number | undefined = undefined,
-  ): StringDataModel {
+  public static shortText(overrides: Partial<StringDataModel> = {}): StringDataModel {
     return {
-      index,
-      unique,
-      required,
-      minLength,
       type: 'string',
       maxLength: 100,
       customType: 'shortText',
+      required: overrides.required !== false,
+      ...overrides,
     };
   }
 
   /**
    * `mediumText` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
-   *
-   * @param index Whether field needs to be indexed. Defaults to `false`.
-   *
-   * @param unique Whether field needs to be unique. Defaults to `false`.
-   *
-   * @param minLength Optional minimum length constraint to apply to the field.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
-  public static mediumText(
-    required = true,
-    index = false,
-    unique = false,
-    minLength: number | undefined = undefined,
-  ): StringDataModel {
+  public static mediumText(overrides: Partial<StringDataModel> = {}): StringDataModel {
     return {
-      index,
-      unique,
-      required,
-      minLength,
       type: 'string',
       maxLength: 500,
       customType: 'mediumText',
+      required: overrides.required !== false,
+      ...overrides,
     };
   }
 
   /**
    * `longText` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
-   *
-   * @param index Whether field needs to be indexed. Defaults to `false`.
-   *
-   * @param unique Whether field needs to be unique. Defaults to `false`.
-   *
-   * @param minLength Optional minimum length constraint to apply to the field.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
-  public static longText(
-    required = true,
-    index = false,
-    unique = false,
-    minLength: number | undefined = undefined,
-  ): StringDataModel {
+  public static longText(overrides: Partial<StringDataModel> = {}): StringDataModel {
     return {
-      index,
-      unique,
-      required,
-      minLength,
       type: 'string',
       maxLength: 2500,
       customType: 'longText',
+      required: overrides.required !== false,
+      ...overrides,
     };
   }
 
   /**
    * `hugeText` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
-   *
-   * @param index Whether field needs to be indexed. Defaults to `false`.
-   *
-   * @param unique Whether field needs to be unique. Defaults to `false`.
-   *
-   * @param minLength Optional minimum length constraint to apply to the field.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
-  public static hugeText(
-    required = true,
-    index = false,
-    unique = false,
-    minLength: number | undefined = undefined,
-  ): StringDataModel {
+  public static hugeText(overrides: Partial<StringDataModel> = {}): StringDataModel {
     return {
-      index,
-      unique,
-      required,
-      minLength,
       type: 'string',
       maxLength: 10000,
       customType: 'hugeText',
+      required: overrides.required !== false,
+      ...overrides,
     };
   }
 
   /**
    * `token` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
-   *
-   * @param index Whether field needs to be indexed. Defaults to `false`.
-   *
-   * @param unique Whether field needs to be unique. Defaults to `false`.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
-  public static token(
-    required = true,
-    index = false,
-    unique = false,
-  ): StringDataModel {
+  public static token(overrides: Partial<StringDataModel> = {}): StringDataModel {
     return {
-      index,
-      unique,
-      required,
       type: 'string',
       customType: 'token',
       pattern: /^[0-9A-Za-z]{24}$/.source,
       errorMessages: {
-        type: 'must be a valid token.',
-        pattern: 'must be a valid token.',
+        type: 'must be a valid token',
+        pattern: 'must be a valid token',
       },
+      required: overrides.required !== false,
+      ...overrides,
     };
   }
 
   /**
    * `password` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
-  public static password(required = true): StringDataModel {
+  public static password(overrides: Partial<StringDataModel> = {}): StringDataModel {
     return {
-      required,
       type: 'string',
       customType: 'password',
       pattern: /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,}$/.source,
       errorMessages: {
-        type: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char).',
-        pattern: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char).',
+        type: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
+        pattern: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
       },
+      required: overrides.required !== false,
+      ...overrides,
     };
   }
 
   /**
    * `credentials` custom data model type generator.
    *
-   * @param required Whether field is required. Defaults to `true`.
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
    *
    * @returns Generated custom data model.
    */
-  public static credentials(required = true): ObjectDataModel<DefaultTypes> {
+  public static credentials(
+    overrides: Partial<ObjectDataModel<unknown>> = {},
+  ): ObjectDataModel<unknown> {
     return {
-      required,
       type: 'object',
       customType: 'credentials',
       fields: {
@@ -338,6 +274,8 @@ export default class Model<
           required: true,
         },
       },
+      required: overrides.required !== false,
+      ...overrides,
     };
   }
 

@@ -7,7 +7,7 @@
  */
 
 import jwt from 'jsonwebtoken';
-import Model from 'scripts/common/Model';
+import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
 import Conflict from 'scripts/errors/Conflict';
 import EngineError from 'scripts/errors/Engine';
@@ -79,7 +79,7 @@ interface DataModel extends BaseDataModel {
 describe('services/Controller', () => {
   vi.mock('jsonwebtoken');
   vi.mock('@perseid/core');
-  vi.mock('scripts/common/Model');
+  vi.mock('scripts/services/Model');
   vi.mock('scripts/services/Logger');
   vi.mock('scripts/services/OAuthEngine');
   vi.mock('scripts/services/CacheClient');

@@ -42,10 +42,9 @@ const readFile = vi.fn(() => {
   return '{"data":"{\\"data\\":\\"test\\"}","expiration":100000}';
 });
 
-export { existsSync };
+export { existsSync, createWriteStream };
 export const promises = {
   unlink,
   readFile,
   writeFile,
-  createWriteStream,
 };

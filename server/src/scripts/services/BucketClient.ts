@@ -6,7 +6,7 @@
  *
  */
 
-import { Stream } from 'stream';
+import { type Stream } from 'stream';
 import Logger from 'scripts/services/Logger';
 
 /**

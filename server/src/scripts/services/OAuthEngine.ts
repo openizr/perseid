@@ -12,7 +12,7 @@ import Engine from 'scripts/services/Engine';
 import Logger from 'scripts/services/Logger';
 import EngineError from 'scripts/errors/Engine';
 import { randomBytes, createHash } from 'crypto';
-import type BaseModel from 'scripts/common/Model';
+import type BaseModel from 'scripts/services/Model';
 import EmailClient from 'scripts/services/EmailClient';
 import type CacheClient from 'scripts/services/CacheClient';
 import type BaseDatabaseClient from 'scripts/services/DatabaseClient';

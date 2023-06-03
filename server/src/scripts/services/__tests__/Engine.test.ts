@@ -7,10 +7,10 @@
  */
 
 import { Id } from '@perseid/core';
-import Model from 'scripts/common/Model';
-import { EngineError } from 'scripts/main';
+import Model from 'scripts/services/Model';
 import Engine from 'scripts/services/Engine';
 import Logger from 'scripts/services/Logger';
+import EngineError from 'scripts/errors/Engine';
 import CacheClient from 'scripts/services/CacheClient';
 import DatabaseClient from 'scripts/services/DatabaseClient';
 
@@ -62,7 +62,7 @@ interface DataModel {
 
 describe('services/Engine', () => {
   vi.mock('@perseid/core');
-  vi.mock('scripts/common/Model');
+  vi.mock('scripts/services/Model');
   vi.mock('scripts/services/Logger');
   vi.mock('scripts/services/CacheClient');
   vi.mock('scripts/services/DatabaseClient');

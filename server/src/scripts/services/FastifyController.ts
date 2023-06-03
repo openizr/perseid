@@ -11,7 +11,7 @@ import {
   type FastifyReply,
   type FastifyRequest,
   type FastifyInstance,
-  FastifySchema,
+  type FastifySchema,
 } from 'fastify';
 import {
   Id,
@@ -31,17 +31,16 @@ import Controller, {
 } from 'scripts/services/Controller';
 import ajvErrors from 'ajv-errors';
 import multiparty from 'multiparty';
+import { isPlainObject } from 'basx';
 import { createWriteStream } from 'fs';
 import Gone from 'scripts/errors/Gone';
-import BaseModel from 'scripts/common/Model';
-import isNested from 'scripts/common/isNested';
+import BaseModel from 'scripts/services/Model';
 import NotFound from 'scripts/errors/NotFound';
 import Conflict from 'scripts/errors/Conflict';
 import Forbidden from 'scripts/errors/Forbidden';
 import type Logger from 'scripts/services/Logger';
-import { IncomingMessage as Payload } from 'http';
 import BadRequest from 'scripts/errors/BadRequest';
-import { DataValidationCxt } from 'ajv/dist/types';
+import { type IncomingMessage as Payload } from 'http';
 import Unauthorized from 'scripts/errors/Unauthorized';
 import NotAcceptable from 'scripts/errors/NotAcceptable';
 import type OAuthEngine from 'scripts/services/OAuthEngine';
@@ -49,6 +48,7 @@ import TooManyRequests from 'scripts/errors/TooManyRequests';
 import fastJsonStringify, { Schema } from 'fast-json-stringify';
 import UnprocessableEntity from 'scripts/errors/UnprocessableEntity';
 import RequestEntityTooLarge from 'scripts/errors/RequestEntityTooLarge';
+import { type DataValidationCxt, type KeywordDefinition } from 'ajv/dist/types';
 
 const decoder = new TextDecoder();
 const defaultTransformer = (schema: FastifySchema): FastifySchema => schema;
@@ -205,6 +205,74 @@ export default class FastifyController<
 
   /** Invalid payload error code. */
   protected readonly INVALID_PAYLOAD_CODE = 'INVALID_PAYLOAD';
+
+  /** List of special Ajv keywords, used to format special types on the fly. */
+  protected readonly KEYWORDS: KeywordDefinition[] = [
+    {
+      keyword: 'isBinary',
+      modifying: true,
+      validate: function validate(_, value, schema, context): boolean {
+        (validate as unknown as Validate).errors = [];
+        if ((schema as AjvValidationSchema).nullable && value === null) {
+          return true;
+        }
+        if ((typeof value !== 'string' || value.slice(0, 5) !== 'data:')) {
+          (validate as unknown as Validate).errors.push({ keyword: 'type' });
+          return false;
+        }
+        const encoder = new TextEncoder();
+        const { parentData, parentDataProperty } = context as DataValidationCxt;
+        parentData[parentDataProperty] = encoder.encode(value).buffer;
+        return true;
+      },
+    } as KeywordDefinition,
+    {
+      keyword: 'isDate',
+      modifying: true,
+      errors: true,
+      validate: function validate(_, value, schema, context) {
+        (validate as unknown as Validate).errors = [];
+        const { nullable, enum: enums } = schema as AjvValidationSchema;
+        if (nullable && value === null) {
+          return true;
+        }
+        if (!/[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z/.test(`${value}`)) {
+          (validate as unknown as Validate).errors.push({ keyword: 'pattern' });
+          return false;
+        }
+        if (enums !== undefined && !enums.includes(value)) {
+          (validate as unknown as Validate).errors.push({ keyword: 'enum' });
+          return false;
+        }
+        const { parentData, parentDataProperty } = context as DataValidationCxt;
+        parentData[parentDataProperty] = new Date(value);
+        return true;
+      },
+    } as KeywordDefinition,
+    {
+      keyword: 'isId',
+      modifying: true,
+      errors: true,
+      validate: function validate(_, value, schema, context) {
+        (validate as unknown as Validate).errors = [];
+        const { nullable, enum: enums } = schema as AjvValidationSchema;
+        if (nullable && value === null) {
+          return true;
+        }
+        if (!/^[0-9a-fA-F]{24}$/.test(`${value}`)) {
+          (validate as unknown as Validate).errors.push({ keyword: 'pattern' });
+          return false;
+        }
+        if (enums !== undefined && !enums.includes(value)) {
+          (validate as unknown as Validate).errors.push({ keyword: 'enum' });
+          return false;
+        }
+        const { parentData, parentDataProperty } = context as DataValidationCxt;
+        parentData[parentDataProperty] = new Id(value);
+        return true;
+      },
+    } as KeywordDefinition,
+  ];
 
   /** List of formatters, used to format a perseid data model into its Ajv equivalent. */
   protected readonly FORMATTERS: AjvFormatters<Types> = {
@@ -779,7 +847,7 @@ export default class FastifyController<
     if (Array.isArray(output)) {
       return output.map(this.formatOutput);
     }
-    if (isNested(output)) {
+    if (isPlainObject(output)) {
       return Object.keys(output as Record<string, unknown>)
         .reduce((formattedResource, key) => ({
           ...formattedResource,
@@ -841,7 +909,7 @@ export default class FastifyController<
    * @returns Formatted error.
    */
   protected formatError(error: ValidationError[], dataVar: string): Error {
-    let message = error[0].message || '';
+    let message = error[0].message ?? '';
     const { keyword, instancePath, params } = error[0];
 
     const httpPart = dataVar === 'querystring' ? 'query' : dataVar;
@@ -850,7 +918,7 @@ export default class FastifyController<
     if (keyword === 'required') {
       message = `"${fullPath}.${params?.missingProperty}" is required.`;
     } else if (keyword === 'additionalProperties') {
-      message = `Unknown property "${fullPath}.${params?.additionalProperty}".`;
+      message = `Unknown field "${fullPath}.${params?.additionalProperty}".`;
     }
 
     return new BadRequest(this.INVALID_PAYLOAD_CODE, message);
@@ -1129,24 +1197,29 @@ export default class FastifyController<
     const { collection, type } = settings;
     const validationType = (type === 'SEARCH') ? 'UPDATE' : type as 'CREATE' | 'UPDATE';
     const headersTransformer = (schema: FastifySchema): FastifySchema => {
-      if (settings.authenticate) {
-        const headersSchema = { ...schema.headers as AjvValidationSchema };
-        headersSchema.type = 'object';
-        headersSchema.additionalProperties = true;
-        headersSchema.required = [...(headersSchema?.required ?? []), 'x-device-id'];
-        headersSchema.properties = {
-          ...headersSchema?.properties,
-          'x-device-id': {
-            type: 'string',
-            pattern: /^[0-9a-fA-F]{24}$/.source,
-            errorMessage: {
-              type: 'must be a valid device id',
-              pattern: 'must be a valid device id',
+      const headersSchema = { ...schema.headers as AjvValidationSchema };
+      return (settings.schemaTransformer ?? defaultTransformer)(!settings.authenticate
+        ? schema
+        : {
+          ...schema,
+          headers: {
+            ...headersSchema,
+            type: 'object',
+            additionalProperties: true,
+            required: [...(headersSchema?.required ?? []), 'x-device-id'],
+            properties: {
+              ...headersSchema.properties,
+              'x-device-id': {
+                type: 'string',
+                pattern: /^[0-9a-fA-F]{24}$/.source,
+                errorMessage: {
+                  type: 'must be a valid device id',
+                  pattern: 'must be a valid device id',
+                },
+              },
             },
           },
-        };
-      }
-      return (settings.schemaTransformer ?? defaultTransformer)(schema);
+        });
     };
     return {
       handler: async (request, response): Promise<void> => {
@@ -1207,70 +1280,7 @@ export default class FastifyController<
     ajvErrors(ajv);
 
     // Adding keywords to handle special types...
-    ajv.addKeyword({
-      keyword: 'isBinary',
-      modifying: true,
-      validate: function validate(_, value, schema, context) {
-        (validate as unknown as Validate).errors = [];
-        if ((schema as AjvValidationSchema).nullable && value === null) {
-          return true;
-        }
-        if ((typeof value !== 'string' || value.slice(0, 5) !== 'data:')) {
-          (validate as unknown as Validate).errors.push({ keyword: 'type' });
-          return false;
-        }
-        const encoder = new TextEncoder();
-        const { parentData, parentDataProperty } = context as DataValidationCxt;
-        parentData[parentDataProperty] = encoder.encode(value).buffer;
-        return true;
-      },
-    });
-    ajv.addKeyword({
-      keyword: 'isDate',
-      modifying: true,
-      errors: true,
-      validate: function validate(_, value, schema, context) {
-        (validate as unknown as Validate).errors = [];
-        const { nullable, enum: enums } = schema as AjvValidationSchema;
-        if (nullable && value === null) {
-          return true;
-        }
-        if (!/[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z/.test(`${value}`)) {
-          (validate as unknown as Validate).errors.push({ keyword: 'pattern' });
-          return false;
-        }
-        if (enums !== undefined && !enums.includes(value)) {
-          (validate as unknown as Validate).errors.push({ keyword: 'enum' });
-          return false;
-        }
-        const { parentData, parentDataProperty } = context as DataValidationCxt;
-        parentData[parentDataProperty] = new Date(value);
-        return true;
-      },
-    });
-    ajv.addKeyword({
-      keyword: 'isId',
-      modifying: true,
-      errors: true,
-      validate: function validate(_, value, schema, context) {
-        (validate as unknown as Validate).errors = [];
-        const { nullable, enum: enums } = schema as AjvValidationSchema;
-        if (nullable && value === null) {
-          return true;
-        }
-        if (!/^[0-9a-fA-F]{24}$/.test(`${value}`)) {
-          (validate as unknown as Validate).errors.push({ keyword: 'pattern' });
-          return false;
-        }
-        if (enums !== undefined && !enums.includes(value)) {
-          (validate as unknown as Validate).errors.push({ keyword: 'enum' });
-          return false;
-        }
-        const { parentData, parentDataProperty } = context as DataValidationCxt;
-        parentData[parentDataProperty] = new Id(value);
-        return true;
-      },
-    });
+    this.KEYWORDS.forEach((keyword) => ajv.addKeyword(keyword));
 
     // We first register all schemas in order to let Ajv find them at compilation time.
     // We need to add schemas to the custom validator compiler instead of fastify.

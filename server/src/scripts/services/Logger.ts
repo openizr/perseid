@@ -7,9 +7,9 @@
  */
 
 import { Logger as BaseLogger } from '@perseid/core';
-import { pino, type Logger as PinoLogger } from 'pino';
+import { pino, type DestinationStream, type Logger as PinoLogger } from 'pino';
 
-type PinoDestination = pino.DestinationStream & {
+type PinoDestination = DestinationStream & {
   flushSync: () => void;
   on: (event: string, callback: () => void) => void;
 };

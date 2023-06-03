@@ -6,10 +6,10 @@
  *
  */
 
-import Model from 'scripts/common/Model';
+import Model from 'scripts/services/Model';
 import { type DataModel as DefaultTypes } from '@perseid/core';
 
-describe('common/Model', () => {
+describe('services/Model', () => {
   const model = new Model<DefaultTypes & {
     test: {
       test: string;
@@ -45,18 +45,16 @@ describe('common/Model', () => {
       type: 'string',
       customType: 'email',
       errorMessages: {
-        type: 'must be a valid email.',
-        pattern: 'must be a valid email.',
+        type: 'must be a valid email',
+        pattern: 'must be a valid email',
       },
       pattern: '^(([^<>()[\\]\\\\.,;:\\s@"]+(\\.[^<>()[\\]\\\\.,;:\\s@"]+)*)|(".+"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$',
     });
   });
 
   test('[tinyText]', async () => {
-    expect(Model.tinyText(true, false, false, 2)).toEqual({
-      index: false,
+    expect(Model.tinyText({ minLength: 2 })).toEqual({
       minLength: 2,
-      unique: false,
       maxLength: 50,
       required: true,
       type: 'string',
@@ -65,10 +63,8 @@ describe('common/Model', () => {
   });
 
   test('[shortText]', async () => {
-    expect(Model.shortText(true, false, false, 2)).toEqual({
-      index: false,
+    expect(Model.shortText({ minLength: 2 })).toEqual({
       minLength: 2,
-      unique: false,
       maxLength: 100,
       required: true,
       type: 'string',
@@ -77,10 +73,8 @@ describe('common/Model', () => {
   });
 
   test('[mediumText]', async () => {
-    expect(Model.mediumText(true, false, false, 2)).toEqual({
-      index: false,
+    expect(Model.mediumText({ minLength: 2 })).toEqual({
       minLength: 2,
-      unique: false,
       maxLength: 500,
       required: true,
       type: 'string',
@@ -89,10 +83,8 @@ describe('common/Model', () => {
   });
 
   test('[longText]', async () => {
-    expect(Model.longText(true, false, false, 2)).toEqual({
-      index: false,
+    expect(Model.longText({ minLength: 2 })).toEqual({
       minLength: 2,
-      unique: false,
       maxLength: 2500,
       required: true,
       type: 'string',
@@ -101,10 +93,8 @@ describe('common/Model', () => {
   });
 
   test('[hugeText]', async () => {
-    expect(Model.hugeText(true, false, false, 2)).toEqual({
-      index: false,
+    expect(Model.hugeText({ minLength: 2 })).toEqual({
       minLength: 2,
-      unique: false,
       required: true,
       type: 'string',
       maxLength: 10000,
@@ -114,15 +104,13 @@ describe('common/Model', () => {
 
   test('[token]', async () => {
     expect(Model.token()).toEqual({
-      index: false,
-      unique: false,
       required: true,
       type: 'string',
       customType: 'token',
       pattern: /^[0-9A-Za-z]{24}$/.source,
       errorMessages: {
-        type: 'must be a valid token.',
-        pattern: 'must be a valid token.',
+        type: 'must be a valid token',
+        pattern: 'must be a valid token',
       },
     });
   });
@@ -134,8 +122,8 @@ describe('common/Model', () => {
       customType: 'password',
       pattern: /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,}$/.source,
       errorMessages: {
-        type: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char).',
-        pattern: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char).',
+        type: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
+        pattern: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
       },
     });
   });
@@ -147,27 +135,23 @@ describe('common/Model', () => {
       customType: 'credentials',
       fields: {
         deviceId: {
-          index: false,
-          unique: false,
           required: true,
           type: 'string',
           customType: 'token',
           pattern: /^[0-9A-Za-z]{24}$/.source,
           errorMessages: {
-            type: 'must be a valid token.',
-            pattern: 'must be a valid token.',
+            type: 'must be a valid token',
+            pattern: 'must be a valid token',
           },
         },
         refreshToken: {
-          index: false,
-          unique: false,
           required: true,
           type: 'string',
           customType: 'token',
           pattern: /^[0-9A-Za-z]{24}$/.source,
           errorMessages: {
-            type: 'must be a valid token.',
-            pattern: 'must be a valid token.',
+            type: 'must be a valid token',
+            pattern: 'must be a valid token',
           },
         },
         expiresIn: {

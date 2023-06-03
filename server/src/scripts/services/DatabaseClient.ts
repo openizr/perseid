@@ -15,9 +15,9 @@ import {
   type ClientSession,
   type MongoServerError,
 } from 'mongodb';
-import isNested from 'scripts/common/isNested';
+import { isPlainObject } from 'basx';
 import type Logger from 'scripts/services/Logger';
-import type BaseModel from 'scripts/common/Model';
+import type BaseModel from 'scripts/services/Model';
 import DatabaseError from 'scripts/errors/Database';
 import type CacheClient from 'scripts/services/CacheClient';
 import { Id, forEach, type DataModel as DefaultTypes } from '@perseid/core';
@@ -773,7 +773,7 @@ export default class DatabaseClient<
     path: string[] = [],
     isFlatArray = false,
   ): Document[] {
-    if (isNested(projections)) {
+    if (isPlainObject(projections)) {
       const { type } = model;
 
       // External relations...

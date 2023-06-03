@@ -14,7 +14,7 @@ import {
   MongoServerError,
 } from 'mongodb';
 import { Id } from '@perseid/core';
-import Model from 'scripts/common/Model';
+import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
 import DatabaseError from 'scripts/errors/Database';
 import CacheClient from 'scripts/services/CacheClient';
@@ -80,7 +80,7 @@ type TestDatabaseClient = DatabaseClient<DataModel> & {
 
 describe('services/DatabaseClient', () => {
   vi.mock('mongodb');
-  vi.mock('scripts/common/Model');
+  vi.mock('scripts/services/Model');
   vi.mock('scripts/services/Logger');
   vi.mock('scripts/services/CacheClient');
 
@@ -357,7 +357,7 @@ describe('services/DatabaseClient', () => {
                   },
                 },
                 object: {
-                  bsonType: ['object', 'null'],
+                  bsonType: ['object'],
                   additionalProperties: false,
                   required: ['fieldOne'],
                   properties: { fieldOne: { bsonType: ['string', 'null'] } },
@@ -425,18 +425,16 @@ describe('services/DatabaseClient', () => {
         bsonType: ['object', 'null'],
         additionalProperties: false,
         required: [
-          'float',
-          'integer',
-          'string',
-          '_id',
-          'null',
-          'boolean',
-          'enum',
-          'relation',
-          'date',
-          'id',
-          'array',
-          'dynamicObject',
+          'float', 'floatTwo',
+          'integer', 'integerTwo',
+          'string', '_id',
+          'null', 'binary',
+          'enum', 'boolean',
+          'booleanTwo', 'relation',
+          'date', 'dateTwo',
+          'id', 'array',
+          'arrayTwo', 'dynamicObject',
+          'dynamicObjectTwo',
         ],
         properties: {
           float: {
@@ -448,6 +446,7 @@ describe('services/DatabaseClient', () => {
             multipleOf: 2,
             enum: [1, null],
           },
+          floatTwo: { bsonType: ['int', 'double', 'null'] },
           integer: {
             bsonType: ['int', 'null'],
             minimum: 0,
@@ -457,6 +456,7 @@ describe('services/DatabaseClient', () => {
             multipleOf: 2,
             enum: [1, null],
           },
+          integerTwo: { bsonType: ['int', 'null'] },
           string: {
             bsonType: ['string', 'null'],
             maxLength: 10,
@@ -466,15 +466,16 @@ describe('services/DatabaseClient', () => {
           },
           _id: { bsonType: ['objectId', 'null'] },
           null: { bsonType: ['null'] },
-          boolean: { bsonType: ['bool', 'null'] },
+          binary: { bsonType: ['binData', 'null'] },
           enum: { bsonType: ['string', 'null'], enum: ['test', null] },
-          relation: {
-            bsonType: ['objectId', 'null'],
-          },
+          boolean: { bsonType: ['bool', 'null'] },
+          booleanTwo: { bsonType: ['bool', 'null'] },
+          relation: { bsonType: ['objectId', 'null'] },
           date: {
             bsonType: ['date', 'null'],
             enum: ['2023-01-01T00:00:00.000Z', null],
           },
+          dateTwo: { bsonType: ['date', 'null'] },
           id: {
             bsonType: ['objectId', 'null'],
             enum: ['6478a6c5392350aaced68cf9', null],
@@ -482,15 +483,29 @@ describe('services/DatabaseClient', () => {
           array: {
             bsonType: ['array', 'null'],
             items: { bsonType: ['string', 'null'] },
-            minItems: 1,
+            minItems: 3,
             maxItems: 10,
+            uniqueItems: true,
+          },
+          arrayTwo: {
+            bsonType: ['array', 'null'],
+            items: { bsonType: ['string', 'null'] },
+            minItems: 1,
+            maxItems: 1,
             uniqueItems: true,
           },
           dynamicObject: {
             bsonType: ['object', 'null'],
             additionalProperties: false,
-            minProperties: 1,
+            minProperties: 3,
             maxProperties: 10,
+            patternProperties: { test: { bsonType: ['string', 'null'] } },
+          },
+          dynamicObjectTwo: {
+            bsonType: ['object', 'null'],
+            additionalProperties: false,
+            minProperties: 1,
+            maxProperties: 1,
             patternProperties: { test: { bsonType: ['string', 'null'] } },
           },
         },

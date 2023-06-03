@@ -6,7 +6,7 @@
  *
  */
 
-import Model from 'scripts/common/Model';
+import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
 import { DataModel, Id } from '@perseid/core';
 import EngineError from 'scripts/errors/Engine';
@@ -30,7 +30,7 @@ describe('services/OAuthEngine', () => {
   vi.mock('crypto');
   vi.mock('jsonwebtoken');
   vi.mock('@perseid/core');
-  vi.mock('scripts/common/Model');
+  vi.mock('scripts/services/Model');
   vi.mock('scripts/services/Logger');
   vi.mock('scripts/services/Engine');
   vi.mock('scripts/services/CacheClient');

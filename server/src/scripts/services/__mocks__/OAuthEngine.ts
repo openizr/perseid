@@ -6,10 +6,9 @@
  *
  */
 
-// import { Document } from 'mongodb';
-import type Model from 'scripts/common/Model';
+import { Id } from '@perseid/core';
+import type Model from 'scripts/services/Model';
 import type Logger from 'scripts/services/Logger';
-// import { type DataModel, type User, Id } from '@perseid/core';
 import type DatabaseClient from 'scripts/services/DatabaseClient';
 
 /**
@@ -24,6 +23,42 @@ export default class {
   protected databaseClient: DatabaseClient;
 
   protected automaticFieldValue = new Date('2023-01-01');
+
+  public create = vi.fn();
+
+  public update = vi.fn();
+
+  public list = vi.fn();
+
+  public search = vi.fn();
+
+  public delete = vi.fn();
+
+  public signIn = vi.fn();
+
+  public signUp = vi.fn();
+
+  public signOut = vi.fn();
+
+  public verifyEmail = vi.fn();
+
+  public refreshToken = vi.fn();
+
+  public resetPassword = vi.fn();
+
+  public requestPasswordReset = vi.fn();
+
+  public requestEmailVerification = vi.fn();
+
+  public verifyToken = vi.fn(() => new Id('64723318e84f943f1ad6578b'));
+
+  public view = vi.fn(() => ({
+    _devices: [{ id: 'valid' }],
+    roles: [{
+      name: 'TEST',
+      permissions: ['TEST'],
+    }],
+  }));
 
   constructor(
     model: Model,

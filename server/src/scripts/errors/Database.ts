@@ -19,12 +19,12 @@ export default class Database extends Error {
   public details: Details;
 
   /**
-    * Class constructor.
-    *
-    * @param code Error code.
-    *
-    * @param details Error details.
-    */
+   * Class constructor.
+   *
+   * @param code Error code.
+   *
+   * @param details Error details.
+   */
   constructor(code: string, details?: Details) {
     super(code);
     this.code = code;

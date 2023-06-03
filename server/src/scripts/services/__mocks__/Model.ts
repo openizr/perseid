@@ -9,7 +9,7 @@
 import { Id } from '@perseid/core';
 import { type Document } from 'mongodb';
 
-/** `common/Model` mock. */
+/** `services/Model` mock. */
 
 export default class Model {
   protected defaultCollection = { fields: {} };
@@ -41,7 +41,7 @@ export default class Model {
         fields: {
           _id: { type: 'id', index: true },
           primitiveOne: { type: 'id', unique: true },
-          primitiveTwo: { type: 'binary' },
+          primitiveTwo: { type: 'binary', default: Buffer.from('testtest') },
           primitiveThree: { type: 'string', permissions: ['PRIMITIVE_THREE_VIEW'] },
           arrayOne: {
             type: 'array',
@@ -68,6 +68,7 @@ export default class Model {
                 },
                 object: {
                   type: 'object',
+                  required: true,
                   fields: {
                     fieldOne: { type: 'string', permissions: ['ARRAY_ONE_OBJECT_FIELD_ONE_VIEW'] },
                   },
@@ -156,23 +157,28 @@ export default class Model {
             enum: [1],
             maximum: 10,
             minimum: 0,
+            default: 4,
             type: 'float',
             multipleOf: 2,
             exclusiveMinimum: 0,
             exclusiveMaximum: 10,
           },
+          floatTwo: { type: 'float' },
           integer: {
             enum: [1],
             maximum: 10,
             minimum: 0,
+            default: 4,
             multipleOf: 2,
             type: 'integer',
             exclusiveMinimum: 0,
             exclusiveMaximum: 10,
             permissions: ['INTEGER_VIEW'],
           },
+          integerTwo: { type: 'integer' },
           string: {
             type: 'string',
+            default: '',
             minLength: 1,
             maxLength: 10,
             enum: ['test'],
@@ -180,22 +186,48 @@ export default class Model {
           },
           _id: { type: 'id' },
           null: { type: 'null' },
-          boolean: { type: 'boolean' },
+          binary: { type: 'binary' },
           enum: { type: 'string', enum: ['test'] },
+          boolean: { type: 'boolean', default: false },
+          booleanTwo: { type: 'boolean' },
           relation: { type: 'id', relation: 'externalRelation' },
-          date: { type: 'date', enum: [new Date('2023-01-01')] },
-          id: { type: 'id', enum: [new Id('6478a6c5392350aaced68cf9')] },
+          date: {
+            type: 'date',
+            enum: [new Date('2023-01-01')],
+            default: new Date('2023-01-01'),
+          },
+          dateTwo: { type: 'date' },
+          id: {
+            type: 'id',
+            enum: [new Id('6478a6c5392350aaced68cf9')],
+            default: new Id('6478a6c5392350aaced68cf9'),
+          },
           array: {
             type: 'array',
-            minItems: 1,
+            minItems: 3,
             maxItems: 10,
+            uniqueItems: true,
+            fields: { type: 'string', permissions: ['ARRAY_VIEW'] },
+          },
+          arrayTwo: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 1,
             uniqueItems: true,
             fields: { type: 'string', permissions: ['ARRAY_VIEW'] },
           },
           dynamicObject: {
             type: 'dynamicObject',
-            minItems: 1,
+            minItems: 3,
             maxItems: 10,
+            fields: {
+              test: { type: 'string' },
+            },
+          },
+          dynamicObjectTwo: {
+            type: 'dynamicObject',
+            minItems: 1,
+            maxItems: 1,
             fields: {
               test: { type: 'string' },
             },

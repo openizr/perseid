@@ -15,10 +15,10 @@ import {
   type Timestamps,
 } from '@perseid/core';
 import Logger from 'scripts/services/Logger';
-import isNested from 'scripts/common/isNested';
 import EngineError from 'scripts/errors/Engine';
-import type BaseModel from 'scripts/common/Model';
+import type BaseModel from 'scripts/services/Model';
 import type BaseDatabaseClient from 'scripts/services/DatabaseClient';
+import { isPlainObject } from 'basx';
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
@@ -67,7 +67,10 @@ export default class Engine<
     dataModel: FieldDataModel<Types>,
   ): Partial<Types[Collection]> {
     // Primitive values...
-    if (!isNested(payload) || !isNested(resource)) {
+    if (
+      (!isPlainObject(payload) && !Array.isArray(payload))
+      || (!isPlainObject(resource) && !Array.isArray(resource))
+    ) {
       return payload;
     }
 

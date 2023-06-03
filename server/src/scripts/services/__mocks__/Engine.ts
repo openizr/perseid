@@ -6,8 +6,8 @@
  *
  */
 
-import { Document } from 'mongodb';
-import type Model from 'scripts/common/Model';
+import { type Document } from 'mongodb';
+import type Model from 'scripts/services/Model';
 import type Logger from 'scripts/services/Logger';
 import { type DataModel, type User, Id } from '@perseid/core';
 import type DatabaseClient from 'scripts/services/DatabaseClient';

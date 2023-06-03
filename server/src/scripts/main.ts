@@ -7,7 +7,7 @@
  */
 
 import Gone from 'scripts/errors/Gone';
-import Model from 'scripts/common/Model';
+import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
 import Engine from 'scripts/services/Engine';
 import Conflict from 'scripts/errors/Conflict';
@@ -29,6 +29,8 @@ import DatabaseClient from 'scripts/services/DatabaseClient';
 import FastifyController from 'scripts/services/FastifyController';
 import UnprocessableEntity from 'scripts/errors/UnprocessableEntity';
 import RequestEntityTooLarge from 'scripts/errors/RequestEntityTooLarge';
+
+/* c8 ignore start */
 
 export { Model };
 export { Logger };
