@@ -156,6 +156,7 @@ export default class OAuthEngine<
       const userPayload = updatedPayload as Types['users'];
       if (command === 'CREATE') {
         userPayload._apiKeys = [];
+        userPayload._verifiedAt = null;
       }
       if (userPayload.password !== undefined) {
         return {

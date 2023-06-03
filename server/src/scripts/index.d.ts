@@ -338,7 +338,7 @@ declare global {
   /**
    * Array field data model.
    */
-  export interface ArrayDataModel<Types> extends GenericFieldDataModel {
+  export interface ArrayDataModel<Types> extends Omit<GenericFieldDataModel, 'permissions'> {
     /** Data type. */
     type: 'array';
 

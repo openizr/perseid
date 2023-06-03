@@ -54,9 +54,6 @@ const engine = new OAuthEngine(
 const controller = new FastifyController(model, logger, engine, {
   maxDepth: 3,
   endpoints: {
-    // signIn: { path: '/oauth/sign-in' },
-    // signOut: { path: '/oauth/sign-out' },
-    // refreshToken: { path: '/oauth/refresh-token' },
     oAuth: {
       signUp: { path: '/oauth/sign-up' },
       signIn: { path: '/oauth/sign-in' },
@@ -85,23 +82,6 @@ const controller = new FastifyController(model, logger, engine, {
         delete: { path: '/users/:id' },
       },
     }
-    // view: {
-    // },
-    // list: {
-    //   roles: { path: '/:collection' },
-    // },
-    // create: {
-    //   roles: { path: '/:collection' },
-    // },
-    // search: {
-    //   roles: { path: '/:collection/search' },
-    // },
-    // delete: {
-    //   roles: { path: '/:collection/:id' },
-    // },
-    // update: {
-    //   roles: { path: '/:collection/:id' },
-    // },
   }
 });
 

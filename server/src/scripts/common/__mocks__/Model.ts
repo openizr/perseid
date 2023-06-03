@@ -69,12 +69,13 @@ export default class Model {
                 object: {
                   type: 'object',
                   fields: {
-                    fieldOne: { type: 'string', permissions: ['ARRAY_ONE_OBJECT_VIEW'] },
+                    fieldOne: { type: 'string', permissions: ['ARRAY_ONE_OBJECT_FIELD_ONE_VIEW'] },
                   },
+                  permissions: ['ARRAY_ONE_OBJECT_VIEW'],
                 },
               },
+              permissions: ['ARRAY_ONE_VIEW'],
             },
-            permissions: ['ARRAY_ONE_VIEW'],
           },
           arrayTwo: {
             type: 'array',
@@ -168,6 +169,7 @@ export default class Model {
             type: 'integer',
             exclusiveMinimum: 0,
             exclusiveMaximum: 10,
+            permissions: ['INTEGER_VIEW'],
           },
           string: {
             type: 'string',
@@ -180,6 +182,7 @@ export default class Model {
           null: { type: 'null' },
           boolean: { type: 'boolean' },
           enum: { type: 'string', enum: ['test'] },
+          relation: { type: 'id', relation: 'externalRelation' },
           date: { type: 'date', enum: [new Date('2023-01-01')] },
           id: { type: 'id', enum: [new Id('6478a6c5392350aaced68cf9')] },
           array: {
@@ -187,7 +190,7 @@ export default class Model {
             minItems: 1,
             maxItems: 10,
             uniqueItems: true,
-            fields: { type: 'string' },
+            fields: { type: 'string', permissions: ['ARRAY_VIEW'] },
           },
           dynamicObject: {
             type: 'dynamicObject',

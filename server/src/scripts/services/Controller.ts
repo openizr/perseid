@@ -136,7 +136,8 @@ export default class Controller<
   ): string[] {
     const finalFields: Set<string> = new Set();
     const requestedFields = fields.split(',');
-    permissions.add(`${(collection as string).toUpperCase()}_VIEW`);
+    const addPermission = permissions.add.bind(permissions);
+    addPermission(`${(collection as string).toUpperCase()}_VIEW`);
     const { fields: collectionFields } = this.model.getCollection(collection);
     const model: FieldDataModel<Types> = { type: 'object', fields: collectionFields };
 
@@ -153,14 +154,14 @@ export default class Controller<
           break;
         } else {
           currentModel = (currentModel as ObjectDataModel<Types>).fields?.[subPath];
-          currentModel?.permissions?.forEach(permissions.add.bind(permissions));
+          (currentModel as DateDataModel)?.permissions?.forEach(addPermission);
 
           if (currentModel?.type === 'array') {
             currentModel = currentModel.fields;
-            currentModel.permissions?.forEach(permissions.add.bind(permissions));
+            (currentModel as StringDataModel).permissions?.forEach(addPermission);
           }
           if (currentModel?.type === 'id' && currentModel.relation !== undefined) {
-            permissions.add(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
+            addPermission(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
             currentModel = { type: 'object', fields: this.model.getCollection(currentModel.relation).fields };
           } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {
             const subFields: DynamicObjectDataModel<Types>['fields'] = currentModel.fields;
@@ -179,7 +180,7 @@ export default class Controller<
       } else if (currentModel?.type === 'object') {
         const keys = Object.keys(currentModel.fields);
         for (let i = 0, { length: keysLength } = keys; i < keysLength; i += 1) {
-          currentModel.fields[keys[i]].permissions?.forEach(permissions.add.bind(permissions));
+          (currentModel.fields[keys[i]] as StringDataModel).permissions?.forEach(addPermission);
           finalFields.add(path.replace('*', keys[i]));
         }
       } else {
@@ -210,6 +211,7 @@ export default class Controller<
   ): SearchFilters {
     const filterFields = Object.keys(filters);
     const formattedFilters: SearchFilters = {};
+    const addPermission = permissions.add.bind(permissions);
     const { fields: collectionFields } = this.model.getCollection(collection);
     const model: FieldDataModel<Types> = { type: 'object', fields: collectionFields };
 
@@ -222,25 +224,21 @@ export default class Controller<
       // Walking through the model...
       while (splittedPath.length > 0 && currentModel !== undefined) {
         subPath = splittedPath.shift() as string;
-        if (splittedPath.length === 0 && subPath === '*') {
-          break;
-        } else {
-          currentModel = (currentModel as ObjectDataModel<Types>).fields?.[subPath];
-          currentModel?.permissions?.forEach(permissions.add.bind(permissions));
+        currentModel = (currentModel as ObjectDataModel<Types>).fields?.[subPath];
+        (currentModel as StringDataModel)?.permissions?.forEach(addPermission);
 
-          if (currentModel?.type === 'array') {
-            currentModel = currentModel.fields;
-            currentModel.permissions?.forEach(permissions.add.bind(permissions));
-          }
-          if (currentModel?.type === 'id' && currentModel.relation !== undefined) {
-            permissions.add(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
-            currentModel = { type: 'object', fields: this.model.getCollection(currentModel.relation).fields };
-          } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {
-            const subFields: DynamicObjectDataModel<Types>['fields'] = currentModel.fields;
-            const patterns = Object.keys(subFields).map((pattern) => new RegExp(pattern));
-            const pattern = (patterns.find((p) => p.test(splittedPath[0])) as RegExp).source;
-            currentModel = { type: 'object', fields: { [splittedPath[0]]: subFields[pattern] } };
-          }
+        if (currentModel?.type === 'array') {
+          currentModel = currentModel.fields;
+          (currentModel as StringDataModel).permissions?.forEach(addPermission);
+        }
+        if (currentModel?.type === 'id' && currentModel.relation !== undefined && splittedPath.length > 0) {
+          permissions.add(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
+          currentModel = { type: 'object', fields: this.model.getCollection(currentModel.relation).fields };
+        } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {
+          const subFields: DynamicObjectDataModel<Types>['fields'] = currentModel.fields;
+          const patterns = Object.keys(subFields).map((pattern) => new RegExp(pattern));
+          const pattern = (patterns.find((p) => p.test(splittedPath[0])) as RegExp).source;
+          currentModel = { type: 'object', fields: { [splittedPath[0]]: subFields[pattern] } };
         }
       }
 
@@ -252,7 +250,7 @@ export default class Controller<
       } else if (currentModel?.type === 'float') {
         formattedFilters[path] = (filterValue as string[]).map(parseFloat);
       } else if (currentModel?.type === 'integer') {
-        formattedFilters[path] = (filterValue as string[]).map(parseInt);
+        formattedFilters[path] = (filterValue as string[]).map((value) => parseInt(value, 10));
       } else {
         formattedFilters[path] = filterValue as string[];
       }
@@ -397,7 +395,7 @@ export default class Controller<
         throw new BadRequest('INVALID_INDEX', `Requested field "${error.details.path}" is not indexed.`);
       }
       if (error instanceof DatabaseError && error.code === 'MAXIMUM_DEPTH_EXCEEDED') {
-        const message = `Maximum level of depth exceeded for field "${error.details.path}.`;
+        const message = `Maximum level of depth exceeded for field "${error.details.path}".`;
         throw new BadRequest('MAXIMUM_DEPTH_EXCEEDED', message);
       }
       throw error;

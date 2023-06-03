@@ -117,27 +117,6 @@ export default class DatabaseClient<
   /** Default query options. */
   protected readonly DEFAULT_QUERY_OPTIONS: CommandOptions = {};
 
-  /** Logging system. */
-  protected logger: Logger;
-
-  /** Cache client, used for results caching. */
-  protected cache: CacheClient;
-
-  /** Cache duration, in seconds. */
-  protected cacheDuration: number;
-
-  /** MongoDB client instance. */
-  protected client: MongoClient;
-
-  /** MongoDB database instance. */
-  protected database: Db;
-
-  /** Perseid data model to use. */
-  protected model: Model;
-
-  /** Whether MongoDB client is connected to the server. */
-  protected isConnected: boolean;
-
   /** List of formatters, used to format a perseid data model into its MongoDB equivalent. */
   protected readonly FORMATTERS: MongoFormatters<Types> = {
     null() {
@@ -342,6 +321,27 @@ export default class DatabaseClient<
       return formattedField;
     },
   };
+
+  /** Logging system. */
+  protected logger: Logger;
+
+  /** Cache client, used for results caching. */
+  protected cache: CacheClient;
+
+  /** Cache duration, in seconds. */
+  protected cacheDuration: number;
+
+  /** MongoDB client instance. */
+  protected client: MongoClient;
+
+  /** MongoDB database instance. */
+  protected database: Db;
+
+  /** Perseid data model to use. */
+  protected model: Model;
+
+  /** Whether MongoDB client is connected to the server. */
+  protected isConnected: boolean;
 
   /**
    * Formats `input` to match MongoDB data types specifications.

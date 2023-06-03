@@ -17,6 +17,8 @@ import type DatabaseClient from 'scripts/services/DatabaseClient';
  */
 
 export default class {
+  protected noop = vi.fn();
+
   protected model: Model;
 
   protected logger: Logger;
@@ -49,8 +51,8 @@ export default class {
     };
   }
 
-  public reset(): Date {
-    return this.automaticFieldValue;
+  public reset(): void {
+    this.noop();
   }
 
   constructor(

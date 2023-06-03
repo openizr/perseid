@@ -41,8 +41,6 @@ describe('common/Model', () => {
 
   test('[email]', async () => {
     expect(Model.email()).toEqual({
-      index: false,
-      unique: false,
       required: true,
       type: 'string',
       customType: 'email',

@@ -11,14 +11,28 @@ import {
   type FastifyReply,
   type FastifyRequest,
   type FastifyInstance,
+  FastifySchema,
 } from 'fastify';
+import {
+  Id,
+  type Role,
+  type User,
+  type DataModel as DefaultTypes,
+} from '@perseid/core';
 import os from 'os';
+import Ajv from 'ajv';
 import path from 'path';
+import Controller, {
+  type EndpointType,
+  type BuiltInEndpoint,
+  type BuiltInEndpoints,
+  type ControllerSettings,
+  type CollectionBuiltInEndpoints,
+} from 'scripts/services/Controller';
 import ajvErrors from 'ajv-errors';
 import multiparty from 'multiparty';
 import { createWriteStream } from 'fs';
 import Gone from 'scripts/errors/Gone';
-import Ajv, { ValidateFunction } from 'ajv';
 import BaseModel from 'scripts/common/Model';
 import isNested from 'scripts/common/isNested';
 import NotFound from 'scripts/errors/NotFound';
@@ -28,9 +42,6 @@ import type Logger from 'scripts/services/Logger';
 import { IncomingMessage as Payload } from 'http';
 import BadRequest from 'scripts/errors/BadRequest';
 import { DataValidationCxt } from 'ajv/dist/types';
-import Controller, {
-  BuiltInEndpoint, BuiltInEndpoints, CollectionBuiltInEndpoints, ControllerSettings, EndpointType,
-} from 'scripts/services/Controller';
 import Unauthorized from 'scripts/errors/Unauthorized';
 import NotAcceptable from 'scripts/errors/NotAcceptable';
 import type OAuthEngine from 'scripts/services/OAuthEngine';
@@ -38,60 +49,53 @@ import TooManyRequests from 'scripts/errors/TooManyRequests';
 import fastJsonStringify, { Schema } from 'fast-json-stringify';
 import UnprocessableEntity from 'scripts/errors/UnprocessableEntity';
 import RequestEntityTooLarge from 'scripts/errors/RequestEntityTooLarge';
-import {
-  Id, type DataModel as DefaultTypes, type User, Role,
-} from '@perseid/core';
+
+const decoder = new TextDecoder();
+const defaultTransformer = (schema: FastifySchema): FastifySchema => schema;
 
 type Validate = { errors: { keyword: string; }[]; };
 
-// type EndpointName = keyof ServerConfiguration['endpoints'];
-// type EndpointConfiguration = { [collectionName: string]: { path: string; custom?: boolean; } };
+/**
+ * API validation schema.
+ */
+export interface ModelSchema<Types> {
+  body?: FieldDataModel<Types>;
+  query?: FieldDataModel<Types>;
+  params?: FieldDataModel<Types>;
+  headers?: FieldDataModel<Types>;
+  response?: {
+    [status: string]: FieldDataModel<Types>;
+  };
+}
 
-// interface Params {
-//   endpoint: string;
-//   fields: string[];
-//   loggedUser: User;
-//   collection: string;
-//   requiredPermissions: string[];
-// }
+/**
+ * Uploaded file.
+ */
+export interface UploadedFile {
+  id: string;
+  size: number;
+  type: string;
+  path: string;
+  name: string;
+}
 
-// /**
-//  * Types Ajv formatters.
-//  */
-// type Formatters = Record<string, (
-//   field: FieldModel,
-//   isPartial: boolean,
-//   isResponse: boolean,
-// ) => AjvFieldSchema>;
+/**
+ * Parsed multipart/form-data fields.
+ */
+export interface FormDataFields {
+  [name: string]: string | UploadedFile[];
+}
 
-// /**
-//  * Uploaded file.
-//  */
-// export interface File {
-//   id: string;
-//   size: number;
-//   type: string;
-//   path: string;
-//   name: string;
-// }
-
-// /**
-//  * Parsed multipart/form-data fields.
-//  */
-// export interface Fields {
-//   [name: string]: string | File[];
-// }
-
-// /**
-//  * Multipart/form-data parser options.
-//  */
-// export interface Options {
-//   maxFields?: number;
-//   maxFileSize?: number;
-//   maxTotalSize?: number;
-//   maxFieldsSize?: number;
-//   allowedMimeTypes?: string[];
-// }
+/**
+ * Multipart/form-data parser options.
+ */
+export interface FormDataOptions {
+  maxFields?: number;
+  maxFileSize?: number;
+  maxTotalSize?: number;
+  maxFieldsSize?: number;
+  allowedMimeTypes?: string[];
+}
 
 /**
  * Ajv validation error.
@@ -104,65 +108,82 @@ export interface ValidationError {
 }
 
 /**
- * Ajv field validation schema.
+ * Ajv validation schema.
  */
-export interface AjvFieldSchema {
-  $ref?: string;
-  notEmpty?: boolean;
-  items?: AjvFieldSchema;
-  maxLength?: number;
-  minLength?: number;
-  pattern?: string;
+export interface AjvValidationSchema {
+  type: (
+    'null' | 'object' | 'string' | 'array' | 'boolean' | 'number' | 'integer'
+    | ('null' | 'object' | 'string' | 'array' | 'boolean' | 'number' | 'integer')[]
+  );
+  isId?: boolean;
+  isDate?: boolean;
+  isBinary?: boolean;
   nullable?: boolean;
   minimum?: number;
   maximum?: number;
-  multipleOf?: number;
-  required?: string[];
+  pattern?: string;
   minItems?: number;
   maxItems?: number;
+  minLength?: number;
+  maxLength?: number;
+  multipleOf?: number;
   uniqueItems?: boolean;
   minProperties?: number;
   maxProperties?: number;
   exclusiveMinimum?: number;
   exclusiveMaximum?: number;
-  additionalProperties?: boolean;
-  default?: string | integer | number;
-  enum?: (string | integer | number)[];
-  errorMessage?: {
-    [errorType: string]: string;
+  required?: string[];
+  errorMessage: {
+    [key: string]: string;
   };
+  additionalProperties?: boolean;
+  enum?: (string | null | number)[];
+  items?: AjvValidationSchema;
   properties?: {
-    [fieldName: string]: AjvFieldSchema;
+    [name: string]: AjvValidationSchema;
   };
   patternProperties?: {
-    [pattern: string]: AjvFieldSchema;
+    [pattern: string]: AjvValidationSchema;
   };
-  type: 'string' | 'null' | 'boolean' | 'integer' | 'number' | 'date' | 'binary' | 'object' | 'array';
+  default?: number | string | null | Date | Id | boolean;
 }
 
 /**
- * Ajv validation schema.
+ * Perseid data model to Ajv validation schema formatters.
  */
-export interface AjvSchema {
-
+export interface AjvFormatters<Types> {
+  [type: string]: (
+    model: FieldDataModel<Types>,
+    mode: 'RESPONSE' | 'CREATE' | 'UPDATE'
+  ) => AjvValidationSchema;
 }
 
-interface EndpointSettings<Types> {
+/**
+ * Custom endpoint configuration.
+ */
+export interface EndpointSettings<Types> {
+  /** Whether to authenticate user for that endpoint. */
   authenticate?: boolean;
+
+  /** Name of the collection for which to generate the endpoint, if applicable. */
   collection?: keyof Types;
+
+  /** Whether to ignore access token expiration. Useful for endpoints like refresh token. */
   ignoreExpiration?: boolean;
+
+  /** Additional permissions to check for that endpoint. */
   additionalPermissions?: string[];
-  schema?: {
-    body?: ObjectDataModel<Types>;
-    query?: ObjectDataModel<Types>;
-    params?: ObjectDataModel<Types>;
-    headers?: ObjectDataModel<Types>;
-    response?: {
-      [status: string]: FieldDataModel<Types>;
-    };
-  };
-  schemaTransformer?: (schema: AjvSchema) => AjvSchema;
+
+  /** API validation schema for that endpoint. */
+  schema?: ModelSchema<Types>;
+
+  /** Endpoint type, if applicable. Use in combination with `collection`. */
   type?: 'SEARCH' | 'LIST' | 'CREATE' | 'UPDATE' | 'VIEW' | 'DELETE';
+
+  /** Optional transformation function to apply to generated Ajv schema. */
+  schemaTransformer?: (schema: FastifySchema) => FastifySchema;
+
+  /** Actual endpoint handler. */
   handler: (request: FastifyRequest, response: FastifyReply) => Promise<void>;
 }
 
@@ -185,30 +206,409 @@ export default class FastifyController<
   /** Invalid payload error code. */
   protected readonly INVALID_PAYLOAD_CODE = 'INVALID_PAYLOAD';
 
+  /** List of formatters, used to format a perseid data model into its Ajv equivalent. */
+  protected readonly FORMATTERS: AjvFormatters<Types> = {
+    null() {
+      return { type: 'null', errorMessage: {} };
+    },
+    id(model, mode) {
+      const {
+        relation,
+        errorMessages,
+        enum: enumerations,
+        default: defaultValue,
+      } = model as IdDataModel<Types>;
+      // We reuse declared Ajv schemas to allow deep schema validation.
+      if (mode === 'RESPONSE' && relation !== undefined) {
+        return {
+          oneOf: [
+            { type: 'string' },
+            { type: 'null' },
+            { $ref: `${relation as string}.json` }],
+        } as unknown as AjvValidationSchema;
+      }
+      const formattedField: AjvValidationSchema = {
+        isId: true,
+        type: 'string',
+        errorMessage: errorMessages ?? {},
+      };
+      if (mode !== 'RESPONSE') {
+        formattedField.pattern = /^[0-9a-fA-F]{24}$/.source;
+        formattedField.errorMessage.type ??= 'must be a valid id';
+        formattedField.errorMessage.pattern ??= 'must be a valid id';
+        if (enumerations !== undefined) {
+          formattedField.enum = enumerations.map((id) => `${id}`);
+          formattedField.errorMessage.enum ??= `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
+        }
+        if (mode === 'CREATE') {
+          if (defaultValue !== undefined) {
+            formattedField.default = defaultValue;
+          } else if (!model.required) {
+            formattedField.default = null;
+          }
+        }
+      }
+      if (enumerations !== undefined) {
+        formattedField.enum = enumerations.map((id) => `${id}`);
+      }
+      if (!model.required) {
+        formattedField.nullable = true;
+      }
+      return formattedField;
+    },
+    binary(model, mode) {
+      const {
+        errorMessages,
+        default: defaultValue,
+      } = model as BinaryDataModel;
+      const formattedField: AjvValidationSchema = {
+        type: 'string',
+        minLength: 10,
+        isBinary: true,
+        errorMessage: errorMessages ?? {},
+      };
+      if (mode !== 'RESPONSE') {
+        formattedField.errorMessage.type ??= 'must be a base64-encoded binary';
+        if (mode === 'CREATE') {
+          if (defaultValue !== undefined) {
+            formattedField.default = decoder.decode(defaultValue);
+          } else if (!model.required) {
+            formattedField.default = null;
+          }
+        }
+      }
+      if (!model.required) {
+        formattedField.nullable = true;
+      }
+      return formattedField;
+    },
+    boolean(model, mode) {
+      const {
+        errorMessages,
+        default: defaultValue,
+      } = model as BooleanDataModel;
+      const formattedField: AjvValidationSchema = {
+        type: 'boolean',
+        isBinary: true,
+        errorMessage: errorMessages ?? {},
+      };
+      if (mode !== 'RESPONSE') {
+        formattedField.errorMessage.type ??= 'must be a boolean';
+        if (mode === 'CREATE') {
+          if (defaultValue !== undefined) {
+            formattedField.default = defaultValue;
+          } else if (!model.required) {
+            formattedField.default = null;
+          }
+        }
+      }
+      if (!model.required) {
+        formattedField.nullable = true;
+      }
+      return formattedField;
+    },
+    date(model, mode) {
+      const {
+        enum: enumerations,
+        errorMessages,
+        default: defaultValue,
+      } = model as DateDataModel;
+      const formattedField: AjvValidationSchema = {
+        type: 'string',
+        isDate: true,
+        errorMessage: errorMessages ?? {},
+      };
+      if (mode !== 'RESPONSE') {
+        formattedField.pattern = /[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z/.source;
+        formattedField.errorMessage.type ??= 'must be a valid date';
+        formattedField.errorMessage.pattern ??= 'must be a valid date';
+        if (enumerations !== undefined) {
+          formattedField.enum = enumerations.map((date) => date.toISOString());
+          formattedField.errorMessage.enum ??= `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
+        }
+        if (mode === 'CREATE') {
+          if (defaultValue !== undefined) {
+            formattedField.default = defaultValue;
+          } else if (!model.required) {
+            formattedField.default = null;
+          }
+        }
+      }
+      if (!model.required) {
+        formattedField.nullable = true;
+      }
+      return formattedField;
+    },
+    float(model, mode) {
+      const {
+        minimum,
+        maximum,
+        multipleOf,
+        errorMessages,
+        exclusiveMinimum,
+        exclusiveMaximum,
+        enum: enumerations,
+        default: defaultValue,
+      } = model as NumberDataModel;
+      const formattedField: AjvValidationSchema = {
+        type: 'number',
+        errorMessage: errorMessages ?? {},
+      };
+      if (mode !== 'RESPONSE') {
+        formattedField.errorMessage.type ??= 'must be a float';
+        if (minimum !== undefined) {
+          formattedField.minimum = minimum;
+          formattedField.errorMessage.minimum ??= `must be greater than or equal to ${minimum}`;
+        }
+        if (maximum !== undefined) {
+          formattedField.maximum = maximum;
+          formattedField.errorMessage.maximum ??= `must be smaller than or equal to ${maximum}`;
+        }
+        if (exclusiveMinimum !== undefined) {
+          formattedField.exclusiveMinimum = exclusiveMinimum;
+          formattedField.errorMessage.exclusiveMinimum ??= `must be greater than ${exclusiveMinimum}`;
+        }
+        if (exclusiveMaximum !== undefined) {
+          formattedField.exclusiveMaximum = exclusiveMaximum;
+          formattedField.errorMessage.exclusiveMaximum ??= `must be smaller than ${exclusiveMaximum}`;
+        }
+        if (multipleOf !== undefined) {
+          formattedField.multipleOf = multipleOf;
+          formattedField.errorMessage.multipleOf ??= `must be a multiple of ${multipleOf}`;
+        }
+        if (enumerations !== undefined) {
+          formattedField.enum = enumerations;
+          formattedField.errorMessage.enum ??= `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
+        }
+        if (mode === 'CREATE') {
+          if (defaultValue !== undefined) {
+            formattedField.default = defaultValue;
+          } else if (!model.required) {
+            formattedField.default = null;
+          }
+        }
+      }
+      if (!model.required) {
+        formattedField.nullable = true;
+      }
+      return formattedField;
+    },
+    integer(model, mode) {
+      const {
+        minimum,
+        maximum,
+        multipleOf,
+        errorMessages,
+        exclusiveMinimum,
+        exclusiveMaximum,
+        enum: enumerations,
+        default: defaultValue,
+      } = model as NumberDataModel;
+      const formattedField: AjvValidationSchema = {
+        type: 'integer',
+        errorMessage: errorMessages ?? {},
+      };
+      if (mode !== 'RESPONSE') {
+        formattedField.errorMessage.type ??= 'must be a integer';
+        if (minimum !== undefined) {
+          formattedField.minimum = minimum;
+          formattedField.errorMessage.minimum ??= `must be greater than or equal to ${minimum}`;
+        }
+        if (maximum !== undefined) {
+          formattedField.maximum = maximum;
+          formattedField.errorMessage.maximum ??= `must be smaller than or equal to ${maximum}`;
+        }
+        if (exclusiveMinimum !== undefined) {
+          formattedField.exclusiveMinimum = exclusiveMinimum;
+          formattedField.errorMessage.exclusiveMinimum ??= `must be greater than ${exclusiveMinimum}`;
+        }
+        if (exclusiveMaximum !== undefined) {
+          formattedField.exclusiveMaximum = exclusiveMaximum;
+          formattedField.errorMessage.exclusiveMaximum ??= `must be smaller than ${exclusiveMaximum}`;
+        }
+        if (multipleOf !== undefined) {
+          formattedField.multipleOf = multipleOf;
+          formattedField.errorMessage.multipleOf ??= `must be a multiple of ${multipleOf}`;
+        }
+        if (enumerations !== undefined) {
+          formattedField.enum = enumerations;
+          formattedField.errorMessage.enum ??= `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
+        }
+        if (mode === 'CREATE') {
+          if (defaultValue !== undefined) {
+            formattedField.default = defaultValue;
+          } else if (!model.required) {
+            formattedField.default = null;
+          }
+        }
+      }
+      if (!model.required) {
+        formattedField.nullable = true;
+      }
+      return formattedField;
+    },
+    string(model, mode) {
+      const {
+        pattern,
+        maxLength,
+        minLength,
+        errorMessages,
+        enum: enumerations,
+        default: defaultValue,
+      } = model as StringDataModel;
+      const formattedField: AjvValidationSchema = {
+        type: 'string',
+        errorMessage: errorMessages ?? {},
+      };
+
+      if (mode !== 'RESPONSE') {
+        formattedField.errorMessage.type ??= 'must be a string';
+        if (maxLength !== undefined) {
+          formattedField.maxLength = maxLength;
+          formattedField.errorMessage.maxLength ??= `must be shorter than ${maxLength + 1} characters`;
+        }
+        if (minLength !== undefined) {
+          formattedField.minLength = minLength;
+          formattedField.errorMessage.minLength ??= `must be longer than ${minLength - 1} characters`;
+        }
+        if (pattern !== undefined) {
+          formattedField.pattern = pattern;
+          formattedField.errorMessage.pattern ??= `must match "${pattern}" pattern`;
+        }
+        if (enumerations !== undefined) {
+          formattedField.enum = enumerations;
+          formattedField.errorMessage.enum ??= `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
+        }
+        if (mode === 'CREATE') {
+          if (defaultValue !== undefined) {
+            formattedField.default = defaultValue;
+          } else if (!model.required) {
+            formattedField.default = null;
+          }
+        }
+      }
+      if (!model.required) {
+        formattedField.nullable = true;
+      }
+      return formattedField;
+    },
+    object: (model, mode) => {
+      const {
+        fields,
+        errorMessages,
+      } = model as ObjectDataModel<Types>;
+      const formattedField: AjvValidationSchema = {
+        type: 'object',
+        additionalProperties: false,
+        errorMessage: errorMessages ?? {},
+      };
+      const exposedFields = (mode === 'RESPONSE')
+        ? Object.keys(fields)
+        : Object.keys(fields).filter((field) => field[0] !== '_');
+      if (mode !== 'RESPONSE') {
+        formattedField.errorMessage.type ??= 'must be a valid object';
+        if (mode === 'CREATE') {
+          const requiredFields = exposedFields.filter((field) => fields[field].required);
+          if (requiredFields.length > 0) {
+            formattedField.required = requiredFields;
+          }
+          if (!model.required) {
+            formattedField.default = null;
+            formattedField.type = ['object', 'null'];
+            formattedField.errorMessage.type ??= 'must be a valid object, or "null"';
+          }
+        }
+      } else if (!model.required) {
+        formattedField.nullable = true;
+      }
+      formattedField.properties = exposedFields.reduce((properties, key) => ({
+        ...properties,
+        [key]: this.FORMATTERS[fields[key].type](fields[key], mode),
+      }), {});
+      return formattedField;
+    },
+    dynamicObject: (model, mode) => {
+      const {
+        fields,
+        maxItems,
+        minItems,
+        errorMessages,
+      } = model as DynamicObjectDataModel<Types>;
+      const formattedField: AjvValidationSchema = {
+        type: 'object',
+        additionalProperties: false,
+        errorMessage: errorMessages ?? {},
+      };
+      const exposedFields = (mode === 'RESPONSE')
+        ? Object.keys(fields)
+        : Object.keys(fields).filter((field) => field[0] !== '_');
+      if (mode !== 'RESPONSE') {
+        formattedField.errorMessage.type ??= 'must be a valid object';
+        if (minItems !== undefined) {
+          formattedField.minProperties = minItems;
+          formattedField.errorMessage.minProperties ??= `must contain at least ${minItems} ${(minItems === 1) ? 'entry' : 'entries'}`;
+        }
+        if (maxItems !== undefined) {
+          formattedField.maxProperties = maxItems;
+          formattedField.errorMessage.maxProperties ??= `must not contain more than ${maxItems} ${(maxItems === 1) ? 'entry' : 'entries'}`;
+        }
+        if (mode === 'CREATE' && !model.required) {
+          formattedField.default = null;
+          formattedField.type = ['object', 'null'];
+          formattedField.errorMessage.type ??= 'must be a valid object, or "null"';
+        }
+      } else if (!model.required) {
+        formattedField.nullable = true;
+      }
+      formattedField.properties = exposedFields.reduce((properties, key) => ({
+        ...properties,
+        [key]: this.FORMATTERS[fields[key].type](fields[key], mode),
+      }), {});
+      return formattedField;
+    },
+    array: (model, mode) => {
+      const {
+        fields,
+        maxItems,
+        minItems,
+        uniqueItems,
+        errorMessages,
+      } = model as ArrayDataModel<Types>;
+      const formattedField: AjvValidationSchema = {
+        type: 'array',
+        errorMessage: errorMessages ?? {},
+        items: this.FORMATTERS[fields.type](fields, mode),
+      };
+      if (mode !== 'RESPONSE') {
+        formattedField.errorMessage.type ??= 'must be a valid array';
+        if (minItems !== undefined) {
+          formattedField.minItems = minItems;
+          formattedField.errorMessage.minItems ??= `must contain at least ${minItems} ${(minItems === 1) ? 'entry' : 'entries'}`;
+        }
+        if (maxItems !== undefined) {
+          formattedField.maxItems = maxItems;
+          formattedField.errorMessage.maxItems ??= `must not contain more than ${maxItems} ${(maxItems === 1) ? 'entry' : 'entries'}`;
+        }
+        if (uniqueItems !== undefined) {
+          formattedField.uniqueItems = uniqueItems;
+          formattedField.errorMessage.uniqueItems ??= 'must contain only unique entries';
+        }
+        if (mode === 'CREATE' && !model.required) {
+          formattedField.default = null;
+          formattedField.type = ['array', 'null'];
+          formattedField.errorMessage.type ??= 'must be a valid array, or "null"';
+        }
+      } else if (!model.required) {
+        formattedField.nullable = true;
+      }
+      return formattedField;
+    },
+  };
+
   /** Increment used for `multipart/form-data` payloads parsing. */
   protected increment = 0;
 
-  protected commonHeadersTransformer = (schema: AjvSchema): AjvSchema => ({
-    ...schema,
-    headers: {
-      ...schema.headers,
-      type: 'object',
-      required: [...(schema.headers?.required ?? []), 'x-device-id'],
-      additionalProperties: true,
-      properties: {
-        ...schema.headers?.properties,
-        'x-device-id': {
-          type: 'string',
-          pattern: /^[0-9a-fA-F]{24}$/.source,
-          errorMessage: {
-            type: 'must be a valid device id',
-            pattern: 'must be a valid device id',
-          },
-        },
-      },
-    },
-  });
-
+  /** Built-in API handlers for OAuth related endpoints. */
   protected apiHandlers: Record<string, EndpointSettings<Types>> = {
     signUp: {
       handler: async (request, response) => {
@@ -237,7 +637,6 @@ export default class FastifyController<
       },
     },
     signIn: {
-      schemaTransformer: this.commonHeadersTransformer,
       handler: async (request, response) => {
         const context = request.params as CommandContext;
         const { email, password } = request.body as User;
@@ -261,7 +660,6 @@ export default class FastifyController<
     refreshToken: {
       authenticate: true,
       ignoreExpiration: true,
-      schemaTransformer: this.commonHeadersTransformer,
       handler: async (request, response) => {
         const context = request.params as CommandContext;
         const { refreshToken } = request.body as { refreshToken: string; };
@@ -282,7 +680,6 @@ export default class FastifyController<
       },
     },
     requestPasswordReset: {
-      schemaTransformer: this.commonHeadersTransformer,
       handler: async (request, response) => {
         await this.engine.requestPasswordReset((request.body as User).email);
         response.status(200).send();
@@ -299,7 +696,6 @@ export default class FastifyController<
       },
     },
     resetPassword: {
-      schemaTransformer: this.commonHeadersTransformer,
       handler: async (request, response) => {
         const { email, password } = request.body as User;
         const { resetToken, passwordConfirmation } = request.body as {
@@ -327,7 +723,6 @@ export default class FastifyController<
     },
     requestEmailVerification: {
       authenticate: true,
-      schemaTransformer: this.commonHeadersTransformer,
       handler: async (request, response) => {
         await this.engine.requestEmailVerification(request.params as CommandContext);
         response.status(200).send();
@@ -340,7 +735,6 @@ export default class FastifyController<
     },
     verifyEmail: {
       authenticate: true,
-      schemaTransformer: this.commonHeadersTransformer,
       handler: async (request, response) => {
         const { verificationToken } = request.body as { verificationToken: string; };
         await this.engine.verifyEmail(verificationToken, request.params as CommandContext);
@@ -362,7 +756,6 @@ export default class FastifyController<
     signOut: {
       authenticate: true,
       ignoreExpiration: true,
-      schemaTransformer: this.commonHeadersTransformer,
       handler: async (request, response) => {
         await this.engine.signOut(request.params as CommandContext);
         response.status(200).send();
@@ -374,6 +767,69 @@ export default class FastifyController<
       },
     },
   };
+
+  /**
+   * Formats `output` to match fastify data types specifications.
+   *
+   * @param output Output to format.
+   *
+   * @returns Formatted output.
+   */
+  protected formatOutput(output: unknown): unknown {
+    if (Array.isArray(output)) {
+      return output.map(this.formatOutput);
+    }
+    if (isNested(output)) {
+      return Object.keys(output as Record<string, unknown>)
+        .reduce((formattedResource, key) => ({
+          ...formattedResource,
+          [key]: this.formatOutput((output as Record<string, unknown>)[key]),
+        }), {});
+    }
+    if (output instanceof Id) {
+      return `${output}`;
+    }
+    if (output instanceof Date) {
+      return output.toISOString();
+    }
+    if (output instanceof ArrayBuffer) {
+      return decoder.decode(output);
+    }
+    return output;
+  }
+
+  /**
+   * Creates an Ajv validation schema from `schema`.
+   *
+   * @param schema Schema from which to create validation schema.
+   *
+   * @param mode Which mode (creation / update) is intended for schema generation.
+   *
+   * @param transfomer Optional transformation function to apply to generated Ajv schema.
+   *
+   * @returns Ajv validation schema.
+   */
+  protected createSchema(
+    schema: ModelSchema<Types>,
+    mode: 'CREATE' | 'UPDATE',
+    transformer = defaultTransformer,
+  ): FastifySchema {
+    const formattedSchema: FastifySchema = {};
+    Object.keys(schema).forEach((key) => {
+      const partSchema = schema as Record<string, FieldDataModel<Types>>;
+      if (key === 'response') {
+        const responseSchema = {} as { [status: string]: AjvValidationSchema };
+        Object.keys(partSchema[key]).forEach((status) => {
+          const subSchema = (schema[key] as Record<string, FieldDataModel<Types>>)[status];
+          responseSchema[status] = this.FORMATTERS[subSchema.type](subSchema, 'RESPONSE');
+        });
+        formattedSchema.response = responseSchema;
+      } else {
+        formattedSchema[key as 'body'] = this.FORMATTERS[partSchema[key].type](partSchema[key], mode);
+      }
+    });
+    return transformer(formattedSchema);
+  }
 
   /**
    * Formats `error`.
@@ -413,14 +869,17 @@ export default class FastifyController<
    *
    * @returns Parsed payload.
    */
-  public parseFormData(payload: Payload, options: Options = {}): Promise<Fields> {
+  protected parseFormData(
+    payload: Payload,
+    options: FormDataOptions = {},
+  ): Promise<FormDataFields> {
     let totalSize = 0;
     let totalFiles = 0;
-    const allowedMimeTypes = options.allowedMimeTypes || [];
-    const maxTotalSize = options.maxTotalSize || 10000000;
-    const maxFileSize = options.maxFileSize || 2000000;
+    const allowedMimeTypes = options.allowedMimeTypes ?? [];
+    const maxTotalSize = options.maxTotalSize ?? 10000000;
+    const maxFileSize = options.maxFileSize ?? 2000000;
     return new Promise((resolve, reject) => {
-      const fields: Fields = {};
+      const fields: FormDataFields = {};
       let parserClosed = false;
       let numberOfParts = 0;
       let numberOfClosedParts = 0;
@@ -480,8 +939,8 @@ export default class FastifyController<
               resolve(fields);
             }
           });
-          fields[part.name] = fields[part.name] || [];
-          (<File[]>fields[part.name]).push({
+          const uploadedFiles = (fields[part.name] ?? []) as UploadedFile[];
+          uploadedFiles.push({
             size: 0,
             id: fileId,
             path: filePath,
@@ -493,15 +952,16 @@ export default class FastifyController<
           part.on('data', (stream) => {
             const size = stream.length;
             totalSize += size;
-            (<File[]>fields[part.name])[fileIndex].size += size;
+            uploadedFiles[fileIndex].size += size;
             if (totalSize > maxTotalSize) {
               reject(new RequestEntityTooLarge('FILES_TOO_LARGE', 'Maximum total files size exceeded.'));
             }
-            if ((<File[]>fields[part.name])[fileIndex].size > maxFileSize) {
+            if (uploadedFiles[fileIndex].size > maxFileSize) {
               reject(new RequestEntityTooLarge('FILE_TOO_LARGE', `Maximum size exceeded for file "${part.filename}".`));
             }
             fileStream.write(stream);
           });
+          fields[part.name] = uploadedFiles;
         }
       });
 
@@ -521,9 +981,9 @@ export default class FastifyController<
    *
    * @param error Error thrown by fastify.
    *
-   * @param request HTTP request.
+   * @param request Fastify request.
    *
-   * @param response HTTP response.
+   * @param response Fastify response.
    */
   protected handleError(
     error: FastifyError,
@@ -631,411 +1091,6 @@ export default class FastifyController<
   }
 
   /**
-   * Creates a new Ajv schema from `model`. See https://ajv.js.org/json-schema.html.
-   *
-   * @param collection Name of the collection for which to create schema.
-   *
-   * @param model Model to generate schema from.
-   *
-   * @param isPartial Whether schema should allow partial values (e.g. updates). Defaults to `false`.
-   *
-   * @param isResponse Used internally to handle deep schemas. Defaults to `false`.
-   *
-   * @returns Generated Ajv schema.
-   */
-
-  protected formatters: Formatters = {
-    null() {
-      return { type: 'null' };
-    },
-    string(field, isPartial, isResponse) {
-      const formattedField: AjvFieldSchema = { type: 'string' };
-      const {
-        pattern,
-        maxLength,
-        minLength,
-        required,
-        enum: enumerations,
-        default: defaultValue,
-      } = <StringFieldModel>field;
-      if (!isResponse) {
-        formattedField.errorMessage = {
-          type: 'must be a string',
-        };
-        if (maxLength !== undefined) {
-          formattedField.maxLength = maxLength;
-          formattedField.errorMessage.maxLength = `must be shorter than ${maxLength + 1} characters`;
-        }
-        if (minLength !== undefined) {
-          formattedField.minLength = minLength;
-          formattedField.errorMessage.minLength = `must be longer than ${minLength - 1} characters`;
-        }
-        if (pattern !== undefined) {
-          formattedField.pattern = pattern;
-          formattedField.errorMessage.pattern = `must match "${pattern}" pattern`;
-        }
-        if (enumerations !== undefined) {
-          formattedField.enum = (enumerations as unknown[]).concat(!field.required ? [null] : []);
-          formattedField.errorMessage.enum = `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
-        }
-        if (!isPartial) {
-          if (defaultValue !== undefined) {
-            formattedField.default = defaultValue;
-          } else if (!required) {
-            formattedField.default = null;
-          }
-        }
-      }
-      if (!field.required) {
-        formattedField.nullable = true;
-      }
-      formattedField.errorMessage = { ...formattedField.errorMessage, ...field.errorMessages };
-      // TODO handle specific erorr messages overrides from field (eg token "must be a valid token")
-      return formattedField;
-    },
-    boolean(field, isPartial, isResponse) {
-      const formattedField: AjvFieldSchema = { type: 'boolean' };
-      const { default: defaultValue, required } = (<BooleanFieldModel>field);
-      if (!isResponse) {
-        formattedField.errorMessage = {
-          type: 'must be a boolean',
-        };
-        if (!isPartial) {
-          if (defaultValue !== undefined) {
-            formattedField.default = defaultValue;
-          } else if (!required) {
-            formattedField.default = null;
-          }
-        }
-      }
-      if (!field.required) {
-        formattedField.nullable = true;
-      }
-      return formattedField;
-    },
-    date(field, isPartial, isResponse) {
-      const formattedField: any = { type: 'string', isDate: true };
-      const {
-        required,
-        enum: enumerations,
-        default: defaultValue,
-      } = (<DateFieldModel>field);
-      if (!isResponse) {
-        formattedField.pattern = /[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z/.source;
-        formattedField.errorMessage = {
-          type: 'must be a valid date',
-          pattern: 'must be a valid date',
-        };
-        if (enumerations !== undefined) {
-          formattedField.enum = (enumerations as unknown[]).concat(!field.required ? [null] : []);
-          formattedField.errorMessage.enum = `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
-        }
-        if (!isPartial) {
-          if (defaultValue !== undefined) {
-            formattedField.default = defaultValue;
-          } else if (!required) {
-            formattedField.default = null;
-          }
-        }
-      }
-      if (!field.required) {
-        formattedField.nullable = true;
-      }
-      return formattedField;
-    },
-    id(field, isPartial, isResponse) {
-      const {
-        relation,
-        required,
-        enum: enumerations,
-        default: defaultValue,
-      } = <IdFieldModel>field;
-      // Relation - reusing declared Ajv schemas to allow deep schema validation...
-      if (isResponse && relation !== undefined) {
-        return { oneOf: [{ type: 'string' }, { type: 'null' }, { $ref: `${relation}.json` }] };
-      }
-      // Classic id...
-      const formattedField: any = { type: 'string', isId: true };
-      if (!isResponse) {
-        formattedField.pattern = /^[0-9a-fA-F]{24}$/.source;
-        formattedField.errorMessage = {
-          type: 'must be a valid id',
-          pattern: 'must be a valid id',
-        };
-        if (enumerations !== undefined) {
-          formattedField.enum = (enumerations as unknown[]).concat(!field.required ? [null] : []);
-          formattedField.errorMessage.enum = `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
-        }
-        if (!isPartial) {
-          if (defaultValue !== undefined) {
-            formattedField.default = defaultValue;
-          } else if (!required) {
-            formattedField.default = null;
-          }
-        }
-      }
-      if (!field.required) {
-        formattedField.nullable = true;
-      }
-      return formattedField;
-    },
-    binary(field, isPartial, isResponse) {
-      const {
-        required,
-        default: defaultValue,
-      } = <BinaryFieldModel>field;
-      const formattedField: any = { type: 'string', isBinary: true }; // TODO min length / pattern
-      if (!isResponse) {
-        formattedField.errorMessage = {
-          type: 'must be a base64-encoded binary',
-        };
-        if (!isPartial) {
-          if (defaultValue !== undefined) {
-            formattedField.default = defaultValue;
-          } else if (!required) {
-            formattedField.default = null;
-          }
-        }
-      }
-      if (!field.required) {
-        formattedField.nullable = true;
-      }
-      return formattedField;
-    },
-    integer(field, isPartial, isResponse) {
-      const formattedField: AjvFieldSchema = { type: 'integer' };
-      const {
-        minimum,
-        maximum,
-        required,
-        multipleOf,
-        exclusiveMinimum,
-        exclusiveMaximum,
-        enum: enumerations,
-        default: defaultValue,
-      } = <NumberFieldModel>field;
-      if (!isResponse) {
-        formattedField.errorMessage = {
-          type: 'must be an integer',
-        };
-        if (minimum !== undefined) {
-          formattedField.minimum = minimum;
-          formattedField.errorMessage.minimum = `must be greater than or equal to ${minimum}`;
-        }
-        if (maximum !== undefined) {
-          formattedField.maximum = maximum;
-          formattedField.errorMessage.maximum = `must be smaller than or equal to ${maximum}`;
-        }
-        if (exclusiveMinimum !== undefined) {
-          formattedField.exclusiveMinimum = exclusiveMinimum;
-          formattedField.errorMessage.exclusiveMinimum = `must be greater than ${exclusiveMinimum}`;
-        }
-        if (exclusiveMaximum !== undefined) {
-          formattedField.exclusiveMaximum = exclusiveMaximum;
-          formattedField.errorMessage.exclusiveMaximum = `must be smaller than ${exclusiveMaximum}`;
-        }
-        if (multipleOf !== undefined) {
-          formattedField.multipleOf = multipleOf;
-          formattedField.errorMessage.multipleOf = `must be a multiple of ${multipleOf}`;
-        }
-        if (enumerations !== undefined) {
-          formattedField.enum = (enumerations as unknown[]).concat(!field.required ? [null] : []);
-          formattedField.errorMessage.enum = `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
-        }
-        if (!isPartial) {
-          if (defaultValue !== undefined) {
-            formattedField.default = defaultValue;
-          } else if (!required) {
-            formattedField.default = null;
-          }
-        }
-      }
-      if (!field.required) {
-        formattedField.nullable = true;
-      }
-      return formattedField;
-    },
-    float(field, isPartial, isResponse) {
-      const formattedField: AjvFieldSchema = { type: 'number' };
-      const {
-        minimum,
-        maximum,
-        required,
-        multipleOf,
-        exclusiveMinimum,
-        exclusiveMaximum,
-        enum: enumerations,
-        default: defaultValue,
-      } = <NumberFieldModel>field;
-      if (!isResponse) {
-        formattedField.errorMessage = {
-          type: 'must be a float',
-        };
-        if (minimum !== undefined) {
-          formattedField.minimum = minimum;
-          formattedField.errorMessage.minimum = `must be greater than or equal to ${minimum}`;
-        }
-        if (maximum !== undefined) {
-          formattedField.maximum = maximum;
-          formattedField.errorMessage.maximum = `must be smaller than or equal to ${maximum}`;
-        }
-        if (exclusiveMinimum !== undefined) {
-          formattedField.exclusiveMinimum = exclusiveMinimum;
-          formattedField.errorMessage.exclusiveMinimum = `must be greater than ${exclusiveMinimum}`;
-        }
-        if (exclusiveMaximum !== undefined) {
-          formattedField.exclusiveMaximum = exclusiveMaximum;
-          formattedField.errorMessage.exclusiveMaximum = `must be smaller than ${exclusiveMaximum}`;
-        }
-        if (multipleOf !== undefined) {
-          formattedField.multipleOf = multipleOf;
-          formattedField.errorMessage.multipleOf = `must be a multiple of ${multipleOf}`;
-        }
-        if (enumerations !== undefined) {
-          formattedField.enum = (enumerations as unknown[]).concat(!field.required ? [null] : []);
-          formattedField.errorMessage.enum = `must be one of: ${enumerations.map((value) => `"${value}"`).join(', ')}`;
-        }
-        if (!isPartial) {
-          if (defaultValue !== undefined) {
-            formattedField.default = defaultValue;
-          } else if (!required) {
-            formattedField.default = null;
-          }
-        }
-      }
-      if (!field.required) {
-        formattedField.nullable = true;
-      }
-      return formattedField;
-    },
-    object: (field, isPartial, isResponse, isRoot = false) => {
-      const formattedField: any = {
-        type: 'object',
-        errorMessage: {},
-        additionalProperties: false,
-      };
-      const {
-        fields,
-        required,
-        minProperties,
-        maxProperties,
-        patternProperties,
-      } = <ObjectFieldModel>field;
-      if (!isResponse) {
-        formattedField.errorMessage.type = 'must be a valid object';
-        if (minProperties !== undefined) {
-          formattedField.minProperties = minProperties;
-          formattedField.errorMessage.minProperties = `must contain at least ${minProperties} ${(minProperties === 1) ? 'entry' : 'entries'}`;
-        }
-        if (maxProperties !== undefined) {
-          formattedField.maxProperties = maxProperties;
-          formattedField.errorMessage.maxProperties = `must not contain more than ${maxProperties} ${(maxProperties === 1) ? 'entry' : 'entries'}`;
-        }
-      }
-      if (!required && !isRoot) {
-        if (!isPartial && !isResponse) {
-          formattedField.default = null;
-          formattedField.type = ['object', 'null'];
-        } else {
-          formattedField.nullable = true;
-        }
-        formattedField.errorMessage.type = 'must be a valid object, or "null"';
-      }
-      if (fields !== undefined) {
-        const requiredFields = Object.keys(fields).filter((fieldName) => (
-          fieldName[0] !== '_' && fields[fieldName].required === true
-        ));
-        if (!isResponse && !isPartial && requiredFields.length > 0) {
-          formattedField.required = requiredFields;
-        }
-        // eslint-disable-next-line
-        formattedField.properties = Object.keys(fields).reduce((acc, field) => ({
-          ...acc,
-          [field]: this.createSchema(fields[field], isResponse ? 'RESPONSE' : isPartial ? 'UPDATE' : 'CREATE', (schema) => schema),
-        }), {});
-        return formattedField;
-      }
-      if (patternProperties !== undefined) {
-        // formattedField.patternProperties = this.createSchema(
-        //   patternProperties,
-        //   // eslint-disable-next-line
-        //   isResponse ? 'RESPONSE' : isPartial ? 'UPDATE' : 'CREATE',
-        //   (schema) => schema,
-        //   false,
-        // );
-        return formattedField;
-      }
-      return { type: 'null' };
-    },
-    array: (field, isPartial, isResponse) => {
-      const {
-        fields,
-        maxItems,
-        minItems,
-        uniqueItems,
-        required,
-      } = <ArrayFieldModel>field;
-      const formattedField: any = {
-        type: 'array',
-        // eslint-disable-next-line
-        items: this.createSchema(fields, isResponse ? 'RESPONSE' : isPartial ? 'UPDATE' : 'CREATE', (schema) => schema, false).items,
-        errorMessage: {},
-      };
-      if (!isResponse) {
-        formattedField.errorMessage.type = 'must be a valid array';
-        if (minItems !== undefined) {
-          formattedField.minItems = minItems;
-          formattedField.errorMessage.minItems = `must contain at least ${minItems} ${(minItems === 1) ? 'entry' : 'entries'}`;
-        }
-        if (maxItems !== undefined) {
-          formattedField.maxItems = maxItems;
-          formattedField.errorMessage.maxItems = `must not contain more than ${maxItems} ${(maxItems === 1) ? 'entry' : 'entries'}`;
-        }
-        if (uniqueItems !== undefined) {
-          formattedField.uniqueItems = uniqueItems;
-          formattedField.errorMessage.uniqueItems = 'must contain only unique entries';
-        }
-      }
-      if (!required) {
-        if (!isPartial && !isResponse) {
-          formattedField.default = null;
-          formattedField.type = ['array', 'null'];
-        } else {
-          formattedField.nullable = true;
-        }
-        formattedField.errorMessage.type = 'must be a valid array, or "null"';
-      }
-      return formattedField;
-    },
-  };
-
-  public createSchema(
-    model: FieldDataModel<Types>,
-    endpointType = 'CREATE', // TODO UPDATE by defualt
-    transformer = (schema: any) => schema,
-    isRoot = true,
-  ): any {
-    return isRoot
-      ? transformer(this.formatters[model.type](model, endpointType === 'UPDATE', endpointType === 'RESPONSE', isRoot))
-      : this.formatters[model.type](model, endpointType === 'UPDATE', endpointType === 'RESPONSE');
-  }
-
-  protected createSchemas(schemas: any, type: any, transformer = (schema: any) => schema): any {
-    const formattedSchemas: any = {};
-    Object.keys(schemas).forEach((key) => {
-      if (key === 'response') {
-        formattedSchemas.response = {};
-        Object.keys(schemas[key]).forEach((response) => {
-          formattedSchemas.response[response] = this.createSchema(schemas[key][response], 'RESPONSE', (schema) => schema, true);
-        });
-      } else {
-        formattedSchemas[key] = this.createSchema(schemas[key], type, (schema) => schema, true);
-      }
-    });
-    return transformer(formattedSchemas);
-  }
-
-  /**
    * Class constructor.
    *
    * @param model Data model to use.
@@ -1056,6 +1111,7 @@ export default class FastifyController<
     this.oAuth = this.oAuth.bind(this);
     this.handleError = this.handleError.bind(this);
     this.formatError = this.formatError.bind(this);
+    this.formatOutput = this.formatOutput.bind(this);
     this.handleNotFound = this.handleNotFound.bind(this);
   }
 
@@ -1068,19 +1124,40 @@ export default class FastifyController<
    */
   public createEndpoint(settings: EndpointSettings<Types>): {
     handler: (request: FastifyRequest, response: FastifyReply) => Promise<void>;
-    schema: AjvSchema;
+    schema: FastifySchema;
   } {
+    const { collection, type } = settings;
+    const validationType = (type === 'SEARCH') ? 'UPDATE' : type as 'CREATE' | 'UPDATE';
+    const headersTransformer = (schema: FastifySchema): FastifySchema => {
+      if (settings.authenticate) {
+        const headersSchema = { ...schema.headers as AjvValidationSchema };
+        headersSchema.type = 'object';
+        headersSchema.additionalProperties = true;
+        headersSchema.required = [...(headersSchema?.required ?? []), 'x-device-id'];
+        headersSchema.properties = {
+          ...headersSchema?.properties,
+          'x-device-id': {
+            type: 'string',
+            pattern: /^[0-9a-fA-F]{24}$/.source,
+            errorMessage: {
+              type: 'must be a valid device id',
+              pattern: 'must be a valid device id',
+            },
+          },
+        };
+      }
+      return (settings.schemaTransformer ?? defaultTransformer)(schema);
+    };
     return {
       handler: async (request, response): Promise<void> => {
         await this.catchErrors(async () => {
-          const { collection } = settings;
           const deviceId = request.headers['x-device-id'] as string;
           const userAgent = request.headers['user-agent'] as string;
           const permissions = new Set(settings.additionalPermissions);
           const query = (collection === undefined)
             ? request.query
             : this.parseQuery(collection, request.query as Record<string, string>, permissions);
-          const body = (settings.type !== 'SEARCH' || collection === undefined)
+          const body = (type !== 'SEARCH' || collection === undefined)
             ? request.body
             : this.parseSearchBody(collection, {
               query: (request.body as SearchBody).query ?? undefined,
@@ -1100,7 +1177,7 @@ export default class FastifyController<
             // and update all their own information, but not others' ones.
             if (collection === 'users' && (request.params as { id: string; }).id === 'me') {
               (request.params as { id: Id; }).id = user._id;
-              if (settings.type === 'UPDATE' && (request.body as User).roles !== undefined) {
+              if (type === 'UPDATE' && (request.body as User).roles !== undefined) {
                 this.rbac(user, ['USERS_ROLES_UPDATE']);
               }
             } else {
@@ -1111,7 +1188,7 @@ export default class FastifyController<
           await settings.handler(request, response);
         });
       },
-      schema: this.createSchemas(settings.schema, settings.type, settings.schemaTransformer),
+      schema: this.createSchema(settings.schema ?? {}, validationType, headersTransformer),
     };
   }
 
@@ -1135,7 +1212,7 @@ export default class FastifyController<
       modifying: true,
       validate: function validate(_, value, schema, context) {
         (validate as unknown as Validate).errors = [];
-        if ((schema as AjvFieldSchema).nullable && value === null) {
+        if ((schema as AjvValidationSchema).nullable && value === null) {
           return true;
         }
         if ((typeof value !== 'string' || value.slice(0, 5) !== 'data:')) {
@@ -1154,7 +1231,7 @@ export default class FastifyController<
       errors: true,
       validate: function validate(_, value, schema, context) {
         (validate as unknown as Validate).errors = [];
-        const { nullable, enum: enums } = schema as AjvFieldSchema;
+        const { nullable, enum: enums } = schema as AjvValidationSchema;
         if (nullable && value === null) {
           return true;
         }
@@ -1177,7 +1254,7 @@ export default class FastifyController<
       errors: true,
       validate: function validate(_, value, schema, context) {
         (validate as unknown as Validate).errors = [];
-        const { nullable, enum: enums } = schema as AjvFieldSchema;
+        const { nullable, enum: enums } = schema as AjvValidationSchema;
         if (nullable && value === null) {
           return true;
         }
@@ -1198,10 +1275,10 @@ export default class FastifyController<
     // We first register all schemas in order to let Ajv find them at compilation time.
     // We need to add schemas to the custom validator compiler instead of fastify.
     // See https://www.fastify.io/docs/latest/Reference/Validation-and-Serialization/.
-    const schemas: Record<string, Schema> = {};
+    const schemas: Record<string, AjvValidationSchema> = {};
     this.model.getCollections().forEach((collection) => {
       const { fields } = this.model.getCollection(collection);
-      const collectionResponseSchema = this.createSchema({ type: 'object', fields }, 'RESPONSE');
+      const collectionResponseSchema = this.FORMATTERS.object({ type: 'object', fields }, 'RESPONSE');
       schemas[`${collection as string}.json`] = collectionResponseSchema;
     });
 
@@ -1217,7 +1294,6 @@ export default class FastifyController<
         results: { type: 'array', items: resultResponseSchema(collection) },
       },
     });
-
     const fieldsSchema: StringDataModel = {
       type: 'string',
       pattern: /^([^ ]+)(,([^ ]+))*$/.source,
@@ -1228,6 +1304,7 @@ export default class FastifyController<
     };
     const resultQuerySchema: ObjectDataModel<Types> = {
       type: 'object',
+      required: true,
       fields: {
         fields: fieldsSchema,
       },
@@ -1242,6 +1319,7 @@ export default class FastifyController<
         },
         query: {
           type: 'object',
+          required: true,
           fields: {
             on: {
               type: 'array',
@@ -1271,9 +1349,9 @@ export default class FastifyController<
         },
       },
     };
-
     const resultsQuerySchema: ObjectDataModel<Types> = {
       type: 'object',
+      required: true,
       fields: {
         fields: fieldsSchema,
         limit: {
@@ -1351,13 +1429,10 @@ export default class FastifyController<
             type: 'CREATE',
             authenticate: true,
             additionalPermissions: [`${this.toSnakeCase(collection as string)}_CREATE`],
-            schemaTransformer: (schema) => {
-              const schemaWithHeaders = this.commonHeadersTransformer(schema);
-              return {
-                ...schemaWithHeaders,
-                response: { '2xx': resultResponseSchema(collection) },
-              };
-            },
+            schemaTransformer: (schema) => ({
+              ...schema,
+              response: { '2xx': resultResponseSchema(collection) },
+            }),
             handler: async (request, response) => {
               const body = request.body as Types[keyof Types];
               const context = request.params as CommandContext;
@@ -1381,13 +1456,10 @@ export default class FastifyController<
             type: 'UPDATE',
             authenticate: true,
             additionalPermissions: [`${this.toSnakeCase(collection as string)}_UPDATE`],
-            schemaTransformer: (schema) => {
-              const schemaWithHeaders = this.commonHeadersTransformer(schema);
-              return {
-                ...schemaWithHeaders,
-                response: { '2xx': resultResponseSchema(collection) },
-              };
-            },
+            schemaTransformer: (schema) => ({
+              ...schema,
+              response: { '2xx': resultResponseSchema(collection) },
+            }),
             handler: async (request, response) => {
               const { id } = request.params as { id: Id; };
               const body = request.body as Types[keyof Types];
@@ -1412,13 +1484,10 @@ export default class FastifyController<
             collection,
             type: 'LIST',
             authenticate: true,
-            schemaTransformer: (schema) => {
-              const schemaWithHeaders = this.commonHeadersTransformer(schema);
-              return {
-                ...schemaWithHeaders,
-                response: { '2xx': resultsResponseSchema(collection) },
-              };
-            },
+            schemaTransformer: (schema) => ({
+              ...schema,
+              response: { '2xx': resultsResponseSchema(collection) },
+            }),
             handler: async (request, response) => {
               const options = { ...request.query as CommandOptions, maximumDepth };
               const results = await this.engine.list(collection, options);
@@ -1434,13 +1503,10 @@ export default class FastifyController<
             collection,
             type: 'VIEW',
             authenticate: true,
-            schemaTransformer: (schema) => {
-              const schemaWithHeaders = this.commonHeadersTransformer(schema);
-              return {
-                ...schemaWithHeaders,
-                response: { '2xx': resultResponseSchema(collection) },
-              };
-            },
+            schemaTransformer: (schema) => ({
+              ...schema,
+              response: { '2xx': resultResponseSchema(collection) },
+            }),
             handler: async (request, response) => {
               const { id } = request.params as { id: Id; };
               const options = { ...request.query as CommandOptions, maximumDepth };
@@ -1460,15 +1526,15 @@ export default class FastifyController<
             authenticate: true,
             additionalPermissions: [`${this.toSnakeCase(collection as string)}_SEARCH`],
             schemaTransformer: (schema) => {
-              const schemaWithHeaders = this.commonHeadersTransformer(schema);
+              const bodySchema = schema.body as AjvValidationSchema;
               return {
-                ...schemaWithHeaders,
+                ...schema,
                 body: {
-                  ...schemaWithHeaders.body,
+                  ...bodySchema,
                   properties: {
-                    ...schemaWithHeaders.body.properties,
+                    ...bodySchema.properties,
                     filters: {
-                      ...schemaWithHeaders.body.properties.filters,
+                      ...(bodySchema.properties as { filters: AjvValidationSchema; }).filters,
                       additionalProperties: true,
                       patternProperties: {
                         '^[0-9A-Za-z.]$': {
@@ -1504,7 +1570,6 @@ export default class FastifyController<
             type: 'DELETE',
             authenticate: true,
             additionalPermissions: [`${this.toSnakeCase(collection as string)}_DELETE`],
-            schemaTransformer: this.commonHeadersTransformer,
             handler: async (request, response) => {
               const { id } = request.params as { id: Id; };
               await this.engine.delete(collection, id, request.params as CommandContext);
@@ -1519,32 +1584,8 @@ export default class FastifyController<
       });
     });
 
-    const formatOutput = (resource: unknown): unknown => {
-      if (Array.isArray(resource)) {
-        return resource.map((item) => formatOutput(item));
-      }
-      if (isNested(resource)) {
-        return Object.keys(resource as Record<string, unknown>)
-          .reduce((formattedResource, key) => ({
-            ...formattedResource,
-            [key]: formatOutput((resource as Record<string, unknown>)[key]),
-          }), {});
-      }
-      if (resource instanceof Id) {
-        return `${resource}`;
-      }
-      if (resource instanceof Date) {
-        return resource.toISOString();
-      }
-      if (resource instanceof ArrayBuffer) {
-        const decoder = new TextDecoder();
-        return decoder.decode(resource);
-      }
-      return resource;
-    };
-
     server.addHook('preSerialization', async (_request, _response, payload): Promise<unknown> => (
-      formatOutput(payload)
+      this.formatOutput(payload)
     ));
 
     // API Versionning.
@@ -1559,30 +1600,30 @@ export default class FastifyController<
     server.setErrorHandler(this.handleError.bind(this));
     server.setValidatorCompiler(({ schema }) => ajv.compile(schema));
     server.setSerializerCompiler(({ schema }) => fastJsonStringify(schema as Schema, {
-      schema: schemas,
+      schema: schemas as unknown as Record<string, Schema>,
     }));
+
+    // Logs requests timeouts.
+    server.addHook('onTimeout', (request, _response, done) => {
+      this.logger.error(new Error(`Request "${request.method} ${request.url}" timed out.`), {
+        statusCode: 504,
+        url: request.url,
+        method: request.method,
+        headers: Object.keys(request.headers),
+      });
+      done();
+    });
+
+    // Catch-all for unsupported content types. Prevents fastify from throwing HTTP 500 when dealing
+    // with unknown payloads. See https://www.fastify.io/docs/latest/ContentTypeParser/.
+    server.addContentTypeParser('*', (_request, payload, next) => {
+      if (/^multipart\/form-data/.test(payload.headers['content-type'] as string)) {
+        next(null, payload);
+      } else {
+        let data = '';
+        payload.on('data', (chunk) => { data += chunk; });
+        payload.on('end', () => { next(null, data); });
+      }
+    });
   }
 }
-
-// // Logs requests timeouts.
-// app.addHook('onTimeout', (request, _response, done) => {
-//   logger.error(new Error(`Request "${request.method} ${request.url}" timed out.`), {
-//     statusCode: 504,
-//     url: request.url,
-//     method: request.method,
-//     headers: Object.keys(request.headers),
-//   });
-//   done();
-// });
-
-// // Catch-all for unsupported content types. Prevents fastify from throwing HTTP 500 when dealing
-// // with unknown payloads. See https://www.fastify.io/docs/latest/ContentTypeParser/.
-// app.addContentTypeParser('*', (_request, payload, next) => {
-//   if (/^multipart\/form-data/.test(payload.headers['content-type'] as string)) {
-//     next(null, payload);
-//   } else {
-//     let data = '';
-//     payload.on('data', (chunk) => { data += chunk; });
-//     payload.on('end', () => { next(null, data); });
-//   }
-// });

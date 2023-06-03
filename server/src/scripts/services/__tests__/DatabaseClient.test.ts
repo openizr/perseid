@@ -432,6 +432,7 @@ describe('services/DatabaseClient', () => {
           'null',
           'boolean',
           'enum',
+          'relation',
           'date',
           'id',
           'array',
@@ -467,6 +468,9 @@ describe('services/DatabaseClient', () => {
           null: { bsonType: ['null'] },
           boolean: { bsonType: ['bool', 'null'] },
           enum: { bsonType: ['string', 'null'], enum: ['test', null] },
+          relation: {
+            bsonType: ['objectId', 'null'],
+          },
           date: {
             bsonType: ['date', 'null'],
             enum: ['2023-01-01T00:00:00.000Z', null],
