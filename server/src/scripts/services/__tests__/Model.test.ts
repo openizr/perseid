@@ -51,7 +51,7 @@ describe('services/Model', () => {
   });
 
   test('[constructor]', () => {
-    const otherModel = new Model<unknown>(schema) as TestModel;
+    const otherModel = new Model<unknown>(schema) as unknown as TestModel;
     expect(otherModel.relationsPerCollection).toEqual({
       test: new Set(['externalRelation', 'otherExternalRelation']),
       test2: new Set(['externalRelation', 'otherExternalRelation']),
@@ -238,7 +238,7 @@ describe('services/Model', () => {
   });
 
   test('[getPublicSchema]', () => {
-    const otherModel = new Model<unknown>(schema) as TestModel;
+    const otherModel = new Model<unknown>(schema) as unknown as TestModel;
     expect(otherModel.getPublicSchema('externalRelation' as unknown as 'test')).toEqual({
       otherExternalRelation: {
         type: 'object',

@@ -52,13 +52,18 @@ export default class {
 
   public verifyToken = vi.fn(() => new Id('64723318e84f943f1ad6578b'));
 
-  public view = vi.fn(() => ({
-    _devices: [{ id: 'valid' }],
-    roles: [{
-      name: 'TEST',
-      permissions: ['TEST'],
-    }],
-  }));
+  public view = vi.fn(() => {
+    if (process.env.UNKNOWN_ERROR === 'true') {
+      throw new Error('UNKNOWN');
+    }
+    return {
+      _devices: [{ id: 'valid' }],
+      roles: [{
+        name: 'TEST',
+        permissions: ['TEST'],
+      }],
+    };
+  });
 
   constructor(
     model: Model,

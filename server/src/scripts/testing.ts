@@ -22,7 +22,6 @@ import {
   FastifyController,
 } from 'scripts/main';
 import fastify from 'fastify';
-import { Id } from '@perseid/core';
 
 const model = new Model(Model.DEFAULT_MODEL);
 

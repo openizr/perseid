@@ -104,6 +104,7 @@ describe('services/FastifyController', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.UNKNOWN_ERROR;
     delete process.env.MUTIPARTY_ERROR_OTHER;
     delete process.env.MUTIPARTY_ERROR_MISSING_HEADER;
     delete process.env.MUTIPARTY_ERROR_FIELD_TOO_LARGE;
@@ -964,6 +965,13 @@ describe('services/FastifyController', () => {
     expect(async () => {
       await controller.oAuth('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9', 'invalid');
     }).rejects.toEqual(new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.'));
+  });
+
+  test('[oAuth] unknown error', async () => {
+    process.env.UNKNOWN_ERROR = 'true';
+    expect(async () => {
+      await controller.oAuth('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9', 'valid');
+    }).rejects.toEqual(new Error('UNKNOWN'));
   });
 
   test('[oAuth] valid device id', async () => {

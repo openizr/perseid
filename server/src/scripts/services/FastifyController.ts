@@ -36,6 +36,7 @@ import Gone from 'scripts/errors/Gone';
 import BaseModel from 'scripts/services/Model';
 import NotFound from 'scripts/errors/NotFound';
 import Conflict from 'scripts/errors/Conflict';
+import EngineError from 'scripts/errors/Engine';
 import Forbidden from 'scripts/errors/Forbidden';
 import type Logger from 'scripts/services/Logger';
 import BadRequest from 'scripts/errors/BadRequest';
@@ -1099,23 +1100,31 @@ export default class FastifyController<
   ): Promise<User> {
     const context = { deviceId } as CommandContext;
     const userId = await this.engine.verifyToken(accessToken, ignoreExpiration, context);
-    const user = await this.engine.view('users', userId, {
-      fields: [
-        '_verifiedAt',
-        '_devices',
-        '_apiKeys',
-        'email',
-        'password',
-        'roles',
-        'roles.name',
-        'roles.permissions',
-      ],
-    });
-
-    if (user === null || user._devices.find((device) => device.id === deviceId) === undefined) {
-      throw new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.');
+    let { user } = context;
+    // As `engine.view` throws an error if user does not exist (for instance, a user that just has
+    // been deleted, but tries to sign-in), we need to wrap the statement inside a try...catch.
+    try {
+      user = await this.engine.view('users', userId, {
+        fields: [
+          '_verifiedAt',
+          '_devices',
+          '_apiKeys',
+          'email',
+          'password',
+          'roles',
+          'roles.name',
+          'roles.permissions',
+        ],
+      });
+      if (user._devices.find((device) => device.id === deviceId) === undefined) {
+        throw new EngineError('NO_RESOURCE');
+      }
+    } catch (error) {
+      if (error instanceof EngineError && error.code === 'NO_RESOURCE') {
+        throw new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.');
+      }
+      throw error;
     }
-
     return {
       ...user,
       _permissions: (user.roles as Role[])
