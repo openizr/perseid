@@ -21,7 +21,7 @@ import {
 } from '@perseid/core';
 import os from 'os';
 import Ajv from 'ajv';
-import path from 'path';
+import { join } from 'path';
 import Controller, {
   type EndpointType,
   type BuiltInEndpoint,
@@ -31,7 +31,6 @@ import Controller, {
 } from 'scripts/services/Controller';
 import ajvErrors from 'ajv-errors';
 import multiparty from 'multiparty';
-import { isPlainObject } from 'basx';
 import { createWriteStream } from 'fs';
 import Gone from 'scripts/errors/Gone';
 import BaseModel from 'scripts/services/Model';
@@ -291,8 +290,8 @@ export default class FastifyController<
         return {
           oneOf: [
             { type: 'string' },
-            { type: 'null' },
-            { $ref: `${relation as string}.json` }],
+            { $ref: `${relation as string}.json` },
+          ],
         } as unknown as AjvValidationSchema;
       }
       const formattedField: AjvValidationSchema = {
@@ -533,11 +532,11 @@ export default class FastifyController<
         formattedField.errorMessage.type ??= 'must be a string';
         if (maxLength !== undefined) {
           formattedField.maxLength = maxLength;
-          formattedField.errorMessage.maxLength ??= `must be shorter than ${maxLength + 1} characters`;
+          formattedField.errorMessage.maxLength ??= `must be no longer than ${maxLength} characters`;
         }
         if (minLength !== undefined) {
           formattedField.minLength = minLength;
-          formattedField.errorMessage.minLength ??= `must be longer than ${minLength - 1} characters`;
+          formattedField.errorMessage.minLength ??= `must be no shorter than ${minLength} characters`;
         }
         if (pattern !== undefined) {
           formattedField.pattern = pattern;
@@ -765,12 +764,12 @@ export default class FastifyController<
     },
     resetPassword: {
       handler: async (request, response) => {
-        const { email, password } = request.body as User;
-        const { resetToken, passwordConfirmation } = request.body as {
+        const { resetToken, password, passwordConfirmation } = request.body as {
           resetToken: string;
+          password: User['password'];
           passwordConfirmation: User['password'];
         };
-        await this.engine.resetPassword(email, password, passwordConfirmation, resetToken);
+        await this.engine.resetPassword(password, passwordConfirmation, resetToken);
         response.status(200).send();
       },
       schema: {
@@ -835,36 +834,6 @@ export default class FastifyController<
       },
     },
   };
-
-  /**
-   * Formats `output` to match fastify data types specifications.
-   *
-   * @param output Output to format.
-   *
-   * @returns Formatted output.
-   */
-  protected formatOutput(output: unknown): unknown {
-    if (Array.isArray(output)) {
-      return output.map(this.formatOutput);
-    }
-    if (isPlainObject(output)) {
-      return Object.keys(output as Record<string, unknown>)
-        .reduce((formattedResource, key) => ({
-          ...formattedResource,
-          [key]: this.formatOutput((output as Record<string, unknown>)[key]),
-        }), {});
-    }
-    if (output instanceof Id) {
-      return `${output}`;
-    }
-    if (output instanceof Date) {
-      return output.toISOString();
-    }
-    if (output instanceof ArrayBuffer) {
-      return decoder.decode(output);
-    }
-    return output;
-  }
 
   /**
    * Creates an Ajv validation schema from `schema`.
@@ -992,7 +961,7 @@ export default class FastifyController<
           totalFiles += 1;
           const fileId = Date.now().toString(16) + this.increment;
           this.increment += 1;
-          const filePath = path.join(os.tmpdir(), fileId);
+          const filePath = join(os.tmpdir(), fileId);
           const fileStream = createWriteStream(filePath);
           const closeStream = (error: Error | null): void => {
             fileStream.end();
@@ -1195,7 +1164,7 @@ export default class FastifyController<
     schema: FastifySchema;
   } {
     const { collection, type } = settings;
-    const validationType = (type === 'SEARCH') ? 'UPDATE' : type as 'CREATE' | 'UPDATE';
+    const validationType = (type === 'SEARCH') ? 'CREATE' : type as 'CREATE' | 'UPDATE';
     const headersTransformer = (schema: FastifySchema): FastifySchema => {
       const headersSchema = { ...schema.headers as AjvValidationSchema };
       return (settings.schemaTransformer ?? defaultTransformer)(!settings.authenticate
@@ -1211,7 +1180,6 @@ export default class FastifyController<
               ...headersSchema.properties,
               'x-device-id': {
                 type: 'string',
-                pattern: /^[0-9a-fA-F]{24}$/.source,
                 errorMessage: {
                   type: 'must be a valid device id',
                   pattern: 'must be a valid device id',
@@ -1329,7 +1297,6 @@ export default class FastifyController<
         },
         query: {
           type: 'object',
-          required: true,
           fields: {
             on: {
               type: 'array',
@@ -1337,6 +1304,7 @@ export default class FastifyController<
               minItems: 1,
               fields: {
                 type: 'string',
+                required: true,
                 errorMessages: {
                   type: 'must be valid field path',
                 },
@@ -1402,6 +1370,15 @@ export default class FastifyController<
       },
     };
 
+    // Model endpoint.
+    server.get('/_model', this.createEndpoint({
+      authenticate: true,
+      handler: async (request, response) => {
+        const { collection } = request.query as { collection: keyof Types; };
+        response.status(200).send(this.model.getPublicSchema(collection));
+      },
+    }));
+
     // OAuth endpoints.
     const { oAuth, collections } = this.endpoints;
     Object.keys(oAuth).forEach((key) => {
@@ -1431,10 +1408,10 @@ export default class FastifyController<
             },
         },
       };
-      Object.keys(collectionEndpoints).forEach((endpoint) => {
-        const { path: endpointPath, maximumDepth } = collectionEndpoints[endpoint as EndpointType];
+      (Object.keys(collectionEndpoints) as EndpointType[]).forEach((endpoint) => {
+        const { path, maximumDepth } = collectionEndpoints[endpoint] as BuiltInEndpoint;
         if (endpoint === 'create') {
-          server.post(endpointPath, this.createEndpoint({
+          server.post(path, this.createEndpoint({
             collection,
             type: 'CREATE',
             authenticate: true,
@@ -1461,7 +1438,7 @@ export default class FastifyController<
             },
           }));
         } else if (endpoint === 'update') {
-          server.put(endpointPath, this.createEndpoint({
+          server.put(path, this.createEndpoint({
             collection,
             type: 'UPDATE',
             authenticate: true,
@@ -1490,10 +1467,11 @@ export default class FastifyController<
             },
           }));
         } else if (endpoint === 'list') {
-          server.get(endpointPath, this.createEndpoint({
+          server.get(path, this.createEndpoint({
             collection,
             type: 'LIST',
             authenticate: true,
+            additionalPermissions: [`${this.toSnakeCase(collection as string)}_LIST`],
             schemaTransformer: (schema) => ({
               ...schema,
               response: { '2xx': resultsResponseSchema(collection) },
@@ -1509,10 +1487,11 @@ export default class FastifyController<
             },
           }));
         } else if (endpoint === 'view') {
-          server.get(endpointPath, this.createEndpoint({
+          server.get(path, this.createEndpoint({
             collection,
             type: 'VIEW',
             authenticate: true,
+            additionalPermissions: [`${this.toSnakeCase(collection as string)}_VIEW`],
             schemaTransformer: (schema) => ({
               ...schema,
               response: { '2xx': resultResponseSchema(collection) },
@@ -1530,7 +1509,7 @@ export default class FastifyController<
             },
           }));
         } else if (endpoint === 'search') {
-          server.post(endpointPath, this.createEndpoint({
+          server.post(path, this.createEndpoint({
             collection,
             type: 'SEARCH',
             authenticate: true,
@@ -1575,7 +1554,7 @@ export default class FastifyController<
             },
           }));
         } else if (endpoint === 'delete') {
-          server.delete(endpointPath, this.createEndpoint({
+          server.delete(path, this.createEndpoint({
             collection,
             type: 'DELETE',
             authenticate: true,

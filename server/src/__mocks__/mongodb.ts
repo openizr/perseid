@@ -42,17 +42,32 @@ const collection = vi.fn((name) => {
     aggregate: vi.fn(() => ({
       toArray: vi.fn(() => {
         if (name === '_config') {
-          return (process.env.MISSING_FOREIGN_KEYS === 'true')
+          if (process.env.REFERENCES_MODE === 'true') {
+            return (process.env.REFERENCE_EXISTS === 'true')
+              ? [
+                {
+                  _id: new ObjectId('646b9be5e921d0ef42f88888'),
+                  externalRelation: [new ObjectId('646b9be5e921d0ef42f88887')],
+                },
+              ]
+              : [
+                {
+                  _id: new ObjectId('646b9be5e921d0ef42f88888'),
+                  externalRelation: [],
+                },
+              ];
+          }
+          return (process.env.MISSING_FOREIGN_IDS === 'true')
             ? [
               {
                 _id: new ObjectId('646b9be5e921d0ef42f88888'),
-                externalRelation: [],
+                externalRelation0: [],
               },
             ]
             : [
               {
                 _id: new ObjectId('646b9be5e921d0ef42f88888'),
-                externalRelation: [
+                externalRelation0: [
                   { _id: ObjectId('646b9be5e921d0ef42f8a147') },
                   { _id: ObjectId('646b9be5e921d0ef42f8a142') },
                   { _id: ObjectId('646b9be5e921d0ef42f8a143') },
@@ -69,6 +84,11 @@ const collection = vi.fn((name) => {
               _id: new ObjectId('64723318e84f943f1ad6578b'),
               test: 1,
             }];
+        }
+        if (process.env.INTEGRITY_MODE === 'true') {
+          return process.env.INTEGRITY_CHECKS_FAIL === 'true'
+            ? [{ _id: new ObjectId('64723318e84f943f1ad6578b') }]
+            : [];
         }
         return [{
           total: (process.env.NO_RESULT === 'true') ? [] : [{ total: 1 }],

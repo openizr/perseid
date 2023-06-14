@@ -41,9 +41,6 @@ export default class Logger extends BaseLogger {
   /** Minimum logging level (all logs below that level won't be logs). */
   public readonly level: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
-  /** Only for pino compatibility. */
-  public readonly silent = null;
-
   /**
    * Class constructor.
    *
@@ -81,6 +78,16 @@ export default class Logger extends BaseLogger {
    */
   public child(): PinoLogger {
     return this.logger;
+  }
+
+  /**
+   * Only for pino compatibility.
+   */
+  public silent(message: unknown, ...args: unknown[]): void {
+    // No-op.
+    if (message && args) {
+      this.child();
+    }
   }
 
   /**

@@ -18,7 +18,8 @@ import Logger from 'scripts/services/Logger';
 import EngineError from 'scripts/errors/Engine';
 import type BaseModel from 'scripts/services/Model';
 import type BaseDatabaseClient from 'scripts/services/DatabaseClient';
-import { isPlainObject } from 'basx';
+
+const defaultPayload = {};
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
@@ -42,15 +43,13 @@ export default class Engine<
   /** Database client. */
   protected databaseClient: DatabaseClient;
 
-  /** Ugly hack to avoid linter issue in `generateAutomaticFields`. */
-  protected defaultUpdatedBy = null;
-
   /**
    * Performs a deep (recursive) merge of `resource` and `payload`. Rules are the following:
    *  - `null` is a special value that signifies "remove the item" in an array or a dynamic object.
    *    For instance, merging `[1, 2, 3]` and `[null, 2, null]` will give `[2]`.
    *  - If payload has less items than the original resource, remaining items will be added. For
    *    instance, merging `[1, 2, 3, 4]` and `[9, 10]` will give `[9, 10, 3, 4]`.
+   *  - If `payload` and `resource` are deeply equal, `undefined` is returned.
    *
    * @param resource Original resource on which to apply the deep merge.
    *
@@ -59,169 +58,250 @@ export default class Engine<
    * @param dataModel Current field data model (used to determine wether field is an array or a
    * dynamic object).
    *
+   * @param foreignIds Optional parameter, use it to also extract foreign ids from payload. If this
+   * parameter is passed, a list of foreign ids per collection will be generated and stored in that
+   * variable. Defaults to `new Map()`.
+   *
+   * @param path Current path in schema. Used for recursivity, do not use it directly!
+   *
    * @returns A deep merge of `resource` and `payload`.
    */
   protected deepMerge<Collection extends keyof Types>(
-    resource: Types[Collection],
-    payload: Partial<Types[Collection]>,
+    resource: Types[Collection] | Partial<Types[Collection]> | null,
+    payload: Payload<Types[Collection]> | UpdatePayload<Types[Collection]>,
     dataModel: FieldDataModel<Types>,
-  ): Partial<Types[Collection]> {
-    // Primitive values...
-    if (
-      (!isPlainObject(payload) && !Array.isArray(payload))
-      || (!isPlainObject(resource) && !Array.isArray(resource))
-    ) {
-      return payload;
+    foreignIds: Map<string, Record<string, Set<string>>> = new Map(),
+    path: string[] = [],
+  ): UpdatePayload<Types[Collection]> {
+    const { type } = dataModel;
+
+    // Relation...
+    if (type === 'id' && payload !== null) {
+      const { relation } = dataModel;
+      if (relation !== undefined) {
+        const finalPath = path.join('.');
+        const relationIds = foreignIds.get(relation as string) ?? {};
+        relationIds[finalPath] ??= new Set();
+        relationIds[finalPath].add(`${payload}`);
+        foreignIds.set(relation as string, relationIds);
+      }
+      return (`${resource}` !== `${payload}`) ? payload : defaultPayload;
     }
 
     // Arrays...
-    if (dataModel.type === 'array') {
+    if (type === 'array') {
       const newArray = [];
       const { fields } = dataModel as ArrayDataModel<Types>;
       const arrayPayload = payload as unknown as Types[Collection][];
-      const arrayResource = resource as unknown as Types[Collection][];
+      const arrayResource = (resource ?? []) as unknown as Types[Collection][];
       for (let i = 0, { length } = arrayPayload; i < length; i += 1) {
         if (arrayPayload[i] !== null) {
-          newArray.push(this.deepMerge(arrayResource[i], arrayPayload[i], fields));
+          const mergedValue = this.deepMerge(
+            arrayResource[i] ?? null as Types[Collection],
+            arrayPayload[i],
+            fields,
+            foreignIds,
+            path,
+          );
+          if (mergedValue !== defaultPayload) {
+            newArray.push(mergedValue);
+          }
         }
       }
       for (let i = 0, diff = arrayResource.length - arrayPayload.length; i < diff; i += 1) {
         newArray.push(arrayResource[arrayPayload.length + i]);
       }
-      return newArray as unknown as Partial<Types[Collection]>;
+      return (newArray.length > 0)
+        ? newArray as unknown as UpdatePayload<Types[Collection]>
+        : defaultPayload;
     }
 
     // (dynamic) Objects...
-    const isDynamic = dataModel.type === 'dynamicObject';
-    const { fields } = dataModel as DynamicObjectDataModel<Types>;
-    const payloadKeys = Object.keys(payload);
-    const resourceKeys = Object.keys(resource as Partial<Types[Collection]>);
-    const newDynamicObject: Partial<Types[Collection]> = {};
-    const patterns = Object.keys(fields).map((pattern) => new RegExp(pattern));
-    for (let i = 0, { length } = payloadKeys; i < length; i += 1) {
-      const key = payloadKeys[i] as keyof Types[Collection];
-      if (payload[key] !== null && isDynamic) {
-        newDynamicObject[key] = this.deepMerge(
-          resource[key] as unknown as Types[Collection],
-          payload[key] as unknown as Types[Collection],
-          fields[(patterns.find((p) => p.test(String(key))) as RegExp).source],
-        ) as Types[Collection][keyof Types[Collection]];
-      } else if (!isDynamic) {
-        newDynamicObject[key] = payload[key];
+    if (type === 'dynamicObject' || type === 'object') {
+      const isDynamic = type === 'dynamicObject';
+      const { fields } = dataModel as DynamicObjectDataModel<Types>;
+      const payloadKeys = Object.keys(payload);
+      const resourceKeys = Object.keys(resource ?? {});
+      const newDynamicObject: UpdatePayload<Types[Collection]> = {};
+      const patterns = Object.keys(fields).map((pattern) => new RegExp(pattern));
+      const ignoreKeys = new Set();
+      for (let i = 0, { length } = payloadKeys; i < length; i += 1) {
+        const key = payloadKeys[i] as keyof UpdatePayload<Types[Collection]>;
+        if (payload[key] !== null) {
+          const mergedValue = this.deepMerge(
+            resource?.[key] ?? null as unknown as Types[Collection],
+            payload[key] as unknown as Types[Collection],
+            fields[!isDynamic
+              ? payloadKeys[i] : (patterns.find((p) => p.test(String(key))) as RegExp).source],
+            foreignIds,
+            path.concat([key as string]),
+          ) as Types[Collection][keyof Payload<Types[Collection]>];
+          if (mergedValue !== defaultPayload) {
+            newDynamicObject[key] = mergedValue;
+          } else {
+            ignoreKeys.add(key);
+          }
+        }
       }
-    }
-    for (let i = 0, { length } = resourceKeys; i < length; i += 1) {
-      const key = resourceKeys[i] as keyof Partial<Types[Collection]>;
-      if (newDynamicObject[key] === undefined && payload[key] !== null) {
-        newDynamicObject[key] = resource[key];
+      // Completes final payload with existing values from resource.
+      if (path.length > 0) {
+        for (let i = 0, { length } = resourceKeys; i < length; i += 1) {
+          const key = resourceKeys[i] as keyof UpdatePayload<Types[Collection]>;
+          if (newDynamicObject[key] === undefined && payload[key] !== null
+            && !ignoreKeys.has(key)) {
+            newDynamicObject[key] = (resource as Types[Collection])[key];
+          }
+        }
       }
+      return (Object.keys(newDynamicObject).length > 0) ? newDynamicObject : defaultPayload;
     }
-    return newDynamicObject;
+
+    // Primitive value...
+    return (`${resource}` !== `${payload}`) ? payload : defaultPayload;
   }
 
   /**
-   * Generates automatic fields for `collection`.
+   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
    *
-   * @param collectionModel Data model of the collection for which to generate automatic fields.
+   * @param collection Collection for which to check foreign ids.
+   *
+   * @param resource Current resource being updated, if applicable.
+   *
+   * @param payload Payload for updating or creating resource.
+   *
+   * @param foreignIds Foreign ids map, generated from `deepMerge`.
+   *
+   * @param context Command context.
+   */
+  protected async checkForeignIds<Collection extends keyof Types>(
+    collection: Collection,
+    resource: Types[Collection] | null,
+    payload: UpdatePayload<Types[Collection]>,
+    foreignIds: Map<string, Record<string, Set<string>>>,
+    context: CommandContext,
+  ): Promise<void> {
+    const filtersPerCollection = new Map();
+    foreignIds.forEach((pathFilters, relation) => {
+      const paths = Object.keys(pathFilters);
+      filtersPerCollection.set(relation, paths.map((path) => this.createRelationFilters(
+        collection,
+        path,
+        [...pathFilters[path]].map((id) => new Id(id)),
+        resource,
+        payload,
+        context,
+      )));
+    });
+    await this.databaseClient.checkForeignIds(filtersPerCollection);
+  }
+
+  /**
+   * Returns filters to apply when checking foreign ids referencing other relations.
+   *
+   * @param collection Collection for which to return filters.
+   *
+   * @param path Path to the relation reference in data model.
+   *
+   * @param ids List of foreign ids to check.
+   *
+   * @param resource Current resource being updated, if applicable.
+   *
+   * @param payload Payload for updating or creating resource.
    *
    * @param context Command context.
    *
-   * @param isCreation Whether operation is a creation, or an update of an existing resource.
-   * Defaults to `false` (update mode).
-   *
-   * @returns An object containing automatic fields for `collection`.
+   * @returns Filters to apply to check foreign ids.
    */
-  protected generateAutomaticFields(
-    collectionModel: CollectionDataModel<Types>,
-    context: CommandContext & { _id?: Id; },
-    // Defaulting to update mode is much safer: resources creation will fail as they won't have all
-    // the required fields, as opposed to defaulting to creation mode, in which case fields will
-    // simply be silently reset over and over.
-    isCreation = false,
-  ): Partial<Ids & Authors & Timestamps & Deletion & Version> {
-    const automaticFields: Partial<Ids & Authors & Timestamps & Deletion & Version> = {};
+  protected createRelationFilters<Collection extends keyof Types>(
+    collection: Collection,
+    path: string,
+    ids: Id[],
+    resource: Types[Collection] | null,
+    payload: UpdatePayload<Types[Collection]>,
+    context: CommandContext,
+  ): SearchFilters {
+    this.logger.silent(collection, path, resource, payload, context);
+    return { _id: ids };
+  }
 
-    if (collectionModel.enableAuthors !== false) {
+  /**
+   * Returns updated `payload` with automatic fields.
+   *
+   * @param collection Collection for which to generate automatic fields.
+   *
+   * @param resource Current resource being updated, if applicable.
+   *
+   * @param payload Payload to update.
+   *
+   * @param context Command context.
+   *
+   * @returns Payload with automatic fields.
+   */
+  protected withAutomaticFields<Collection extends keyof Types>(
+    collection: Collection,
+    resource: Types[Collection] | null,
+    payload: Payload<Types[Collection]> | UpdatePayload<Types[Collection]>,
+    context: CommandContext,
+  ): Types[Collection] {
+    const isCreation = (resource === null);
+    const collectionModel = this.model.getCollection(collection);
+    const fullPayload: Partial<Ids & Authors & Version & Deletion & Timestamps> = { ...payload };
+
+    if (collectionModel.enableAuthors) {
       if (isCreation) {
-        automaticFields._updatedBy = this.defaultUpdatedBy;
-        automaticFields._createdBy = context.user?._id ?? null;
+        fullPayload._updatedBy = null;
+        fullPayload._createdBy = context.user?._id ?? null;
       } else {
-        automaticFields._updatedBy = context.user._id;
+        fullPayload._updatedBy = context.user._id;
       }
     }
 
-    if (collectionModel.enableTimestamps !== false) {
+    if (collectionModel.enableTimestamps) {
       if (isCreation) {
-        automaticFields._updatedAt = null;
-        automaticFields._createdAt = new Date();
+        fullPayload._updatedAt = null;
+        fullPayload._createdAt = new Date();
       } else {
-        automaticFields._updatedAt = new Date();
+        fullPayload._updatedAt = new Date();
       }
     }
 
     if (isCreation) {
-      automaticFields._id = context._id ?? new Id();
+      fullPayload._id = new Id();
     }
 
     if (isCreation && collectionModel.enableDeletion === false) {
-      automaticFields._isDeleted = false;
+      fullPayload._isDeleted = false;
     }
 
     if (isCreation && collectionModel.version !== undefined) {
-      automaticFields._version = collectionModel.version;
+      fullPayload._version = collectionModel.version;
     }
 
-    return automaticFields;
+    return fullPayload as Types[Collection];
   }
 
   /**
-   * Checks and updates `payloads` (if necessary), before creating, deleting or updating `resource`.
+   * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
    *
-   * @param command What type of operation will be performed.
+   * @param collection Payload collection.
    *
-   * @param collection Collection on which the operation will be performed.
+   * @param resource Current resource being updated, if applicable.
    *
-   * @param payload Payload for updating, deleting or creating resource.
+   * @param payload Payload to validate and update.
+   *
+   * @param foreignIds Foreign ids to check, generated from `deepMerge`.
    *
    * @param context Command context.
-   *
-   * @param resourceId Id of the existing resource that will be updated or deleted, if applicable.
-   *
-   * @returns Updated payload.
-   *
-   * @throws If collection does not exist in data model.
    */
   protected async checkAndUpdatePayload<Collection extends keyof Types>(
-    command: 'CREATE' | 'UPDATE' | 'DELETE',
     collection: Collection,
-    payload: WithoutAutomaticFields<Types[Collection]>,
+    resource: Types[Collection] | null,
+    payload: UpdatePayload<Types[Collection]>,
+    foreignIds: Map<string, Record<string, Set<string>>>,
     context: CommandContext,
-    resourceId?: Id,
-  ): Promise<Types[Collection]> {
-    const isUpdate = (command === 'UPDATE');
-    const isCreation = (command === 'CREATE');
-    const collectionModel = this.model.getCollection(collection);
-    const updatedPayload = this.generateAutomaticFields(collectionModel, context, isCreation);
-
-    if (isCreation || !isUpdate) {
-      return {
-        ...updatedPayload,
-        ...payload,
-      } as Types[Collection];
-    }
-
-    const fields = Object.keys(collectionModel.fields);
-    const resource = await this.view(collection, resourceId as Id, { fields });
-    Object.keys(payload).forEach((key) => {
-      const fieldName = key as keyof Types[Collection];
-      (updatedPayload as Types[Collection])[fieldName] = this.deepMerge(
-        (resource as Types[Collection])[fieldName] as Types[Collection],
-        (payload as Types[Collection])[fieldName] as Partial<Types[Collection]>,
-        collectionModel.fields[key],
-      ) as Types[Collection][keyof Types[Collection]];
-    });
-
-    return updatedPayload as Types[Collection];
+  ): Promise<Partial<Types[Collection]>> {
+    await this.checkForeignIds(collection, resource, payload, foreignIds, context);
+    return this.withAutomaticFields(collection, resource, payload, context);
   }
 
   /**
@@ -258,14 +338,23 @@ export default class Engine<
    */
   public async create<Collection extends keyof Types>(
     collection: Collection,
-    payload: WithoutAutomaticFields<Types[Collection]>,
+    payload: Payload<Types[Collection]>,
     options: CommandOptions,
     context: CommandContext,
   ): Promise<Types[Collection]> {
-    const fullPayload = await this.checkAndUpdatePayload('CREATE', collection, payload, context);
+    const foreignIds = new Map();
+    const { fields } = this.model.getCollection(collection);
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
-    await this.databaseClient.create(collection, fullPayload);
-    return this.view(collection, (fullPayload as Ids)._id, options);
+    const newPayload = this.deepMerge(null, payload, { type: 'object', fields }, foreignIds);
+    const fullPayload = await this.checkAndUpdatePayload(
+      collection,
+      null,
+      newPayload,
+      foreignIds,
+      context,
+    );
+    await this.databaseClient.create(collection, fullPayload as Types[Collection]);
+    return this.view(collection, (fullPayload as Types[Collection] as Ids)._id, options);
   }
 
   /**
@@ -288,14 +377,25 @@ export default class Engine<
   public async update<Collection extends keyof Types>(
     collection: Collection,
     id: Id,
-    payload: Partial<WithoutAutomaticFields<Types[Collection]>>,
+    payload: UpdatePayload<Types[Collection]>,
     options: CommandOptions,
     context: CommandContext,
   ): Promise<Types[Collection]> {
-    const data = payload as unknown as WithoutAutomaticFields<Types[Collection]>;
-    const fullPayload = await this.checkAndUpdatePayload('UPDATE', collection, data, context, id);
+    const foreignIds = new Map();
+    const { fields } = this.model.getCollection(collection);
+    const resource = await this.view(collection, id, { fields: Object.keys(fields) });
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
-    await this.databaseClient.update(collection, id, fullPayload);
+    const newPayload = this.deepMerge(resource, payload, { type: 'object', fields }, foreignIds);
+    if (newPayload !== defaultPayload) {
+      const fullPayload = await this.checkAndUpdatePayload(
+        collection,
+        resource,
+        newPayload,
+        foreignIds,
+        context,
+      );
+      await this.databaseClient.update(collection, id, fullPayload as Partial<Types[Collection]>);
+    }
     return this.view(collection, id, options);
   }
 
@@ -343,16 +443,16 @@ export default class Engine<
   }
 
   /**
- * Fetches a paginated list of resources from `collection` according to given search options.
- *
- * @param collection Name of the collection to fetch resources from.
- *
- * @param search Search options (filters, text query) to filter resources with.
- *
- * @param options Command options.
- *
- * @returns Paginated list of resources.
- */
+   * Fetches a paginated list of resources from `collection` according to given search options.
+   *
+   * @param collection Name of the collection to fetch resources from.
+   *
+   * @param search Search options (filters, text query) to filter resources with.
+   *
+   * @param options Command options.
+   *
+   * @returns Paginated list of resources.
+   */
   public async search<Collection extends keyof Types>(
     collection: Collection,
     search: SearchBody,
@@ -377,10 +477,10 @@ export default class Engine<
     id: Id,
     context: CommandContext,
   ): Promise<void> {
-    const payload = {} as WithoutAutomaticFields<Types[Collection]>;
-    const fullPayload = await this.checkAndUpdatePayload('DELETE', collection, payload, context);
+    const resource = {} as Types[Collection];
+    const payload = await this.checkAndUpdatePayload(collection, resource, {}, new Map(), context);
 
-    if (!await this.databaseClient.delete(collection, id, fullPayload)) {
+    if (!await this.databaseClient.delete(collection, id, payload)) {
       throw new EngineError('NO_RESOURCE', { id });
     }
   }

@@ -38,7 +38,9 @@ export default class CacheClient {
    * @param key Key containing cached data.
    */
   public async delete(key: string): Promise<void> {
-    return promises.unlink(`${this.cachePath}/${key}`);
+    if (existsSync(`${this.cachePath}/${key}`)) {
+      await promises.unlink(`${this.cachePath}/${key}`);
+    }
   }
 
   /**

@@ -11,6 +11,8 @@
  */
 
 export default class {
+  public silent = vi.fn();
+
   public debug = vi.fn();
 
   public info = vi.fn();
@@ -20,4 +22,6 @@ export default class {
   public error = vi.fn();
 
   public fatal = vi.fn();
+
+  public child = vi.fn();
 }

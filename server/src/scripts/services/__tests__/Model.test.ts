@@ -7,10 +7,21 @@
  */
 
 import Model from 'scripts/services/Model';
-import { type DataModel as DefaultTypes } from '@perseid/core';
+import schema from 'scripts/services/__mocks__/schema';
+
+type TestModel = Model<unknown & {
+  test: {
+    test: string;
+  };
+  testTwo: {
+    test: string;
+  };
+}> & {
+  relationsPerCollection: Model['relationsPerCollection'];
+};
 
 describe('services/Model', () => {
-  const model = new Model<DefaultTypes & {
+  const model = new Model<unknown & {
     test: {
       test: string;
     };
@@ -33,13 +44,23 @@ describe('services/Model', () => {
         test: { type: 'string' },
       },
     },
-  });
+  }) as TestModel;
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('[email]', async () => {
+  test('[constructor]', () => {
+    const otherModel = new Model<unknown>(schema) as TestModel;
+    expect(otherModel.relationsPerCollection).toEqual({
+      test: new Set(['externalRelation', 'otherExternalRelation']),
+      test2: new Set(['externalRelation', 'otherExternalRelation']),
+      externalRelation: new Set(['otherExternalRelation']),
+      otherExternalRelation: new Set(),
+    });
+  });
+
+  test('[email]', () => {
     expect(Model.email()).toEqual({
       required: true,
       type: 'string',
@@ -52,7 +73,7 @@ describe('services/Model', () => {
     });
   });
 
-  test('[tinyText]', async () => {
+  test('[tinyText]', () => {
     expect(Model.tinyText({ minLength: 2 })).toEqual({
       minLength: 2,
       maxLength: 50,
@@ -62,7 +83,7 @@ describe('services/Model', () => {
     });
   });
 
-  test('[shortText]', async () => {
+  test('[shortText]', () => {
     expect(Model.shortText({ minLength: 2 })).toEqual({
       minLength: 2,
       maxLength: 100,
@@ -72,7 +93,7 @@ describe('services/Model', () => {
     });
   });
 
-  test('[mediumText]', async () => {
+  test('[mediumText]', () => {
     expect(Model.mediumText({ minLength: 2 })).toEqual({
       minLength: 2,
       maxLength: 500,
@@ -82,7 +103,7 @@ describe('services/Model', () => {
     });
   });
 
-  test('[longText]', async () => {
+  test('[longText]', () => {
     expect(Model.longText({ minLength: 2 })).toEqual({
       minLength: 2,
       maxLength: 2500,
@@ -92,7 +113,7 @@ describe('services/Model', () => {
     });
   });
 
-  test('[hugeText]', async () => {
+  test('[hugeText]', () => {
     expect(Model.hugeText({ minLength: 2 })).toEqual({
       minLength: 2,
       required: true,
@@ -102,7 +123,7 @@ describe('services/Model', () => {
     });
   });
 
-  test('[token]', async () => {
+  test('[token]', () => {
     expect(Model.token()).toEqual({
       required: true,
       type: 'string',
@@ -115,7 +136,7 @@ describe('services/Model', () => {
     });
   });
 
-  test('[password]', async () => {
+  test('[password]', () => {
     expect(Model.password()).toEqual({
       required: true,
       type: 'string',
@@ -128,7 +149,7 @@ describe('services/Model', () => {
     });
   });
 
-  test('[credentials]', async () => {
+  test('[credentials]', () => {
     expect(Model.credentials()).toEqual({
       required: true,
       type: 'object',
@@ -168,11 +189,11 @@ describe('services/Model', () => {
     });
   });
 
-  test('[getCollections]', async () => {
+  test('[getCollections]', () => {
     expect(model.getCollections()).toEqual(['users', 'roles', 'test', 'testTwo']);
   });
 
-  test('[getCollection]', async () => {
+  test('[getCollection]', () => {
     expect(model.getCollection('test')).toEqual({
       version: 1,
       enableAuthors: true,
@@ -212,6 +233,19 @@ describe('services/Model', () => {
           index: true,
         },
         test: { type: 'string' },
+      },
+    });
+  });
+
+  test('[getPublicSchema]', () => {
+    const otherModel = new Model<unknown>(schema) as TestModel;
+    expect(otherModel.getPublicSchema('externalRelation' as unknown as 'test')).toEqual({
+      otherExternalRelation: {
+        type: 'object',
+        fields: {
+          _id: { type: 'id', index: true, required: true },
+          type: { type: 'string', index: undefined },
+        },
       },
     });
   });

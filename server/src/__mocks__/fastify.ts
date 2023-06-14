@@ -9,3 +9,10 @@
 /**
  * `fastify` mock.
  */
+
+export default vi.fn(() => ({
+  get: vi.fn(),
+  listen: vi.fn(),
+  addHook: vi.fn(),
+  register: vi.fn(),
+}));

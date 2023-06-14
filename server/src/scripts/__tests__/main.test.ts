@@ -6,9 +6,11 @@
  *
  */
 
+import 'scripts/testing';
 import * as exports from 'scripts/main';
 
 describe('main', () => {
+  vi.mock('fastify');
   vi.mock('scripts/services/Model');
   vi.mock('scripts/services/Logger');
   vi.mock('scripts/services/Engine');

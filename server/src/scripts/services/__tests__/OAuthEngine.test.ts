@@ -6,23 +6,18 @@
  *
  */
 
+import { Id } from '@perseid/core';
 import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
-import { DataModel, Id } from '@perseid/core';
 import EngineError from 'scripts/errors/Engine';
 import OAuthEngine from 'scripts/services/OAuthEngine';
 import CacheClient from 'scripts/services/CacheClient';
 import EmailClient from 'scripts/services/EmailClient';
 import DatabaseClient from 'scripts/services/DatabaseClient';
+import { type DataModel } from 'scripts/services/__mocks__/schema';
 
 type TestOAuthEngine = OAuthEngine<DataModel> & {
-  checkAndUpdatePayload: <Collection extends keyof DataModel>(
-    command: 'create' | 'update' | 'delete',
-    collection: Collection,
-    payload: WithoutAutomaticFields<DataModel[Collection]>,
-    context: CommandContext,
-    resourceId?: Id,
-  ) => Promise<DataModel[Collection]>
+  checkAndUpdatePayload: OAuthEngine['checkAndUpdatePayload'];
 };
 
 describe('services/OAuthEngine', () => {
@@ -39,6 +34,7 @@ describe('services/OAuthEngine', () => {
   vi.setSystemTime(new Date('2023-01-01'));
 
   let engine: TestOAuthEngine;
+  const context = {} as unknown as CommandContext;
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
   const emailClient = new EmailClient(logger);
   const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
@@ -74,37 +70,37 @@ describe('services/OAuthEngine', () => {
   });
 
   test('[checkAndUpdatePayload] users collection', async () => {
-    const context = {} as unknown as CommandContext;
     const payload = { password: 'test' } as unknown as DataModel['users'];
-    const newPayload = await engine.checkAndUpdatePayload('create', 'users', payload, context);
+    const newPayload = await engine.checkAndUpdatePayload('users', null, payload, new Map(), context);
     expect(newPayload).toEqual({
+      _apiKeys: [],
       _devices: [],
-      password: 'HASHED_TEXT_test',
+      _verifiedAt: null,
       _updatedAt: new Date('2023-01-01'),
+      roles: [],
+      password: 'HASHED_TEXT_test',
     });
   });
 
   test('[checkAndUpdatePayload] other collection', async () => {
-    const context = {} as unknown as CommandContext;
     const payload = {} as unknown as DataModel['roles'];
-    const newPayload = await engine.checkAndUpdatePayload('create', 'roles', payload, context);
+    const newPayload = await engine.checkAndUpdatePayload('roles', null, payload, new Map(), context);
     expect(newPayload).toEqual({ _updatedAt: new Date('2023-01-01') });
   });
 
   test('[verifyToken] invalid device id', async () => {
-    const context = { deviceId: 'other' } as unknown as CommandContext;
+    const newContext = { deviceId: 'other' } as unknown as CommandContext;
     await expect(async () => {
-      await engine.verifyToken('invalid', true, context);
+      await engine.verifyToken('invalid', true, newContext);
     }).rejects.toThrow(new Error('INVALID_DEVICE_ID'));
   });
 
   test('[verifyToken] valid device id', async () => {
-    const context = { deviceId: 'test' } as unknown as CommandContext;
-    expect(await engine.verifyToken('invalid', true, context)).toEqual(new Id('64723318e84f943f1ad6578b'));
+    const newContext = { deviceId: 'test' } as unknown as CommandContext;
+    expect(await engine.verifyToken('invalid', true, newContext)).toEqual(new Id('64723318e84f943f1ad6578b'));
   });
 
   test('[create] users collection', async () => {
-    const context = {} as unknown as CommandContext;
     const payload = { email: 'test@test.io', password: 'test' } as unknown as DataModel['users'];
     const resource = await engine.create('users', payload, {}, context);
     expect(resource).toEqual({
@@ -122,7 +118,6 @@ describe('services/OAuthEngine', () => {
   });
 
   test('[create] other collection', async () => {
-    const context = {} as unknown as CommandContext;
     const payload = {} as unknown as DataModel['roles'];
     const resource = await engine.create('roles', payload, {}, context);
     expect(resource).toEqual({
@@ -133,14 +128,12 @@ describe('services/OAuthEngine', () => {
   });
 
   test('[signUp] passwords mismatch', async () => {
-    const context = {} as unknown as CommandContext;
     expect(async () => {
       await engine.signUp('test@test.io', 'test', 'invalid', context);
     }).rejects.toThrow(new EngineError('PASSWORDS_MISMATCH'));
   });
 
   test('[signUp] passwords match', async () => {
-    const context = {} as unknown as CommandContext;
     const credentials = await engine.signUp('test@test.io', 'test', 'test', context);
     expect(credentials).toEqual({
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9',
@@ -151,6 +144,7 @@ describe('services/OAuthEngine', () => {
     });
     expect(databaseClient.create).toHaveBeenCalledTimes(1);
     expect(databaseClient.create).toHaveBeenCalledWith('users', {
+      _id: new Id(),
       _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
       _verifiedAt: null,
       _apiKeys: [],
@@ -167,7 +161,7 @@ describe('services/OAuthEngine', () => {
     expect(emailClient.sendVerificationEmail).toHaveBeenCalledTimes(1);
     expect(emailClient.sendVerificationEmail).toHaveBeenCalledWith(
       'test@test.io',
-      'https://test.com/verify-email?verifyToken=12345azerty',
+      'https://test.com/verify-email?verificationToken=12345azerty',
     );
     expect(cacheClient.set).toHaveBeenCalledTimes(1);
     expect(cacheClient.set).toHaveBeenCalledWith('abcde8997', '12345azerty', 7200);
@@ -175,7 +169,6 @@ describe('services/OAuthEngine', () => {
 
   test('[signIn] no user', async () => {
     process.env.NO_RESULT = 'true';
-    const context = {} as unknown as CommandContext;
     expect(async () => {
       await engine.signIn('test@test.io', 'test', context);
     }).rejects.toThrow(new EngineError('NO_USER'));
@@ -183,18 +176,17 @@ describe('services/OAuthEngine', () => {
 
   test('[signIn] invalid credentials', async () => {
     process.env.PASSWORDS_MISMATCH = 'true';
-    const context = {} as unknown as CommandContext;
     expect(async () => {
       await engine.signIn('test@test.io', 'test', context);
     }).rejects.toThrow(new EngineError('INVALID_CREDENTIALS'));
   });
 
   test('[signIn] valid credentials, existing device', async () => {
-    const context = { deviceId: 'test' } as unknown as CommandContext;
-    const credentials = await engine.signIn('test@test.io', 'test', context);
+    const newContext = { deviceId: '64723318e84f943f1ad6578c' } as unknown as CommandContext;
+    const credentials = await engine.signIn('test@test.io', 'test', newContext);
     expect(credentials).toEqual({
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9',
-      deviceId: 'test',
+      deviceId: '64723318e84f943f1ad6578c',
       expiresIn: 1200,
       refreshToken: '12345azerty',
       refreshTokenExpiration: new Date('2023-01-31T00:00:00.000Z'),
@@ -203,7 +195,7 @@ describe('services/OAuthEngine', () => {
     expect(databaseClient.update).toHaveBeenCalledWith('users', new Id('64723318e84f943f1ad6578b'), {
       _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
       _devices: [{
-        id: 'test',
+        id: '64723318e84f943f1ad6578c',
         userAgent: 'UNKNOWN',
         refreshToken: '12345azerty',
         expiration: new Date('2023-01-31T00:00:00.000Z'),
@@ -212,7 +204,6 @@ describe('services/OAuthEngine', () => {
   });
 
   test('[signIn] valid credentials, new device', async () => {
-    const context = {} as unknown as CommandContext;
     const credentials = await engine.signIn('test@test.io', 'test', context);
     expect(credentials).toEqual({
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9',
@@ -224,46 +215,49 @@ describe('services/OAuthEngine', () => {
     expect(databaseClient.update).toHaveBeenCalledTimes(1);
     expect(databaseClient.update).toHaveBeenCalledWith('users', new Id('64723318e84f943f1ad6578b'), {
       _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
-      _devices: [{
-        expiration: new Date('2023-01-31T00:00:00.000Z'),
-        id: '12345azerty',
-        refreshToken: '12345azerty',
-        userAgent: 'UNKNOWN',
-      }, {
-        id: 'test',
-      }],
+      _devices: [
+        {
+          id: '64723318e84f943f1ad6578c',
+        },
+        {
+          expiration: new Date('2023-01-31T00:00:00.000Z'),
+          id: '12345azerty',
+          refreshToken: '12345azerty',
+          userAgent: 'UNKNOWN',
+        },
+      ],
     });
   });
 
   test('[requestEmailVerification] email already verified', async () => {
-    const context = { user: { _verifiedAt: new Date() } } as unknown as CommandContext;
+    const newContext = { user: { _verifiedAt: new Date() } } as unknown as CommandContext;
     expect(async () => {
-      await engine.requestEmailVerification(context);
+      await engine.requestEmailVerification(newContext);
     }).rejects.toThrow(new EngineError('EMAIL_ALREADY_VERIFIED'));
   });
 
   test('[requestEmailVerification] email not verified', async () => {
-    const context = { user: { _verifiedAt: null, email: 'test@test.io' } } as unknown as CommandContext;
-    await engine.requestEmailVerification(context);
+    const newContext = { user: { _verifiedAt: null, email: 'test@test.io' } } as unknown as CommandContext;
+    await engine.requestEmailVerification(newContext);
     expect(cacheClient.set).toHaveBeenCalledTimes(1);
     expect(cacheClient.set).toHaveBeenCalledWith('abcde8997', '12345azerty', 7200);
     expect(emailClient.sendVerificationEmail).toHaveBeenCalledTimes(1);
     expect(emailClient.sendVerificationEmail).toHaveBeenCalledWith(
       'test@test.io',
-      'https://test.com/verify-email?verifyToken=12345azerty',
+      'https://test.com/verify-email?verificationToken=12345azerty',
     );
   });
 
-  test('[verifyEmail] invalid verify token', async () => {
-    const context = { user: {} } as unknown as CommandContext;
+  test('[verifyEmail] invalid verification token', async () => {
+    const newContext = { user: {} } as unknown as CommandContext;
     expect(async () => {
-      await engine.verifyEmail('invalid', context);
-    }).rejects.toThrow(new EngineError('INVALID_VERIFY_TOKEN'));
+      await engine.verifyEmail('invalid', newContext);
+    }).rejects.toThrow(new EngineError('INVALID_VERIFICATION_TOKEN'));
   });
 
   test('[verifyEmail] invalid verify token', async () => {
-    const context = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as unknown as CommandContext;
-    await engine.verifyEmail('test', context);
+    const newContext = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as unknown as CommandContext;
+    await engine.verifyEmail('test', newContext);
     expect(cacheClient.delete).toHaveBeenCalledTimes(1);
     expect(cacheClient.delete).toHaveBeenCalledWith('abcde8997');
     expect(databaseClient.update).toHaveBeenCalledTimes(1);
@@ -276,41 +270,39 @@ describe('services/OAuthEngine', () => {
   test('[requestPasswordReset] user does not exist', async () => {
     process.env.NO_RESULT = 'true';
     await engine.requestPasswordReset('test@test.io');
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      'User with email "test@test.io" does not exist, skipping email sending...',
+    );
     expect(emailClient.sendPasswordResetEmail).not.toHaveBeenCalled();
   });
 
   test('[requestPasswordReset] user exists', async () => {
     await engine.requestPasswordReset('test@test.io');
     expect(cacheClient.set).toHaveBeenCalledTimes(1);
-    expect(cacheClient.set).toHaveBeenCalledWith('abcde8997', '12345azerty', 7200);
+    expect(cacheClient.set).toHaveBeenCalledWith('abcde8997', 'test@test.io', 7200);
     expect(emailClient.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
     expect(emailClient.sendPasswordResetEmail).toHaveBeenCalledWith(
       'test@test.io',
-      'https://test.com/reset-password?email=test@test.io&resetToken=12345azerty',
+      'https://test.com/reset-password?resetToken=12345azerty',
     );
   });
 
   test('[resetPassword] passwords mismatch', async () => {
     expect(async () => {
-      await engine.resetPassword('test@test.io', 'test', 'invalid', 'token');
+      await engine.resetPassword('test', 'invalid', 'token');
     }).rejects.toThrow(new EngineError('PASSWORDS_MISMATCH'));
   });
 
   test('[resetPassword] invalid reset token', async () => {
+    process.env.NO_RESULT = 'true';
     expect(async () => {
-      await engine.resetPassword('test@test.io', 'test', 'test', 'token');
+      await engine.resetPassword('test', 'test', 'token');
     }).rejects.toThrow(new EngineError('INVALID_RESET_TOKEN'));
   });
 
-  test('[resetPassword] no user', async () => {
-    process.env.NO_RESULT = 'true';
-    expect(async () => {
-      await engine.resetPassword('test@test.io', 'test', 'test', 'test');
-    }).rejects.toThrow(new EngineError('NO_USER'));
-  });
-
   test('[resetPassword] invalid verify token', async () => {
-    await engine.resetPassword('test@test.io', 'test', 'test', 'test');
+    await engine.resetPassword('test', 'test', 'test');
     expect(cacheClient.delete).toHaveBeenCalledTimes(1);
     expect(cacheClient.delete).toHaveBeenCalledWith('abcde8997');
     expect(databaseClient.update).toHaveBeenCalledTimes(1);
@@ -323,19 +315,19 @@ describe('services/OAuthEngine', () => {
   });
 
   test('[refreshToken] no user', async () => {
-    const context = {
+    const newContext = {
       user: {
         _id: new Id('64723318e84f943f1ad6578b'),
         _devices: [],
       },
     } as unknown as CommandContext;
     expect(async () => {
-      await engine.refreshToken('token', context);
+      await engine.refreshToken('token', newContext);
     }).rejects.toThrow(new EngineError('INVALID_REFRESH_TOKEN'));
   });
 
   test('[refreshToken] valid verify token, existing device', async () => {
-    const context = {
+    const newContext = {
       user: {
         _id: new Id('64723318e84f943f1ad6578b'),
         _devices: [{
@@ -346,7 +338,7 @@ describe('services/OAuthEngine', () => {
       },
       deviceId: 'test',
     } as unknown as CommandContext;
-    const credentials = await engine.refreshToken('token', context);
+    const credentials = await engine.refreshToken('token', newContext);
     expect(credentials).toEqual({
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9',
       deviceId: 'test',
@@ -367,7 +359,7 @@ describe('services/OAuthEngine', () => {
   });
 
   test('[signOut]', async () => {
-    const context = {
+    const newContext = {
       user: {
         _id: new Id('64723318e84f943f1ad6578b'),
         _devices: [{
@@ -378,7 +370,7 @@ describe('services/OAuthEngine', () => {
       },
       deviceId: 'test',
     } as unknown as CommandContext;
-    await engine.signOut(context);
+    await engine.signOut(newContext);
     expect(databaseClient.update).toHaveBeenCalledTimes(1);
     expect(databaseClient.update).toHaveBeenCalledWith('users', new Id('64723318e84f943f1ad6578b'), {
       _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
@@ -394,6 +386,7 @@ describe('services/OAuthEngine', () => {
     expect(logger.info).toHaveBeenCalledWith('[OAuthEngine][reset] Updating root user...');
     expect(databaseClient.create).toHaveBeenCalledTimes(2);
     expect(databaseClient.create).toHaveBeenCalledWith('users', {
+      _id: new Id(),
       _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
       _verifiedAt: null,
       _apiKeys: [],
@@ -424,6 +417,24 @@ describe('services/OAuthEngine', () => {
         'ROLES_CREATE',
         'ROLES_UPDATE',
         'ROLES_DELETE',
+        'TEST_VIEW',
+        'TEST_LIST',
+        'TEST_SEARCH',
+        'TEST_CREATE',
+        'TEST_UPDATE',
+        'TEST_DELETE',
+        'EXTERNALRELATION_VIEW',
+        'EXTERNALRELATION_LIST',
+        'EXTERNALRELATION_SEARCH',
+        'EXTERNALRELATION_CREATE',
+        'EXTERNALRELATION_UPDATE',
+        'EXTERNALRELATION_DELETE',
+        'OTHEREXTERNALRELATION_VIEW',
+        'OTHEREXTERNALRELATION_LIST',
+        'OTHEREXTERNALRELATION_SEARCH',
+        'OTHEREXTERNALRELATION_CREATE',
+        'OTHEREXTERNALRELATION_UPDATE',
+        'OTHEREXTERNALRELATION_DELETE',
       ],
     });
     expect(databaseClient.update).toHaveBeenCalledTimes(1);

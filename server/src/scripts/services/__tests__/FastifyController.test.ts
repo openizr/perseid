@@ -12,6 +12,7 @@ import {
   type FastifyRequest,
   type FastifyInstance,
 } from 'fastify';
+import { Id } from '@perseid/core';
 import { createWriteStream } from 'fs';
 import Gone from 'scripts/errors/Gone';
 import Model from 'scripts/services/Model';
@@ -29,63 +30,18 @@ import CacheClient from 'scripts/services/CacheClient';
 import NotAcceptable from 'scripts/errors/NotAcceptable';
 import TooManyRequests from 'scripts/errors/TooManyRequests';
 import DatabaseClient from 'scripts/services/DatabaseClient';
+import { type DataModel } from 'scripts/services/__mocks__/schema';
 import FastifyController from 'scripts/services/FastifyController';
-import { Id, type DataModel as BaseDataModel } from '@perseid/core';
 import UnprocessableEntity from 'scripts/errors/UnprocessableEntity';
 import RequestEntityTooLarge from 'scripts/errors/RequestEntityTooLarge';
 
 type Validate = (arg: unknown, ...args: unknown[]) => boolean;
-
-interface DataModel extends BaseDataModel {
-  test: {
-    primitiveOne: Id;
-    primitiveTwo: ArrayBuffer;
-    primitiveThree: string;
-    arrayOne: {
-      dynamicObject: {
-        [key: string]: Id | DataModel['externalRelation'];
-      };
-      object: {
-        fieldOne: string;
-      }
-    }[];
-    arrayTwo: (Id | null | DataModel['externalRelation'])[];
-    arrayThree: (Id | DataModel['externalRelation'])[];
-    arrayFour: string[];
-    arrayFive: {
-      fieldOne: string;
-    }[];
-    dynamicOne: {
-      [key: string]: Id | {
-        test: string;
-      } | DataModel['externalRelation'];
-    };
-    dynamicTwo: {
-      [key: string]: Id | {
-        test: string;
-      };
-    };
-  };
-  test2: {
-    null: null;
-  };
-  externalRelation: {
-    _id: Id;
-    name: string;
-    relations: (Id | DataModel['otherExternalRelation']);
-  };
-  otherExternalRelation: {
-    _id: Id;
-    type: string;
-  };
-}
 
 type TestFastifyController = FastifyController<DataModel> & {
   oAuth: FastifyController['oAuth'];
   KEYWORDS: FastifyController['KEYWORDS'];
   formatError: FastifyController['formatError'];
   handleError: FastifyController['handleError'];
-  formatOutput: FastifyController['formatOutput'];
   createSchema: FastifyController['createSchema'];
   parseFormData: FastifyController['parseFormData'];
   handleNotFound: FastifyController['handleNotFound'];
@@ -177,23 +133,6 @@ describe('services/FastifyController', () => {
     expect(validate({}, '', {}, context)).toBe(false);
     expect(validate({}, '64723318e84f943f1ad6578b', { enum: [] }, context)).toBe(false);
     expect(validate({}, '64723318e84f943f1ad6578b', {}, context)).toBe(true);
-  });
-
-  test('[formatOutput]', () => {
-    vi.useRealTimers();
-    expect(controller.formatOutput({
-      array: [],
-      object: {},
-      id: new Id('64723318e84f943f1ad6578b'),
-      date: new Date('2023-01-01T00:00:00.000Z'),
-      binary: new ArrayBuffer(0),
-    })).toEqual({
-      array: [],
-      object: {},
-      id: '64723318e84f943f1ad6578b',
-      date: '2023-01-01T00:00:00.000Z',
-      binary: '',
-    });
   });
 
   test('[createSchema]', () => {
@@ -539,8 +478,8 @@ describe('services/FastifyController', () => {
             type: 'string',
             errorMessage: {
               type: 'must be a string',
-              maxLength: 'must be shorter than 11 characters',
-              minLength: 'must be longer than 0 characters',
+              maxLength: 'must be no longer than 10 characters',
+              minLength: 'must be no shorter than 1 characters',
               pattern: 'must match "test" pattern',
               enum: 'must be one of: "test"',
             },
@@ -716,7 +655,6 @@ describe('services/FastifyController', () => {
             relation: {
               oneOf: [
                 { type: 'string' },
-                { type: 'null' },
                 { $ref: 'test2.json' },
               ],
             },
@@ -1092,7 +1030,6 @@ describe('services/FastifyController', () => {
           properties: {
             'x-device-id': {
               type: 'string',
-              pattern: /^[0-9a-fA-F]{24}$/.source,
               errorMessage: {
                 type: 'must be a valid device id',
                 pattern: 'must be a valid device id',
@@ -1163,7 +1100,7 @@ describe('services/FastifyController', () => {
 
   test('[createEndpoints]', async () => {
     const send = vi.fn();
-    const request = { params: {}, body: {} } as FastifyRequest;
+    const request = { params: {}, body: {}, query: {} } as FastifyRequest;
     const response = { send, status: vi.fn(() => ({ send })) } as unknown as FastifyReply;
     vi.spyOn(controller, 'createEndpoint').mockImplementation(({ handler, schemaTransformer }) => {
       schemaTransformer?.({ body: { properties: {} } });
@@ -1196,9 +1133,10 @@ describe('services/FastifyController', () => {
     expect(server.delete).toHaveBeenCalledTimes(2);
     expect(server.delete).toHaveBeenCalledWith('/users/:id', { handler: expect.any(Function), schema: {} });
     expect(server.delete).toHaveBeenCalledWith('/roles/:id', { handler: expect.any(Function), schema: {} });
-    expect(server.get).toHaveBeenCalledTimes(4);
+    expect(server.get).toHaveBeenCalledTimes(5);
     expect(server.get).toHaveBeenCalledWith('/users', { handler: expect.any(Function), schema: {} });
     expect(server.get).toHaveBeenCalledWith('/roles', { handler: expect.any(Function), schema: {} });
+    expect(server.get).toHaveBeenCalledWith('/_model', { handler: expect.any(Function), schema: {} });
     expect(server.get).toHaveBeenCalledWith('/users/:id', { handler: expect.any(Function), schema: {} });
     expect(server.get).toHaveBeenCalledWith('/roles/:id', { handler: expect.any(Function), schema: {} });
     expect(server.put).toHaveBeenCalledTimes(4);

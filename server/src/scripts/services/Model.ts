@@ -22,6 +22,12 @@ export default class Model<
   /** Generated data model. */
   protected model: DataModel<Types>;
 
+  /** Public data model schema, used for data model introspection on front-end. */
+  protected publicSchema: DataModel<Types>;
+
+  /** List of relations per collection, along with their respective path in the model. */
+  protected relationsPerCollection: Record<keyof Types, Set<string>>;
+
   /** Default data model schema. */
   public static readonly DEFAULT_MODEL: DataModel<DefaultTypes> = {
     users: {
@@ -76,7 +82,7 @@ export default class Model<
       enableDeletion: true,
       enableTimestamps: true,
       fields: {
-        name: Model.tinyText(), // TODO capitalized
+        name: Model.tinyText({ index: true }), // TODO capitalized
         permissions: {
           type: 'array',
           required: true,
@@ -89,6 +95,57 @@ export default class Model<
       },
     },
   };
+
+  /**
+   * Generates public data schema from `model`.
+   *
+   * @param model Model from which to generate schema.
+   *
+   * @param relations Optional parameter, use it to also extract all relations declared in the
+   * model. If this parameter is passed, a list of all collections referenced directly or indirectly
+   * (i.e. by following subsequent relations) in the model will be generated and stored in that
+   * variable. For instance, if `model` contains a field that references a collection A, that in
+   * turn references collection B, that eventually references the initial collection, the following
+   * list will be generated: `["A", "B"]`. Defaults to `new Set()`.
+   */
+  protected generatePublicSchemaFrom(
+    model: FieldDataModel<Types>,
+    relations: Set<string> = new Set(),
+  ): FieldDataModel<Types> {
+    const { errorMessages, type, ...rest } = model;
+    if (errorMessages) {
+      // No-op.
+    }
+    if (type === 'array') {
+      const { fields } = model;
+      return <ArrayDataModel<Types>>{
+        type,
+        ...rest,
+        fields: this.generatePublicSchemaFrom(fields, relations),
+      };
+    }
+    if (type === 'dynamicObject' || type === 'object') {
+      return {
+        type,
+        ...rest,
+        fields: Object.keys(model.fields).reduce((fields, key) => ({
+          ...fields,
+          [key]: this.generatePublicSchemaFrom(model.fields[key], relations),
+        }), {}),
+      } as FieldDataModel<Types>;
+    }
+    if (type === 'id' && model.relation !== undefined) {
+      const relation = model.relation as string;
+      const isRelationAlreadyProcessed = relations.has(relation);
+      if (!isRelationAlreadyProcessed) {
+        relations.add(relation);
+        const { fields } = this.getCollection(model.relation);
+        this.generatePublicSchemaFrom({ type: 'object', fields }, relations);
+      }
+    }
+    const { unique, index, ...subRest } = rest as Omit<StringDataModel, 'type'>;
+    return <FieldDataModel<Types>>{ type, index: unique || index, ...subRest };
+  }
 
   /**
    * `email` custom data model type generator.
@@ -346,6 +403,19 @@ export default class Model<
     });
 
     this.model = model;
+    const collections = Object.keys(model);
+    const publicSchema: Partial<DataModel<Types>> = {};
+    const relationsPerCollection: Record<string, Set<string>> = {};
+    collections.forEach((collection) => {
+      relationsPerCollection[collection] = new Set();
+      const { fields } = model[collection as keyof Types];
+      publicSchema[collection as keyof Types] = this.generatePublicSchemaFrom(
+        { type: 'object', fields },
+        relationsPerCollection[collection],
+      ) as CollectionDataModel<Types>;
+    });
+    this.publicSchema = publicSchema as DataModel<Types>;
+    this.relationsPerCollection = relationsPerCollection as Record<keyof Types, Set<string>>;
   }
 
   /**
@@ -366,5 +436,20 @@ export default class Model<
    */
   public getCollection(collection: keyof Types): Readonly<CollectionDataModel<Types>> {
     return this.model[collection];
+  }
+
+  /**
+   * Returns public data model schema for `collection`, and all its direct or indirect relations.
+   *
+   * @param collection Name of the collection for which to get public data model schema.
+   *
+   * @returns Public data model schema for all related collections.
+   */
+  public getPublicSchema(collection: keyof Types): DataModel<Types> {
+    const collections = [...this.relationsPerCollection[collection]] as (keyof Types)[];
+    return collections.reduce((finalSchema, currentCollection) => ({
+      ...finalSchema,
+      [currentCollection]: this.publicSchema[currentCollection],
+    }), {} as DataModel<Types>);
   }
 }

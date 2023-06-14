@@ -80,8 +80,13 @@ declare global {
    * Command context, provides information about the author of changes.
    */
   export interface CommandContext {
+    /** User performing the command. */
     user: User;
+
+    /** Id of the device from which user is performing the command. */
     deviceId?: string;
+
+    /** User agent of the device from which user is performing the command. */
     userAgent?: string;
   }
 
@@ -97,11 +102,16 @@ declare global {
   }
 
   /**
-   * Any resource, excluding its automatic fields.
+   * Resource creation payload (excluding all automatic fields).
    */
-  export type WithoutAutomaticFields<T> = {
-    [K in keyof T as Exclude<K, `_${string}`>]: T[K];
+  export type Payload<T> = {
+    [K in keyof T as Exclude<K, `_${string}`>]: Payload<T[K]>;
   };
+
+  /**
+   * Resource update payload.
+   */
+  export type UpdatePayload<T> = Partial<Payload<T>>;
 
   /**
    * Common properties for all data model fields.

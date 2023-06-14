@@ -31,7 +31,7 @@ export interface Credentials {
   /** Access token. */
   accessToken: string;
 
-  /** Refresh token, used to refresh access token. */
+  /** Refresh token, used to generate a new access token. */
   refreshToken: string;
 
   /** Refresh token expiration date. */
@@ -121,55 +121,71 @@ export default class OAuthEngine<
   }
 
   /**
-   * Checks and updates `payloads` (if necessary), before creating, deleting or updating `resource`.
+   * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
    *
-   * @param command What type of operation will be performed.
+   * @param collection Payload collection.
    *
-   * @param collection Collection on which the operation will be performed.
+   * @param resource Current resource being updated, if applicable.
    *
-   * @param payload Payload for updating, deleting or creating resource.
+   * @param payload Payload to validate and update.
+   *
+   * @param foreignIds Foreign ids to check, generated from `deepMerge`.
    *
    * @param context Command context.
-   *
-   * @param resourceId Id of the existing resource that will be updated or deleted, if applicable.
-   *
-   * @returns Updated payload.
-   *
-   * @throws If collection does not exist in data model.
    */
   protected async checkAndUpdatePayload<Collection extends keyof Types>(
-    command: 'CREATE' | 'UPDATE' | 'DELETE',
     collection: Collection,
-    payload: WithoutAutomaticFields<Types[Collection]>,
+    resource: Types[Collection] | null,
+    payload: UpdatePayload<Types[Collection]>,
+    foreignIds: Map<string, Record<string, Set<string>>>,
     context: CommandContext,
-    resourceId?: Id,
-  ): Promise<Types[Collection]> {
-    const updatedPayload = await super.checkAndUpdatePayload(
-      command,
+  ): Promise<Partial<Types[Collection]>> {
+    const newPayload = await super.checkAndUpdatePayload(
       collection,
+      resource,
       payload,
+      foreignIds,
       context,
-      resourceId,
     );
 
     if (collection === 'users') {
-      const userPayload = updatedPayload as Types['users'];
-      if (command === 'CREATE') {
+      const { credentials } = context as CommandContext & { credentials: Credentials | null };
+      const userPayload = newPayload as Partial<Types['users']>;
+      if (resource === null && userPayload.roles === undefined) {
+        userPayload.roles = [];
+      }
+      // Whenever users change their password, we automatically sign them out of all their
+      // devices, as a security measure. Successfully resetting users password also means verifying
+      // their email at the same time.
+      if (userPayload.password !== undefined) {
+        userPayload._devices = [];
+        userPayload.password = await bcrypt.hash(userPayload.password, 10);
+        userPayload._verifiedAt = (resource as Types['users'])?._verifiedAt ?? new Date();
+      }
+      if (resource === null) {
         userPayload._apiKeys = [];
+        userPayload._devices = [];
         userPayload._verifiedAt = null;
       }
-      if (userPayload.password !== undefined) {
-        return {
-          ...updatedPayload,
-          // Whenever users change their password, we automatically sign them out of all their
-          // devices, as a security measure.
-          _devices: [],
-          password: await bcrypt.hash(userPayload.password, 10),
-        };
+      // When credentials are passed in context, it means that we must either revoke or update them.
+      if (credentials !== undefined) {
+        const _devices = (resource as Types['users'])?._devices ?? [];
+        const deviceId = context.deviceId ?? (credentials as Credentials).deviceId;
+        const deviceIndex = _devices.findIndex((device) => device.id === deviceId);
+        const [device] = _devices.splice(deviceIndex, deviceIndex >= 0 ? 1 : 0);
+        if (credentials !== null) {
+          _devices.push({
+            id: deviceId,
+            refreshToken: credentials.refreshToken,
+            expiration: credentials.refreshTokenExpiration,
+            userAgent: context.userAgent ?? device?.userAgent ?? 'UNKNOWN',
+          });
+        }
+        userPayload._devices = _devices;
       }
     }
 
-    return updatedPayload;
+    return newPayload;
   }
 
   /**
@@ -216,7 +232,7 @@ export default class OAuthEngine<
    */
   public async create<Collection extends keyof Types>(
     collection: Collection,
-    payload: WithoutAutomaticFields<Types[Collection]>,
+    payload: Payload<Types[Collection]>,
     options: CommandOptions,
     context: CommandContext,
   ): Promise<Types[Collection]> {
@@ -225,7 +241,7 @@ export default class OAuthEngine<
     if (collection === 'users') {
       // Sending invite...
       const { email } = newResource as Types['users'];
-      const { password } = payload as WithoutAutomaticFields<Types['users']>;
+      const password = (payload as Payload<Types['users']>).password as string;
       await this.emailClient.sendInviteEmail(email, `${this.settings.baseUrl}/sign-in`, password);
     }
 
@@ -241,7 +257,9 @@ export default class OAuthEngine<
    *
    * @param context Command context.
    *
-   * @returns Id of the user related to the access token
+   * @returns Id of the user related to the access token.
+   *
+   * @throws If device id is not valid.
    */
   public async verifyToken(
     accessToken: string,
@@ -279,6 +297,8 @@ export default class OAuthEngine<
    * @param context Command context.
    *
    * @returns New credentials.
+   *
+   * @throws If password and confirmation mismatch.
    */
   public async signUp(
     email: Types['users']['email'],
@@ -286,34 +306,21 @@ export default class OAuthEngine<
     passwordConfirmation: Types['users']['password'],
     context: CommandContext,
   ): Promise<Credentials> {
-    const payload = { password, email } as WithoutAutomaticFields<Types['users']>;
-
-    if (passwordConfirmation !== password) {
+    if (passwordConfirmation !== undefined && passwordConfirmation !== password) {
       throw new EngineError('PASSWORDS_MISMATCH');
     }
 
-    // Creating new user in database...
-    const updatedPayload = await this.checkAndUpdatePayload('CREATE', 'users', payload, context);
-    const credentials = this.generateCredentials(updatedPayload._id);
-    await this.databaseClient.create('users', {
-      ...updatedPayload,
-      _verifiedAt: null,
-      _apiKeys: [],
-      _devices: [{
-        id: credentials.deviceId,
-        refreshToken: credentials.refreshToken,
-        userAgent: context.userAgent ?? 'UNKNOWN',
-        expiration: credentials.refreshTokenExpiration,
-      }],
-      roles: [],
-      password: await bcrypt.hash(payload.password, 10),
-    });
+    const newId = new Id();
+    const credentials = this.generateCredentials(newId);
+    const fullContext = { ...context, credentials };
+    const payload = { email, password } as UpdatePayload<Types['users']>;
+    const fullPayload = await this.checkAndUpdatePayload('users', null, payload, new Map(), fullContext);
+    await this.databaseClient.create('users', { ...fullPayload as Types['users'], _id: newId });
 
-    // Sending verify email...
-    const newVerifyToken = randomBytes(12).toString('hex');
-    const cacheKey = createHash('sha1').update(`verify_${updatedPayload._id}`).digest('hex');
-    const verificationUrl = `${this.settings.baseUrl}/verify-email?verifyToken=${newVerifyToken}`;
-    await this.cacheClient.set(cacheKey, newVerifyToken, 3600 * 2); // In 2 hours.
+    const newVerificationToken = randomBytes(12).toString('hex');
+    const cacheKey = createHash('sha1').update(`verify_${(fullPayload as Types['users'])._id}`).digest('hex');
+    const verificationUrl = `${this.settings.baseUrl}/verify-email?verificationToken=${newVerificationToken}`;
+    await this.cacheClient.set(cacheKey, newVerificationToken, 3600 * 2); // In 2 hours.
     await this.emailClient.sendVerificationEmail(email, verificationUrl);
 
     return credentials;
@@ -329,6 +336,10 @@ export default class OAuthEngine<
    * @param context Command context.
    *
    * @returns New credentials.
+   *
+   * @throws If user with email `email` does not exist.
+   *
+   * @throws If `password` does not match user password.
    */
   public async signIn(
     email: string,
@@ -340,32 +351,21 @@ export default class OAuthEngine<
       fields: ['_devices', 'password'],
     });
 
-    // Making sure user exists...
     if (results.length === 0) {
       throw new EngineError('NO_USER');
     }
 
-    // Comparing passwords...
     const [user] = results;
     if (!await bcrypt.compare(password, user.password)) {
       throw new EngineError('INVALID_CREDENTIALS');
     }
 
-    // Generating new access token...
-    const credentials = this.generateCredentials(user._id, context.deviceId);
-
-    // Updating user credentials...
-    const deviceIndex = user._devices.findIndex((device) => device.id === context.deviceId);
-    user._devices.splice(deviceIndex, deviceIndex >= 0 ? 1 : 0, {
-      id: credentials.deviceId,
-      refreshToken: credentials.refreshToken,
-      expiration: credentials.refreshTokenExpiration,
-      userAgent: context.userAgent ?? user._devices[deviceIndex]?.userAgent ?? 'UNKNOWN',
-    });
-    await this.databaseClient.update('users', user._id, {
-      ...this.generateAutomaticFields(this.model.getCollection('users'), { ...context, user }),
-      _devices: user._devices,
-    } as Partial<Types['users']>);
+    const deviceId = /^[0-9a-fA-F]{24}$/.test(`${context.deviceId}`) ? context.deviceId : undefined;
+    const credentials = this.generateCredentials(user._id, deviceId);
+    const fullContext = { ...context, user, credentials };
+    const payload = {} as UpdatePayload<Types['users']>;
+    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, new Map(), fullContext);
+    await this.databaseClient.update('users', user._id, fullPayload);
 
     return credentials;
   }
@@ -374,6 +374,8 @@ export default class OAuthEngine<
    * Sends a new verification email to connected user.
    *
    * @param context Command context.
+   *
+   * @throws If user email is already verified.
    */
   public async requestEmailVerification(context: CommandContext): Promise<void> {
     if (context.user._verifiedAt !== null) {
@@ -381,10 +383,10 @@ export default class OAuthEngine<
     }
 
     // Sending verify email...
-    const newVerifyToken = randomBytes(12).toString('hex');
+    const newVerificationToken = randomBytes(12).toString('hex');
     const cacheKey = createHash('sha1').update(`verify_${context.user._id}`).digest('hex');
-    const verificationUrl = `${this.settings.baseUrl}/verify-email?verifyToken=${newVerifyToken}`;
-    await this.cacheClient.set(cacheKey, newVerifyToken, 3600 * 2); // In 2 hours.
+    const verificationUrl = `${this.settings.baseUrl}/verify-email?verificationToken=${newVerificationToken}`;
+    await this.cacheClient.set(cacheKey, newVerificationToken, 3600 * 2); // In 2 hours.
     await this.emailClient.sendVerificationEmail(context.user.email, verificationUrl);
   }
 
@@ -394,20 +396,22 @@ export default class OAuthEngine<
    * @param token Verification token that was sent in the verification email.
    *
    * @param context Command context.
+   *
+   * @throws If verification token is not valid.
    */
   public async verifyEmail(verificationToken: string, context: CommandContext): Promise<void> {
-    const cacheKey = createHash('sha1').update(`verify_${context.user._id}`).digest('hex');
-
+    const { user } = context;
+    const cacheKey = createHash('sha1').update(`verify_${user._id}`).digest('hex');
     const storedVerificationToken = await this.cacheClient.get(cacheKey);
+
     if (storedVerificationToken !== verificationToken) {
-      throw new EngineError('INVALID_VERIFY_TOKEN');
+      throw new EngineError('INVALID_VERIFICATION_TOKEN');
     }
 
     // Updating user credentials...
-    await this.databaseClient.update('users', context.user._id, {
-      ...this.generateAutomaticFields(this.model.getCollection('users'), context),
-      _verifiedAt: new Date(),
-    } as Partial<Types['users']>);
+    const payload = { _verifiedAt: new Date() } as Partial<Types['users']>;
+    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, new Map(), context);
+    await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
   }
 
@@ -422,12 +426,13 @@ export default class OAuthEngine<
     const users = await this.databaseClient.search('users', { filters: { email } }, { limit: 1 });
     if (users.total > 0) {
       const newResetToken = randomBytes(12).toString('hex');
-      const resetUrl = `${this.settings.baseUrl}/reset-password?email=${email}&resetToken=${newResetToken}`;
-      const cacheKey = createHash('sha1').update(`reset_${email}`).digest('hex');
-      await this.cacheClient.set(cacheKey, newResetToken, 3600 * 2); // In 2 hours.
+      const resetUrl = `${this.settings.baseUrl}/reset-password?resetToken=${newResetToken}`;
+      const cacheKey = createHash('sha1').update(`reset_${newResetToken}`).digest('hex');
+      await this.cacheClient.set(cacheKey, email, 3600 * 2); // In 2 hours.
       await this.emailClient.sendPasswordResetEmail(email, resetUrl);
     } else {
       // Delaying API response prevents giving any hint about whether user actually exists.
+      this.logger.info(`User with email "${email}" does not exist, skipping email sending...`);
       await new Promise((resolve) => { setTimeout(resolve, 100); });
     }
   }
@@ -435,48 +440,39 @@ export default class OAuthEngine<
   /**
    * Resets password for user with email `email`.
    *
-   * @param email Email of the user for which to reset password.
-   *
    * @param password New password.
    *
    * @param passwordConfirmation New password confirmation.
    *
    * @param resetToken Reset token sent in the password reset email.
+   *
+   * @throws If password and confirmation mismatch.
+   *
+   * @throws If reset token is not valid.
    */
   public async resetPassword(
-    email: Types['users']['email'],
     password: Types['users']['password'],
     passwordConfirmation: Types['users']['password'],
     resetToken: string,
   ): Promise<void> {
-    const cacheKey = createHash('sha1').update(`reset_${email}`).digest('hex');
-
     if (passwordConfirmation !== password) {
       throw new EngineError('PASSWORDS_MISMATCH');
     }
 
-    const storedResetToken = await this.cacheClient.get(cacheKey);
-    if (storedResetToken !== resetToken) {
-      throw new EngineError('INVALID_RESET_TOKEN');
-    }
-
+    const cacheKey = createHash('sha1').update(`reset_${resetToken}`).digest('hex');
+    const email = await this.cacheClient.get(cacheKey);
     const users = await this.databaseClient.search('users', { filters: { email } }, {
       limit: 1,
       fields: ['_verifiedAt'],
     });
     if (users.total === 0) {
-      throw new EngineError('NO_USER');
+      throw new EngineError('INVALID_RESET_TOKEN');
     }
 
-    // Updating user credentials...
     const [user] = users.results;
-    await this.databaseClient.update('users', user._id, {
-      ...this.generateAutomaticFields(this.model.getCollection('users'), { user }),
-      // Successfully resetting users password also means verifying their email at the same time.
-      _verifiedAt: user._verifiedAt ?? new Date(),
-      _devices: [] as Types['users']['_devices'],
-      password: await bcrypt.hash(password, 10),
-    } as Partial<Types['users']>);
+    const payload = { password } as Partial<Types['users']>;
+    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, new Map(), { user });
+    await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
   }
 
@@ -488,9 +484,12 @@ export default class OAuthEngine<
    * @param context Command context.
    *
    * @returns New credentials.
+   *
+   * @throws If refresh token is invalid.
    */
   public async refreshToken(refreshToken: string, context: CommandContext): Promise<Credentials> {
     const { user } = context;
+    const credentials = this.generateCredentials(user._id, context.deviceId);
     const deviceIndex = user._devices.findIndex((device) => device.id === context.deviceId);
 
     if (
@@ -500,21 +499,9 @@ export default class OAuthEngine<
       throw new EngineError('INVALID_REFRESH_TOKEN');
     }
 
-    // Generating new access token...
-    const credentials = this.generateCredentials(user._id, context.deviceId);
-
-    // Updating user credentials...
-    user._devices.splice(deviceIndex, 1, {
-      id: credentials.deviceId,
-      refreshToken: credentials.refreshToken,
-      expiration: credentials.refreshTokenExpiration,
-      userAgent: context.userAgent ?? user._devices[deviceIndex]?.userAgent ?? 'UNKNOWN',
-    });
-    await this.databaseClient.update('users', user._id, {
-      ...this.generateAutomaticFields(this.model.getCollection('users'), { user }),
-      _devices: user._devices,
-    } as Partial<Types['users']>);
-
+    const fullContext = { ...context, credentials };
+    const fullPayload = await this.checkAndUpdatePayload('users', user, {}, new Map(), fullContext);
+    await this.databaseClient.update('users', user._id, fullPayload);
     return credentials;
   }
 
@@ -524,17 +511,10 @@ export default class OAuthEngine<
    * @param context Command context.
    */
   public async signOut(context: CommandContext): Promise<void> {
-    // Revoking user's device credentials...
-    const { _id, _devices } = context.user;
-    const deviceIndex = _devices.findIndex((device) => device.id === context.deviceId);
-
-    if (deviceIndex >= 0) {
-      _devices.splice(deviceIndex, 1);
-      await this.databaseClient.update('users', _id, {
-        ...this.generateAutomaticFields(this.model.getCollection('users'), context),
-        _devices,
-      } as Partial<Types['users']>);
-    }
+    const { user } = context;
+    const fullContext = { ...context, credentials: null };
+    const fullPayload = await this.checkAndUpdatePayload('users', user, {}, new Map(), fullContext);
+    await this.databaseClient.update('users', user._id, fullPayload);
   }
 
   /**
@@ -567,7 +547,7 @@ export default class OAuthEngine<
         'USERS_DETAILS_VIEW',
         'USERS_ROLES_UPDATE',
       ]),
-    } as WithoutAutomaticFields<Types['roles']>, {}, { user: { _id } as unknown as User });
+    } as Payload<Types['roles']>, {}, { user: { _id } as unknown as User });
 
     this.logger.info('[OAuthEngine][reset] Updating root user...');
     await this.databaseClient.update('users', _id, {

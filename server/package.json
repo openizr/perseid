@@ -1,6 +1,6 @@
 {
   "name": "@perseid/server",
-  "version": "0.0.65",
+  "version": "0.0.66",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",
@@ -75,8 +75,11 @@
   },
   "tsDevKitConfig": {
     "target": "node",
+    "runInDev": true,
+    "splitChunks": false,
     "entries": {
-      "main": "./scripts/main.ts"
+      "dist": "./scripts/main.ts",
+      "main": "./scripts/testing.ts"
     },
     "srcPath": "src",
     "distPath": "dist",
@@ -91,7 +94,7 @@
     "dev": "cd node_modules/typescript-dev-kit/ && node scripts/dev",
     "check": "cd node_modules/typescript-dev-kit/ && node scripts/check",
     "build": "cd node_modules/typescript-dev-kit/ && node scripts/build && cd ../../ && yarn run build:types",
-    "build:types": "cp src/scripts/types.d.ts dist",
-    "postinstall": "rm -f node_modules/.eslintcache"
+    "build:types": "cp src/scripts/types.d.ts dist && mv dist/dist.js dist/main.js && mv dist/dist.js.map dist/main.js.map",
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache"
   }
 }

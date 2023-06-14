@@ -22,7 +22,7 @@ import DatabaseError from 'scripts/errors/Database';
 import type CacheClient from 'scripts/services/CacheClient';
 import { Id, forEach, type DataModel as DefaultTypes } from '@perseid/core';
 
-const defaultMigration: MigrationCallback = (): Promise<void> => Promise.resolve();
+type RelationsPerCollection<Types> = Record<keyof Types, Map<string, string[]>>;
 
 /** Mongo index. */
 export interface Index {
@@ -82,6 +82,8 @@ export interface DatabaseClientSettings {
   queueLimit: number;
   cacheDuration: number;
 }
+
+const defaultMigration: MigrationCallback = (): Promise<void> => Promise.resolve();
 
 /**
  * MongoDB database client.
@@ -343,6 +345,12 @@ export default class DatabaseClient<
   /** Whether MongoDB client is connected to the server. */
   protected isConnected: boolean;
 
+  /** List of fields in data model representing external relations, per collection. */
+  protected relationsPerCollection: RelationsPerCollection<Types>;
+
+  /** List of fields in data model referencing each collection, grouped by this collection. */
+  protected invertedRelationsPerCollection: RelationsPerCollection<Types>;
+
   /**
    * Formats `input` to match MongoDB data types specifications.
    *
@@ -350,16 +358,11 @@ export default class DatabaseClient<
    *
    * @param model Current input data model.
    *
-   * @param foreignKeys Optional parameter, use it to also extract foreign keys from input. If this
-   * parameter is passed, a list of foreign keys per collection will be generated and stored in that
-   * variable. Defaults to `new Map()`.
-   *
    * @returns MongoDB-formatted input.
    */
   protected formatInput<Collection extends keyof Types>(
     input: Partial<Types[Collection]>,
     model: FieldDataModel<Types>,
-    foreignKeys = new Map(),
   ): Partial<Types[Collection]> | ObjectId | Binary {
     const { type } = model as FieldDataModel<Types>;
     const { fields } = model as ArrayDataModel<Types>;
@@ -376,7 +379,6 @@ export default class DatabaseClient<
         formattedInput[actualIndex] = this.formatInput(
           (input as Document)[actualIndex],
           isArray ? fields : (model as DynamicObjectDataModel<Types>).fields[key],
-          foreignKeys,
         );
       }
       return formattedInput as Partial<Types[Collection]>;
@@ -390,19 +392,13 @@ export default class DatabaseClient<
         formattedInput[keys[index]] = this.formatInput(
           (input as Document)[keys[index]],
           (model as ObjectDataModel<Types>).fields[keys[index]],
-          foreignKeys,
         );
       }
       return formattedInput as Partial<Types[Collection]>;
     }
 
     // Primitive values...
-    const { relation } = model as IdDataModel<Types>;
     if (type === 'id' && input !== null) {
-      if (relation !== undefined) {
-        foreignKeys.set(relation, foreignKeys.get(relation) ?? new Set());
-        (foreignKeys.get(relation) as Set<string>).add(`${input}`);
-      }
       return new ObjectId(`${input}`);
     }
     if (type === 'binary') {
@@ -484,65 +480,51 @@ export default class DatabaseClient<
   }
 
   /**
-   * Makes sure that all `foreignKeys` reference existing resources.
+   * Makes sure that no collection references resource with id `id` from `collection`.
    *
-   * @param foreignKeys Foreign keys to check in database.
+   * @param collection Name of the collection the resource belongs to.
    *
-   * @throws If any foreign key does not exist.
+   * @param id Id of the resource to check for references.
+   *
+   * @throws If any collection still references resource.
    */
-  protected async checkForeignKeys(foreignKeys: Map<string, Set<string>>): Promise<void> {
-    const relations: string[] = [];
-    const foreignKeysPerRelation: Record<string, string[]> = {};
-    foreignKeys.forEach((value, key) => {
-      if (value.size > 0) {
-        relations.push(key);
-        foreignKeysPerRelation[key] = [...value];
-      }
-    });
+  protected async checkReferencesTo(collection: keyof Types, id: Id): Promise<void> {
+    const referencesToResource = this.invertedRelationsPerCollection[collection];
 
-    this.logger.debug('[DatabaseClient][checkForeignKeys] Foreign keys to analyze:');
-    this.logger.debug(foreignKeysPerRelation);
+    this.logger.debug(
+      `[DatabaseClient][checkReferencesTo] Checking references to ${id} in ${collection as string}...`,
+    );
 
-    if (relations.length > 0) {
+    if (referencesToResource.size > 0) {
       // Performing a single aggregate gathering all requested resources is way more efficient
       // than performing one Mongo query per collection.
       const pipeline: Document[] = [
-        {
-          $limit: 1,
-        },
-        {
-          $project: relations.reduce((fields, relation) => ({
-            ...fields,
-            [`${relation}Ids`]: foreignKeysPerRelation[relation].map((id) => new ObjectId(id)),
-          }), {}),
-        },
+        { $limit: 1 },
+        { $project: { _id: new ObjectId(`${id}`) } },
       ];
-      pipeline.push(...relations.map((relation) => ({
-        $lookup: {
-          from: relation,
-          as: relation,
-          foreignField: '_id',
-          localField: `${relation}Ids`,
-          pipeline: [
-            // Be careful: `_isDeleted` might not exist in collection.
-            { $match: { _isDeleted: { $ne: true } } },
-            { $project: { _id: 1 } },
-          ],
-        },
-      })));
+      pipeline.push(...[...referencesToResource.keys()].reduce((lookups, relation) => [
+        ...lookups,
+        ...[...(referencesToResource.get(relation) as string[]).values()].map((path) => ({
+          $lookup: {
+            from: relation,
+            as: `${relation}__${path}`,
+            foreignField: path,
+            localField: '_id',
+            pipeline: [{ $project: { _id: 1 } }],
+          },
+        })),
+      ], [] as Document[]));
 
-      this.logger.debug('[DatabaseClient][checkForeignKeys] Calling MongoDB aggregate with pipeline:');
+      this.logger.debug('[DatabaseClient][checkReferencesTo] Calling MongoDB aggregate with pipeline:');
       this.logger.debug(pipeline);
 
       const [response] = await this.database.collection('_config').aggregate(pipeline).toArray();
 
-      for (let index = 0, { length } = relations; index < length; index += 1) {
-        const relation = relations[index];
-        if (response[relation].length < foreignKeysPerRelation[relation].length) {
-          const missingResourceId = foreignKeysPerRelation[relation].find((id) => (
-            response[relation].find((responseId: Document) => `${responseId._id}` === id) === undefined
-          ));
-          throw new DatabaseError('NO_RESOURCE', { id: missingResourceId });
+      const keys = Object.keys(response);
+      for (let index = 0, { length } = keys; index < length; index += 1) {
+        const path = keys[index];
+        if (path !== '_id' && response[path].length > 0) {
+          throw new DatabaseError('RESOURCE_REFERENCED', { collection: path.split('__')[0] });
         }
       }
     }
@@ -583,6 +565,34 @@ export default class DatabaseClient<
   }
 
   /**
+   * Scans `schema` to find foreign keys.
+   *
+   * @param schema Data model schema to scan.
+   *
+   * @param relations Map into which list of foreign keys and their related paths will be stored.
+   *
+   * @param path Current path in schema. Used for recursivity, do not use it directly!
+   */
+  protected scanRelationsFrom(
+    schema: FieldDataModel<Types>,
+    relations: Map<string, string[]>,
+    path: string[] = [],
+  ): void {
+    const { type } = schema;
+    if (type === 'array') {
+      this.scanRelationsFrom(schema.fields, relations, path);
+    } else if (type === 'dynamicObject' || type === 'object') {
+      const keys = Object.keys(schema.fields);
+      for (let index = 0, { length } = keys; index < length; index += 1) {
+        this.scanRelationsFrom(schema.fields[keys[index]], relations, path.concat([keys[index]]));
+      }
+    } else if (type === 'id' && schema.relation !== undefined) {
+      const existingRelations = relations.get(schema.relation as string) ?? [];
+      relations.set(schema.relation as string, existingRelations.concat([path.join('.')]));
+    }
+  }
+
+  /**
    * Creates a Mongo validation schema from `model`.
    *
    * @param model Model from which to create validation schema.
@@ -613,6 +623,8 @@ export default class DatabaseClient<
    * @returns MongoDB projections object.
    *
    * @throws If given path is not a valid field in data model.
+   *
+   * @throws If maximum level of resourcess depth has been exceeded.
    *
    * @throws If `checkIndexing` is `true` and given path is not an indexed field in data model.
    */
@@ -757,7 +769,7 @@ export default class DatabaseClient<
    * Generates MongoDB `$lookup`s pipeline from `projections`.
    *
    * @param projections Projections from which to generate pipeline.
-  *
+   *
    * @param model Current path data model.
    *
    * @param path Current path in model. Used for recursivity, do not use it directly!
@@ -912,7 +924,8 @@ export default class DatabaseClient<
   protected generatePaginationPipelineFrom(offset?: number, limit?: number): Document[] {
     return [
       { $skip: offset ?? this.DEFAULT_OFFSET },
-      { $limit: limit ?? this.DEFAULT_LIMIT },
+      // `$limit: 0` is forbidden in MongoDB.
+      { $limit: Math.max(1, limit ?? this.DEFAULT_LIMIT) },
     ];
   }
 
@@ -1045,8 +1058,32 @@ export default class DatabaseClient<
 
     this.client = new MongoClient(uri, { maxPoolSize });
     this.database = this.client.db(`${database}`);
-    this.formatOutput = this.formatOutput.bind(this);
     this.formatInput = this.formatInput.bind(this);
+    this.formatOutput = this.formatOutput.bind(this);
+    this.checkIntegrity = this.checkIntegrity.bind(this);
+
+    // Generating the list of paths for which each collection is a foreign key...
+    const collections = this.model.getCollections();
+    const relationsPerCollection: Partial<RelationsPerCollection<Types>> = {};
+    collections.forEach((collection) => {
+      const collectionForeignKeys = new Map();
+      const { fields } = this.model.getCollection(collection);
+      this.scanRelationsFrom({ type: 'object', fields }, collectionForeignKeys);
+      relationsPerCollection[collection] = collectionForeignKeys;
+    });
+    const invertedRelationsPerCollection = collections.reduce((invertedRelations, collection) => ({
+      ...invertedRelations,
+      [collection]: new Map(),
+    }), {}) as RelationsPerCollection<Types>;
+    (Object.keys(relationsPerCollection) as (keyof Types)[]).forEach((collection) => {
+      (relationsPerCollection as RelationsPerCollection<Types>)[collection].forEach(
+        (value, key) => {
+          invertedRelationsPerCollection[key as keyof Types].set(collection as string, value);
+        },
+      );
+    });
+    this.invertedRelationsPerCollection = invertedRelationsPerCollection;
+    this.relationsPerCollection = relationsPerCollection as RelationsPerCollection<Types>;
   }
 
   /**
@@ -1069,6 +1106,63 @@ export default class DatabaseClient<
   }
 
   /**
+   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
+   *
+   * @param foreignIds Foreign ids to check in database.
+   *
+   * @throws If any foreign id does not exist.
+   */
+  public async checkForeignIds(
+    foreignIds: Map<string, SearchFilters[]>,
+  ): Promise<void> {
+    this.logger.debug('[DatabaseClient][checkForeignIds] Foreign ids to analyze:');
+    this.logger.debug(foreignIds);
+
+    if (foreignIds.size > 0) {
+      // Performing a single aggregate gathering all requested resources is way more efficient
+      // than performing one Mongo query per collection.
+      const pipeline: Document[] = [{ $limit: 1 }, { $project: {} }];
+      [...foreignIds.keys()].forEach((relation) => {
+        const filtersPerRelation = foreignIds.get(relation) as SearchFilters[];
+        filtersPerRelation.forEach((rawFilters, index) => {
+          const { _id, ...filters } = rawFilters;
+          const stage = this.generateSearchPipelineFrom(null, filters);
+          pipeline[1].$project[`${relation}${index}Ids`] = (_id as Id[]).map((id) => new ObjectId(`${id}`));
+          pipeline.push({
+            $lookup: {
+              from: relation,
+              as: `${relation}${index}`,
+              foreignField: '_id',
+              localField: `${relation}${index}Ids`,
+              pipeline: stage.concat([
+                // Be careful: `_isDeleted` might not exist in collection.
+                { $match: { _isDeleted: { $ne: true } } },
+                { $project: { _id: 1 } },
+              ]),
+            },
+          });
+        });
+      });
+      this.logger.debug('[DatabaseClient][checkForeignIds] Calling MongoDB aggregate with pipeline:');
+      this.logger.debug(pipeline);
+
+      const [response] = await this.database.collection('_config').aggregate(pipeline).toArray();
+
+      foreignIds.forEach((filtersPerRelation, relation) => {
+        filtersPerRelation.forEach((filters, index) => {
+          const _id = filters._id as Id[];
+          if (response[`${relation}${index}`].length < _id.length) {
+            const missingResourceId = _id.find((id) => (
+              response[`${relation}${index}`].find((responseId: Document) => `${responseId._id}` === `${id}`) === undefined
+            ));
+            throw new DatabaseError('NO_RESOURCE', { id: missingResourceId });
+          }
+        });
+      });
+    }
+  }
+
+  /**
    * Inserts `resource` into `collection`.
    *
    * @param collection Name of the collection to insert resource into.
@@ -1079,14 +1173,11 @@ export default class DatabaseClient<
     collection: Collection,
     resource: Types[Collection],
   ): Promise<void> {
-    const foreignKeys = new Map();
     const { fields } = this.model.getCollection(collection);
-    const model: ObjectDataModel<Types> = { type: 'object', fields };
-    const newResource = this.formatInput(resource, model, foreignKeys);
-    await this.checkForeignKeys(foreignKeys);
+    const newResource = this.formatInput(resource, { type: 'object', fields });
 
     this.logger.debug(
-      `[DatabaseClient][create] Inserting new resource into collection "${String(collection)}":`,
+      `[DatabaseClient][create] Inserting new resource into collection ${collection as string}:`,
     );
     this.logger.debug(resource);
 
@@ -1109,17 +1200,14 @@ export default class DatabaseClient<
     id: Id,
     payload: Partial<Types[Collection]>,
   ): Promise<void> {
-    const foreignKeys = new Map();
     const { fields, enableDeletion } = this.model.getCollection(collection);
     const filter = enableDeletion
       ? { _id: new ObjectId(`${id}`) }
       : { ...this.DELETION_FILTER_PIPELINE[0].$match, _id: new ObjectId(`${id}`) };
-    const model: ObjectDataModel<Types> = { type: 'object', fields };
-    const updates = this.formatInput(payload, model, foreignKeys);
-    await this.checkForeignKeys(foreignKeys);
+    const updates = this.formatInput(payload, { type: 'object', fields });
 
     this.logger.debug(
-      `[DatabaseClient][update] Updating resource "${id}" in collection "${String(collection)}":`,
+      `[DatabaseClient][update] Updating resource ${id} in collection ${collection as string}:`,
     );
     this.logger.debug(payload);
 
@@ -1144,14 +1232,11 @@ export default class DatabaseClient<
     filters: SearchFilters,
     payload: Partial<Types[Collection]>,
   ): Promise<boolean> {
-    const foreignKeys = new Map();
     const { enableDeletion, fields } = this.model.getCollection(collection);
-    const model: ObjectDataModel<Types> = { type: 'object', fields };
-    const updates = this.formatInput(payload, model, foreignKeys);
-    await this.checkForeignKeys(foreignKeys);
+    const updates = this.formatInput(payload, { type: 'object', fields });
 
     this.logger.debug(
-      `[DatabaseClient][exclusiveUpdate] Updating resources in collection "${String(collection)}":`,
+      `[DatabaseClient][exclusiveUpdate] Updating resources in collection ${collection as string}:`,
     );
     this.logger.debug(filters);
     this.logger.debug(payload);
@@ -1161,7 +1246,7 @@ export default class DatabaseClient<
         ? filters
         : { ...this.DELETION_FILTER_PIPELINE[0].$match, ...filters };
       const response = await this.database.collection(collection as string).findOneAndUpdate(
-        this.formatInput(formattedFilters, model),
+        this.formatInput(formattedFilters, { type: 'object', fields }),
         { $set: updates },
         { projection: { _id: 1 } },
       );
@@ -1200,7 +1285,7 @@ export default class DatabaseClient<
 
     this.logger.debug(
       '[DatabaseClient][view] Calling MongoDB aggregate method on collection '
-      + `"${String(collection)}" with pipeline:`,
+      + `${collection as string} with pipeline:`,
     );
     this.logger.debug(resultsPipeline);
 
@@ -1262,7 +1347,7 @@ export default class DatabaseClient<
 
     this.logger.debug(
       '[DatabaseClient][search] Calling MongoDB aggregate method on collection '
-      + `"${String(collection)}" with pipeline:`,
+      + `${collection as string} with pipeline:`,
     );
     this.logger.debug(resultsPipeline);
 
@@ -1271,9 +1356,11 @@ export default class DatabaseClient<
       const [response] = await databaseCollection.aggregate(resultsPipeline).toArray();
       return {
         total: response.total[0]?.total ?? 0,
-        results: response.results.map((result: Partial<Types[Collection]>) => (
-          this.formatOutput(result, model, projections)
-        )),
+        results: (options.limit === 0)
+          ? []
+          : response.results.map((result: Partial<Types[Collection]>) => (
+            this.formatOutput(result, model, projections)
+          )),
       };
     });
   }
@@ -1318,7 +1405,7 @@ export default class DatabaseClient<
 
     this.logger.debug(
       '[DatabaseClient][list] Calling MongoDB aggregate method on collection '
-      + `"${String(collection)}" with pipeline:`,
+      + `${collection as string} with pipeline:`,
     );
     this.logger.debug(resultsPipeline);
 
@@ -1327,9 +1414,11 @@ export default class DatabaseClient<
       const [response] = await databaseCollection.aggregate(resultsPipeline).toArray();
       return {
         total: response.total[0]?.total ?? 0,
-        results: response.results.map((result: Partial<Types[Collection]>) => (
-          this.formatOutput(result, model, projections)
-        )),
+        results: (options.limit === 0)
+          ? []
+          : response.results.map((result: Partial<Types[Collection]>) => (
+            this.formatOutput(result, model, projections)
+          )),
       };
     });
   }
@@ -1358,9 +1447,10 @@ export default class DatabaseClient<
     return this.handleError(async () => {
       if (enableDeletion !== false) {
         this.logger.debug(
-          `[DatabaseClient][delete] Deleting resource "${id}" from collection "${String(collection)}"...`,
+          `[DatabaseClient][delete] Deleting resource ${id} from collection ${collection as string}...`,
         );
 
+        await this.checkReferencesTo(collection, id);
         const response = await this.database.collection(collection as string).deleteOne({
           _id: resourceId,
         });
@@ -1369,7 +1459,7 @@ export default class DatabaseClient<
 
       const fullPayload = { _isDeleted: true, ...this.formatInput(payload, model) };
       this.logger.debug(
-        `[DatabaseClient][delete] Updating resource "${id}" in collection "${String(collection)}":`,
+        `[DatabaseClient][delete] Updating resource ${id} in collection ${collection as string}:`,
       );
       this.logger.debug(fullPayload);
 
@@ -1435,11 +1525,6 @@ export default class DatabaseClient<
   ): Promise<void> {
     const { fields } = this.model.getCollection(collection);
     await this.handleError(async () => {
-      const collectionExists = (await this.database
-        .listCollections({ name: collection }).toArray()).length > 0;
-      if (!collectionExists) {
-        throw new DatabaseError('NO_COLLECTION', { collection });
-      }
       const session = await this.client.startSession();
       const collectionIndexedFields = this.getCollectionIndexedFields({ type: 'object', fields });
       await this.database.command({
@@ -1496,5 +1581,145 @@ export default class DatabaseClient<
       });
       await this.database.collection('_config').insertOne({});
     });
+  }
+
+  public async checkIntegrity(
+    collection?: keyof Types,
+  ): Promise<Record<string, Record<string, ObjectId[]>>> {
+    if (collection === undefined) {
+      const results: Record<string, Record<string, ObjectId[]>> = {};
+      await forEach(this.model.getCollections(), async (currentCollection) => {
+        const collectionErrors = await this.checkIntegrity(currentCollection);
+        results[currentCollection as string] = collectionErrors[currentCollection as string];
+      });
+      let failedIntegrityChecks = false;
+      Object.keys(results).forEach((currentCollection) => {
+        Object.keys(results[currentCollection]).forEach((type) => {
+          if (results[currentCollection][type].length > 0) {
+            failedIntegrityChecks = true;
+          }
+        });
+      });
+      this.logger.info('[DatabaseClient][checkIntegrity] Integrity checks results:');
+      this.logger.info(results);
+      if (failedIntegrityChecks) {
+        throw new DatabaseError('FAILED_INTEGRITY_CHECKS');
+      }
+      return results;
+    }
+
+    this.logger.info(
+      `[DatabaseClient][checkIntegrity] Checking integrity for collection ${collection as string}...`,
+    );
+    const now = Date.now();
+    const conditions: Document[] = [];
+    const originOfTimes = new Date('2021-01-01');
+    const errors: Record<string, ObjectId[]> = {};
+    const collectionModel = this.model.getCollection(collection);
+
+    // Checking automatic fields...
+    if (collectionModel.enableDeletion === false && collectionModel.enableTimestamps) {
+      conditions.push({
+        _isDeleted: true,
+        _updatedAt: null,
+      });
+    }
+    if (collectionModel.enableTimestamps) {
+      conditions.push({
+        $or: [
+          { _createdAt: { $lt: originOfTimes } },
+          { _createdAt: { $gte: now } },
+        ],
+      });
+      conditions.push({
+        $and: [
+          { _updatedAt: { $ne: null } },
+          {
+            $or: [
+              { _updatedAt: { $gte: now } },
+              { $expr: { $lte: ['$_updatedAt', '$_createdAt'] } },
+            ],
+          },
+        ],
+      });
+    }
+    if (collectionModel.enableAuthors && collectionModel.enableTimestamps) {
+      conditions.push({
+        _updatedAt: { $eq: null },
+        _updatedBy: { $ne: null },
+      });
+      conditions.push({
+        _updatedBy: { $eq: null },
+        _updatedAt: { $ne: null },
+      });
+    }
+    this.logger.debug('[DatabaseClient][checkIntegrity] Calling MongoDB aggregate with pipeline:');
+    this.logger.debug([
+      { $match: { $or: conditions } },
+      { $project: { _id: 1 } },
+    ]);
+    errors.AUTOMATIC_FIELDS = (await this.database.collection(collection as string).aggregate([
+      { $match: { $or: conditions } },
+      { $project: { _id: 1 } },
+    ]).toArray()).map((document) => document._id);
+
+    // Checking foreign keys...
+    const collectionRelations = this.relationsPerCollection[collection];
+    const relationsPipeline: Document[] = [];
+    const missingRelations: Document[] = [];
+    const transformations: Document[] = [{}, {}, {}];
+    [...collectionRelations.keys()].forEach((relation) => {
+      (collectionRelations.get(relation) as string[]).forEach((path) => {
+        transformations[0][path] = { $ifNull: [`$${path}`, []] };
+        transformations[1][path] = {
+          $cond: {
+            if: { $eq: [{ $type: `$${path}` }, 'array'] },
+            then: `$${path}`,
+            else: [`$${path}`],
+          },
+        };
+        transformations[2][path] = {
+          $setUnion: [`$${path}`, []],
+        };
+        missingRelations.push({
+          $expr: {
+            $ne: [
+              { $size: `$__${path}` },
+              { $size: `$${path}` },
+            ],
+          },
+        });
+      });
+    });
+    relationsPipeline.push({ $project: transformations[0] });
+    relationsPipeline.push({ $project: transformations[1] });
+    relationsPipeline.push({ $project: transformations[2] });
+    [...collectionRelations.keys()].forEach((relation) => {
+      (collectionRelations.get(relation) as string[]).forEach((path) => {
+        relationsPipeline.push({
+          $lookup: {
+            from: relation,
+            as: `__${path}`,
+            localField: path,
+            foreignField: '_id',
+            pipeline: [{ $project: { _id: 1 } }],
+          },
+        });
+      });
+    });
+    relationsPipeline.push({
+      $match: { $or: missingRelations },
+    });
+    this.logger.debug('[DatabaseClient][checkIntegrity] Calling MongoDB aggregate with pipeline:');
+    this.logger.debug([
+      ...relationsPipeline,
+      { $project: { _id: 1 } },
+    ]);
+    errors.NO_RESOURCE = (await this.database.collection(collection as string).aggregate([
+      ...relationsPipeline,
+      { $project: { _id: 1 } },
+    ]).toArray()).map((document) => document._id);
+
+    return { [collection]: errors };
   }
 }

@@ -8,12 +8,7 @@
 
 import {
   type Id,
-  type Ids,
   type User,
-  type Version,
-  type Authors,
-  type Deletion,
-  type Timestamps,
   type Logger as BaseLogger,
   type DataModel as DefaultTypes,
 } from '@perseid/core';
@@ -33,13 +28,15 @@ import {
   type FastifySchema,
 } from 'fastify';
 import { type Stream } from 'stream';
-import { type IncomingMessage as Payload } from 'http';
+import { type IncomingMessage } from 'http';
 import { type KeywordDefinition } from 'ajv/dist/types';
 import { type DestinationStream, type Logger as PinoLogger } from 'pino';
 
 type BaseModel<Types> = Model<Types>;
 
 type BaseDatabaseClient<Types> = DatabaseClient<Types>;
+
+type RelationsPerCollection<Types> = Record<keyof Types, Map<string, string[]>>;
 
 interface Details { [key: string]: unknown; }
 
@@ -119,8 +116,13 @@ export interface CommandOptions {
  * Command context, provides information about the author of changes.
  */
 export interface CommandContext {
+  /** User performing the command. */
   user: User;
+
+  /** Id of the device from which user is performing the command. */
   deviceId?: string;
+
+  /** User agent of the device from which user is performing the command. */
   userAgent?: string;
 }
 
@@ -136,11 +138,16 @@ export interface Results<T> {
 }
 
 /**
- * Any resource, excluding its automatic fields.
+ * Resource creation payload (excluding all automatic fields).
  */
-export type WithoutAutomaticFields<T> = {
-  [K in keyof T as Exclude<K, `_${string}`>]: T[K];
+export type Payload<T> = {
+  [K in keyof T as Exclude<K, `_${string}`>]: Payload<T[K]>;
 };
+
+/**
+ * Resource update payload.
+ */
+export type UpdatePayload<T> = Partial<Payload<T>>;
 
 /**
  * Common properties for all data model fields.
@@ -547,8 +554,31 @@ export class Model<
   /** Generated data model. */
   protected model: DataModel<Types>;
 
+  /** Public data model schema, used for data model introspection on front-end. */
+  protected publicSchema: DataModel<Types>;
+
+  /** List of relations per collection, along with their respective path in the model. */
+  protected relationsPerCollection: Record<keyof Types, Set<string>>;
+
   /** Default data model schema. */
   public static readonly DEFAULT_MODEL: DataModel<DefaultTypes>;
+
+  /**
+   * Generates public data schema from `model`.
+   *
+   * @param model Model from which to generate schema.
+   *
+   * @param relations Optional parameter, use it to also extract all relations declared in the
+   * model. If this parameter is passed, a list of all collections referenced directly or indirectly
+   * (i.e. by following subsequent relations) in the model will be generated and stored in that
+   * variable. For instance, if `model` contains a field that references a collection A, that in
+   * turn references collection B, that eventually references the initial collection, the following
+   * list will be generated: `["A", "B"]`. Defaults to `new Set()`.
+   */
+  protected generatePublicSchemaFrom(
+    model: FieldDataModel<Types>,
+    relations?: Set<string>,
+  ): FieldDataModel<Types>;
 
   /**
    * `email` custom data model type generator.
@@ -664,6 +694,15 @@ export class Model<
    * @returns Collection generated data model.
    */
   public getCollection(collection: keyof Types): Readonly<CollectionDataModel<Types>>;
+
+  /**
+   * Returns public data model schema for `collection`, and all its direct or indirect relations.
+   *
+   * @param collection Name of the collection for which to get public data model schema.
+   *
+   * @returns Public data model schema for all related collections.
+   */
+  public getPublicSchema(collection: keyof Types): DataModel<Types>;
 }
 
 /**
@@ -918,16 +957,16 @@ export class DatabaseClient<
   protected readonly DELETION_FILTER_PIPELINE: Document[];
 
   /** Used to calculate total number of results for a given query. */
-  protected readonly TOTAL_PIPELINEm: Document[];
+  protected readonly TOTAL_PIPELINE: Document[];
 
   /** Default pagination offset value. */
-  protected readonly DEFAULT_OFFSET = 0;
+  protected readonly DEFAULT_OFFSET: number;
 
   /** Default pagination limit value. */
-  protected readonly DEFAULT_LIMIT = 20;
+  protected readonly DEFAULT_LIMIT: number;
 
   /** Default maximum level of resources depth. */
-  protected readonly DEFAULT_MAXIMUM_DEPTH = 3;
+  protected readonly DEFAULT_MAXIMUM_DEPTH: number;
 
   /** Default query options. */
   protected readonly DEFAULT_QUERY_OPTIONS: CommandOptions;
@@ -956,6 +995,12 @@ export class DatabaseClient<
   /** Whether MongoDB client is connected to the server. */
   protected isConnected: boolean;
 
+  /** List of fields in data model representing external relations, per collection. */
+  protected relationsPerCollection: RelationsPerCollection<Types>;
+
+  /** List of fields in data model referencing each collection, grouped by this collection. */
+  protected invertedRelationsPerCollection: RelationsPerCollection<Types>;
+
   /**
    * Formats `input` to match MongoDB data types specifications.
    *
@@ -963,16 +1008,11 @@ export class DatabaseClient<
    *
    * @param model Current input data model.
    *
-   * @param foreignKeys Optional parameter, use it to also extract foreign keys from input. If this
-   * parameter is passed, a list of foreign keys per collection will be generated and stored in that
-   * variable. Defaults to `new Map()`.
-   *
    * @returns MongoDB-formatted input.
    */
   protected formatInput<Collection extends keyof Types>(
     input: Partial<Types[Collection]>,
     model: FieldDataModel<Types>,
-    foreignKeys?: Map<string, Set<string>>,
   ): Partial<Types[Collection]> | ObjectId | Binary;
 
   /**
@@ -993,13 +1033,15 @@ export class DatabaseClient<
   ): Partial<Types[Collection]> | Id | ArrayBuffer | null;
 
   /**
-   * Makes sure that all `foreignKeys` reference existing resources.
+   * Makes sure that no collection references resource with id `id` from `collection`.
    *
-   * @param foreignKeys Foreign keys to check in database.
+   * @param collection Name of the collection the resource belongs to.
    *
-   * @throws If any foreign key does not exist.
+   * @param id Id of the resource to check for references.
+   *
+   * @throws If any collection still references resource.
    */
-  protected checkForeignKeys(foreignKeys: Map<string, Set<string>>): Promise<void>;
+  protected checkReferencesTo(collection: keyof Types, id: Id): Promise<void>;
 
   /**
    * Returns all indexed fields for `collection`.
@@ -1009,6 +1051,21 @@ export class DatabaseClient<
    * @returns Collection's indexed fields.
    */
   protected getCollectionIndexedFields(model: FieldDataModel<Types>, path?: string[]): Index[];
+
+  /**
+   * Scans `schema` to find foreign keys.
+   *
+   * @param schema Data model schema to scan.
+   *
+   * @param relations Map into which list of foreign keys and their related paths will be stored.
+   *
+   * @param path Current path in schema. Used for recursivity, do not use it directly!
+   */
+  protected scanRelationsFrom(
+    schema: FieldDataModel<Types>,
+    relations: Map<string, string[]>,
+    path?: string[],
+  ): void;
 
   /**
    * Creates a Mongo validation schema from `model`.
@@ -1039,6 +1096,8 @@ export class DatabaseClient<
    * @returns MongoDB projections object.
    *
    * @throws If given path is not a valid field in data model.
+   *
+   * @throws If maximum level of resourcess depth has been exceeded.
    *
    * @throws If `checkIndexing` is `true` and given path is not an indexed field in data model.
    */
@@ -1075,7 +1134,7 @@ export class DatabaseClient<
    * Generates MongoDB `$lookup`s pipeline from `projections`.
    *
    * @param projections Projections from which to generate pipeline.
-  *
+   *
    * @param model Current path data model.
    *
    * @param path Current path in model. Used for recursivity, do not use it directly!
@@ -1177,6 +1236,17 @@ export class DatabaseClient<
     fields: string[],
     maximumDepth?: number,
   ): void;
+
+  /**
+   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
+   *
+   * @param foreignIds Foreign ids to check in database.
+   *
+   * @throws If any foreign id does not exist.
+   */
+  public checkForeignIds(
+    foreignIds: Map<string, SearchFilters[]>,
+  ): Promise<void>;
 
   /**
    * Inserts `resource` into `collection`.
@@ -1330,6 +1400,10 @@ export class DatabaseClient<
    * Resets the whole underlying database, re-creating collections, indexes, and such.
    */
   public reset(): Promise<void>;
+
+  public checkIntegrity(
+    collection?: keyof Types,
+  ): Promise<Record<string, Record<string, ObjectId[]>>>;
 }
 
 /**
@@ -1474,15 +1548,13 @@ export class Engine<
   /** Database client. */
   protected databaseClient: DatabaseClient;
 
-  /** Ugly hack to avoid linter issue in `generateAutomaticFields`. */
-  protected defaultUpdatedBy: null;
-
   /**
    * Performs a deep (recursive) merge of `resource` and `payload`. Rules are the following:
    *  - `null` is a special value that signifies "remove the item" in an array or a dynamic object.
    *    For instance, merging `[1, 2, 3]` and `[null, 2, null]` will give `[2]`.
    *  - If payload has less items than the original resource, remaining items will be added. For
    *    instance, merging `[1, 2, 3, 4]` and `[9, 10]` will give `[9, 10, 3, 4]`.
+   *  - If `payload` and `resource` are deeply equal, `undefined` is returned.
    *
    * @param resource Original resource on which to apply the deep merge.
    *
@@ -1491,59 +1563,109 @@ export class Engine<
    * @param dataModel Current field data model (used to determine wether field is an array or a
    * dynamic object).
    *
+   * @param foreignIds Optional parameter, use it to also extract foreign ids from payload. If this
+   * parameter is passed, a list of foreign ids per collection will be generated and stored in that
+   * variable. Defaults to `new Map()`.
+   *
+   * @param path Current path in schema. Used for recursivity, do not use it directly!
+   *
    * @returns A deep merge of `resource` and `payload`.
    */
   protected deepMerge<Collection extends keyof Types>(
-    resource: Types[Collection],
-    payload: Partial<Types[Collection]>,
+    resource: Types[Collection] | Partial<Types[Collection]> | null,
+    payload: Payload<Types[Collection]> | UpdatePayload<Types[Collection]>,
     dataModel: FieldDataModel<Types>,
-  ): Partial<Types[Collection]>;
+    foreignIds?: Map<string, Record<string, Set<string>>>,
+    path?: string[],
+  ): UpdatePayload<Types[Collection]>;
 
   /**
-   * Generates automatic fields for `collection`.
+   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
    *
-   * @param collectionModel Data model of the collection for which to generate automatic fields.
+   * @param collection Collection for which to check foreign ids.
+   *
+   * @param resource Current resource being updated, if applicable.
+   *
+   * @param payload Payload for updating or creating resource.
+   *
+   * @param foreignIds Foreign ids map, generated from `deepMerge`.
    *
    * @param context Command context.
-   *
-   * @param isCreation Whether operation is a creation, or an update of an existing resource.
-   * Defaults to `false` (update mode).
-   *
-   * @returns An object containing automatic fields for `collection`.
    */
-  protected generateAutomaticFields(
-    collectionModel: CollectionDataModel<Types>,
-    context: CommandContext & { _id?: Id; },
-    // Defaulting to update mode is much safer: resources creation will fail as they won't have all
-    // the required fields, as opposed to defaulting to creation mode, in which case fields will
-    // simply be silently reset over and over.
-    isCreation?: boolean,
-  ): Partial<Ids & Authors & Timestamps & Deletion & Version>;
+  protected checkForeignIds<Collection extends keyof Types>(
+    collection: Collection,
+    resource: Types[Collection] | null,
+    payload: UpdatePayload<Types[Collection]>,
+    foreignIds: Map<string, Record<string, Set<string>>>,
+    context: CommandContext,
+  ): Promise<void>;
 
   /**
-   * Checks and updates `payloads` (if necessary), before creating, deleting or updating `resource`.
+   * Returns filters to apply when checking foreign ids referencing other relations.
    *
-   * @param command What type of operation will be performed.
+   * @param collection Collection for which to return filters.
    *
-   * @param collection Collection on which the operation will be performed.
+   * @param path Path to the relation reference in data model.
    *
-   * @param payload Payload for updating, deleting or creating resource.
+   * @param ids List of foreign ids to check.
+   *
+   * @param resource Current resource being updated, if applicable.
+   *
+   * @param payload Payload for updating or creating resource.
    *
    * @param context Command context.
    *
-   * @param resourceId Id of the existing resource that will be updated or deleted, if applicable.
+   * @returns Filters to apply to check foreign ids.
+   */
+  protected createRelationFilters<Collection extends keyof Types>(
+    collection: Collection,
+    path: string,
+    ids: Id[],
+    resource: Types[Collection] | null,
+    payload: UpdatePayload<Types[Collection]>,
+    context: CommandContext,
+  ): SearchFilters;
+
+  /**
+   * Returns updated `payload` with automatic fields.
    *
-   * @returns Updated payload.
+   * @param collection Collection for which to generate automatic fields.
    *
-   * @throws If collection does not exist in data model.
+   * @param resource Current resource being updated, if applicable.
+   *
+   * @param payload Payload to update.
+   *
+   * @param context Command context.
+   *
+   * @returns Payload with automatic fields.
+   */
+  protected withAutomaticFields<Collection extends keyof Types>(
+    collection: Collection,
+    resource: Types[Collection] | null,
+    payload: Payload<Types[Collection]> | UpdatePayload<Types[Collection]>,
+    context: CommandContext,
+  ): Types[Collection];
+
+  /**
+   * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
+   *
+   * @param collection Payload collection.
+   *
+   * @param resource Current resource being updated, if applicable.
+   *
+   * @param payload Payload to validate and update.
+   *
+   * @param foreignIds Foreign ids to check, generated from `deepMerge`.
+   *
+   * @param context Command context.
    */
   protected checkAndUpdatePayload<Collection extends keyof Types>(
-    command: 'CREATE' | 'UPDATE' | 'DELETE',
     collection: Collection,
-    payload: WithoutAutomaticFields<Types[Collection]>,
+    resource: Types[Collection] | null,
+    payload: UpdatePayload<Types[Collection]>,
+    foreignIds: Map<string, Record<string, Set<string>>>,
     context: CommandContext,
-    resourceId?: Id,
-  ): Promise<Types[Collection]>;
+  ): Promise<Partial<Types[Collection]>>;
 
   /**
    * Class constructor.
@@ -1575,7 +1697,7 @@ export class Engine<
    */
   public create<Collection extends keyof Types>(
     collection: Collection,
-    payload: WithoutAutomaticFields<Types[Collection]>,
+    payload: Payload<Types[Collection]>,
     options: CommandOptions,
     context: CommandContext,
   ): Promise<Types[Collection]>;
@@ -1600,7 +1722,7 @@ export class Engine<
   public update<Collection extends keyof Types>(
     collection: Collection,
     id: Id,
-    payload: Partial<WithoutAutomaticFields<Types[Collection]>>,
+    payload: UpdatePayload<Types[Collection]>,
     options: CommandOptions,
     context: CommandContext,
   ): Promise<Types[Collection]>;
@@ -1639,16 +1761,16 @@ export class Engine<
   ): Promise<Results<Types[Collection]>>;
 
   /**
- * Fetches a paginated list of resources from `collection` according to given search options.
- *
- * @param collection Name of the collection to fetch resources from.
- *
- * @param search Search options (filters, text query) to filter resources with.
- *
- * @param options Command options.
- *
- * @returns Paginated list of resources.
- */
+   * Fetches a paginated list of resources from `collection` according to given search options.
+   *
+   * @param collection Name of the collection to fetch resources from.
+   *
+   * @param search Search options (filters, text query) to filter resources with.
+   *
+   * @param options Command options.
+   *
+   * @returns Paginated list of resources.
+   */
   public search<Collection extends keyof Types>(
     collection: Collection,
     search: SearchBody,
@@ -1691,7 +1813,7 @@ export interface Credentials {
   /** Access token. */
   accessToken: string;
 
-  /** Refresh token, used to refresh access token. */
+  /** Refresh token, used to generate a new access token. */
   refreshToken: string;
 
   /** Refresh token expiration date. */
@@ -1765,29 +1887,25 @@ export class OAuthEngine<
   ): Credentials;
 
   /**
-   * Checks and updates `payloads` (if necessary), before creating, deleting or updating `resource`.
+   * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
    *
-   * @param command What type of operation will be performed.
+   * @param collection Payload collection.
    *
-   * @param collection Collection on which the operation will be performed.
+   * @param resource Current resource being updated, if applicable.
    *
-   * @param payload Payload for updating, deleting or creating resource.
+   * @param payload Payload to validate and update.
+   *
+   * @param foreignIds Foreign ids to check, generated from `deepMerge`.
    *
    * @param context Command context.
-   *
-   * @param resourceId Id of the existing resource that will be updated or deleted, if applicable.
-   *
-   * @returns Updated payload.
-   *
-   * @throws If collection does not exist in data model.
    */
   protected checkAndUpdatePayload<Collection extends keyof Types>(
-    command: 'CREATE' | 'UPDATE' | 'DELETE',
     collection: Collection,
-    payload: WithoutAutomaticFields<Types[Collection]>,
+    resource: Types[Collection] | null,
+    payload: UpdatePayload<Types[Collection]>,
+    foreignIds: Map<string, Record<string, Set<string>>>,
     context: CommandContext,
-    resourceId?: Id,
-  ): Promise<Types[Collection]>;
+  ): Promise<Partial<Types[Collection]>>;
 
   /**
    * Class constructor.
@@ -1828,7 +1946,7 @@ export class OAuthEngine<
    */
   public create<Collection extends keyof Types>(
     collection: Collection,
-    payload: WithoutAutomaticFields<Types[Collection]>,
+    payload: Payload<Types[Collection]>,
     options: CommandOptions,
     context: CommandContext,
   ): Promise<Types[Collection]>;
@@ -1842,7 +1960,9 @@ export class OAuthEngine<
    *
    * @param context Command context.
    *
-   * @returns Id of the user related to the access token
+   * @returns Id of the user related to the access token.
+   *
+   * @throws If device id is not valid.
    */
   public verifyToken(
     accessToken: string,
@@ -1862,6 +1982,8 @@ export class OAuthEngine<
    * @param context Command context.
    *
    * @returns New credentials.
+   *
+   * @throws If password and confirmation mismatch.
    */
   public signUp(
     email: Types['users']['email'],
@@ -1880,6 +2002,10 @@ export class OAuthEngine<
    * @param context Command context.
    *
    * @returns New credentials.
+   *
+   * @throws If user with email `email` does not exist.
+   *
+   * @throws If `password` does not match user password.
    */
   public signIn(
     email: string,
@@ -1891,6 +2017,8 @@ export class OAuthEngine<
    * Sends a new verification email to connected user.
    *
    * @param context Command context.
+   *
+   * @throws If user email is already verified.
    */
   public requestEmailVerification(context: CommandContext): Promise<void>;
 
@@ -1900,6 +2028,8 @@ export class OAuthEngine<
    * @param token Verification token that was sent in the verification email.
    *
    * @param context Command context.
+   *
+   * @throws If verification token is not valid.
    */
   public verifyEmail(verificationToken: string, context: CommandContext): Promise<void>;
 
@@ -1915,16 +2045,17 @@ export class OAuthEngine<
   /**
    * Resets password for user with email `email`.
    *
-   * @param email Email of the user for which to reset password.
-   *
    * @param password New password.
    *
    * @param passwordConfirmation New password confirmation.
    *
    * @param resetToken Reset token sent in the password reset email.
+   *
+   * @throws If password and confirmation mismatch.
+   *
+   * @throws If reset token is not valid.
    */
   public resetPassword(
-    email: Types['users']['email'],
     password: Types['users']['password'],
     passwordConfirmation: Types['users']['password'],
     resetToken: string,
@@ -1938,6 +2069,8 @@ export class OAuthEngine<
    * @param context Command context.
    *
    * @returns New credentials.
+   *
+   * @throws If refresh token is invalid.
    */
   public refreshToken(refreshToken: string, context: CommandContext): Promise<Credentials>;
 
@@ -1962,7 +2095,7 @@ export class OAuthEngine<
 export type EndpointType = 'search' | 'view' | 'list' | 'create' | 'update' | 'delete';
 
 /** Built-in endpoints to register for a specific collection. */
-export type CollectionBuiltInEndpoints = Record<EndpointType, BuiltInEndpoint>;
+export type CollectionBuiltInEndpoints = Partial<Record<EndpointType, BuiltInEndpoint>>;
 
 /** Build-in endpoint configuration. */
 export interface BuiltInEndpoint {
@@ -2044,6 +2177,15 @@ export class Controller<
    * @returns Transformed value.
    */
   protected toSnakeCase(value: string): string;
+
+  /**
+   * Formats `output` to match fastify data types specifications.
+   *
+   * @param output Output to format.
+   *
+   * @returns Formatted output.
+   */
+  protected formatOutput(output: unknown): unknown;
 
   /**
    * Generates the list of fields to fetch from `fields` query parameter.
@@ -2333,15 +2475,6 @@ export class FastifyController<
   protected apiHandlers: Record<string, EndpointSettings<Types>>;
 
   /**
-   * Formats `output` to match fastify data types specifications.
-   *
-   * @param output Output to format.
-   *
-   * @returns Formatted output.
-   */
-  protected formatOutput(output: unknown): unknown;
-
-  /**
    * Creates an Ajv validation schema from `schema`.
    *
    * @param schema Schema from which to create validation schema.
@@ -2383,7 +2516,7 @@ export class FastifyController<
    * @returns Parsed payload.
    */
   protected parseFormData(
-    payload: Payload,
+    payload: IncomingMessage,
     options?: FormDataOptions,
   ): Promise<FormDataFields>;
 

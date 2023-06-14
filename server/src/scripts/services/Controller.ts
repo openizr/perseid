@@ -13,6 +13,7 @@ import {
   type DataModel as DefaultTypes,
 } from '@perseid/core';
 import jwt from 'jsonwebtoken';
+import { isPlainObject } from 'basx';
 import Logger from 'scripts/services/Logger';
 import NotFound from 'scripts/errors/NotFound';
 import Conflict from 'scripts/errors/Conflict';
@@ -25,11 +26,13 @@ import Unauthorized from 'scripts/errors/Unauthorized';
 import NotAcceptable from 'scripts/errors/NotAcceptable';
 import type OAuthEngine from 'scripts/services/OAuthEngine';
 
+const decoder = new TextDecoder();
+
 /** Built-in endpoint type. */
 export type EndpointType = 'search' | 'view' | 'list' | 'create' | 'update' | 'delete';
 
 /** Built-in endpoints to register for a specific collection. */
-export type CollectionBuiltInEndpoints = Record<EndpointType, BuiltInEndpoint>;
+export type CollectionBuiltInEndpoints = Partial<Record<EndpointType, BuiltInEndpoint>>;
 
 /** Build-in endpoint configuration. */
 export interface BuiltInEndpoint {
@@ -114,6 +117,36 @@ export default class Controller<
     return (value.match(this.CAPITAL_TOKEN) ?? [] as string[]).reduce((match, char: string) => (
       match.replace(new RegExp(char), `_${char}`)
     ), value).toUpperCase();
+  }
+
+  /**
+   * Formats `output` to match fastify data types specifications.
+   *
+   * @param output Output to format.
+   *
+   * @returns Formatted output.
+   */
+  protected formatOutput(output: unknown): unknown {
+    if (Array.isArray(output)) {
+      return output.map(this.formatOutput);
+    }
+    if (isPlainObject(output)) {
+      return Object.keys(output as Record<string, unknown>)
+        .reduce((formattedResource, key) => ({
+          ...formattedResource,
+          [key]: this.formatOutput((output as Record<string, unknown>)[key]),
+        }), {});
+    }
+    if (output instanceof Id) {
+      return `${output}`;
+    }
+    if (output instanceof Date) {
+      return output.toISOString();
+    }
+    if (output instanceof ArrayBuffer) {
+      return decoder.decode(output);
+    }
+    return output;
   }
 
   /**
@@ -360,7 +393,7 @@ export default class Controller<
         throw new NotFound('NO_RESOURCE', message);
       }
       if (error instanceof DatabaseError && error.code === 'NO_RESOURCE') {
-        const message = `Resource with id "${error.details.id}" does not exist or has been deleted.`;
+        const message = `Resource with id "${error.details.id}" does not exist or does not match required criteria.`;
         throw new NotFound('NO_RESOURCE', message);
       }
       if (error instanceof DatabaseError && error.code === 'DUPLICATE_RESOURCE') {
@@ -373,14 +406,14 @@ export default class Controller<
       if (error instanceof EngineError && error.code === 'INVALID_CREDENTIALS') {
         throw new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.');
       }
-      if (error instanceof EngineError && error.code === 'INVALID_VERIFY_TOKEN') {
-        throw new Unauthorized('INVALID_TOKEN', 'Invalid or expired verify token.');
+      if (error instanceof EngineError && error.code === 'INVALID_VERIFICATION_TOKEN') {
+        throw new Unauthorized('INVALID_VERIFICATION_TOKEN', 'Invalid or expired verification token.');
       }
       if (error instanceof EngineError && error.code === 'INVALID_RESET_TOKEN') {
-        throw new Unauthorized('INVALID_TOKEN', 'Invalid or expired reset token.');
+        throw new Unauthorized('INVALID_RESET_TOKEN', 'Invalid or expired reset token.');
       }
       if (error instanceof EngineError && error.code === 'INVALID_REFRESH_TOKEN') {
-        throw new Unauthorized('INVALID_TOKEN', 'Invalid or expired refresh token.');
+        throw new Unauthorized('INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token.');
       }
       if (error instanceof EngineError && error.code === 'PASSWORDS_MISMATCH') {
         throw new BadRequest('PASSWORDS_MISMATCH', 'Passwords mismatch.');
@@ -393,6 +426,9 @@ export default class Controller<
       }
       if (error instanceof DatabaseError && error.code === 'INVALID_INDEX') {
         throw new BadRequest('INVALID_INDEX', `Requested field "${error.details.path}" is not indexed.`);
+      }
+      if (error instanceof DatabaseError && error.code === 'RESOURCE_REFERENCED') {
+        throw new NotAcceptable('RESOURCE_REFERENCED', `Resource is still referenced in collection "${error.details.collection}".`);
       }
       if (error instanceof DatabaseError && error.code === 'MAXIMUM_DEPTH_EXCEEDED') {
         const message = `Maximum level of depth exceeded for field "${error.details.path}".`;

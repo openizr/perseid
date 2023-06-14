@@ -9,6 +9,7 @@
 import jwt from 'jsonwebtoken';
 import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
+import { Id, type User } from '@perseid/core';
 import Conflict from 'scripts/errors/Conflict';
 import EngineError from 'scripts/errors/Engine';
 import Forbidden from 'scripts/errors/Forbidden';
@@ -21,60 +22,17 @@ import EmailClient from 'scripts/services/EmailClient';
 import CacheClient from 'scripts/services/CacheClient';
 import NotAcceptable from 'scripts/errors/NotAcceptable';
 import DatabaseClient from 'scripts/services/DatabaseClient';
-import { Id, type DataModel as BaseDataModel, type User } from '@perseid/core';
+import { type DataModel } from 'scripts/services/__mocks__/schema';
 
 type TestController = Controller<DataModel> & {
   rbac: Controller['rbac'];
   parseQuery: Controller['parseQuery'];
   catchErrors: Controller['catchErrors'];
   toSnakeCase: Controller['toSnakeCase'];
+  formatOutput: Controller['formatOutput'];
   generateFieldsFrom: Controller['generateFieldsFrom'];
   formatSearchFilters: Controller['formatSearchFilters'];
 };
-
-interface DataModel extends BaseDataModel {
-  test: {
-    primitiveOne: Id;
-    primitiveTwo: ArrayBuffer;
-    primitiveThree: string;
-    arrayOne: {
-      dynamicObject: {
-        [key: string]: Id | DataModel['externalRelation'];
-      };
-      object: {
-        fieldOne: string;
-      }
-    }[];
-    arrayTwo: (Id | null | DataModel['externalRelation'])[];
-    arrayThree: (Id | DataModel['externalRelation'])[];
-    arrayFour: string[];
-    arrayFive: {
-      fieldOne: string;
-    }[];
-    dynamicOne: {
-      [key: string]: Id | {
-        test: string;
-      } | DataModel['externalRelation'];
-    };
-    dynamicTwo: {
-      [key: string]: Id | {
-        test: string;
-      };
-    };
-  };
-  test2: {
-    null: null;
-  };
-  externalRelation: {
-    _id: Id;
-    name: string;
-    relations: (Id | DataModel['otherExternalRelation']);
-  };
-  otherExternalRelation: {
-    _id: Id;
-    type: string;
-  };
-}
 
 describe('services/Controller', () => {
   vi.mock('jsonwebtoken');
@@ -132,6 +90,25 @@ describe('services/Controller', () => {
         collections: {},
       },
     }) as TestController;
+  });
+
+  test('[formatOutput]', () => {
+    vi.useRealTimers();
+    expect(controller.formatOutput({
+      array: [],
+      object: {},
+      id: new Id('64723318e84f943f1ad6578b'),
+      date: new Date('2023-01-01T00:00:00.000Z'),
+      other: 'test',
+      binary: new ArrayBuffer(0),
+    })).toEqual({
+      array: [],
+      object: {},
+      id: '64723318e84f943f1ad6578b',
+      date: '2023-01-01T00:00:00.000Z',
+      other: 'test',
+      binary: '',
+    });
   });
 
   test('[generateFieldsFrom]', () => {
@@ -325,7 +302,7 @@ describe('services/Controller', () => {
       await controller.catchErrors(() => {
         throw new DatabaseError('NO_RESOURCE', { id: 'test' });
       });
-    }).rejects.toThrow(new Unauthorized('NO_RESOURCE', 'Resource with id "test" does not exist or has been deleted.'));
+    }).rejects.toThrow(new Unauthorized('NO_RESOURCE', 'Resource with id "test" does not exist or does not match required criteria.'));
   });
 
   test('[catchErrors] DUPLICATE_RESOURCE', () => {
@@ -352,12 +329,12 @@ describe('services/Controller', () => {
     }).rejects.toThrow(new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.'));
   });
 
-  test('[catchErrors] INVALID_VERIFY_TOKEN', () => {
+  test('[catchErrors] INVALID_VERIFICATION_TOKEN', () => {
     expect(async () => {
       await controller.catchErrors(() => {
-        throw new EngineError('INVALID_VERIFY_TOKEN');
+        throw new EngineError('INVALID_VERIFICATION_TOKEN');
       });
-    }).rejects.toThrow(new Unauthorized('INVALID_VERIFY_TOKEN', 'Invalid or expired verify token.'));
+    }).rejects.toThrow(new Unauthorized('INVALID_VERIFICATION_TOKEN', 'Invalid or expired verification token.'));
   });
 
   test('[catchErrors] INVALID_RESET_TOKEN', () => {
@@ -406,6 +383,14 @@ describe('services/Controller', () => {
         throw new DatabaseError('INVALID_INDEX', { path: 'path' });
       });
     }).rejects.toThrow(new BadRequest('INVALID_INDEX', 'Requested field "path" is not indexed.'));
+  });
+
+  test('[catchErrors] RESOURCE_REFERENCED', () => {
+    expect(async () => {
+      await controller.catchErrors(() => {
+        throw new DatabaseError('RESOURCE_REFERENCED', { collection: 'collection' });
+      });
+    }).rejects.toThrow(new BadRequest('RESOURCE_REFERENCED', 'Resource is still referenced in collection "collection".'));
   });
 
   test('[catchErrors] MAXIMUM_DEPTH_EXCEEDED', () => {

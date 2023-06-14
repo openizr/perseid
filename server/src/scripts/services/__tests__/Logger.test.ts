@@ -55,6 +55,10 @@ describe('services/Logger', () => {
     expect(logger.child()).toBe(logger.logger);
   });
 
+  test('[silent]', () => {
+    expect(logger.silent('test')).toBe(undefined);
+  });
+
   test('[trace]', () => {
     logger.trace('test');
     expect(logger.logger.debug).toHaveBeenCalledTimes(1);

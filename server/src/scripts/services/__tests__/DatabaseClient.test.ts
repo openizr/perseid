@@ -19,63 +19,22 @@ import Logger from 'scripts/services/Logger';
 import DatabaseError from 'scripts/errors/Database';
 import CacheClient from 'scripts/services/CacheClient';
 import DatabaseClient from 'scripts/services/DatabaseClient';
-
-interface DataModel {
-  test: {
-    primitiveOne: Id;
-    primitiveTwo: ArrayBuffer;
-    primitiveThree: string;
-    arrayOne: {
-      dynamicObject: {
-        [key: string]: Id | DataModel['externalRelation'];
-      };
-      object: {
-        fieldOne: string;
-      }
-    }[];
-    arrayTwo: (Id | null | DataModel['externalRelation'])[];
-    arrayThree: (Id | DataModel['externalRelation'])[];
-    arrayFour: string[];
-    arrayFive: {
-      fieldOne: string;
-    }[];
-    dynamicOne: {
-      [key: string]: Id | {
-        test: string;
-      } | DataModel['externalRelation'];
-    };
-    dynamicTwo: {
-      [key: string]: Id | {
-        test: string;
-      };
-    };
-  };
-  test2: {
-    null: null;
-  };
-  externalRelation: {
-    _id: Id;
-    name: string;
-    relations: (Id | DataModel['otherExternalRelation']);
-  };
-  otherExternalRelation: {
-    _id: Id;
-    type: string;
-  };
-}
+import { type DataModel } from 'scripts/services/__mocks__/schema';
 
 type TestDatabaseClient = DatabaseClient<DataModel> & {
   handleError: DatabaseClient<DataModel>['handleError'];
   formatInput: DatabaseClient<DataModel>['formatInput'];
   formatOutput: DatabaseClient<DataModel>['formatOutput'];
   createSchema: DatabaseClient<DataModel>['createSchema'];
-  checkForeignKeys: DatabaseClient<DataModel>['checkForeignKeys'];
+  checkForeignIds: DatabaseClient<DataModel>['checkForeignIds'];
+  checkReferencesTo: DatabaseClient<DataModel>['checkReferencesTo'];
   generateProjectionsFrom: DatabaseClient<DataModel>['generateProjectionsFrom'];
   getCollectionIndexedFields: DatabaseClient<DataModel>['getCollectionIndexedFields'];
   generateSearchPipelineFrom: DatabaseClient<DataModel>['generateSearchPipelineFrom'];
   generateSortingPipelineFrom: DatabaseClient<DataModel>['generateSortingPipelineFrom'];
   generateLookupsPipelineFrom: DatabaseClient<DataModel>['generateLookupsPipelineFrom'];
   generatePaginationPipelineFrom: DatabaseClient<DataModel>['generatePaginationPipelineFrom'];
+  invertedRelationsPerCollection: DatabaseClient<DataModel>['invertedRelationsPerCollection'];
 };
 
 describe('services/DatabaseClient', () => {
@@ -92,10 +51,15 @@ describe('services/DatabaseClient', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.setSystemTime(new Date('2023-01-01'));
     delete process.env.NO_RESULT;
     delete process.env.VIEW_MODE;
-    delete process.env.NO_COLLECTION;
-    delete process.env.MISSING_FOREIGN_KEYS;
+    delete process.env.INTEGRITY_MODE;
+    delete process.env.REFERENCES_MODE;
+    delete process.env.REFERENCE_EXISTS;
+    delete process.env.MISSING_FOREIGN_IDS;
+    delete process.env.INTEGRITY_CHECKS_FAIL;
+
     databaseClient = new DatabaseClient<DataModel>(model, logger, cacheClient, {
       protocol: 'mongo+srv',
       host: 'localhost',
@@ -112,7 +76,6 @@ describe('services/DatabaseClient', () => {
   });
 
   test('[formatInput]', () => {
-    const foreignKeys = new Map();
     expect(databaseClient.formatInput({
       primitiveOne: new Id('646b9be5e921d0ef42f8a149'),
       primitiveTwo: new ArrayBuffer(10),
@@ -144,7 +107,7 @@ describe('services/DatabaseClient', () => {
         testOne: new Id('646b9be5e921d0ef42f8a142'),
         testTwo: { test: 'test' },
       },
-    }, { type: 'object', fields: model.getCollection('test').fields }, foreignKeys)).toEqual({
+    }, { type: 'object', fields: model.getCollection('test').fields })).toEqual({
       primitiveOne: new ObjectId('646b9be5e921d0ef42f8a149'),
       primitiveTwo: new Binary('test'),
       primitiveThree: 'test',
@@ -176,18 +139,6 @@ describe('services/DatabaseClient', () => {
         testTwo: { test: 'test' },
       },
     });
-    expect(foreignKeys).toEqual(new Map([
-      ['externalRelation', new Set([
-        '646b9be5e921d0ef42f8a147',
-        '646b9be5e921d0ef42f8a150',
-        '646b9be5e921d0ef42f8a142',
-        '646b9be5e921d0ef42f8a141',
-        '646b9be5e921d0ef42f8a146',
-      ])],
-      ['otherExternalRelation', new Set([
-        '646b9be5e921d0ef42f8a143',
-      ])],
-    ]));
   });
 
   test('[formatOutput]', () => {
@@ -312,6 +263,52 @@ describe('services/DatabaseClient', () => {
         testTwo: { test: 'test' },
       },
     });
+  });
+
+  test('[checkReferencesTo] resource is not referenced in collections', async () => {
+    process.env.REFERENCES_MODE = 'true';
+    await databaseClient.checkReferencesTo('otherExternalRelation', new Id('646b9be5e921d0ef42f8a141'));
+    expect(mongoClient.db().collection('_config').aggregate).toHaveBeenCalledTimes(1);
+    expect(mongoClient.db().collection('_config').aggregate).toHaveBeenCalledWith([
+      { $limit: 1 },
+      { $project: { _id: new ObjectId('646b9be5e921d0ef42f8a141') } },
+      {
+        $lookup: {
+          from: 'test',
+          as: 'test__arrayThree',
+          foreignField: 'arrayThree',
+          localField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'test',
+          as: 'test__dynamicOne.^testTwo$',
+          foreignField: 'dynamicOne.^testTwo$',
+          localField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'externalRelation',
+          as: 'externalRelation__relations',
+          foreignField: 'relations',
+          localField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+    ]);
+  });
+
+  test('[checkReferencesTo] resource is still referenced in collections', async () => {
+    process.env.REFERENCES_MODE = 'true';
+    process.env.REFERENCE_EXISTS = 'true';
+    const id = new Id('646b9be5e921d0ef42f8a141');
+    await expect(async () => {
+      await databaseClient.checkReferencesTo('otherExternalRelation', id);
+    }).rejects.toThrow(new DatabaseError('RESOURCE_REFERENCED', { collection: 'externalRelation' }));
   });
 
   test('[createSchema]', () => {
@@ -525,22 +522,26 @@ describe('services/DatabaseClient', () => {
     ]);
   });
 
-  test('[checkForeignKeys] - all foreign keys are valid', async () => {
-    await databaseClient.checkForeignKeys(new Map([
-      ['externalRelation', new Set([
-        '646b9be5e921d0ef42f8a147',
-        '646b9be5e921d0ef42f8a142',
-        '646b9be5e921d0ef42f8a143',
-        '646b9be5e921d0ef42f8a141',
-        '646b9be5e921d0ef42f8a146',
-      ])],
+  test('[checkForeignIds] - all foreign ids are valid', async () => {
+    await databaseClient.checkForeignIds(new Map([
+      ['externalRelation', [
+        {
+          _id: [
+            new Id('646b9be5e921d0ef42f8a147'),
+            new Id('646b9be5e921d0ef42f8a142'),
+            new Id('646b9be5e921d0ef42f8a143'),
+            new Id('646b9be5e921d0ef42f8a141'),
+            new Id('646b9be5e921d0ef42f8a146'),
+          ],
+        },
+      ]],
     ]));
     expect(mongoClient.db().collection('_config').aggregate).toHaveBeenCalledTimes(1);
     expect(mongoClient.db().collection('_config').aggregate).toHaveBeenCalledWith([
       { $limit: 1 },
       {
         $project: {
-          externalRelationIds: [
+          externalRelation0Ids: [
             new ObjectId('646b9be5e921d0ef42f8a147'),
             new ObjectId('646b9be5e921d0ef42f8a142'),
             new ObjectId('646b9be5e921d0ef42f8a143'),
@@ -551,24 +552,27 @@ describe('services/DatabaseClient', () => {
       },
       {
         $lookup: {
-          as: 'externalRelation',
           foreignField: '_id',
+          as: 'externalRelation0',
           from: 'externalRelation',
-          localField: 'externalRelationIds',
+          localField: 'externalRelation0Ids',
           pipeline: [{ $match: { _isDeleted: { $ne: true } } }, { $project: { _id: 1 } }],
         },
       },
     ]);
   });
 
-  test('[checkForeignKeys] - some foreign keys are missing', async () => {
-    process.env.MISSING_FOREIGN_KEYS = 'true';
+  test('[checkForeignIds] - some foreign ids are missing', async () => {
+    process.env.MISSING_FOREIGN_IDS = 'true';
     expect(async () => {
-      await databaseClient.checkForeignKeys(new Map([
-        ['externalRelation', new Set([
-          '646b9be5e921d0ef42f8a148',
-          '646b9be5e921d0ef42f8a142',
-        ])],
+      await databaseClient.checkForeignIds(new Map([
+        ['externalRelation', [{
+          _id: [
+            new Id('646b9be5e921d0ef42f8a148'),
+            new Id('646b9be5e921d0ef42f8a142'),
+          ],
+        }],
+        ],
       ]));
     }).rejects.toThrow(new DatabaseError('NO_RESOURCE'));
   });
@@ -818,6 +822,7 @@ describe('services/DatabaseClient', () => {
   });
 
   test('[generateSearchPipelineFrom]', () => {
+    vi.useRealTimers();
     const searchQuery = { on: ['testOne'], text: 'test' };
     const searchFilters = {
       testOne: [new Id('646b9be5e921d0ef42f8a147')],
@@ -894,11 +899,40 @@ describe('services/DatabaseClient', () => {
     }) as TestDatabaseClient;
     expect(mongoClient.db).toHaveBeenCalledTimes(1);
     expect(mongoClient.db).toHaveBeenCalledWith('test');
+    expect(databaseClient.invertedRelationsPerCollection).toEqual({
+      externalRelation: new Map([
+        [
+          'test',
+          [
+            'arrayOne.dynamicObject.^testOne$',
+            'arrayOne.dynamicObject.^testTwo$',
+            'arrayOne.dynamicObject.^special(.*)$',
+            'arrayTwo',
+            'dynamicOne.^testOne$',
+            'dynamicOne.^special(.*)$',
+            'dynamicTwo.^testOne$',
+          ],
+        ],
+      ]),
+      otherExternalRelation: new Map([
+        [
+          'test',
+          ['arrayThree', 'dynamicOne.^testTwo$'],
+        ],
+        [
+          'externalRelation',
+          ['relations'],
+        ],
+      ]),
+      test: new Map(),
+      roles: new Map(),
+      users: new Map(),
+    });
   });
 
   test('[list] no result', async () => {
     process.env.NO_RESULT = 'true';
-    const response = await databaseClient.list('test');
+    const response = await databaseClient.list('test', { limit: 0 });
     expect(response).toEqual({ total: 0, results: [] });
   });
 
@@ -947,7 +981,9 @@ describe('services/DatabaseClient', () => {
 
   test('[search] no result', async () => {
     process.env.NO_RESULT = 'true';
-    const response = await databaseClient.search('test', { query: { on: ['_id'], text: 'test' } });
+    const response = await databaseClient.search('test', { query: { on: ['_id'], text: 'test' } }, {
+      limit: 0,
+    });
     expect(response).toEqual({ total: 0, results: [] });
   });
 
@@ -1140,13 +1176,6 @@ describe('services/DatabaseClient', () => {
     ]);
   });
 
-  test('[updateCollection] collection does not exist', async () => {
-    process.env.NO_COLLECTION = 'true';
-    expect(async () => {
-      await databaseClient.updateCollection('test');
-    }).rejects.toThrow(new DatabaseError('NO_COLLECTION', { collection: 'test' }));
-  });
-
   test('[updateCollection] collection exists', async () => {
     await databaseClient.updateCollection('externalRelation');
     expect(mongoClient.startSession).toHaveBeenCalledTimes(1);
@@ -1196,10 +1225,13 @@ describe('services/DatabaseClient', () => {
     expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Dropping database...');
     expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Re-creating database...');
     expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Initializing collections...');
-    expect(mongoClient.db().dropCollection).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledTimes(5);
     expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('users');
     expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('roles');
-    expect(mongoClient.db().createCollection).toHaveBeenCalledTimes(3);
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('test');
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('externalRelation');
+    expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('otherExternalRelation');
+    expect(mongoClient.db().createCollection).toHaveBeenCalledTimes(6);
     expect(mongoClient.db().createCollection).toHaveBeenCalledWith('_config', {
       validator: {
         $jsonSchema: {
@@ -1214,5 +1246,391 @@ describe('services/DatabaseClient', () => {
     });
     expect(mongoClient.db().collection('_config').insertOne).toHaveBeenCalledTimes(1);
     expect(mongoClient.db().collection('_config').insertOne).toHaveBeenCalledWith({});
+  });
+
+  test('[checkIntegrity] integrity checks fail', async () => {
+    process.env.INTEGRITY_MODE = 'true';
+    process.env.INTEGRITY_CHECKS_FAIL = 'true';
+    const corruptedId = new ObjectId('64723318e84f943f1ad6578b');
+    await expect(async () => {
+      await databaseClient.checkIntegrity();
+    }).rejects.toThrow(new DatabaseError('FAILED_INTEGRITY_CHECKS'));
+    expect(logger.info).toHaveBeenCalledWith({
+      users: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
+      roles: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
+      test: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
+      externalRelation: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
+      otherExternalRelation: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
+    });
+  });
+
+  test('[checkIntegrity] integrity checks pass', async () => {
+    process.env.INTEGRITY_MODE = 'true';
+    await databaseClient.checkIntegrity();
+    expect(logger.info).toHaveBeenCalledTimes(7);
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][checkIntegrity] Checking integrity for collection users...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][checkIntegrity] Checking integrity for collection roles...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][checkIntegrity] Checking integrity for collection test...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][checkIntegrity] Checking integrity for collection externalRelation...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][checkIntegrity] Checking integrity for collection otherExternalRelation...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][checkIntegrity] Integrity checks results:');
+    expect(logger.info).toHaveBeenCalledWith({
+      users: { AUTOMATIC_FIELDS: [], NO_RESOURCE: [] },
+      roles: { AUTOMATIC_FIELDS: [], NO_RESOURCE: [] },
+      test: { AUTOMATIC_FIELDS: [], NO_RESOURCE: [] },
+      externalRelation: { AUTOMATIC_FIELDS: [], NO_RESOURCE: [] },
+      otherExternalRelation: { AUTOMATIC_FIELDS: [], NO_RESOURCE: [] },
+    });
+    expect(mongoClient.db().collection('users').aggregate).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().collection('users').aggregate).toHaveBeenCalledWith([
+      { $match: { $or: [] } },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('users').aggregate).toHaveBeenCalledWith([
+      { $project: {} },
+      { $project: {} },
+      { $project: {} },
+      { $match: { $or: [] } },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('roles').aggregate).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().collection('roles').aggregate).toHaveBeenCalledWith([
+      { $match: { $or: [] } },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('roles').aggregate).toHaveBeenCalledWith([
+      { $project: {} },
+      { $project: {} },
+      { $project: {} },
+      { $match: { $or: [] } },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('test').aggregate).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().collection('test').aggregate).toHaveBeenCalledWith([
+      { $match: { $or: [] } },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('test').aggregate).toHaveBeenCalledWith([
+      {
+        $project: {
+          'arrayOne.dynamicObject.^testOne$': { $ifNull: ['$arrayOne.dynamicObject.^testOne$', []] },
+          'arrayOne.dynamicObject.^testTwo$': { $ifNull: ['$arrayOne.dynamicObject.^testTwo$', []] },
+          'arrayOne.dynamicObject.^special(.*)$': { $ifNull: ['$arrayOne.dynamicObject.^special(.*)$', []] },
+          arrayTwo: { $ifNull: ['$arrayTwo', []] },
+          'dynamicOne.^testOne$': { $ifNull: ['$dynamicOne.^testOne$', []] },
+          'dynamicOne.^special(.*)$': { $ifNull: ['$dynamicOne.^special(.*)$', []] },
+          'dynamicTwo.^testOne$': { $ifNull: ['$dynamicTwo.^testOne$', []] },
+          arrayThree: { $ifNull: ['$arrayThree', []] },
+          'dynamicOne.^testTwo$': { $ifNull: ['$dynamicOne.^testTwo$', []] },
+        },
+      },
+      {
+        $project: {
+          'arrayOne.dynamicObject.^testOne$': {
+            $cond: {
+              if: { $eq: [{ $type: '$arrayOne.dynamicObject.^testOne$' }, 'array'] },
+              then: '$arrayOne.dynamicObject.^testOne$',
+              else: ['$arrayOne.dynamicObject.^testOne$'],
+            },
+          },
+          'arrayOne.dynamicObject.^testTwo$': {
+            $cond: {
+              if: { $eq: [{ $type: '$arrayOne.dynamicObject.^testTwo$' }, 'array'] },
+              then: '$arrayOne.dynamicObject.^testTwo$',
+              else: ['$arrayOne.dynamicObject.^testTwo$'],
+            },
+          },
+          'arrayOne.dynamicObject.^special(.*)$': {
+            $cond: {
+              if: { $eq: [{ $type: '$arrayOne.dynamicObject.^special(.*)$' }, 'array'] },
+              then: '$arrayOne.dynamicObject.^special(.*)$',
+              else: ['$arrayOne.dynamicObject.^special(.*)$'],
+            },
+          },
+          arrayTwo: {
+            $cond: {
+              if: { $eq: [{ $type: '$arrayTwo' }, 'array'] },
+              then: '$arrayTwo',
+              else: ['$arrayTwo'],
+            },
+          },
+          'dynamicOne.^testOne$': {
+            $cond: {
+              if: { $eq: [{ $type: '$dynamicOne.^testOne$' }, 'array'] },
+              then: '$dynamicOne.^testOne$',
+              else: ['$dynamicOne.^testOne$'],
+            },
+          },
+          'dynamicOne.^special(.*)$': {
+            $cond: {
+              if: { $eq: [{ $type: '$dynamicOne.^special(.*)$' }, 'array'] },
+              then: '$dynamicOne.^special(.*)$',
+              else: ['$dynamicOne.^special(.*)$'],
+            },
+          },
+          'dynamicTwo.^testOne$': {
+            $cond: {
+              if: { $eq: [{ $type: '$dynamicTwo.^testOne$' }, 'array'] },
+              then: '$dynamicTwo.^testOne$',
+              else: ['$dynamicTwo.^testOne$'],
+            },
+          },
+          arrayThree: {
+            $cond: {
+              if: { $eq: [{ $type: '$arrayThree' }, 'array'] },
+              then: '$arrayThree',
+              else: ['$arrayThree'],
+            },
+          },
+          'dynamicOne.^testTwo$': {
+            $cond: {
+              if: { $eq: [{ $type: '$dynamicOne.^testTwo$' }, 'array'] },
+              then: '$dynamicOne.^testTwo$',
+              else: ['$dynamicOne.^testTwo$'],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          'arrayOne.dynamicObject.^testOne$': { $setUnion: ['$arrayOne.dynamicObject.^testOne$', []] },
+          'arrayOne.dynamicObject.^testTwo$': { $setUnion: ['$arrayOne.dynamicObject.^testTwo$', []] },
+          'arrayOne.dynamicObject.^special(.*)$': { $setUnion: ['$arrayOne.dynamicObject.^special(.*)$', []] },
+          arrayTwo: { $setUnion: ['$arrayTwo', []] },
+          'dynamicOne.^testOne$': { $setUnion: ['$dynamicOne.^testOne$', []] },
+          'dynamicOne.^special(.*)$': { $setUnion: ['$dynamicOne.^special(.*)$', []] },
+          'dynamicTwo.^testOne$': { $setUnion: ['$dynamicTwo.^testOne$', []] },
+          arrayThree: { $setUnion: ['$arrayThree', []] },
+          'dynamicOne.^testTwo$': { $setUnion: ['$dynamicOne.^testTwo$', []] },
+        },
+      },
+      {
+        $lookup: {
+          from: 'externalRelation',
+          as: '__arrayOne.dynamicObject.^testOne$',
+          localField: 'arrayOne.dynamicObject.^testOne$',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'externalRelation',
+          as: '__arrayOne.dynamicObject.^testTwo$',
+          localField: 'arrayOne.dynamicObject.^testTwo$',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'externalRelation',
+          as: '__arrayOne.dynamicObject.^special(.*)$',
+          localField: 'arrayOne.dynamicObject.^special(.*)$',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'externalRelation',
+          as: '__arrayTwo',
+          localField: 'arrayTwo',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'externalRelation',
+          as: '__dynamicOne.^testOne$',
+          localField: 'dynamicOne.^testOne$',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'externalRelation',
+          as: '__dynamicOne.^special(.*)$',
+          localField: 'dynamicOne.^special(.*)$',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'externalRelation',
+          as: '__dynamicTwo.^testOne$',
+          localField: 'dynamicTwo.^testOne$',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'otherExternalRelation',
+          as: '__arrayThree',
+          localField: 'arrayThree',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: 'otherExternalRelation',
+          as: '__dynamicOne.^testTwo$',
+          localField: 'dynamicOne.^testTwo$',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      {
+        $match: {
+          $or: [
+            {
+              $expr: {
+                $ne: [
+                  { $size: '$__arrayOne.dynamicObject.^testOne$' },
+                  { $size: '$arrayOne.dynamicObject.^testOne$' },
+                ],
+              },
+            },
+            {
+              $expr: {
+                $ne: [
+                  { $size: '$__arrayOne.dynamicObject.^testTwo$' },
+                  { $size: '$arrayOne.dynamicObject.^testTwo$' },
+                ],
+              },
+            },
+            {
+              $expr: {
+                $ne: [
+                  { $size: '$__arrayOne.dynamicObject.^special(.*)$' },
+                  { $size: '$arrayOne.dynamicObject.^special(.*)$' },
+                ],
+              },
+            },
+            {
+              $expr: {
+                $ne: [{ $size: '$__arrayTwo' }, { $size: '$arrayTwo' }],
+              },
+            },
+            {
+              $expr: {
+                $ne: [
+                  { $size: '$__dynamicOne.^testOne$' },
+                  { $size: '$dynamicOne.^testOne$' },
+                ],
+              },
+            },
+            {
+              $expr: {
+                $ne: [
+                  { $size: '$__dynamicOne.^special(.*)$' },
+                  { $size: '$dynamicOne.^special(.*)$' },
+                ],
+              },
+            },
+            {
+              $expr: {
+                $ne: [
+                  { $size: '$__dynamicTwo.^testOne$' },
+                  { $size: '$dynamicTwo.^testOne$' },
+                ],
+              },
+            },
+            {
+              $expr: {
+                $ne: [
+                  { $size: '$__arrayThree' },
+                  { $size: '$arrayThree' },
+                ],
+              },
+            },
+            {
+              $expr: {
+                $ne: [
+                  { $size: '$__dynamicOne.^testTwo$' },
+                  { $size: '$dynamicOne.^testTwo$' },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledWith([
+      {
+        $match: {
+          $or: [
+            { _isDeleted: true, _updatedAt: null },
+            {
+              $or: [
+                { _createdAt: { $lt: new Date('2021-01-01') } },
+                { _createdAt: { $gte: 1672531200000 } },
+              ],
+            },
+            {
+              $and: [
+                { _updatedAt: { $ne: null } },
+                {
+                  $or: [
+                    { _updatedAt: { $gte: 1672531200000 } },
+                    {
+                      $expr: { $lte: ['$_updatedAt', '$_createdAt'] },
+                    },
+                  ],
+                },
+              ],
+            },
+            { _updatedAt: { $eq: null }, _updatedBy: { $ne: null } },
+            { _updatedBy: { $eq: null }, _updatedAt: { $ne: null } },
+          ],
+        },
+      },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledWith([
+      { $project: { relations: { $ifNull: ['$relations', []] } } },
+      {
+        $project: {
+          relations: {
+            $cond: {
+              if: { $eq: [{ $type: '$relations' }, 'array'] },
+              then: '$relations',
+              else: ['$relations'],
+            },
+          },
+        },
+      },
+      { $project: { relations: { $setUnion: ['$relations', []] } } },
+      {
+        $lookup: {
+          from: 'otherExternalRelation',
+          as: '__relations',
+          localField: 'relations',
+          foreignField: '_id',
+          pipeline: [{ $project: { _id: 1 } }],
+        },
+      },
+      { $match: { $or: [{ $expr: { $ne: [{ $size: '$__relations' }, { $size: '$relations' }] } }] } },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('otherExternalRelation').aggregate).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().collection('otherExternalRelation').aggregate).toHaveBeenCalledWith([
+      { $match: { $or: [] } },
+      { $project: { _id: 1 } },
+    ]);
+    expect(mongoClient.db().collection('otherExternalRelation').aggregate).toHaveBeenCalledWith([
+      { $project: {} },
+      { $project: {} },
+      { $project: {} },
+      { $match: { $or: [] } },
+      { $project: { _id: 1 } },
+    ]);
   });
 });

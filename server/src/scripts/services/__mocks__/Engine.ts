@@ -35,8 +35,8 @@ export default class {
     return { _updatedAt: this.automaticFieldValue, ...payload };
   }
 
-  protected generateAutomaticFields(): Document {
-    return { _updatedAt: this.automaticFieldValue };
+  protected withAutomaticFields(payload: Document): Document {
+    return { ...payload, _updatedAt: this.automaticFieldValue };
   }
 
   protected create(

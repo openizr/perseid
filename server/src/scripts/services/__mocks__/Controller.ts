@@ -59,6 +59,8 @@ export default class <Types> {
 
   protected toSnakeCase = vi.fn(() => 'TEST_COLLECTION');
 
+  protected formatOutput = vi.fn((output) => output);
+
   protected parseQuery = vi.fn(() => ({ parsed: true }));
 
   protected parseSearchBody = vi.fn(() => ({ filters: {} }));

@@ -13,52 +13,15 @@ import Logger from 'scripts/services/Logger';
 import EngineError from 'scripts/errors/Engine';
 import CacheClient from 'scripts/services/CacheClient';
 import DatabaseClient from 'scripts/services/DatabaseClient';
+import { type DataModel } from 'scripts/services/__mocks__/schema';
 
 type TestEngine = Engine<DataModel> & {
   deepMerge: Engine<DataModel>['deepMerge'];
-  generateAutomaticFields: Engine<DataModel>['generateAutomaticFields'];
+  checkForeignIds: Engine<DataModel>['checkForeignIds'];
+  withAutomaticFields: Engine<DataModel>['withAutomaticFields'];
+  checkAndUpdatePayload: Engine<DataModel>['checkAndUpdatePayload'];
+  createRelationFilters: Engine<DataModel>['createRelationFilters'];
 };
-
-interface DataModel {
-  test: {
-    primitiveOne: Id;
-    primitiveTwo: ArrayBuffer;
-    primitiveThree: string;
-    arrayOne: {
-      dynamicObject: {
-        [key: string]: Id | DataModel['externalRelation'];
-      };
-      object: {
-        fieldOne: string;
-      }
-    }[];
-    arrayTwo: (Id | null | DataModel['externalRelation'])[];
-    arrayThree: (Id | DataModel['externalRelation'])[];
-    arrayFour: string[];
-    arrayFive: {
-      fieldOne: string;
-    }[];
-    dynamicOne: {
-      [key: string]: Id | {
-        test: string;
-      } | DataModel['externalRelation'];
-    };
-    dynamicTwo: {
-      [key: string]: Id | {
-        test: string;
-      };
-    };
-  };
-  externalRelation: {
-    _id: Id;
-    name: string;
-    relations: (Id | DataModel['otherExternalRelation']);
-  };
-  otherExternalRelation: {
-    _id: Id;
-    type: string;
-  };
-}
 
 describe('services/Engine', () => {
   vi.mock('@perseid/core');
@@ -69,6 +32,7 @@ describe('services/Engine', () => {
   vi.setSystemTime(new Date('2023-01-01'));
 
   let engine: TestEngine;
+  const context = {} as CommandContext;
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
   const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
   const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionDataModel<DataModel>>);
@@ -85,6 +49,57 @@ describe('services/Engine', () => {
     queueLimit: 0,
     user: '',
   });
+  const dataModel: ArrayDataModel<DataModel> = {
+    type: 'array',
+    fields: {
+      type: 'dynamicObject',
+      fields: {
+        '^key$': {
+          type: 'object',
+          fields: {
+            subKeyOne: {
+              type: 'string',
+            },
+            subKeyTwo: {
+              type: 'id',
+              relation: 'test',
+            },
+          },
+        },
+        '^newKey$': {
+          type: 'string',
+        },
+      },
+    },
+  };
+  const arrayOne = [
+    {
+      key: {
+        subKeyOne: 'valueOne',
+        subKeyTwo: new Id('64723318e84f943f1ad6578b'),
+      },
+    },
+    {
+      key: {
+        subKeyOne: 'valueOne',
+        subKeyTwo: new Id('64723318e84f943f1ad6578c'),
+      },
+    },
+    {
+      key: {
+        subKeyOne: 'valueOne',
+        subKeyTwo: new Id('64723318e84f943f1ad6578d'),
+      },
+      newKey: 'otherValue',
+    },
+    {
+      key: {
+        subKeyOne: 'valueOne',
+        subKeyTwo: new Id('64723318e84f943f1ad6578f'),
+      },
+      newKey: 'otherValueThree',
+    },
+  ] as unknown as DataModel['test'];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -98,145 +113,134 @@ describe('services/Engine', () => {
     expect(engine.deepMerge(firstValue, secondValue, { type: 'integer' })).toEqual('3');
   });
 
-  test('[deepMerge] nested objects', async () => {
-    const dataModel: DynamicObjectDataModel<DataModel> = {
-      type: 'dynamicObject',
-      fields: {
-        '^key$': {
-          type: 'object',
-          fields: {
-            subKeyOne: {
-              type: 'string',
-            },
-            subKeyTwo: {
-              type: 'string',
-            },
-          },
+  test('[deepMerge] nested arrays', async () => {
+    const arrayTwo = [
+      null,
+      {
+        key: { subKeyTwo: new Id('64723318e84f943f1ad6578e') },
+        newKey: 'newOtherValue',
+      },
+      {
+        key: { subKeyTwo: new Id('64723318e84f943f1ad6578a') },
+        newKey: null,
+      },
+    ] as unknown as DataModel['test'];
+
+    const foreignIds = new Map();
+    expect(engine.deepMerge(arrayOne, arrayTwo, dataModel, foreignIds, ['path'])).toEqual([
+      {
+        key: {
+          subKeyOne: 'valueOne',
+          subKeyTwo: new Id('64723318e84f943f1ad6578e'),
         },
-        '^newKey$': {
-          type: 'string',
+        newKey: 'newOtherValue',
+      },
+      {
+        key: {
+          subKeyOne: 'valueOne',
+          subKeyTwo: new Id('64723318e84f943f1ad6578a'),
         },
       },
-    };
-
-    const objectOne = {
-      key: {
-        subKeyOne: 'valueOne',
-        subKeyTwo: 'valueTwo',
+      {
+        key: {
+          subKeyOne: 'valueOne',
+          subKeyTwo: new Id('64723318e84f943f1ad6578f'),
+        },
+        newKey: 'otherValueThree',
       },
-    } as unknown as DataModel['test'];
-
-    const objectTwo = {
-      key: { subKeyTwo: 'newValueTwo' },
-      newKey: 'otherValue',
-    } as unknown as DataModel['test'];
-
-    expect(engine.deepMerge(objectOne, objectTwo, dataModel)).toEqual({
-      key: {
-        subKeyOne: 'valueOne',
-        subKeyTwo: 'newValueTwo',
-      },
-      newKey: 'otherValue',
-    });
+    ]);
+    expect(foreignIds).toEqual(new Map([
+      [
+        'test',
+        { 'path.key.subKeyTwo': new Set(['64723318e84f943f1ad6578e', '64723318e84f943f1ad6578a']) },
+      ],
+    ]));
   });
 
-  test('[deepMerge] nested arrays', async () => {
-    const dataModel: ArrayDataModel<DataModel> = {
-      type: 'array',
-      fields: {
-        type: 'dynamicObject',
-        fields: {
-          '^key$': {
-            type: 'object',
-            fields: {
-              subKeyOne: {
-                type: 'string',
-              },
-              subKeyTwo: {
-                type: 'string',
-              },
-            },
-          },
-          '^newKey$': {
-            type: 'string',
-          },
-        },
-      },
-    };
-
-    const arrayOne = [
+  test('[deepMerge] no change', async () => {
+    const arrayTwo = [
       {
         key: {
           subKeyOne: 'valueOne',
-          subKeyTwo: 'valueTwo',
+          subKeyTwo: new Id('64723318e84f943f1ad6578b'),
         },
       },
       {
         key: {
           subKeyOne: 'valueOne',
-          subKeyTwo: 'valueTwo',
+          subKeyTwo: new Id('64723318e84f943f1ad6578c'),
         },
       },
       {
         key: {
           subKeyOne: 'valueOne',
-          subKeyTwo: 'valueTwo',
+          subKeyTwo: new Id('64723318e84f943f1ad6578d'),
         },
         newKey: 'otherValue',
       },
       {
         key: {
           subKeyOne: 'valueOne',
-          subKeyTwo: 'valueTwo',
+          subKeyTwo: new Id('64723318e84f943f1ad6578f'),
         },
         newKey: 'otherValueThree',
       },
     ] as unknown as DataModel['test'];
 
-    const arrayTwo = [
-      null,
-      {
-        key: { subKeyTwo: 'newValueTwo' },
-        newKey: 'newOtherValue',
-      },
-      {
-        newKey: null,
-      },
-    ] as unknown as DataModel['test'];
-
-    expect(engine.deepMerge(arrayOne, arrayTwo, dataModel)).toEqual([
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: 'newValueTwo',
+    const foreignIds = new Map();
+    expect(engine.deepMerge(arrayOne, arrayTwo, dataModel, foreignIds, ['path'])).toEqual({});
+    expect(foreignIds).toEqual(new Map([
+      [
+        'test',
+        {
+          'path.key.subKeyTwo': new Set([
+            '64723318e84f943f1ad6578b',
+            '64723318e84f943f1ad6578c',
+            '64723318e84f943f1ad6578d',
+            '64723318e84f943f1ad6578f',
+          ]),
         },
-        newKey: 'newOtherValue',
-      },
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: 'valueTwo',
-        },
-      },
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: 'valueTwo',
-        },
-        newKey: 'otherValueThree',
-      },
-    ]);
+      ],
+    ]));
   });
 
-  test('[generateAutomaticFields]', async () => {
-    const context = {} as CommandContext;
-    expect(engine.generateAutomaticFields({
-      version: 1,
-      enableAuthors: true,
-      enableDeletion: false,
-      enableTimestamps: true,
-      fields: {},
-    }, context, true)).toEqual({
+  test('[deepMerge] whole new payload', async () => {
+    const foreignIds = new Map();
+    expect(engine.deepMerge(null, arrayOne, dataModel, foreignIds, ['path'])).toEqual(arrayOne);
+    expect(foreignIds).toEqual(new Map([
+      [
+        'test',
+        {
+          'path.key.subKeyTwo': new Set([
+            '64723318e84f943f1ad6578b',
+            '64723318e84f943f1ad6578c',
+            '64723318e84f943f1ad6578d',
+            '64723318e84f943f1ad6578f',
+          ]),
+        },
+      ],
+    ]));
+  });
+
+  test('[checkForeignIds]', async () => {
+    const foreignIds = new Map([['test', { 'path.to.field': new Set(['64723318e84f943f1ad6578b']) }]]);
+    await engine.checkForeignIds('externalRelation', null, {}, foreignIds, context);
+    expect(databaseClient.checkForeignIds).toHaveBeenCalledTimes(1);
+    expect(databaseClient.checkForeignIds).toHaveBeenCalledWith(new Map([
+      ['test', [{ _id: [new Id('64723318e84f943f1ad6578b')] }]],
+    ]));
+  });
+
+  test('[createRelationFilters]', async () => {
+    const resource = { _id: new Id(), name: 'test', relations: [new Id()] };
+    expect(engine.createRelationFilters('externalRelation', '', [], resource, {}, context)).toEqual({
+      _id: [],
+    });
+  });
+
+  test('[withAutomaticFields]', async () => {
+    const newContext = { user: {} } as CommandContext;
+    expect(engine.withAutomaticFields('externalRelation', null, {}, newContext)).toEqual({
       _id: new Id(),
       _version: 1,
       _updatedAt: null,
@@ -247,36 +251,45 @@ describe('services/Engine', () => {
     });
   });
 
+  test('[checkAndUpdatePayload]', async () => {
+    const newPayload = await engine.checkAndUpdatePayload('test', null, {}, new Map(), context);
+    expect(newPayload).toEqual({ _id: new Id() });
+  });
+
   test('[create]', async () => {
-    const context = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as CommandContext;
-    await engine.create('otherExternalRelation', { type: 'test' }, {}, context);
+    const payload = { name: 'test', relations: [new Id('64723318e84f943f1ad6578b')] };
+    const newContext = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as CommandContext;
+    await engine.create('externalRelation', payload, {}, newContext);
     expect(databaseClient.create).toHaveBeenCalledTimes(1);
-    expect(databaseClient.create).toHaveBeenCalledWith('otherExternalRelation', {
+    expect(databaseClient.create).toHaveBeenCalledWith('externalRelation', {
       _id: new Id(),
+      _version: 1,
       _updatedAt: null,
       _updatedBy: null,
+      _isDeleted: false,
       _createdBy: new Id('64723318e84f943f1ad6578b'),
       _createdAt: new Date('2023-01-01T00:00:00.000Z'),
-      type: 'test',
+      name: 'test',
+      relations: [new Id('64723318e84f943f1ad6578b')],
     });
     expect(databaseClient.view).toHaveBeenCalledTimes(1);
-    expect(databaseClient.view).toHaveBeenCalledWith('otherExternalRelation', new Id(), {
+    expect(databaseClient.view).toHaveBeenCalledWith('externalRelation', new Id(), {
       fields: undefined,
     });
   });
 
   test('[update]', async () => {
     const id = new Id('64723318e84f943f1ad6578b');
-    const context = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as CommandContext;
-    await engine.update('otherExternalRelation', id, { type: 'test' }, {}, context);
+    const newContext = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as CommandContext;
+    await engine.update('externalRelation', id, { name: 'test' }, {}, newContext);
     expect(databaseClient.update).toHaveBeenCalledTimes(1);
-    expect(databaseClient.update).toHaveBeenCalledWith('otherExternalRelation', id, {
-      type: 'test',
+    expect(databaseClient.update).toHaveBeenCalledWith('externalRelation', id, {
+      name: 'test',
       _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
       _updatedBy: new Id('64723318e84f943f1ad6578b'),
     });
     expect(databaseClient.view).toHaveBeenCalledTimes(2);
-    expect(databaseClient.view).toHaveBeenCalledWith('otherExternalRelation', id, {});
+    expect(databaseClient.view).toHaveBeenCalledWith('externalRelation', id, {});
   });
 
   test('[view] no result', async () => {
@@ -308,19 +321,19 @@ describe('services/Engine', () => {
 
   test('[delete] no result', async () => {
     process.env.NO_RESULT = 'true';
-    const context = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as CommandContext;
+    const newContext = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as CommandContext;
     const id = new Id('64723318se84f943f1ad6578b');
     expect(async () => {
-      await engine.delete('otherExternalRelation', id, context);
+      await engine.delete('otherExternalRelation', id, newContext);
     }).rejects.toThrow(new EngineError('NO_RESOURCE'));
   });
 
   test('[delete] result', async () => {
     const id = new Id('64723318e84f943f1ad6578b');
-    const context = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as CommandContext;
-    await engine.delete('otherExternalRelation', id, context);
+    const newContext = { user: { _id: new Id('64723318e84f943f1ad6578b') } } as CommandContext;
+    await engine.delete('externalRelation', id, newContext);
     expect(databaseClient.delete).toHaveBeenCalledTimes(1);
-    expect(databaseClient.delete).toHaveBeenCalledWith('otherExternalRelation', id, {
+    expect(databaseClient.delete).toHaveBeenCalledWith('externalRelation', id, {
       _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
       _updatedBy: new Id('64723318e84f943f1ad6578b'),
     });

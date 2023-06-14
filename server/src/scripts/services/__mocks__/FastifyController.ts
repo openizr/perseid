@@ -11,4 +11,5 @@
  */
 
 export default class {
+  public createEndpoints = vi.fn();
 }

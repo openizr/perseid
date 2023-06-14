@@ -21,6 +21,8 @@ export default class {
 
   public checkFields = vi.fn();
 
+  public checkForeignIds = vi.fn();
+
   public view = vi.fn(() => ((process.env.NO_RESULT === 'true')
     ? null
     : ({ _id: new Id('64723318e84f943f1ad6578b') })));
@@ -38,7 +40,7 @@ export default class {
           {
             _id: new Id('64723318e84f943f1ad6578b'),
             _devices: [{
-              id: 'test',
+              id: '64723318e84f943f1ad6578c',
             }],
           },
         ],
@@ -50,7 +52,7 @@ export default class {
         {
           _id: new Id('64723318e84f943f1ad6578b'),
           _devices: [{
-            id: 'test',
+            id: '64723318e84f943f1ad6578c',
           }],
         },
       ],
