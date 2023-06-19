@@ -108,6 +108,7 @@ export default <Types<unknown>>{
         type: 'array',
         fields: {
           type: 'id',
+          index: true,
           relation: 'otherExternalRelation',
         },
       },

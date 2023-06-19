@@ -645,14 +645,15 @@ export default class DatabaseClient<
     }
 
     // Primitives...
+    const { type } = model;
     if (splittedPath.length === 1) {
-      if (checkIndexing && !(model as DateDataModel).unique && !(model as DateDataModel).index) {
+      const actualModel = ((type === 'array') ? model.fields : model) as DateDataModel;
+      if (checkIndexing && !actualModel.unique && !actualModel.index) {
         throw new DatabaseError('INVALID_INDEX', { path });
       }
       return Object.keys(projections).length === 0 ? 1 as unknown as Document : projections;
     }
 
-    const { type } = model;
     const field = splittedPath[1];
     const subPath = splittedPath.slice(1);
 

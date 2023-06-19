@@ -521,6 +521,7 @@ describe('services/DatabaseClient', () => {
       { key: { primitiveOne: 1 }, unique: true },
       { key: { 'arrayOne.dynamicObject.^testOne$': 1 } },
       { key: { arrayTwo: 1 } },
+      { key: { arrayThree: 1 } },
     ]);
   });
 
@@ -633,6 +634,7 @@ describe('services/DatabaseClient', () => {
         'arrayOne.object',
         'dynamicOne.testOne.relations',
       ],
+      indexed: ['arrayThree'],
     }, { type: 'object', fields: model.getCollection('test').fields }, 10)).toEqual({
       _id: 1,
       primitiveOne: 1,
@@ -650,6 +652,7 @@ describe('services/DatabaseClient', () => {
       arrayTwo: {
         _id: 1,
       },
+      arrayThree: 1,
       arrayFour: 1,
       dynamicOne: {
         testOne: {
@@ -1271,10 +1274,16 @@ describe('services/DatabaseClient', () => {
       await databaseClient.checkIntegrity();
     }).rejects.toThrow(new DatabaseError('FAILED_INTEGRITY_CHECKS'));
     expect(logger.info).toHaveBeenCalledWith({
-      users: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
+      users: { AUTOMATIC_FIELDS: [corruptedId, corruptedId], NO_RESOURCE: [corruptedId] },
       roles: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
       test: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
-      externalRelation: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
+      externalRelation: {
+        AUTOMATIC_FIELDS: [corruptedId],
+        NO_RESOURCE: [
+          corruptedId,
+          corruptedId,
+        ],
+      },
       otherExternalRelation: { AUTOMATIC_FIELDS: [corruptedId], NO_RESOURCE: [corruptedId] },
     });
   });
@@ -1296,7 +1305,7 @@ describe('services/DatabaseClient', () => {
       externalRelation: { AUTOMATIC_FIELDS: [], NO_RESOURCE: [] },
       otherExternalRelation: { AUTOMATIC_FIELDS: [], NO_RESOURCE: [] },
     });
-    expect(mongoClient.db().collection('users').aggregate).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().collection('users').aggregate).toHaveBeenCalledTimes(3);
     expect(mongoClient.db().collection('users').aggregate).toHaveBeenCalledWith([
       { $match: { $or: [] } },
       { $project: { _id: 1 } },
@@ -1328,38 +1337,53 @@ describe('services/DatabaseClient', () => {
     expect(mongoClient.db().collection('test').aggregate).toHaveBeenCalledWith([
       {
         $project: {
-          'arrayOne.dynamicObject.^testOne$': { $ifNull: ['$arrayOne.dynamicObject.^testOne$', []] },
-          'arrayOne.dynamicObject.^testTwo$': { $ifNull: ['$arrayOne.dynamicObject.^testTwo$', []] },
-          'arrayOne.dynamicObject.^special(.*)$': { $ifNull: ['$arrayOne.dynamicObject.^special(.*)$', []] },
+          'arrayOne__dynamicObject__^testOne$': { $ifNull: ['$arrayOne.dynamicObject.^testOne$', []] },
+          'arrayOne__dynamicObject__^testTwo$': { $ifNull: ['$arrayOne.dynamicObject.^testTwo$', []] },
+          'arrayOne__dynamicObject__^special(__*)$': { $ifNull: ['$arrayOne.dynamicObject.^special(.*)$', []] },
           arrayTwo: { $ifNull: ['$arrayTwo', []] },
-          'dynamicOne.^testOne$': { $ifNull: ['$dynamicOne.^testOne$', []] },
-          'dynamicOne.^special(.*)$': { $ifNull: ['$dynamicOne.^special(.*)$', []] },
-          'dynamicTwo.^testOne$': { $ifNull: ['$dynamicTwo.^testOne$', []] },
+          'dynamicOne__^testOne$': { $ifNull: ['$dynamicOne.^testOne$', []] },
+          'dynamicOne__^special(__*)$': { $ifNull: ['$dynamicOne.^special(.*)$', []] },
+          'dynamicTwo__^testOne$': { $ifNull: ['$dynamicTwo.^testOne$', []] },
           arrayThree: { $ifNull: ['$arrayThree', []] },
-          'dynamicOne.^testTwo$': { $ifNull: ['$dynamicOne.^testTwo$', []] },
+          'dynamicOne__^testTwo$': { $ifNull: ['$dynamicOne.^testTwo$', []] },
         },
       },
       {
         $project: {
-          'arrayOne.dynamicObject.^testOne$': {
+          'arrayOne__dynamicObject__^testOne$': {
             $cond: {
-              if: { $eq: [{ $type: '$arrayOne.dynamicObject.^testOne$' }, 'array'] },
-              then: '$arrayOne.dynamicObject.^testOne$',
-              else: ['$arrayOne.dynamicObject.^testOne$'],
+              if: {
+                $eq: [
+                  { $type: '$arrayOne__dynamicObject__^testOne$' },
+                  'array',
+                ],
+              },
+              then: '$arrayOne__dynamicObject__^testOne$',
+              else: ['$arrayOne__dynamicObject__^testOne$'],
             },
           },
-          'arrayOne.dynamicObject.^testTwo$': {
+          'arrayOne__dynamicObject__^testTwo$': {
             $cond: {
-              if: { $eq: [{ $type: '$arrayOne.dynamicObject.^testTwo$' }, 'array'] },
-              then: '$arrayOne.dynamicObject.^testTwo$',
-              else: ['$arrayOne.dynamicObject.^testTwo$'],
+              if: {
+                $eq: [
+                  { $type: '$arrayOne__dynamicObject__^testTwo$' },
+                  'array',
+                ],
+              },
+              then: '$arrayOne__dynamicObject__^testTwo$',
+              else: ['$arrayOne__dynamicObject__^testTwo$'],
             },
           },
-          'arrayOne.dynamicObject.^special(.*)$': {
+          'arrayOne__dynamicObject__^special(__*)$': {
             $cond: {
-              if: { $eq: [{ $type: '$arrayOne.dynamicObject.^special(.*)$' }, 'array'] },
-              then: '$arrayOne.dynamicObject.^special(.*)$',
-              else: ['$arrayOne.dynamicObject.^special(.*)$'],
+              if: {
+                $eq: [
+                  { $type: '$arrayOne__dynamicObject__^special(__*)$' },
+                  'array',
+                ],
+              },
+              then: '$arrayOne__dynamicObject__^special(__*)$',
+              else: ['$arrayOne__dynamicObject__^special(__*)$'],
             },
           },
           arrayTwo: {
@@ -1369,25 +1393,27 @@ describe('services/DatabaseClient', () => {
               else: ['$arrayTwo'],
             },
           },
-          'dynamicOne.^testOne$': {
+          'dynamicOne__^testOne$': {
             $cond: {
-              if: { $eq: [{ $type: '$dynamicOne.^testOne$' }, 'array'] },
-              then: '$dynamicOne.^testOne$',
-              else: ['$dynamicOne.^testOne$'],
+              if: { $eq: [{ $type: '$dynamicOne__^testOne$' }, 'array'] },
+              then: '$dynamicOne__^testOne$',
+              else: ['$dynamicOne__^testOne$'],
             },
           },
-          'dynamicOne.^special(.*)$': {
+          'dynamicOne__^special(__*)$': {
             $cond: {
-              if: { $eq: [{ $type: '$dynamicOne.^special(.*)$' }, 'array'] },
-              then: '$dynamicOne.^special(.*)$',
-              else: ['$dynamicOne.^special(.*)$'],
+              if: {
+                $eq: [{ $type: '$dynamicOne__^special(__*)$' }, 'array'],
+              },
+              then: '$dynamicOne__^special(__*)$',
+              else: ['$dynamicOne__^special(__*)$'],
             },
           },
-          'dynamicTwo.^testOne$': {
+          'dynamicTwo__^testOne$': {
             $cond: {
-              if: { $eq: [{ $type: '$dynamicTwo.^testOne$' }, 'array'] },
-              then: '$dynamicTwo.^testOne$',
-              else: ['$dynamicTwo.^testOne$'],
+              if: { $eq: [{ $type: '$dynamicTwo__^testOne$' }, 'array'] },
+              then: '$dynamicTwo__^testOne$',
+              else: ['$dynamicTwo__^testOne$'],
             },
           },
           arrayThree: {
@@ -1397,33 +1423,35 @@ describe('services/DatabaseClient', () => {
               else: ['$arrayThree'],
             },
           },
-          'dynamicOne.^testTwo$': {
+          'dynamicOne__^testTwo$': {
             $cond: {
-              if: { $eq: [{ $type: '$dynamicOne.^testTwo$' }, 'array'] },
-              then: '$dynamicOne.^testTwo$',
-              else: ['$dynamicOne.^testTwo$'],
+              if: { $eq: [{ $type: '$dynamicOne__^testTwo$' }, 'array'] },
+              then: '$dynamicOne__^testTwo$',
+              else: ['$dynamicOne__^testTwo$'],
             },
           },
         },
       },
       {
         $project: {
-          'arrayOne.dynamicObject.^testOne$': { $setUnion: ['$arrayOne.dynamicObject.^testOne$', []] },
-          'arrayOne.dynamicObject.^testTwo$': { $setUnion: ['$arrayOne.dynamicObject.^testTwo$', []] },
-          'arrayOne.dynamicObject.^special(.*)$': { $setUnion: ['$arrayOne.dynamicObject.^special(.*)$', []] },
+          'arrayOne__dynamicObject__^testOne$': { $setUnion: ['$arrayOne__dynamicObject__^testOne$', []] },
+          'arrayOne__dynamicObject__^testTwo$': { $setUnion: ['$arrayOne__dynamicObject__^testTwo$', []] },
+          'arrayOne__dynamicObject__^special(__*)$': {
+            $setUnion: ['$arrayOne__dynamicObject__^special(__*)$', []],
+          },
           arrayTwo: { $setUnion: ['$arrayTwo', []] },
-          'dynamicOne.^testOne$': { $setUnion: ['$dynamicOne.^testOne$', []] },
-          'dynamicOne.^special(.*)$': { $setUnion: ['$dynamicOne.^special(.*)$', []] },
-          'dynamicTwo.^testOne$': { $setUnion: ['$dynamicTwo.^testOne$', []] },
+          'dynamicOne__^testOne$': { $setUnion: ['$dynamicOne__^testOne$', []] },
+          'dynamicOne__^special(__*)$': { $setUnion: ['$dynamicOne__^special(__*)$', []] },
+          'dynamicTwo__^testOne$': { $setUnion: ['$dynamicTwo__^testOne$', []] },
           arrayThree: { $setUnion: ['$arrayThree', []] },
-          'dynamicOne.^testTwo$': { $setUnion: ['$dynamicOne.^testTwo$', []] },
+          'dynamicOne__^testTwo$': { $setUnion: ['$dynamicOne__^testTwo$', []] },
         },
       },
       {
         $lookup: {
           from: 'externalRelation',
-          as: '__arrayOne.dynamicObject.^testOne$',
-          localField: 'arrayOne.dynamicObject.^testOne$',
+          as: '__arrayOne__dynamicObject__^testOne$',
+          localField: 'arrayOne__dynamicObject__^testOne$',
           foreignField: '_id',
           pipeline: [{ $project: { _id: 1 } }],
         },
@@ -1431,8 +1459,8 @@ describe('services/DatabaseClient', () => {
       {
         $lookup: {
           from: 'externalRelation',
-          as: '__arrayOne.dynamicObject.^testTwo$',
-          localField: 'arrayOne.dynamicObject.^testTwo$',
+          as: '__arrayOne__dynamicObject__^testTwo$',
+          localField: 'arrayOne__dynamicObject__^testTwo$',
           foreignField: '_id',
           pipeline: [{ $project: { _id: 1 } }],
         },
@@ -1440,8 +1468,8 @@ describe('services/DatabaseClient', () => {
       {
         $lookup: {
           from: 'externalRelation',
-          as: '__arrayOne.dynamicObject.^special(.*)$',
-          localField: 'arrayOne.dynamicObject.^special(.*)$',
+          as: '__arrayOne__dynamicObject__^special(__*)$',
+          localField: 'arrayOne__dynamicObject__^special(__*)$',
           foreignField: '_id',
           pipeline: [{ $project: { _id: 1 } }],
         },
@@ -1458,8 +1486,8 @@ describe('services/DatabaseClient', () => {
       {
         $lookup: {
           from: 'externalRelation',
-          as: '__dynamicOne.^testOne$',
-          localField: 'dynamicOne.^testOne$',
+          as: '__dynamicOne__^testOne$',
+          localField: 'dynamicOne__^testOne$',
           foreignField: '_id',
           pipeline: [{ $project: { _id: 1 } }],
         },
@@ -1467,8 +1495,8 @@ describe('services/DatabaseClient', () => {
       {
         $lookup: {
           from: 'externalRelation',
-          as: '__dynamicOne.^special(.*)$',
-          localField: 'dynamicOne.^special(.*)$',
+          as: '__dynamicOne__^special(__*)$',
+          localField: 'dynamicOne__^special(__*)$',
           foreignField: '_id',
           pipeline: [{ $project: { _id: 1 } }],
         },
@@ -1476,8 +1504,8 @@ describe('services/DatabaseClient', () => {
       {
         $lookup: {
           from: 'externalRelation',
-          as: '__dynamicTwo.^testOne$',
-          localField: 'dynamicTwo.^testOne$',
+          as: '__dynamicTwo__^testOne$',
+          localField: 'dynamicTwo__^testOne$',
           foreignField: '_id',
           pipeline: [{ $project: { _id: 1 } }],
         },
@@ -1494,8 +1522,8 @@ describe('services/DatabaseClient', () => {
       {
         $lookup: {
           from: 'otherExternalRelation',
-          as: '__dynamicOne.^testTwo$',
-          localField: 'dynamicOne.^testTwo$',
+          as: '__dynamicOne__^testTwo$',
+          localField: 'dynamicOne__^testTwo$',
           foreignField: '_id',
           pipeline: [{ $project: { _id: 1 } }],
         },
@@ -1506,24 +1534,24 @@ describe('services/DatabaseClient', () => {
             {
               $expr: {
                 $ne: [
-                  { $size: '$__arrayOne.dynamicObject.^testOne$' },
-                  { $size: '$arrayOne.dynamicObject.^testOne$' },
+                  { $size: '$__arrayOne__dynamicObject__^testOne$' },
+                  { $size: '$arrayOne__dynamicObject__^testOne$' },
                 ],
               },
             },
             {
               $expr: {
                 $ne: [
-                  { $size: '$__arrayOne.dynamicObject.^testTwo$' },
-                  { $size: '$arrayOne.dynamicObject.^testTwo$' },
+                  { $size: '$__arrayOne__dynamicObject__^testTwo$' },
+                  { $size: '$arrayOne__dynamicObject__^testTwo$' },
                 ],
               },
             },
             {
               $expr: {
                 $ne: [
-                  { $size: '$__arrayOne.dynamicObject.^special(.*)$' },
-                  { $size: '$arrayOne.dynamicObject.^special(.*)$' },
+                  { $size: '$__arrayOne__dynamicObject__^special(__*)$' },
+                  { $size: '$arrayOne__dynamicObject__^special(__*)$' },
                 ],
               },
             },
@@ -1535,24 +1563,24 @@ describe('services/DatabaseClient', () => {
             {
               $expr: {
                 $ne: [
-                  { $size: '$__dynamicOne.^testOne$' },
-                  { $size: '$dynamicOne.^testOne$' },
+                  { $size: '$__dynamicOne__^testOne$' },
+                  { $size: '$dynamicOne__^testOne$' },
                 ],
               },
             },
             {
               $expr: {
                 $ne: [
-                  { $size: '$__dynamicOne.^special(.*)$' },
-                  { $size: '$dynamicOne.^special(.*)$' },
+                  { $size: '$__dynamicOne__^special(__*)$' },
+                  { $size: '$dynamicOne__^special(__*)$' },
                 ],
               },
             },
             {
               $expr: {
                 $ne: [
-                  { $size: '$__dynamicTwo.^testOne$' },
-                  { $size: '$dynamicTwo.^testOne$' },
+                  { $size: '$__dynamicTwo__^testOne$' },
+                  { $size: '$dynamicTwo__^testOne$' },
                 ],
               },
             },
@@ -1567,8 +1595,8 @@ describe('services/DatabaseClient', () => {
             {
               $expr: {
                 $ne: [
-                  { $size: '$__dynamicOne.^testTwo$' },
-                  { $size: '$dynamicOne.^testTwo$' },
+                  { $size: '$__dynamicOne__^testTwo$' },
+                  { $size: '$dynamicOne__^testTwo$' },
                 ],
               },
             },
@@ -1577,7 +1605,7 @@ describe('services/DatabaseClient', () => {
       },
       { $project: { _id: 1 } },
     ]);
-    expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledTimes(2);
+    expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledTimes(3);
     expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledWith([
       {
         $match: {
@@ -1586,7 +1614,7 @@ describe('services/DatabaseClient', () => {
             {
               $or: [
                 { _createdAt: { $lt: new Date('2021-01-01') } },
-                { _createdAt: { $gte: 1672531200000 } },
+                { _createdAt: { $gte: new Date('2023-01-01T00:00:00.000Z') } },
               ],
             },
             {
@@ -1594,7 +1622,7 @@ describe('services/DatabaseClient', () => {
                 { _updatedAt: { $ne: null } },
                 {
                   $or: [
-                    { _updatedAt: { $gte: 1672531200000 } },
+                    { _updatedAt: { $gte: new Date('2023-01-01T00:00:00.000Z') } },
                     {
                       $expr: { $lte: ['$_updatedAt', '$_createdAt'] },
                     },
@@ -1610,7 +1638,9 @@ describe('services/DatabaseClient', () => {
       { $project: { _id: 1 } },
     ]);
     expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledWith([
-      { $project: { relations: { $ifNull: ['$relations', []] } } },
+      {
+        $project: { relations: { $ifNull: ['$relations', []] } },
+      },
       {
         $project: {
           relations: {
@@ -1622,7 +1652,9 @@ describe('services/DatabaseClient', () => {
           },
         },
       },
-      { $project: { relations: { $setUnion: ['$relations', []] } } },
+      {
+        $project: { relations: { $setUnion: ['$relations', []] } },
+      },
       {
         $lookup: {
           from: 'otherExternalRelation',
@@ -1632,7 +1664,17 @@ describe('services/DatabaseClient', () => {
           pipeline: [{ $project: { _id: 1 } }],
         },
       },
-      { $match: { $or: [{ $expr: { $ne: [{ $size: '$__relations' }, { $size: '$relations' }] } }] } },
+      {
+        $match: {
+          $or: [
+            {
+              $expr: {
+                $ne: [{ $size: '$__relations' }, { $size: '$relations' }],
+              },
+            },
+          ],
+        },
+      },
       { $project: { _id: 1 } },
     ]);
     expect(mongoClient.db().collection('otherExternalRelation').aggregate).toHaveBeenCalledTimes(2);
