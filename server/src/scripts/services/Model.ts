@@ -30,6 +30,30 @@ export default class Model<
 
   /** Default data model schema. */
   public static readonly DEFAULT_MODEL: DataModel<DefaultTypes> = {
+    // TODO create a specific 'point' type and proper index type in @perseid.
+    // _location: {
+    //   type: 'object',
+    //   required: true,
+    //   fields: {
+    //     type: {
+    //       type: 'string',
+    //       enum: ['Point'],
+    //       required: true,
+    //     },
+    //     coordinates: {
+    //       type: 'array',
+    //       required: true,
+    //       maxItems: 2,
+    //       minItems: 2,
+    //       fields: {
+    //         type: 'float',
+    //         maximum: 90,
+    //         minimum: -90,
+    //         required: true,
+    //       },
+    //     },
+    //   },
+    // },
     users: {
       version: 1,
       enableAuthors: true,

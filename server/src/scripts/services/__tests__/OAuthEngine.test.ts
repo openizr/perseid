@@ -82,6 +82,20 @@ describe('services/OAuthEngine', () => {
     });
   });
 
+  test('[checkAndUpdatePayload] users collection, user in context', async () => {
+    const payload = { password: 'test' } as unknown as DataModel['users'];
+    const newContext = { ...context, user: { _verifiedAt: new Date('2023-01-01') } } as CommandContext;
+    const newPayload = await engine.checkAndUpdatePayload('users', null, payload, new Map(), newContext);
+    expect(newPayload).toEqual({
+      _apiKeys: [],
+      _devices: [],
+      _verifiedAt: new Date('2023-01-01'),
+      _updatedAt: new Date('2023-01-01'),
+      roles: [],
+      password: 'HASHED_TEXT_test',
+    });
+  });
+
   test('[checkAndUpdatePayload] other collection', async () => {
     const payload = {} as unknown as DataModel['roles'];
     const newPayload = await engine.checkAndUpdatePayload('roles', null, payload, new Map(), context);

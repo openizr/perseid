@@ -414,6 +414,8 @@ describe('services/DatabaseClient', () => {
         },
       },
     });
+    // Just to make sure schemas enumerations are not directly mutated by formatters.
+    databaseClient.createSchema({ type: 'object', fields: model.getCollection('test2').fields });
     expect(databaseClient.createSchema({
       type: 'object',
       fields: model.getCollection('test2').fields,
@@ -1149,6 +1151,10 @@ describe('services/DatabaseClient', () => {
 
   test('[resetCollection]', async () => {
     await databaseClient.resetCollection('externalRelation');
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      '[DatabaseClient][resetCollection] Resetting collection externalRelation...',
+    );
     expect(mongoClient.db().dropCollection).toHaveBeenCalledTimes(1);
     expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('externalRelation');
     expect(mongoClient.db().createCollection).toHaveBeenCalledTimes(1);
@@ -1178,6 +1184,10 @@ describe('services/DatabaseClient', () => {
 
   test('[updateCollection] collection exists', async () => {
     await databaseClient.updateCollection('externalRelation');
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      '[DatabaseClient][updateCollection] Updating collection externalRelation...',
+    );
     expect(mongoClient.startSession).toHaveBeenCalledTimes(1);
     expect(mongoClient.db().command).toHaveBeenCalledTimes(1);
     expect(mongoClient.db().command).toHaveBeenCalledWith({
@@ -1221,10 +1231,15 @@ describe('services/DatabaseClient', () => {
 
   test('[reset]', async () => {
     await databaseClient.reset();
-    expect(logger.info).toHaveBeenCalledTimes(3);
+    expect(logger.info).toHaveBeenCalledTimes(8);
     expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Dropping database...');
     expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Re-creating database...');
     expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][reset] Initializing collections...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][resetCollection] Resetting collection users...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][resetCollection] Resetting collection roles...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][resetCollection] Resetting collection test...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][resetCollection] Resetting collection externalRelation...');
+    expect(logger.info).toHaveBeenCalledWith('[DatabaseClient][resetCollection] Resetting collection otherExternalRelation...');
     expect(mongoClient.db().dropCollection).toHaveBeenCalledTimes(5);
     expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('users');
     expect(mongoClient.db().dropCollection).toHaveBeenCalledWith('roles');
@@ -1251,7 +1266,7 @@ describe('services/DatabaseClient', () => {
   test('[checkIntegrity] integrity checks fail', async () => {
     process.env.INTEGRITY_MODE = 'true';
     process.env.INTEGRITY_CHECKS_FAIL = 'true';
-    const corruptedId = new ObjectId('64723318e84f943f1ad6578b');
+    const corruptedId = new Id('64723318e84f943f1ad6578b');
     await expect(async () => {
       await databaseClient.checkIntegrity();
     }).rejects.toThrow(new DatabaseError('FAILED_INTEGRITY_CHECKS'));

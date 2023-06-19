@@ -1401,9 +1401,18 @@ export class DatabaseClient<
    */
   public reset(): Promise<void>;
 
+  /**
+   * Performs integrity checks on `collection` if specified, or on the whole database.
+   *
+   * @param collection Name of the collection on which to perform the integrity checks.
+   *
+   * @returns List of found integrity errors, per collection.
+   *
+   * @throws If integrity checks failed.
+   */
   public checkIntegrity(
     collection?: keyof Types,
-  ): Promise<Record<string, Record<string, ObjectId[]>>>;
+  ): Promise<Record<string, Record<string, Id[]>>>;
 }
 
 /**
@@ -1547,6 +1556,9 @@ export class Engine<
 
   /** Database client. */
   protected databaseClient: DatabaseClient;
+
+  /** Default update payload, used as a fallback when there is no change to perform on resource. */
+  protected defaultPayload: Partial<Payload<unknown>>;
 
   /**
    * Performs a deep (recursive) merge of `resource` and `payload`. Rules are the following:
@@ -1798,6 +1810,19 @@ export class Engine<
    * Resets the whole system, including database.
    */
   public reset(...args: unknown[]): Promise<void>;
+
+  /**
+   * Performs integrity checks on `collection` if specified, or on the whole database.
+   *
+   * @param collection Name of the collection on which to perform the integrity checks.
+   *
+   * @returns List of found integrity errors, per collection.
+   *
+   * @throws If integrity checks failed.
+   */
+  public checkIntegrity(
+    collection?: keyof Types,
+  ): Promise<Record<string, Record<string, Id[]>>>;
 }
 
 /**

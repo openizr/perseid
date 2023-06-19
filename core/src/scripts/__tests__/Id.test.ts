@@ -15,25 +15,33 @@ describe('scripts/Id', () => {
     (global as unknown as { window: undefined; }).window = undefined;
   });
 
-  test('correctly generates a new id - node environment', async () => {
+  test('[constructor] node environment, new id', async () => {
     expect(/[a-f0-9]{24}/.test(new Id().toString())).toBeTruthy();
   });
 
-  test('correctly takes an existing id - node environment', async () => {
+  test('[constructor] node environment, existing id', async () => {
     expect(new Id('645394d3894e3d9b43dc8825').toString()).toBe('645394d3894e3d9b43dc8825');
   });
 
-  test('correctly generates a new id - browser environment', async () => {
+  test('[constructor] browser environment, new id', async () => {
     (global as unknown as { window: { crypto: { getRandomValues: () => string; }; }; }).window = {
       crypto: { getRandomValues: (): string => '6452250df80ff56b436bb919' },
     };
     expect(/^[a-f0-9]{24}$/.test(new Id().toString())).toBeTruthy();
   });
 
-  test('correctly takes an existing id - browser environment', async () => {
+  test('[constructor] browser environment, existing id', async () => {
     (global as unknown as { window: { crypto: { getRandomValues: () => string; }; }; }).window = {
       crypto: { getRandomValues: (): string => '6452250df80ff56b436bb919' },
     };
     expect(new Id('645394d3894e3d9b43dc8825').toString()).toBe('645394d3894e3d9b43dc8825');
+  });
+
+  test('[valueOf]', async () => {
+    expect(new Id('645394d3894e3d9b43dc8825').valueOf()).toBe('645394d3894e3d9b43dc8825');
+  });
+
+  test('[toJSON]', async () => {
+    expect(new Id('645394d3894e3d9b43dc8825').toJSON()).toBe('645394d3894e3d9b43dc8825');
   });
 });

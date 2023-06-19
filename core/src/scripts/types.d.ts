@@ -57,7 +57,7 @@ export interface Role extends Ids, Version, Timestamps, Authors {
 }
 
 /** User. */
-export interface User extends Ids, Version, Timestamps, Authors {
+export interface User extends Ids, Version, Timestamps, Authors, Deletion {
   /** User verification date. */
   _verifiedAt: Date | null;
 
@@ -164,6 +164,20 @@ export class Id {
    * @returns Id string representation.
    */
   public toString(): string;
+
+  /**
+   * Returns id value representation.
+   *
+   * @returns Id value representation.
+   */
+  public valueOf(): string;
+
+  /**
+   * Returns id JSON representation.
+   *
+   * @returns Id JSON representation.
+   */
+  public toJSON(): string;
 }
 
 /**

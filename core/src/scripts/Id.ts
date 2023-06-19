@@ -125,4 +125,22 @@ export default class Id {
   public toString(): string {
     return this.id;
   }
+
+  /**
+   * Returns id value representation.
+   *
+   * @returns Id value representation.
+   */
+  public valueOf(): string {
+    return this.id;
+  }
+
+  /**
+   * Returns id JSON representation.
+   *
+   * @returns Id JSON representation.
+   */
+  public toJSON(): string {
+    return this.id;
+  }
 }

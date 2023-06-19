@@ -165,7 +165,7 @@ export default class OAuthEngine<
       if (resource === null) {
         userPayload._apiKeys = [];
         userPayload._devices = [];
-        userPayload._verifiedAt = null;
+        userPayload._verifiedAt = (context.user !== undefined) ? new Date() : null;
       }
       // When credentials are passed in context, it means that we must either revoke or update them.
       if (credentials !== undefined) {

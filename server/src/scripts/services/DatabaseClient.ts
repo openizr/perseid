@@ -190,7 +190,7 @@ export default class DatabaseClient<
         formattedField.multipleOf = multipleOf;
       }
       if (enumerations !== undefined) {
-        formattedField.enum = enumerations;
+        formattedField.enum = [...enumerations];
       }
       if (!model.required) {
         formattedField.enum?.push(null);
@@ -226,7 +226,7 @@ export default class DatabaseClient<
         formattedField.multipleOf = multipleOf;
       }
       if (enumerations !== undefined) {
-        formattedField.enum = enumerations;
+        formattedField.enum = [...enumerations];
       }
       if (!model.required) {
         formattedField.enum?.push(null);
@@ -1497,6 +1497,7 @@ export default class DatabaseClient<
   public async resetCollection<Collection extends keyof Types>(
     collection: Collection,
   ): Promise<void> {
+    this.logger.info(`[DatabaseClient][resetCollection] Resetting collection ${collection as string}...`);
     const { fields } = this.model.getCollection(collection);
     await this.handleError(async () => {
       const collectionExists = (await this.database
@@ -1523,13 +1524,14 @@ export default class DatabaseClient<
     collection: Collection,
     migration = defaultMigration,
   ): Promise<void> {
+    this.logger.info(`[DatabaseClient][updateCollection] Updating collection ${collection as string}...`);
     const { fields } = this.model.getCollection(collection);
     await this.handleError(async () => {
       const session = await this.client.startSession();
       const collectionIndexedFields = this.getCollectionIndexedFields({ type: 'object', fields });
       await this.database.command({
-        validationLevel: 'strict',
         collMod: collection as string,
+        validationLevel: 'strict', // Order matters here!
         validator: this.createSchema({ type: 'object', fields }),
       }, { session });
       await this.database.collection(collection as string).dropIndexes({ session });
@@ -1583,11 +1585,20 @@ export default class DatabaseClient<
     });
   }
 
+  /**
+   * Performs integrity checks on `collection` if specified, or on the whole database.
+   *
+   * @param collection Name of the collection on which to perform the integrity checks.
+   *
+   * @returns List of found integrity errors, per collection.
+   *
+   * @throws If integrity checks failed.
+   */
   public async checkIntegrity(
     collection?: keyof Types,
-  ): Promise<Record<string, Record<string, ObjectId[]>>> {
+  ): Promise<Record<string, Record<string, Id[]>>> {
     if (collection === undefined) {
-      const results: Record<string, Record<string, ObjectId[]>> = {};
+      const results: Record<string, Record<string, Id[]>> = {};
       await forEach(this.model.getCollections(), async (currentCollection) => {
         const collectionErrors = await this.checkIntegrity(currentCollection);
         results[currentCollection as string] = collectionErrors[currentCollection as string];
@@ -1611,26 +1622,23 @@ export default class DatabaseClient<
     this.logger.info(
       `[DatabaseClient][checkIntegrity] Checking integrity for collection ${collection as string}...`,
     );
-    const now = Date.now();
+    const now = new Date();
     const conditions: Document[] = [];
     const originOfTimes = new Date('2021-01-01');
-    const errors: Record<string, ObjectId[]> = {};
+    const errors: Record<string, Id[]> = {};
     const collectionModel = this.model.getCollection(collection);
 
     // Checking automatic fields...
     if (collectionModel.enableDeletion === false && collectionModel.enableTimestamps) {
-      conditions.push({
-        _isDeleted: true,
-        _updatedAt: null,
-      });
+      // Incorrect deletion.
+      conditions.push({ _isDeleted: true, _updatedAt: null });
     }
     if (collectionModel.enableTimestamps) {
+      // _createdAt not in time range.
       conditions.push({
-        $or: [
-          { _createdAt: { $lt: originOfTimes } },
-          { _createdAt: { $gte: now } },
-        ],
+        $or: [{ _createdAt: { $lt: originOfTimes } }, { _createdAt: { $gte: now } }],
       });
+      // _updatedAt not in time range.
       conditions.push({
         $and: [
           { _updatedAt: { $ne: null } },
@@ -1644,24 +1652,62 @@ export default class DatabaseClient<
       });
     }
     if (collectionModel.enableAuthors && collectionModel.enableTimestamps) {
-      conditions.push({
-        _updatedAt: { $eq: null },
-        _updatedBy: { $ne: null },
-      });
-      conditions.push({
-        _updatedBy: { $eq: null },
-        _updatedAt: { $ne: null },
-      });
+      // Either one of _updatedAt / _updatedBy is null and not the other one.
+      conditions.push({ _updatedAt: { $eq: null }, _updatedBy: { $ne: null } });
+      conditions.push({ _updatedBy: { $eq: null }, _updatedAt: { $ne: null } });
     }
+
     this.logger.debug('[DatabaseClient][checkIntegrity] Calling MongoDB aggregate with pipeline:');
-    this.logger.debug([
-      { $match: { $or: conditions } },
-      { $project: { _id: 1 } },
-    ]);
+    this.logger.debug([{ $match: { $or: conditions } }, { $project: { _id: 1 } }]);
+
     errors.AUTOMATIC_FIELDS = (await this.database.collection(collection as string).aggregate([
       { $match: { $or: conditions } },
       { $project: { _id: 1 } },
-    ]).toArray()).map((document) => document._id);
+    ]).toArray()).map((document) => new Id(`${document._id}`));
+
+    errors.NO_RESOURCE = [];
+
+    // Checking foreign keys...
+    if (collectionModel.enableAuthors) {
+      errors.NO_RESOURCE.push(...(await this.database.collection(collection as string).aggregate([
+        {
+          $lookup: {
+            from: 'users',
+            as: '__createdBy',
+            localField: '_createdBy',
+            foreignField: '_id',
+            let: { createdAt: '$_createdAt' },
+            pipeline: [{
+              $match: {
+                $or: [
+                  { _createdAt: { $exists: false } },
+                  { _createdAt: { $exists: true }, $expr: { $lt: ['$_createdAt', '$$createdAt'] } },
+                ],
+              },
+            }],
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            as: '__updatedBy',
+            localField: '_updatedBy',
+            foreignField: '_id',
+          },
+        },
+        {
+          $match: {
+            $or: [
+              // Missing users relation.
+              { _updatedBy: { $ne: null }, '__updatedBy._id': { $exists: false } },
+              // Missing users relation.
+              { _createdBy: { $ne: null }, '__createdBy._id': { $exists: false } },
+            ],
+          },
+        },
+        { $project: { _id: 1 } },
+      ]).toArray()).map((document) => new Id(`${document._id}`)));
+    }
 
     // Checking foreign keys...
     const collectionRelations = this.relationsPerCollection[collection];
@@ -1670,22 +1716,24 @@ export default class DatabaseClient<
     const transformations: Document[] = [{}, {}, {}];
     [...collectionRelations.keys()].forEach((relation) => {
       (collectionRelations.get(relation) as string[]).forEach((path) => {
-        transformations[0][path] = { $ifNull: [`$${path}`, []] };
-        transformations[1][path] = {
+        // We need to flatten paths to prevent MongoDB memory overflow errors.
+        const flattenPath = path.replace(/\./g, '__');
+        transformations[0][flattenPath] = { $ifNull: [`$${path}`, []] };
+        transformations[1][flattenPath] = {
           $cond: {
-            if: { $eq: [{ $type: `$${path}` }, 'array'] },
-            then: `$${path}`,
-            else: [`$${path}`],
+            if: { $eq: [{ $type: `$${flattenPath}` }, 'array'] },
+            then: `$${flattenPath}`,
+            else: [`$${flattenPath}`],
           },
         };
-        transformations[2][path] = {
-          $setUnion: [`$${path}`, []],
+        transformations[2][flattenPath] = {
+          $setUnion: [`$${flattenPath}`, []],
         };
         missingRelations.push({
           $expr: {
             $ne: [
-              { $size: `$__${path}` },
-              { $size: `$${path}` },
+              { $size: `$__${flattenPath}` },
+              { $size: `$${flattenPath}` },
             ],
           },
         });
@@ -1696,11 +1744,12 @@ export default class DatabaseClient<
     relationsPipeline.push({ $project: transformations[2] });
     [...collectionRelations.keys()].forEach((relation) => {
       (collectionRelations.get(relation) as string[]).forEach((path) => {
+        const flattenPath = path.replace(/\./g, '__');
         relationsPipeline.push({
           $lookup: {
             from: relation,
-            as: `__${path}`,
-            localField: path,
+            as: `__${flattenPath}`,
+            localField: flattenPath,
             foreignField: '_id',
             pipeline: [{ $project: { _id: 1 } }],
           },
@@ -1715,10 +1764,30 @@ export default class DatabaseClient<
       ...relationsPipeline,
       { $project: { _id: 1 } },
     ]);
-    errors.NO_RESOURCE = (await this.database.collection(collection as string).aggregate([
+
+    errors.NO_RESOURCE.push(...(await this.database.collection(collection as string).aggregate([
       ...relationsPipeline,
       { $project: { _id: 1 } },
-    ]).toArray()).map((document) => document._id);
+    ]).toArray()).map((document) => new Id(`${document._id}`)));
+
+    if (collection === 'users') {
+      errors.AUTOMATIC_FIELDS.push(...(await this.database.collection('users').aggregate([
+        {
+          $match: {
+            $and: [
+              { _verifiedAt: { $ne: null } },
+              {
+                $or: [
+                  { _verifiedAt: { $gte: now } },
+                  { $expr: { $lt: ['$_verifiedAt', '$_createdAt'] } },
+                ],
+              },
+            ],
+          },
+        },
+        { $project: { _id: 1 } },
+      ]).toArray()).map((document) => new Id(`${document._id}`)));
+    }
 
     return { [collection]: errors };
   }

@@ -16,10 +16,9 @@ import {
 } from '@perseid/core';
 import Logger from 'scripts/services/Logger';
 import EngineError from 'scripts/errors/Engine';
+import DatabaseError from 'scripts/errors/Database';
 import type BaseModel from 'scripts/services/Model';
 import type BaseDatabaseClient from 'scripts/services/DatabaseClient';
-
-const defaultPayload = {};
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
@@ -42,6 +41,9 @@ export default class Engine<
 
   /** Database client. */
   protected databaseClient: DatabaseClient;
+
+  /** Default update payload, used as a fallback when there is no change to perform on resource. */
+  protected defaultPayload: Partial<Payload<unknown>> = {};
 
   /**
    * Performs a deep (recursive) merge of `resource` and `payload`. Rules are the following:
@@ -85,7 +87,7 @@ export default class Engine<
         relationIds[finalPath].add(`${payload}`);
         foreignIds.set(relation as string, relationIds);
       }
-      return (`${resource}` !== `${payload}`) ? payload : defaultPayload;
+      return (`${resource}` !== `${payload}`) ? payload : this.defaultPayload;
     }
 
     // Arrays...
@@ -103,7 +105,7 @@ export default class Engine<
             foreignIds,
             path,
           );
-          if (mergedValue !== defaultPayload) {
+          if (mergedValue !== this.defaultPayload) {
             newArray.push(mergedValue);
           }
         }
@@ -113,7 +115,7 @@ export default class Engine<
       }
       return (newArray.length > 0)
         ? newArray as unknown as UpdatePayload<Types[Collection]>
-        : defaultPayload;
+        : this.defaultPayload;
     }
 
     // (dynamic) Objects...
@@ -136,7 +138,7 @@ export default class Engine<
             foreignIds,
             path.concat([key as string]),
           ) as Types[Collection][keyof Payload<Types[Collection]>];
-          if (mergedValue !== defaultPayload) {
+          if (mergedValue !== this.defaultPayload) {
             newDynamicObject[key] = mergedValue;
           } else {
             ignoreKeys.add(key);
@@ -153,11 +155,11 @@ export default class Engine<
           }
         }
       }
-      return (Object.keys(newDynamicObject).length > 0) ? newDynamicObject : defaultPayload;
+      return (Object.keys(newDynamicObject).length > 0) ? newDynamicObject : this.defaultPayload;
     }
 
     // Primitive value...
-    return (`${resource}` !== `${payload}`) ? payload : defaultPayload;
+    return (`${resource}` !== `${payload}`) ? payload : this.defaultPayload;
   }
 
   /**
@@ -386,7 +388,7 @@ export default class Engine<
     const resource = await this.view(collection, id, { fields: Object.keys(fields) });
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
     const newPayload = this.deepMerge(resource, payload, { type: 'object', fields }, foreignIds);
-    if (newPayload !== defaultPayload) {
+    if (newPayload !== this.defaultPayload) {
       const fullPayload = await this.checkAndUpdatePayload(
         collection,
         resource,
@@ -481,7 +483,9 @@ export default class Engine<
     const payload = await this.checkAndUpdatePayload(collection, resource, {}, new Map(), context);
 
     if (!await this.databaseClient.delete(collection, id, payload)) {
-      throw new EngineError('NO_RESOURCE', { id });
+      // We use `DatabaseError` here as we want to get the same special message as for
+      // missing foreign relations.
+      throw new DatabaseError('NO_RESOURCE', { id });
     }
   }
 
