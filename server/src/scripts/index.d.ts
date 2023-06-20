@@ -111,7 +111,9 @@ declare global {
   /**
    * Resource update payload.
    */
-  export type UpdatePayload<T> = Partial<Payload<T>>;
+  export type UpdatePayload<T> = {
+    [K in keyof T]?: UpdatePayload<T[K]>;
+  };
 
   /**
    * Common properties for all data model fields.

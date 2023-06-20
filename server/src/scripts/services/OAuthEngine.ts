@@ -129,24 +129,15 @@ export default class OAuthEngine<
    *
    * @param payload Payload to validate and update.
    *
-   * @param foreignIds Foreign ids to check, generated from `deepMerge`.
-   *
    * @param context Command context.
    */
   protected async checkAndUpdatePayload<Collection extends keyof Types>(
     collection: Collection,
     resource: Types[Collection] | null,
     payload: UpdatePayload<Types[Collection]>,
-    foreignIds: Map<string, Record<string, Set<string>>>,
     context: CommandContext,
   ): Promise<Partial<Types[Collection]>> {
-    const newPayload = await super.checkAndUpdatePayload(
-      collection,
-      resource,
-      payload,
-      foreignIds,
-      context,
-    );
+    const newPayload = await super.checkAndUpdatePayload(collection, resource, payload, context);
 
     if (collection === 'users') {
       const { credentials } = context as CommandContext & { credentials: Credentials | null };
@@ -314,7 +305,7 @@ export default class OAuthEngine<
     const credentials = this.generateCredentials(newId);
     const fullContext = { ...context, credentials };
     const payload = { email, password } as UpdatePayload<Types['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', null, payload, new Map(), fullContext);
+    const fullPayload = await this.checkAndUpdatePayload('users', null, payload, fullContext);
     await this.databaseClient.create('users', { ...fullPayload as Types['users'], _id: newId });
 
     const newVerificationToken = randomBytes(12).toString('hex');
@@ -364,7 +355,7 @@ export default class OAuthEngine<
     const credentials = this.generateCredentials(user._id, deviceId);
     const fullContext = { ...context, user, credentials };
     const payload = {} as UpdatePayload<Types['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, new Map(), fullContext);
+    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, fullContext);
     await this.databaseClient.update('users', user._id, fullPayload);
 
     return credentials;
@@ -410,7 +401,7 @@ export default class OAuthEngine<
 
     // Updating user credentials...
     const payload = { _verifiedAt: new Date() } as Partial<Types['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, new Map(), context);
+    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, context);
     await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
   }
@@ -471,7 +462,7 @@ export default class OAuthEngine<
 
     const [user] = users.results;
     const payload = { password } as Partial<Types['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, new Map(), { user });
+    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, { user });
     await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
   }
@@ -500,7 +491,7 @@ export default class OAuthEngine<
     }
 
     const fullContext = { ...context, credentials };
-    const fullPayload = await this.checkAndUpdatePayload('users', user, {}, new Map(), fullContext);
+    const fullPayload = await this.checkAndUpdatePayload('users', user, {}, fullContext);
     await this.databaseClient.update('users', user._id, fullPayload);
     return credentials;
   }
@@ -513,7 +504,7 @@ export default class OAuthEngine<
   public async signOut(context: CommandContext): Promise<void> {
     const { user } = context;
     const fullContext = { ...context, credentials: null };
-    const fullPayload = await this.checkAndUpdatePayload('users', user, {}, new Map(), fullContext);
+    const fullPayload = await this.checkAndUpdatePayload('users', user, {}, fullContext);
     await this.databaseClient.update('users', user._id, fullPayload);
   }
 

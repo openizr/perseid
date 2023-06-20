@@ -71,7 +71,7 @@ describe('services/OAuthEngine', () => {
 
   test('[checkAndUpdatePayload] users collection', async () => {
     const payload = { password: 'test' } as unknown as DataModel['users'];
-    const newPayload = await engine.checkAndUpdatePayload('users', null, payload, new Map(), context);
+    const newPayload = await engine.checkAndUpdatePayload('users', null, payload, context);
     expect(newPayload).toEqual({
       _apiKeys: [],
       _devices: [],
@@ -85,7 +85,7 @@ describe('services/OAuthEngine', () => {
   test('[checkAndUpdatePayload] users collection, user in context', async () => {
     const payload = { password: 'test' } as unknown as DataModel['users'];
     const newContext = { ...context, user: { _verifiedAt: new Date('2023-01-01') } } as CommandContext;
-    const newPayload = await engine.checkAndUpdatePayload('users', null, payload, new Map(), newContext);
+    const newPayload = await engine.checkAndUpdatePayload('users', null, payload, newContext);
     expect(newPayload).toEqual({
       _apiKeys: [],
       _devices: [],
@@ -98,7 +98,7 @@ describe('services/OAuthEngine', () => {
 
   test('[checkAndUpdatePayload] other collection', async () => {
     const payload = {} as unknown as DataModel['roles'];
-    const newPayload = await engine.checkAndUpdatePayload('roles', null, payload, new Map(), context);
+    const newPayload = await engine.checkAndUpdatePayload('roles', null, payload, context);
     expect(newPayload).toEqual({ _updatedAt: new Date('2023-01-01') });
   });
 

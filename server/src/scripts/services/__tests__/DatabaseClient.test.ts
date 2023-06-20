@@ -95,6 +95,7 @@ describe('services/DatabaseClient', () => {
         new Id('646b9be5e921d0ef42f8a150'),
       ],
       arrayFour: ['testOne', 'testTwo'],
+      arrayFive: [{ fieldOne: 'test' }, null],
       dynamicOne: {
         testOne: new Id('646b9be5e921d0ef42f8a142'),
         testTwo: new Id('646b9be5e921d0ef42f8a143'),
@@ -126,6 +127,7 @@ describe('services/DatabaseClient', () => {
         new ObjectId('646b9be5e921d0ef42f8a150'),
       ],
       arrayFour: ['testOne', 'testTwo'],
+      arrayFive: [{ fieldOne: 'test' }, null],
       dynamicOne: {
         testOne: new ObjectId('646b9be5e921d0ef42f8a142'),
         testTwo: new ObjectId('646b9be5e921d0ef42f8a143'),
@@ -1166,11 +1168,26 @@ describe('services/DatabaseClient', () => {
         $jsonSchema: {
           bsonType: ['object', 'null'],
           additionalProperties: false,
-          required: ['_id', 'name', '_isDeleted', 'relations'],
+          required: [
+            '_id',
+            'name',
+            '_version',
+            '_isDeleted',
+            '_updatedBy',
+            '_createdBy',
+            '_updatedAt',
+            '_createdAt',
+            'relations',
+          ],
           properties: {
             _id: { bsonType: ['objectId', 'null'] },
             name: { bsonType: ['string', 'null'] },
+            _version: { bsonType: ['int', 'null'] },
             _isDeleted: { bsonType: ['bool', 'null'] },
+            _createdAt: { bsonType: ['date', 'null'] },
+            _updatedAt: { bsonType: ['date', 'null'] },
+            _createdBy: { bsonType: ['objectId', 'null'] },
+            _updatedBy: { bsonType: ['objectId', 'null'] },
             relations: {
               bsonType: ['array', 'null'],
               items: { bsonType: ['objectId', 'null'] },
@@ -1200,11 +1217,26 @@ describe('services/DatabaseClient', () => {
         $jsonSchema: {
           bsonType: ['object', 'null'],
           additionalProperties: false,
-          required: ['_id', 'name', '_isDeleted', 'relations'],
+          required: [
+            '_id',
+            'name',
+            '_version',
+            '_isDeleted',
+            '_updatedBy',
+            '_createdBy',
+            '_updatedAt',
+            '_createdAt',
+            'relations',
+          ],
           properties: {
             _id: { bsonType: ['objectId', 'null'] },
             name: { bsonType: ['string', 'null'] },
+            _version: { bsonType: ['int', 'null'] },
             _isDeleted: { bsonType: ['bool', 'null'] },
+            _createdAt: { bsonType: ['date', 'null'] },
+            _updatedAt: { bsonType: ['date', 'null'] },
+            _createdBy: { bsonType: ['objectId', 'null'] },
+            _updatedBy: { bsonType: ['objectId', 'null'] },
             relations: {
               bsonType: ['array', 'null'],
               items: { bsonType: ['objectId', 'null'] },

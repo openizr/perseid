@@ -25,9 +25,9 @@ export interface DataModel extends DefaultTypes {
     arrayTwo: (Id | null | DataModel['externalRelation'])[];
     arrayThree: (Id | DataModel['externalRelation'])[];
     arrayFour: string[];
-    arrayFive: {
+    arrayFive: ({
       fieldOne: string;
-    }[];
+    } | null)[];
     dynamicOne: {
       [key: string]: Id | {
         test: string;
@@ -259,7 +259,12 @@ export default <Types<unknown>>{
     fields: {
       _id: { type: 'id', index: true },
       name: { type: 'string' },
+      _version: { type: 'integer' },
       _isDeleted: { type: 'boolean' },
+      _updatedBy: { type: 'id' },
+      _createdBy: { type: 'id' },
+      _updatedAt: { type: 'date' },
+      _createdAt: { type: 'date' },
       relations: {
         type: 'array',
         fields: { type: 'id', relation: 'otherExternalRelation' },

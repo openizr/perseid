@@ -363,9 +363,14 @@ export default class DatabaseClient<
   protected formatInput<Collection extends keyof Types>(
     input: Partial<Types[Collection]>,
     model: FieldDataModel<Types>,
-  ): Partial<Types[Collection]> | ObjectId | Binary {
+  ): Document {
     const { type } = model as FieldDataModel<Types>;
     const { fields } = model as ArrayDataModel<Types>;
+
+    // Null value (e.g., optional fields)...
+    if (input === null) {
+      return null as unknown as Document;
+    }
 
     // Arrays and dynamic objects...
     const isArray = (type === 'array');
@@ -398,7 +403,7 @@ export default class DatabaseClient<
     }
 
     // Primitive values...
-    if (type === 'id' && input !== null) {
+    if (type === 'id') {
       return new ObjectId(`${input}`);
     }
     if (type === 'binary') {
@@ -943,6 +948,11 @@ export default class DatabaseClient<
     query: SearchQuery | null,
     filters: SearchFilters | null,
   ): Document[] {
+    // @TODO We need two stages, otherwise filters applied at the root would not match values once
+    // looked-up. For instance, applying the following filter:
+    // `{ roles: [new Id('638d1949d649cfa9373569d6')] }` while also querying `roles.name` field
+    // would first generate a lookup stage before filtering, which would return no result.
+
     const stage: Document = { $match: { $and: [] } };
 
     // Query fields...

@@ -13,7 +13,28 @@ import Logger from 'scripts/services/Logger';
 import EngineError from 'scripts/errors/Engine';
 import CacheClient from 'scripts/services/CacheClient';
 import DatabaseClient from 'scripts/services/DatabaseClient';
-import { type DataModel } from 'scripts/services/__mocks__/schema';
+import { type DataModel as BaseDataModel } from 'scripts/services/__mocks__/schema';
+
+interface DataModel extends BaseDataModel {
+  collection: {
+    rootObject: {
+      fieldOne: string | null;
+    } | null;
+    array: ({
+      fieldOne: Id | null;
+      fieldTwo: string | null;
+      fieldThree: {
+        [key: string]: string | null;
+      } | null;
+      dynamicOne: {
+        [key: string]: {
+          subKeyOne: string | null;
+          subKeyTwo: Id | null;
+        } | string | null;
+      } | null;
+    } | null)[];
+  }
+}
 
 type TestEngine = Engine<DataModel> & {
   deepMerge: Engine<DataModel>['deepMerge'];
@@ -49,57 +70,53 @@ describe('services/Engine', () => {
     queueLimit: 0,
     user: '',
   });
-  const dataModel: ArrayDataModel<DataModel> = {
-    type: 'array',
+  const dataModel: ObjectDataModel<DataModel> = {
+    type: 'object',
     fields: {
-      type: 'dynamicObject',
-      fields: {
-        '^key$': {
+      rootObject: {
+        type: 'object',
+        fields: {
+          fieldOne: { type: 'string' },
+        },
+      },
+      array: {
+        type: 'array',
+        fields: {
           type: 'object',
           fields: {
-            subKeyOne: {
-              type: 'string',
+            fieldOne: { type: 'id' },
+            fieldTwo: { type: 'string' },
+            fieldThree: {
+              type: 'dynamicObject',
+              fields: {
+                '.*': { type: 'string' },
+              },
             },
-            subKeyTwo: {
-              type: 'id',
-              relation: 'test',
+            dynamicOne: {
+              type: 'dynamicObject',
+              fields: {
+                '^key$': {
+                  type: 'object',
+                  fields: {
+                    subKeyOne: {
+                      type: 'string',
+                    },
+                    subKeyTwo: {
+                      type: 'id',
+                      relation: 'test',
+                    },
+                  },
+                },
+                '^newKey$': {
+                  type: 'string',
+                },
+              },
             },
           },
-        },
-        '^newKey$': {
-          type: 'string',
         },
       },
     },
   };
-  const arrayOne = [
-    {
-      key: {
-        subKeyOne: 'valueOne',
-        subKeyTwo: new Id('64723318e84f943f1ad6578b'),
-      },
-    },
-    {
-      key: {
-        subKeyOne: 'valueOne',
-        subKeyTwo: new Id('64723318e84f943f1ad6578c'),
-      },
-    },
-    {
-      key: {
-        subKeyOne: 'valueOne',
-        subKeyTwo: new Id('64723318e84f943f1ad6578d'),
-      },
-      newKey: 'otherValue',
-    },
-    {
-      key: {
-        subKeyOne: 'valueOne',
-        subKeyTwo: new Id('64723318e84f943f1ad6578f'),
-      },
-      newKey: 'otherValueThree',
-    },
-  ] as unknown as DataModel['test'];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -107,118 +124,190 @@ describe('services/Engine', () => {
     engine = new Engine<DataModel>(model, logger, databaseClient) as TestEngine;
   });
 
-  test('[deepMerge] primitive values', async () => {
-    const firstValue = '2' as unknown as DataModel['test'];
-    const secondValue = '3' as unknown as DataModel['test'];
-    expect(engine.deepMerge(firstValue, secondValue, { type: 'integer' })).toEqual('3');
-  });
-
-  test('[deepMerge] nested arrays', async () => {
-    const arrayTwo = [
-      null,
-      {
-        key: { subKeyTwo: new Id('64723318e84f943f1ad6578e') },
-        newKey: 'newOtherValue',
-      },
-      {
-        key: { subKeyTwo: new Id('64723318e84f943f1ad6578a') },
-        newKey: null,
-      },
-    ] as unknown as DataModel['test'];
-
+  test('[deepMerge]', async () => {
+    expect(engine.deepMerge({}, {}, { type: 'integer' })).toEqual({});
+    expect(engine.deepMerge({
+      rootObject: null,
+      array: [{
+        fieldTwo: null,
+        fieldOne: new Id('64723318e84f943f1ad6578e'),
+        fieldThree: null,
+        dynamicOne: null,
+      }],
+    }, {
+      rootObject: null,
+      array: [{ fieldTwo: null, fieldThree: {} }, {}, null],
+    }, dataModel)).toEqual({
+      array: [{
+        fieldTwo: null,
+        fieldThree: {},
+        dynamicOne: null,
+        fieldOne: new Id('64723318e84f943f1ad6578e'),
+      }, {}],
+    });
     const foreignIds = new Map();
-    expect(engine.deepMerge(arrayOne, arrayTwo, dataModel, foreignIds, ['path'])).toEqual([
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: new Id('64723318e84f943f1ad6578e'),
+    expect(engine.deepMerge({
+      array: [
+        {
+          fieldOne: null,
+          fieldTwo: null,
+          fieldThree: null,
+          dynamicOne: {
+            key: {
+              subKeyOne: 'valueOne',
+              subKeyTwo: new Id('64723318e84f943f1ad6578b'),
+            },
+          },
         },
-        newKey: 'newOtherValue',
-      },
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: new Id('64723318e84f943f1ad6578a'),
+        {
+          fieldOne: null,
+          fieldTwo: null,
+          fieldThree: null,
+          dynamicOne: {
+            key: {
+              subKeyOne: 'valueOne',
+              subKeyTwo: new Id('64723318e84f943f1ad6578c'),
+            },
+          },
         },
-      },
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: new Id('64723318e84f943f1ad6578f'),
+        {
+          fieldOne: null,
+          fieldTwo: null,
+          fieldThree: null,
+          dynamicOne: {
+            key: {
+              subKeyOne: 'valueOne',
+              subKeyTwo: new Id('64723318e84f943f1ad6578d'),
+            },
+            newKey: 'otherValue',
+          },
         },
-        newKey: 'otherValueThree',
-      },
-    ]);
-    expect(foreignIds).toEqual(new Map([
-      [
-        'test',
-        { 'path.key.subKeyTwo': new Set(['64723318e84f943f1ad6578e', '64723318e84f943f1ad6578a']) },
+        {
+          fieldOne: null,
+          fieldTwo: null,
+          fieldThree: null,
+          dynamicOne: {
+            key: {
+              subKeyOne: 'valueOne',
+              subKeyTwo: new Id('64723318e84f943f1ad6578f'),
+            },
+            newKey: 'otherValueThree',
+          },
+        },
       ],
+    }, {
+      array: [
+        null,
+        {
+          dynamicOne: {
+            key: { subKeyTwo: new Id('64723318e84f943f1ad6578e') },
+            newKey: 'newOtherValue',
+          },
+        },
+        {
+          dynamicOne: {
+            key: { subKeyTwo: new Id('64723318e84f943f1ad6578a') },
+            newKey: null,
+          },
+        },
+      ],
+    }, dataModel, foreignIds)).toEqual({
+      array: [
+        {
+          dynamicOne: {
+            key: {
+              subKeyTwo: new Id('64723318e84f943f1ad6578e'),
+              subKeyOne: 'valueOne',
+            },
+            newKey: 'newOtherValue',
+          },
+          fieldOne: null,
+          fieldTwo: null,
+          fieldThree: null,
+        },
+        {
+          dynamicOne: {
+            key: {
+              subKeyTwo: new Id('64723318e84f943f1ad6578a'),
+              subKeyOne: 'valueOne',
+            },
+          },
+          fieldOne: null,
+          fieldTwo: null,
+          fieldThree: null,
+        },
+        {
+          fieldOne: null,
+          fieldTwo: null,
+          fieldThree: null,
+          dynamicOne: {
+            key: {
+              subKeyOne: 'valueOne',
+              subKeyTwo: new Id('64723318e84f943f1ad6578f'),
+            },
+            newKey: 'otherValueThree',
+          },
+        },
+      ],
+    });
+    expect(foreignIds).toEqual(new Map([
+      ['test', {
+        'array.dynamicOne.key.subKeyTwo': new Set([
+          '64723318e84f943f1ad6578e',
+          '64723318e84f943f1ad6578a',
+        ]),
+      }],
     ]));
   });
 
   test('[deepMerge] no change', async () => {
-    const arrayTwo = [
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: new Id('64723318e84f943f1ad6578b'),
-        },
-      },
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: new Id('64723318e84f943f1ad6578c'),
-        },
-      },
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: new Id('64723318e84f943f1ad6578d'),
-        },
-        newKey: 'otherValue',
-      },
-      {
-        key: {
-          subKeyOne: 'valueOne',
-          subKeyTwo: new Id('64723318e84f943f1ad6578f'),
-        },
-        newKey: 'otherValueThree',
-      },
-    ] as unknown as DataModel['test'];
-
     const foreignIds = new Map();
-    expect(engine.deepMerge(arrayOne, arrayTwo, dataModel, foreignIds, ['path'])).toEqual({});
-    expect(foreignIds).toEqual(new Map([
-      [
-        'test',
-        {
-          'path.key.subKeyTwo': new Set([
-            '64723318e84f943f1ad6578b',
-            '64723318e84f943f1ad6578c',
-            '64723318e84f943f1ad6578d',
-            '64723318e84f943f1ad6578f',
-          ]),
-        },
-      ],
-    ]));
+    expect(engine.deepMerge({
+      rootObject: null,
+    }, {
+      rootObject: null,
+    }, dataModel, foreignIds)).toEqual({});
+    expect(foreignIds).toEqual(new Map());
   });
 
   test('[deepMerge] whole new payload', async () => {
     const foreignIds = new Map();
-    expect(engine.deepMerge(null, arrayOne, dataModel, foreignIds, ['path'])).toEqual(arrayOne);
-    expect(foreignIds).toEqual(new Map([
-      [
-        'test',
+    expect(engine.deepMerge(
+      {},
+      {
+        array: [
+          {
+            fieldOne: null,
+            fieldTwo: null,
+            fieldThree: null,
+            dynamicOne: {
+              key: {
+                subKeyOne: 'valueOne',
+                subKeyTwo: new Id('64723318e84f943f1ad6578b'),
+              },
+            },
+          },
+        ],
+      },
+      dataModel,
+      foreignIds,
+    )).toEqual({
+      array: [
         {
-          'path.key.subKeyTwo': new Set([
-            '64723318e84f943f1ad6578b',
-            '64723318e84f943f1ad6578c',
-            '64723318e84f943f1ad6578d',
-            '64723318e84f943f1ad6578f',
-          ]),
+          fieldOne: null,
+          fieldTwo: null,
+          fieldThree: null,
+          dynamicOne: {
+            key: {
+              subKeyOne: 'valueOne',
+              subKeyTwo: new Id('64723318e84f943f1ad6578b'),
+            },
+          },
         },
       ],
+    });
+    expect(foreignIds).toEqual(new Map([
+      ['test', { 'array.dynamicOne.key.subKeyTwo': new Set(['64723318e84f943f1ad6578b']) }],
     ]));
   });
 
@@ -252,7 +341,7 @@ describe('services/Engine', () => {
   });
 
   test('[checkAndUpdatePayload]', async () => {
-    const newPayload = await engine.checkAndUpdatePayload('test', null, {}, new Map(), context);
+    const newPayload = await engine.checkAndUpdatePayload('test', null, {}, context);
     expect(newPayload).toEqual({ _id: new Id() });
   });
 

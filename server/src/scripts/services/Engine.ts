@@ -51,7 +51,7 @@ export default class Engine<
    *    For instance, merging `[1, 2, 3]` and `[null, 2, null]` will give `[2]`.
    *  - If payload has less items than the original resource, remaining items will be added. For
    *    instance, merging `[1, 2, 3, 4]` and `[9, 10]` will give `[9, 10, 3, 4]`.
-   *  - If `payload` and `resource` are deeply equal, `undefined` is returned.
+   *  - If `payload` and `resource` are deeply equal, a special `unchanged` value is returned.
    *
    * @param resource Original resource on which to apply the deep merge.
    *
@@ -69,13 +69,20 @@ export default class Engine<
    * @returns A deep merge of `resource` and `payload`.
    */
   protected deepMerge<Collection extends keyof Types>(
-    resource: Types[Collection] | Partial<Types[Collection]> | null,
-    payload: Payload<Types[Collection]> | UpdatePayload<Types[Collection]>,
+    resource: Partial<Types[Collection]>,
+    payload: UpdatePayload<Types[Collection]>,
     dataModel: FieldDataModel<Types>,
     foreignIds: Map<string, Record<string, Set<string>>> = new Map(),
     path: string[] = [],
   ): UpdatePayload<Types[Collection]> {
     const { type } = dataModel;
+
+    // Expanded relation...
+    if (type === 'id' && dataModel.relation !== undefined && payload !== null && !(payload instanceof Id)) {
+      return this.deepMerge(resource, payload, {
+        type: 'object', fields: this.model.getCollection(dataModel.relation).fields,
+      }, foreignIds, path);
+    }
 
     // Relation...
     if (type === 'id' && payload !== null) {
@@ -87,19 +94,19 @@ export default class Engine<
         relationIds[finalPath].add(`${payload}`);
         foreignIds.set(relation as string, relationIds);
       }
-      return (`${resource}` !== `${payload}`) ? payload : this.defaultPayload;
+      return (path.length > 1 || `${resource}` !== `${payload}`) ? payload : this.defaultPayload;
     }
 
     // Arrays...
-    if (type === 'array') {
+    if (type === 'array' && payload !== null) {
       const newArray = [];
       const { fields } = dataModel as ArrayDataModel<Types>;
       const arrayPayload = payload as unknown as Types[Collection][];
-      const arrayResource = (resource ?? []) as unknown as Types[Collection][];
+      const arrayResource = (resource ?? this.defaultPayload) as unknown as Types[Collection][];
       for (let i = 0, { length } = arrayPayload; i < length; i += 1) {
         if (arrayPayload[i] !== null) {
           const mergedValue = this.deepMerge(
-            arrayResource[i] ?? null as Types[Collection],
+            arrayResource[i] ?? this.defaultPayload,
             arrayPayload[i],
             fields,
             foreignIds,
@@ -113,25 +120,25 @@ export default class Engine<
       for (let i = 0, diff = arrayResource.length - arrayPayload.length; i < diff; i += 1) {
         newArray.push(arrayResource[arrayPayload.length + i]);
       }
-      return (newArray.length > 0)
+      return (path.length > 1 || newArray.length > 0)
         ? newArray as unknown as UpdatePayload<Types[Collection]>
         : this.defaultPayload;
     }
 
     // (dynamic) Objects...
-    if (type === 'dynamicObject' || type === 'object') {
+    if ((type === 'dynamicObject' || type === 'object') && payload !== null) {
       const isDynamic = type === 'dynamicObject';
       const { fields } = dataModel as DynamicObjectDataModel<Types>;
       const payloadKeys = Object.keys(payload);
-      const resourceKeys = Object.keys(resource ?? {});
       const newDynamicObject: UpdatePayload<Types[Collection]> = {};
+      const resourceKeys = Object.keys(resource ?? this.defaultPayload);
       const patterns = Object.keys(fields).map((pattern) => new RegExp(pattern));
       const ignoreKeys = new Set();
       for (let i = 0, { length } = payloadKeys; i < length; i += 1) {
         const key = payloadKeys[i] as keyof UpdatePayload<Types[Collection]>;
-        if (payload[key] !== null) {
+        if ((isDynamic && payload[key] !== null) || !isDynamic) {
           const mergedValue = this.deepMerge(
-            resource?.[key] ?? null as unknown as Types[Collection],
+            resource?.[key] ?? this.defaultPayload,
             payload[key] as unknown as Types[Collection],
             fields[!isDynamic
               ? payloadKeys[i] : (patterns.find((p) => p.test(String(key))) as RegExp).source],
@@ -146,6 +153,7 @@ export default class Engine<
         }
       }
       // Completes final payload with existing values from resource.
+      // path.length > 0 here because we always start from an object.
       if (path.length > 0) {
         for (let i = 0, { length } = resourceKeys; i < length; i += 1) {
           const key = resourceKeys[i] as keyof UpdatePayload<Types[Collection]>;
@@ -154,12 +162,13 @@ export default class Engine<
             newDynamicObject[key] = (resource as Types[Collection])[key];
           }
         }
+        return newDynamicObject;
       }
       return (Object.keys(newDynamicObject).length > 0) ? newDynamicObject : this.defaultPayload;
     }
 
     // Primitive value...
-    return (`${resource}` !== `${payload}`) ? payload : this.defaultPayload;
+    return (path.length > 1 || (resource !== this.defaultPayload && `${resource}` !== `${payload}`)) ? payload : this.defaultPayload;
   }
 
   /**
@@ -291,18 +300,14 @@ export default class Engine<
    *
    * @param payload Payload to validate and update.
    *
-   * @param foreignIds Foreign ids to check, generated from `deepMerge`.
-   *
    * @param context Command context.
    */
   protected async checkAndUpdatePayload<Collection extends keyof Types>(
     collection: Collection,
     resource: Types[Collection] | null,
     payload: UpdatePayload<Types[Collection]>,
-    foreignIds: Map<string, Record<string, Set<string>>>,
     context: CommandContext,
   ): Promise<Partial<Types[Collection]>> {
-    await this.checkForeignIds(collection, resource, payload, foreignIds, context);
     return this.withAutomaticFields(collection, resource, payload, context);
   }
 
@@ -346,15 +351,12 @@ export default class Engine<
   ): Promise<Types[Collection]> {
     const foreignIds = new Map();
     const { fields } = this.model.getCollection(collection);
+    const resource = this.defaultPayload as Types[Collection];
+    const newPayload = payload as unknown as UpdatePayload<Types[Collection]>;
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
-    const newPayload = this.deepMerge(null, payload, { type: 'object', fields }, foreignIds);
-    const fullPayload = await this.checkAndUpdatePayload(
-      collection,
-      null,
-      newPayload,
-      foreignIds,
-      context,
-    );
+    const fullPayload = await this.checkAndUpdatePayload(collection, null, newPayload, context);
+    this.deepMerge(resource, fullPayload, { type: 'object', fields }, foreignIds);
+    await this.checkForeignIds(collection, resource, fullPayload, foreignIds, context);
     await this.databaseClient.create(collection, fullPayload as Types[Collection]);
     return this.view(collection, (fullPayload as Types[Collection] as Ids)._id, options);
   }
@@ -387,15 +389,10 @@ export default class Engine<
     const { fields } = this.model.getCollection(collection);
     const resource = await this.view(collection, id, { fields: Object.keys(fields) });
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
-    const newPayload = this.deepMerge(resource, payload, { type: 'object', fields }, foreignIds);
-    if (newPayload !== this.defaultPayload) {
-      const fullPayload = await this.checkAndUpdatePayload(
-        collection,
-        resource,
-        newPayload,
-        foreignIds,
-        context,
-      );
+    const fullPayload = await this.checkAndUpdatePayload(collection, resource, payload, context);
+    const finalPayload = this.deepMerge(resource, fullPayload, { type: 'object', fields }, foreignIds);
+    if (finalPayload !== this.defaultPayload) {
+      await this.checkForeignIds(collection, resource, finalPayload, foreignIds, context);
       await this.databaseClient.update(collection, id, fullPayload as Partial<Types[Collection]>);
     }
     return this.view(collection, id, options);
@@ -480,7 +477,7 @@ export default class Engine<
     context: CommandContext,
   ): Promise<void> {
     const resource = {} as Types[Collection];
-    const payload = await this.checkAndUpdatePayload(collection, resource, {}, new Map(), context);
+    const payload = await this.checkAndUpdatePayload(collection, resource, {}, context);
 
     if (!await this.databaseClient.delete(collection, id, payload)) {
       // We use `DatabaseError` here as we want to get the same special message as for

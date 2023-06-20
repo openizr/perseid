@@ -1,6 +1,6 @@
 {
   "name": "@perseid/server",
-  "version": "0.0.71",
+  "version": "0.0.73",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",

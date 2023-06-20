@@ -147,7 +147,9 @@ export type Payload<T> = {
 /**
  * Resource update payload.
  */
-export type UpdatePayload<T> = Partial<Payload<T>>;
+export type UpdatePayload<T> = {
+  [K in keyof T]?: UpdatePayload<T[K]>;
+};
 
 /**
  * Common properties for all data model fields.
@@ -1013,7 +1015,7 @@ export class DatabaseClient<
   protected formatInput<Collection extends keyof Types>(
     input: Partial<Types[Collection]>,
     model: FieldDataModel<Types>,
-  ): Partial<Types[Collection]> | ObjectId | Binary;
+  ): Document;
 
   /**
    * Formats `output` to match database-independent data types specifications.
@@ -1584,8 +1586,8 @@ export class Engine<
    * @returns A deep merge of `resource` and `payload`.
    */
   protected deepMerge<Collection extends keyof Types>(
-    resource: Types[Collection] | Partial<Types[Collection]> | null,
-    payload: Payload<Types[Collection]> | UpdatePayload<Types[Collection]>,
+    resource: Partial<Types[Collection]>,
+    payload: UpdatePayload<Types[Collection]>,
     dataModel: FieldDataModel<Types>,
     foreignIds?: Map<string, Record<string, Set<string>>>,
     path?: string[],
@@ -1667,15 +1669,12 @@ export class Engine<
    *
    * @param payload Payload to validate and update.
    *
-   * @param foreignIds Foreign ids to check, generated from `deepMerge`.
-   *
    * @param context Command context.
    */
   protected checkAndUpdatePayload<Collection extends keyof Types>(
     collection: Collection,
     resource: Types[Collection] | null,
     payload: UpdatePayload<Types[Collection]>,
-    foreignIds: Map<string, Record<string, Set<string>>>,
     context: CommandContext,
   ): Promise<Partial<Types[Collection]>>;
 
@@ -1920,15 +1919,12 @@ export class OAuthEngine<
    *
    * @param payload Payload to validate and update.
    *
-   * @param foreignIds Foreign ids to check, generated from `deepMerge`.
-   *
    * @param context Command context.
    */
   protected checkAndUpdatePayload<Collection extends keyof Types>(
     collection: Collection,
     resource: Types[Collection] | null,
     payload: UpdatePayload<Types[Collection]>,
-    foreignIds: Map<string, Record<string, Set<string>>>,
     context: CommandContext,
   ): Promise<Partial<Types[Collection]>>;
 
