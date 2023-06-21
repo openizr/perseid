@@ -14,9 +14,7 @@ import {
 } from '@perseid/core';
 import {
   type Db,
-  type Binary,
   type Document,
-  type ObjectId,
   type MongoClient,
   type ClientSession,
 } from 'mongodb';

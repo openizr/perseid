@@ -393,7 +393,7 @@ export default class Engine<
     const finalPayload = this.deepMerge(resource, fullPayload, { type: 'object', fields }, foreignIds);
     if (finalPayload !== this.defaultPayload) {
       await this.checkForeignIds(collection, resource, finalPayload, foreignIds, context);
-      await this.databaseClient.update(collection, id, fullPayload as Partial<Types[Collection]>);
+      await this.databaseClient.update(collection, id, fullPayload);
     }
     return this.view(collection, id, options);
   }
@@ -477,7 +477,7 @@ export default class Engine<
     context: CommandContext,
   ): Promise<void> {
     const resource = {} as Types[Collection];
-    const payload = await this.checkAndUpdatePayload(collection, resource, {}, context);
+    const payload = await this.withAutomaticFields(collection, resource, {}, context);
 
     if (!await this.databaseClient.delete(collection, id, payload)) {
       // We use `DatabaseError` here as we want to get the same special message as for

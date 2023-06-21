@@ -357,7 +357,6 @@ export default class FastifyController<
       } = model as BooleanDataModel;
       const formattedField: AjvValidationSchema = {
         type: 'boolean',
-        isBinary: true,
         errorMessage: errorMessages ?? {},
       };
       if (mode !== 'RESPONSE') {
@@ -604,8 +603,8 @@ export default class FastifyController<
       } = model as DynamicObjectDataModel<Types>;
       const formattedField: AjvValidationSchema = {
         type: 'object',
-        additionalProperties: false,
         errorMessage: errorMessages ?? {},
+        additionalProperties: (mode === 'RESPONSE'),
       };
       const exposedFields = (mode === 'RESPONSE')
         ? Object.keys(fields)
@@ -716,8 +715,8 @@ export default class FastifyController<
           type: 'object',
           required: true,
           fields: {
-            email: BaseModel.email(),
-            password: BaseModel.password(),
+            email: { type: 'string', required: true },
+            password: { type: 'string', required: true },
           },
         },
         response: {

@@ -170,7 +170,7 @@ export default class Controller<
     const finalFields: Set<string> = new Set();
     const requestedFields = fields.split(',');
     const addPermission = permissions.add.bind(permissions);
-    addPermission(`${(collection as string).toUpperCase()}_VIEW`);
+    addPermission(`${this.toSnakeCase(collection as string)}_VIEW`);
     const { fields: collectionFields } = this.model.getCollection(collection);
     const model: FieldDataModel<Types> = { type: 'object', fields: collectionFields };
 
