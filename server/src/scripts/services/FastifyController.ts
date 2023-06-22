@@ -579,11 +579,13 @@ export default class FastifyController<
           if (requiredFields.length > 0) {
             formattedField.required = requiredFields;
           }
-          if (!model.required) {
+        }
+        if (!model.required) {
+          if (mode === 'CREATE') {
             formattedField.default = null;
-            formattedField.type = ['object', 'null'];
-            formattedField.errorMessage.type ??= 'must be a valid object, or "null"';
           }
+          formattedField.type = ['object', 'null'];
+          formattedField.errorMessage.type ??= 'must be a valid object, or "null"';
         }
       } else if (!model.required) {
         formattedField.nullable = true;
@@ -619,8 +621,10 @@ export default class FastifyController<
           formattedField.maxProperties = maxItems;
           formattedField.errorMessage.maxProperties ??= `must not contain more than ${maxItems} ${(maxItems === 1) ? 'entry' : 'entries'}`;
         }
-        if (mode === 'CREATE' && !model.required) {
-          formattedField.default = null;
+        if (!model.required) {
+          if (mode === 'CREATE') {
+            formattedField.default = null;
+          }
           formattedField.type = ['object', 'null'];
           formattedField.errorMessage.type ??= 'must be a valid object, or "null"';
         }
@@ -660,8 +664,10 @@ export default class FastifyController<
           formattedField.uniqueItems = uniqueItems;
           formattedField.errorMessage.uniqueItems ??= 'must contain only unique entries';
         }
-        if (mode === 'CREATE' && !model.required) {
-          formattedField.default = null;
+        if (!model.required) {
+          if (mode === 'CREATE') {
+            formattedField.default = null;
+          }
           formattedField.type = ['array', 'null'];
           formattedField.errorMessage.type ??= 'must be a valid array, or "null"';
         }

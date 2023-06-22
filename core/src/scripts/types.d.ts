@@ -57,7 +57,13 @@ export interface Role extends Ids, Version, Timestamps, Authors {
 }
 
 /** User. */
-export interface User extends Ids, Version, Timestamps, Authors, Deletion {
+export interface User extends Ids, Version, Timestamps, Deletion {
+  /** Resource creation author. */
+  _createdBy?: Id | User | null;
+
+  /** Resource modification author. */
+  _updatedBy: Id | User | null;
+
   /** User verification date. */
   _verifiedAt: Date | null;
 
