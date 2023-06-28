@@ -6,9 +6,9 @@
  *
  */
 
-import forEach from 'scripts/forEach';
+import forEach from 'scripts/helpers/forEach';
 
-describe('scripts/forEach', () => {
+describe('helpers/forEach', () => {
   test('correctly iterates asynchronously over each item', async () => {
     const callback = vi.fn();
     await forEach([

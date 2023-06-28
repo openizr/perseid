@@ -12,8 +12,14 @@ describe('scripts/main', () => {
   test('contains correct exports', () => {
     expect(Object.keys(helpers)).toEqual([
       'Id',
+      'I18n',
+      'Model',
       'Logger',
       'forEach',
+      'deepCopy',
+      'deepMerge',
+      'toSnakeCase',
+      'isPlainObject',
     ]);
   });
 });

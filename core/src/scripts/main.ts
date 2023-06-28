@@ -6,13 +6,25 @@
  *
  */
 
-import Id from 'scripts/Id';
-import Logger from 'scripts/Logger';
-import forEach from 'scripts/forEach';
+import Id from 'scripts/classes/Id';
+import I18n from 'scripts/classes/I18n';
+import Model from 'scripts/classes/Model';
+import Logger from 'scripts/classes/Logger';
+import forEach from 'scripts/helpers/forEach';
+import deepCopy from 'scripts/helpers/deepCopy';
+import deepMerge from 'scripts/helpers/deepMerge';
+import toSnakeCase from 'scripts/helpers/toSnakeCase';
+import isPlainObject from 'scripts/helpers/isPlainObject';
 
 export {
   Id,
+  I18n,
+  Model,
   Logger,
-  /* c8 ignore next */
   forEach,
+  deepCopy,
+  deepMerge,
+  toSnakeCase,
+  /* c8 ignore next */
+  isPlainObject,
 };

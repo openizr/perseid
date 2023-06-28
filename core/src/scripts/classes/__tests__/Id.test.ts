@@ -6,7 +6,7 @@
  *
  */
 
-import Id from 'scripts/Id';
+import Id from 'scripts/classes/Id';
 
 describe('scripts/Id', () => {
   beforeEach(() => {

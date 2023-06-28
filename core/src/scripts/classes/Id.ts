@@ -6,8 +6,6 @@
  *
  */
 
-import { randomBytes } from 'crypto';
-
 /**
  * Isomorphic universally unique identifiers generator.
  * Inspired from mongodb ObjectId implementation and Snowflake algorithm.
@@ -76,7 +74,7 @@ export default class Id {
     }
 
     if (Id.uniqueId === null) {
-      Id.uniqueId = randomBytes(5);
+      Id.uniqueId = require('crypto').randomBytes(5);
     }
 
     const buffer = Buffer.alloc(12);

@@ -30,9 +30,11 @@
     ],
     "overrides": [
       {
-        "files": "src/scripts/Id.ts",
+        "files": "src/scripts/classes/Id.ts",
         "rules": {
-          "no-bitwise": "off"
+          "no-bitwise": "off",
+          "global-require": "off",
+          "@typescript-eslint/no-var-requires": "off"
         }
       },
       {
@@ -42,7 +44,7 @@
         }
       },
       {
-        "files": "src/scripts/forEach.ts",
+        "files": "src/scripts/helpers/forEach.ts",
         "rules": {
           "no-await-in-loop": "off"
         }

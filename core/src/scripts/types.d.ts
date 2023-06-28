@@ -101,9 +101,327 @@ export interface User extends Ids, Version, Timestamps, Deletion {
 /**
  * Default perseid data model.
  */
-export interface DataModel {
+export interface DefaultDataModel {
   users: User;
   roles: Role;
+}
+
+/**
+ * Search or list results.
+ */
+export interface Results<T> {
+  /** Total number of results that matched query. */
+  total: number;
+
+  /** Limited list of results that are actually returned. */
+  results: T[];
+}
+
+/**
+ * Resource creation payload (excluding all its automatic fields).
+ */
+export type Payload<T> = {
+  [K in keyof T as Exclude<K, `_${string}`>]: Payload<T[K]>;
+};
+
+/**
+ * Resource update payload.
+ */
+export type UpdatePayload<T> = {
+  [K in keyof T]?: UpdatePayload<T[K]>;
+};
+
+/**
+ * Common properties for all data model fields schemas.
+ */
+export interface GenericFieldSchema {
+  /**
+   * Custom type name to assign to that field, in addition to its actual type.
+   * Very useful to customize behaviours. For instance, you might want to display a specific
+   * component for email addresses on front-end, even though their real type is `string`.
+   */
+  customType?: string;
+
+  /** Whether field is required. */
+  required?: boolean;
+
+  /** Additional permissions required to access that field. */
+  permissions?: string[];
+
+  /** Custom error messages for when user inputs do not match data model. */
+  errorMessages?: {
+    [errorType: string]: string;
+  };
+}
+
+/**
+ * Data model string field schema.
+ */
+export interface StringSchema extends GenericFieldSchema {
+  /** Data type. */
+  type: 'string';
+
+  /**
+   * Whether to index this field.
+   * A database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  index?: boolean;
+
+  /** Specific set of values allowed for that field. */
+  enum?: string[];
+
+  /** Default value for that field. */
+  default?: string;
+
+  /**
+   * Whether field's value should be unique across the whole collection (e.g. an email address).
+   * A unique database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  unique?: boolean;
+
+  /** RegExp user inputs must pass for that field. */
+  pattern?: string;
+
+  /** Field minimum length. */
+  minLength?: number;
+
+  /** Field maximum length. */
+  maxLength?: number;
+}
+
+/**
+ * Data model number field schema.
+ */
+export interface NumberSchema extends GenericFieldSchema {
+  /** Data type. */
+  type: 'integer' | 'float';
+
+  /**
+   * Whether to index this field.
+   * A database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  index?: boolean;
+
+  /** Specific set of values allowed for that field. */
+  enum?: number[];
+
+  /** Default value for that field. */
+  default?: number;
+
+  /**
+   * Whether field's value should be unique across the whole collection (e.g. an email address).
+   * A unique database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  unique?: boolean;
+
+  /** Field minimum value. */
+  minimum?: number;
+
+  /** Field maximum value. */
+  maximum?: number;
+
+  /** Field exclusive minimum value. */
+  exclusiveMinimum?: number;
+
+  /** Field exclusive maximum value. */
+  exclusiveMaximum?: number;
+
+  /** Value to use as a multiple for user inputs. */
+  multipleOf?: number;
+}
+
+/**
+ * Data model boolean field schema.
+ */
+export interface BooleanSchema extends GenericFieldSchema {
+  /** Data type. */
+  type: 'boolean';
+
+  /**
+   * Whether to index this field.
+   * A database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  index?: boolean;
+
+  /** Default value for that field. */
+  default?: boolean;
+}
+
+/**
+ * Data model id field schema.
+ */
+export interface IdSchema<Types> extends GenericFieldSchema {
+  /** Data type. */
+  type: 'id';
+
+  /** Specific set of values allowed for that field. */
+  enum?: Id[];
+
+  /**
+   * Whether to index this field.
+   * A database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  index?: boolean;
+
+  /**
+   * Whether field's value should be unique across the whole collection (e.g. an email address).
+   * A unique database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  unique?: boolean;
+
+  /** Default value for that field. */
+  default?: Id;
+
+  /** Name of the collection the id refers to. See it as a foreign key. */
+  relation?: keyof Types;
+}
+
+/**
+ * Data model date field schema.
+ */
+export interface DateSchema extends GenericFieldSchema {
+  /** Data type. */
+  type: 'date';
+
+  /** Specific set of values allowed for that field. */
+  enum?: Date[];
+
+  /**
+   * Whether to index this field.
+   * A database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  index?: boolean;
+
+  /**
+   * Whether field's value should be unique across the whole collection (e.g. an email address).
+   * A unique database index will be created, and user will be able to use that field for sorting,
+   * searching, and filtering in queries.
+   */
+  unique?: boolean;
+
+  /** Default value for that field. */
+  default?: Date;
+}
+
+/**
+ * Data model binary field schema.
+ */
+export interface BinarySchema extends GenericFieldSchema {
+  /** Data type. */
+  type: 'binary';
+
+  /** Default value for that field. */
+  default?: ArrayBuffer;
+}
+
+/**
+ * Data model null field schema.
+ */
+export interface NullSchema extends GenericFieldSchema {
+  /** Data type. */
+  type: 'null';
+}
+
+/**
+ * Data model object field schema.
+ */
+export interface ObjectSchema<T> extends GenericFieldSchema {
+  /** Data type. */
+  type: 'object';
+
+  /** Sub-fields data model. */
+  fields: {
+    [fieldName: string]: FieldSchema<T>;
+  };
+}
+
+/**
+ * Data model dynamic object field schema.
+ * See https://json-schema.org/understanding-json-schema/reference/object.html#pattern-properties.
+ */
+export interface DynamicObjectSchema<T> extends GenericFieldSchema {
+  /** Data type. */
+  type: 'dynamicObject';
+
+  /** Minimum required number of sub-fields. */
+  minItems?: number;
+
+  /** Maximum allowed number of sub-fields. */
+  maxItems?: number;
+
+  /** Sub-fields data model, keyed by pattern. */
+  fields: {
+    [pattern: string]: FieldSchema<T>;
+  };
+}
+
+/**
+ * Data model array field schema.
+ */
+export interface ArraySchema<T> extends Omit<GenericFieldSchema, 'permissions'> {
+  /** Data type. */
+  type: 'array';
+
+  /** Minimum required number of items in the array. */
+  minItems?: number;
+
+  /** Maximum allowed number of items in the array. */
+  maxItems?: number;
+
+  /** Items data model. */
+  fields: FieldSchema<T>;
+
+  /** Whether each array item should be unique. */
+  uniqueItems?: boolean;
+}
+
+/**
+ * Any Data model field schema.
+ */
+export type FieldSchema<Types> = (
+  NullSchema |
+  DateSchema |
+  NumberSchema |
+  StringSchema |
+  BinarySchema |
+  BooleanSchema |
+  IdSchema<Types> |
+  ArraySchema<Types> |
+  ObjectSchema<Types> |
+  DynamicObjectSchema<Types>
+);
+
+/**
+ * Data model collection schema.
+ */
+export interface CollectionSchema<T> {
+  /**
+    * Data model version for this collection. Can be useful for applying different logics depending
+    * on the data model version of a given resource in that collection.
+    */
+  version?: number;
+
+  /** Whether to generate and manage`_createdBy` and `_updatedBy` fields for that collection. */
+  enableAuthors?: boolean;
+
+  /** Whether to generate and manage the `_isDeleted` field for that collection. */
+  enableDeletion?: boolean;
+
+  /** Whether to generate and manage`_createdAt` and `_updatedAt` fields for that collection. */
+  enableTimestamps?: boolean;
+
+  /** Collection fields data model. */
+  fields: {
+    [fieldName: string]: FieldSchema<T>;
+  };
 }
 
 /**
@@ -117,6 +435,82 @@ export function forEach<T>(
   items: T[],
   callback: (item: T, index: number) => Promise<void>,
 ): Promise<void>;
+
+/**
+ * Transforms `text` into SNAKE_CASE.
+ *
+ * @param text Text to transform.
+ *
+ * @returns Transformed text.
+ */
+export function toSnakeCase(text: string): string;
+
+/**
+ * Returns `true` if `variable` is a plain object, `false` otherwise.
+ *
+ * @param variable Variable to check.
+ *
+ * @returns `true` if variable is a plain object, `false` otherwise.
+ */
+export function isPlainObject<T>(variable: T): boolean;
+
+/**
+ * Performs a deep copy of a variable. Only plain objects and arrays are deeply copied.
+ *
+ * @param variable Variable to deeply copy.
+ *
+ * @returns variable deep copy.
+ */
+export function deepCopy<T>(variable: T): T;
+
+/**
+ * Performs a deep merge of `firstVariable` and `secondVariable`. Only plain objects and arrays are
+ * deeply merged. In any other case, `secondVariable` is returned if it is defined.
+ *
+ * @param firstVariable First object.
+ *
+ * @param secondVariable Second object.
+ *
+ * @returns Variables deep merge.
+ */
+export function deepMerge<T1, T2>(
+  firstVariable: T1,
+  secondVariable: T2,
+): T1 & T2;
+
+/** List of labels translations, grouped by key and category. */
+export type Labels = {
+  [key: string]: string | Labels;
+};
+
+/**
+ * Handles internationalization and localization (translations, conversions, formatting and such).
+ */
+export class I18n {
+  /** Logging system. */
+  protected logger: Logger;
+
+  /** List of labels translations, grouped by key and category. */
+  protected labels: Labels;
+
+  /**
+   * Class constructor.
+   *
+   * @param logger Logging system to use.
+   *
+   * @param labels List of available labels for translation.
+   */
+  public constructor(logger: Logger, labels: Labels);
+
+  /**
+   * Translates `label` injecting values from `variables` if necessary.
+   *
+   * @param label Label to translate.
+   *
+   * @param values Optional list of values to inject in the translated label. Defaults to `{}`.
+   */
+  public t(label: string, values?: Record<string, unknown>): string;
+}
 
 /**
  * Isomorphic universally unique identifiers generator.
@@ -234,4 +628,47 @@ export abstract class Logger {
    * Gracefully closes the logging system (before stopping the program, for instance).
    */
   public abstract close(): Promise<void>;
+}
+
+/** Data model schema. */
+export type DataModelSchema<DataModel> = Record<keyof DataModel, CollectionSchema<DataModel>>;
+
+/** Data model metadata. */
+export interface DataModelMetadata<DataModel> {
+  permissions: Set<string>;
+  schema: FieldSchema<DataModel> | CollectionSchema<DataModel>;
+}
+
+/**
+ * Data model.
+ */
+export class Model<
+  /** Data model types definitions. */
+  DataModel = DefaultDataModel,
+> {
+  /** Data model schema. */
+  protected schema: DataModelSchema<DataModel>;
+
+  /**
+   * Class constructor.
+   *
+   * @param schema Schema from which to generate data model. Defaults to `{}`.
+   */
+  constructor(schema?: DataModelSchema<DataModel>);
+
+  /**
+   * Returns the list of all the collections names in data model.
+   *
+   * @returns Data model collections names.
+   */
+  public getCollections(): (keyof DataModel)[];
+
+  /**
+   * Returns data model metadata (schema, permissions, ...) for `path`.
+   *
+   * @param path Path in the data model for which to get metadata.
+   *
+   * @returns Data model metadata if path exists, `null` otherwise.
+   */
+  public get(path: string): DataModelMetadata<DataModel> | null;
 }
