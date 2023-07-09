@@ -21,31 +21,6 @@ type TestModel = Model<unknown & {
 };
 
 describe('services/Model', () => {
-  const model = new Model<unknown & {
-    test: {
-      test: string;
-    };
-    testTwo: {
-      test: string;
-    };
-  }>({
-    ...Model.DEFAULT_MODEL,
-    test: {
-      version: 1,
-      enableAuthors: true,
-      enableDeletion: false,
-      enableTimestamps: true,
-      fields: {
-        test: { type: 'string' },
-      },
-    },
-    testTwo: {
-      fields: {
-        test: { type: 'string' },
-      },
-    },
-  }) as TestModel;
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -189,54 +164,6 @@ describe('services/Model', () => {
     });
   });
 
-  test('[getCollections]', () => {
-    expect(model.getCollections()).toEqual(['users', 'roles', 'test', 'testTwo']);
-  });
-
-  test('[getCollection]', () => {
-    expect(model.getCollection('test')).toEqual({
-      version: 1,
-      enableAuthors: true,
-      enableDeletion: false,
-      enableTimestamps: true,
-      fields: {
-        _id: { type: 'id', index: true, required: true },
-        _version: {
-          type: 'integer',
-          index: true,
-          required: true,
-        },
-        _isDeleted: {
-          type: 'boolean',
-          index: true,
-          required: true,
-          default: false,
-        },
-        _createdBy: {
-          type: 'id',
-          index: true,
-          required: true,
-          relation: 'users',
-        },
-        _updatedBy: {
-          type: 'id',
-          index: true,
-          relation: 'users',
-        },
-        _createdAt: {
-          type: 'date',
-          index: true,
-          required: true,
-        },
-        _updatedAt: {
-          type: 'date',
-          index: true,
-        },
-        test: { type: 'string' },
-      },
-    });
-  });
-
   test('[getPublicSchema]', () => {
     const otherModel = new Model<unknown>(schema) as unknown as TestModel;
     expect(otherModel.getPublicSchema('externalRelation' as unknown as 'test')).toEqual({
@@ -244,7 +171,7 @@ describe('services/Model', () => {
         type: 'object',
         fields: {
           _id: { type: 'id', index: true, required: true },
-          type: { type: 'string', index: undefined },
+          type: { type: 'string' },
         },
       },
     });

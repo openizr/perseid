@@ -6,10 +6,9 @@
  *
  */
 
-import { type DataModel as Types } from 'scripts/services/Model';
-import { Id, type DataModel as DefaultTypes } from '@perseid/core';
+import { Id, type DefaultDataModel, type DataModelSchema } from '@perseid/core';
 
-export interface DataModel extends DefaultTypes {
+export interface DataModel extends DefaultDataModel {
   test: {
     primitiveOne: Id;
     primitiveTwo: ArrayBuffer;
@@ -53,7 +52,7 @@ export interface DataModel extends DefaultTypes {
   };
 }
 
-export default <Types<unknown>>{
+export default <DataModelSchema<unknown>>{
   test: {
     enableDeletion: true,
     fields: {
@@ -177,22 +176,24 @@ export default <Types<unknown>>{
         default: 4,
         type: 'float',
         multipleOf: 2,
+        required: true,
         exclusiveMinimum: 0,
         exclusiveMaximum: 10,
       },
-      floatTwo: { type: 'float' },
+      floatTwo: { type: 'float', enum: [2] },
       integer: {
         enum: [1],
         maximum: 10,
         minimum: 0,
         default: 4,
         multipleOf: 2,
+        required: true,
         type: 'integer',
         exclusiveMinimum: 0,
         exclusiveMaximum: 10,
         permissions: ['INTEGER_VIEW'],
       },
-      integerTwo: { type: 'integer' },
+      integerTwo: { type: 'integer', enum: [2] },
       string: {
         type: 'string',
         default: '',
@@ -203,18 +204,25 @@ export default <Types<unknown>>{
       },
       _id: { type: 'id' },
       null: { type: 'null' },
-      binary: { type: 'binary' },
-      enum: { type: 'string', enum: ['test'] },
-      boolean: { type: 'boolean', default: false },
+      binary: { type: 'binary', required: true },
+      enum: { type: 'string', required: true, enum: ['test'] },
       booleanTwo: { type: 'boolean' },
       relation: { type: 'id', relation: 'externalRelation' },
+      boolean: { type: 'boolean', default: false, required: true },
       date: {
         type: 'date',
+        required: true,
         enum: [new Date('2023-01-01')],
         default: new Date('2023-01-01'),
       },
-      dateTwo: { type: 'date' },
+      dateTwo: { type: 'date', enum: [new Date('2023-01-01')] },
       id: {
+        type: 'id',
+        required: true,
+        enum: [new Id('6478a6c5392350aaced68cf9')],
+        default: new Id('6478a6c5392350aaced68cf9'),
+      },
+      idTwo: {
         type: 'id',
         enum: [new Id('6478a6c5392350aaced68cf9')],
         default: new Id('6478a6c5392350aaced68cf9'),
@@ -230,6 +238,7 @@ export default <Types<unknown>>{
         type: 'array',
         minItems: 1,
         maxItems: 1,
+        required: true,
         uniqueItems: true,
         fields: { type: 'string', permissions: ['ARRAY_VIEW'] },
       },
@@ -243,6 +252,7 @@ export default <Types<unknown>>{
       },
       dynamicObjectTwo: {
         type: 'dynamicObject',
+        required: true,
         minItems: 1,
         maxItems: 1,
         fields: {
@@ -274,8 +284,8 @@ export default <Types<unknown>>{
   otherExternalRelation: {
     enableDeletion: true,
     fields: {
-      _id: { type: 'id' },
-      type: { type: 'string' },
+      _id: { type: 'id', required: true, index: true },
+      type: { type: 'string', errorMessages: { type: 'Error' } },
     },
   },
 };

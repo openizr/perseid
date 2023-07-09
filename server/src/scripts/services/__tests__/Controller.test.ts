@@ -9,7 +9,6 @@
 import jwt from 'jsonwebtoken';
 import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
-import { Id, type User } from '@perseid/core';
 import Conflict from 'scripts/errors/Conflict';
 import EngineError from 'scripts/errors/Engine';
 import Forbidden from 'scripts/errors/Forbidden';
@@ -23,6 +22,7 @@ import CacheClient from 'scripts/services/CacheClient';
 import NotAcceptable from 'scripts/errors/NotAcceptable';
 import DatabaseClient from 'scripts/services/DatabaseClient';
 import { type DataModel } from 'scripts/services/__mocks__/schema';
+import { type CollectionSchema, Id, type User } from '@perseid/core';
 
 type TestController = Controller<DataModel> & {
   rbac: Controller['rbac'];
@@ -48,7 +48,7 @@ describe('services/Controller', () => {
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
   const emailClient = new EmailClient(logger);
   const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
-  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionDataModel<DataModel>>);
+  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionSchema<DataModel>>);
   const databaseClient = new DatabaseClient<DataModel>(model, logger, cacheClient, {
     cacheDuration: 0,
     connectionLimit: 0,

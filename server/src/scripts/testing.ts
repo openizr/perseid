@@ -47,8 +47,6 @@ const databaseClient = new DatabaseClient(model, logger, cacheClient, {
   queueLimit: 0,
 });
 
-// databaseClient.checkIntegrity().then(console.log);
-
 const engine = new OAuthEngine(
   model,
   logger,

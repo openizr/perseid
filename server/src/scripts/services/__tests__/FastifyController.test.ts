@@ -12,7 +12,6 @@ import {
   type FastifyRequest,
   type FastifyInstance,
 } from 'fastify';
-import { Id } from '@perseid/core';
 import { createWriteStream } from 'fs';
 import Gone from 'scripts/errors/Gone';
 import Model from 'scripts/services/Model';
@@ -34,6 +33,7 @@ import { type DataModel } from 'scripts/services/__mocks__/schema';
 import FastifyController from 'scripts/services/FastifyController';
 import UnprocessableEntity from 'scripts/errors/UnprocessableEntity';
 import RequestEntityTooLarge from 'scripts/errors/RequestEntityTooLarge';
+import { Id, type CollectionSchema, type DataModelMetadata } from '@perseid/core';
 
 type Validate = (arg: unknown, ...args: unknown[]) => boolean;
 
@@ -69,7 +69,7 @@ describe('services/FastifyController', () => {
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
   const emailClient = new EmailClient(logger);
   const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
-  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionDataModel<DataModel>>);
+  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionSchema<DataModel>>);
   const databaseClient = new DatabaseClient<DataModel>(model, logger, cacheClient, {
     cacheDuration: 0,
     connectionLimit: 0,
@@ -136,11 +136,12 @@ describe('services/FastifyController', () => {
     expect(validate({}, '64723318e84f943f1ad6578b', {}, context)).toBe(true);
   });
 
-  test('[createSchema]', () => {
+  test('[createSchema] create mode', () => {
+    const testMetadata = model.get('test') as DataModelMetadata<CollectionSchema<DataModel>>;
     expect(controller.createSchema({
       body: {
         type: 'object',
-        fields: model.getCollection('test').fields,
+        fields: testMetadata.schema.fields,
       },
       response: {
         '2xx': {
@@ -152,79 +153,76 @@ describe('services/FastifyController', () => {
       body: {
         type: ['object', 'null'],
         additionalProperties: false,
-        errorMessage: { type: 'must be a valid object' },
+        errorMessage: { type: 'must be a valid object, or null' },
         default: null,
         properties: {
           primitiveOne: {
             isId: true,
-            type: 'string',
-            errorMessage: { type: 'must be a valid id', pattern: 'must be a valid id' },
+            type: ['string', 'null'],
+            errorMessage: {
+              type: 'must be a valid id, or null',
+              pattern: 'must be a valid id',
+            },
             pattern: '^[0-9a-fA-F]{24}$',
             default: null,
-            nullable: true,
           },
           primitiveTwo: {
-            type: 'string',
+            type: ['string', 'null'],
             minLength: 10,
             isBinary: true,
-            errorMessage: { type: 'must be a base64-encoded binary' },
+            errorMessage: { type: 'must be a base64-encoded binary, or null' },
             default: 'testtest',
-            nullable: true,
           },
           primitiveThree: {
-            type: 'string',
-            errorMessage: { type: 'must be a string' },
+            type: ['string', 'null'],
+            errorMessage: { type: 'must be a string, or null' },
             default: null,
-            nullable: true,
           },
           arrayOne: {
             type: ['array', 'null'],
-            errorMessage: { type: 'must be a valid array' },
+            errorMessage: { type: 'must be a valid array, or null' },
             items: {
               type: ['object', 'null'],
               additionalProperties: false,
-              errorMessage: { type: 'must be a valid object' },
+              errorMessage: { type: 'must be a valid object, or null' },
               required: ['object'],
               default: null,
               properties: {
                 dynamicObject: {
                   type: ['object', 'null'],
+                  errorMessage: { type: 'must be a valid object, or null' },
                   additionalProperties: false,
-                  errorMessage: { type: 'must be a valid object' },
                   default: null,
-                  properties: {
+                  patternProperties: {
                     '^testOne$': {
                       isId: true,
-                      type: 'string',
+                      type: ['string', 'null'],
                       errorMessage: {
-                        type: 'must be a valid id',
+                        type: 'must be a valid id, or null',
                         pattern: 'must be a valid id',
                       },
                       pattern: '^[0-9a-fA-F]{24}$',
                       default: null,
-                      nullable: true,
                     },
                     '^testTwo$': {
                       isId: true,
-                      type: 'string',
+                      type: ['string', 'null'],
                       errorMessage: {
-                        type: 'must be a valid id',
+                        type: 'must be a valid id, or null',
                         pattern: 'must be a valid id',
                       },
                       pattern: '^[0-9a-fA-F]{24}$',
                       default: null,
-                      nullable: true,
                     },
                     '^special(.*)$': {
                       isId: true,
-                      type: 'string',
+                      type: ['string', 'null'],
                       errorMessage: {
-                        type: 'must be a valid id',
+                        type: 'must be a valid id, or null',
                         pattern: 'must be a valid id',
                       },
                       pattern: '^[0-9a-fA-F]{24}$',
                       default: null,
-                      nullable: true,
                     },
                   },
                 },
@@ -234,10 +232,9 @@ describe('services/FastifyController', () => {
                   errorMessage: { type: 'must be a valid object' },
                   properties: {
                     fieldOne: {
-                      type: 'string',
-                      errorMessage: { type: 'must be a string' },
+                      type: ['string', 'null'],
+                      errorMessage: { type: 'must be a string, or null' },
                       default: null,
-                      nullable: true,
                     },
                   },
                 },
@@ -247,55 +244,57 @@ describe('services/FastifyController', () => {
           },
           arrayTwo: {
             type: ['array', 'null'],
-            errorMessage: { type: 'must be a valid array' },
+            errorMessage: { type: 'must be a valid array, or null' },
+            default: null,
             items: {
               isId: true,
-              type: 'string',
-              errorMessage: { type: 'must be a valid id', pattern: 'must be a valid id' },
+              type: ['string', 'null'],
+              errorMessage: {
+                type: 'must be a valid id, or null',
+                pattern: 'must be a valid id',
+              },
               pattern: '^[0-9a-fA-F]{24}$',
               default: null,
-              nullable: true,
             },
-            default: null,
           },
           arrayThree: {
             type: ['array', 'null'],
-            errorMessage: { type: 'must be a valid array' },
+            errorMessage: { type: 'must be a valid array, or null' },
             items: {
               isId: true,
-              type: 'string',
-              errorMessage: { type: 'must be a valid id', pattern: 'must be a valid id' },
+              type: ['string', 'null'],
+              errorMessage: {
+                type: 'must be a valid id, or null',
+                pattern: 'must be a valid id',
+              },
               pattern: '^[0-9a-fA-F]{24}$',
               default: null,
-              nullable: true,
             },
             default: null,
           },
           arrayFour: {
             type: ['array', 'null'],
-            errorMessage: { type: 'must be a valid array' },
+            errorMessage: { type: 'must be a valid array, or null' },
             items: {
-              type: 'string',
-              errorMessage: { type: 'must be a string' },
+              type: ['string', 'null'],
+              errorMessage: { type: 'must be a string, or null' },
               default: null,
-              nullable: true,
             },
             default: null,
           },
           arrayFive: {
             type: ['array', 'null'],
-            errorMessage: { type: 'must be a valid array' },
+            errorMessage: { type: 'must be a valid array, or null' },
             items: {
               type: ['object', 'null'],
               additionalProperties: false,
-              errorMessage: { type: 'must be a valid object' },
+              errorMessage: { type: 'must be a valid object, or null' },
               default: null,
               properties: {
                 fieldOne: {
-                  type: 'string',
-                  errorMessage: { type: 'must be a string' },
+                  type: ['string', 'null'],
+                  errorMessage: { type: 'must be a string, or null' },
                   default: null,
-                  nullable: true,
                 },
               },
             },
@@ -303,87 +302,81 @@ describe('services/FastifyController', () => {
           },
           dynamicOne: {
             type: ['object', 'null'],
+            errorMessage: { type: 'must be a valid object, or null' },
             additionalProperties: false,
-            errorMessage: { type: 'must be a valid object' },
             default: null,
-            properties: {
+            patternProperties: {
               '^testOne$': {
                 isId: true,
-                type: 'string',
+                type: ['string', 'null'],
                 errorMessage: {
-                  type: 'must be a valid id',
+                  type: 'must be a valid id, or null',
                   pattern: 'must be a valid id',
                 },
                 pattern: '^[0-9a-fA-F]{24}$',
                 default: null,
-                nullable: true,
               },
               '^testTwo$': {
                 isId: true,
-                type: 'string',
+                type: ['string', 'null'],
                 errorMessage: {
-                  type: 'must be a valid id',
+                  type: 'must be a valid id, or null',
                   pattern: 'must be a valid id',
                 },
                 pattern: '^[0-9a-fA-F]{24}$',
                 default: null,
-                nullable: true,
               },
               '^testThree$': {
                 type: ['object', 'null'],
                 additionalProperties: false,
-                errorMessage: { type: 'must be a valid object' },
+                errorMessage: { type: 'must be a valid object, or null' },
                 default: null,
                 properties: {
                   test: {
-                    type: 'string',
-                    errorMessage: { type: 'must be a string' },
+                    type: ['string', 'null'],
+                    errorMessage: { type: 'must be a string, or null' },
                     default: null,
-                    nullable: true,
                   },
                 },
               },
               '^special(.*)$': {
                 isId: true,
-                type: 'string',
+                type: ['string', 'null'],
                 errorMessage: {
-                  type: 'must be a valid id',
+                  type: 'must be a valid id, or null',
                   pattern: 'must be a valid id',
                 },
                 pattern: '^[0-9a-fA-F]{24}$',
                 default: null,
-                nullable: true,
               },
             },
           },
           dynamicTwo: {
             type: ['object', 'null'],
+            errorMessage: { type: 'must be a valid object, or null' },
             additionalProperties: false,
-            errorMessage: { type: 'must be a valid object' },
             default: null,
-            properties: {
+            patternProperties: {
               '^testOne$': {
                 isId: true,
-                type: 'string',
+                type: ['string', 'null'],
                 errorMessage: {
-                  type: 'must be a valid id',
+                  type: 'must be a valid id, or null',
                   pattern: 'must be a valid id',
                 },
                 pattern: '^[0-9a-fA-F]{24}$',
                 default: null,
-                nullable: true,
               },
               '^testTwo$': {
                 type: ['object', 'null'],
                 additionalProperties: false,
-                errorMessage: { type: 'must be a valid object' },
+                errorMessage: { type: 'must be a valid object, or null' },
                 default: null,
                 properties: {
                   test: {
-                    type: 'string',
-                    errorMessage: { type: 'must be a string' },
+                    type: ['string', 'null'],
+                    errorMessage: { type: 'must be a string, or null' },
                     default: null,
-                    nullable: true,
                   },
                 },
               },
@@ -395,16 +388,23 @@ describe('services/FastifyController', () => {
         '2xx': {
           type: 'object',
           additionalProperties: false,
-          errorMessage: {},
           nullable: true,
           properties: {},
         },
       },
     });
+    // Just to make sure schemas enumerations are not directly mutated by formatters.
+    const test2Metadata = model.get('test2') as DataModelMetadata<CollectionSchema<DataModel>>;
+    controller.createSchema({
+      body: {
+        type: 'object',
+        fields: test2Metadata.schema.fields,
+      },
+    }, 'CREATE');
     expect(controller.createSchema({
       body: {
         type: 'object',
-        fields: model.getCollection('test2').fields,
+        fields: test2Metadata.schema.fields,
       },
       response: {
         '2xx': {
@@ -420,8 +420,19 @@ describe('services/FastifyController', () => {
       body: {
         type: ['object', 'null'],
         additionalProperties: false,
-        errorMessage: { type: 'must be a valid object' },
+        errorMessage: { type: 'must be a valid object, or null' },
         default: null,
+        required: [
+          'float',
+          'integer',
+          'binary',
+          'enum',
+          'boolean',
+          'date',
+          'id',
+          'arrayTwo',
+          'dynamicObjectTwo',
+        ],
         properties: {
           float: {
             type: 'number',
@@ -432,7 +443,7 @@ describe('services/FastifyController', () => {
               exclusiveMinimum: 'must be greater than 0',
               exclusiveMaximum: 'must be smaller than 10',
               multipleOf: 'must be a multiple of 2',
-              enum: 'must be one of: "1"',
+              enum: 'must be one of: 1',
             },
             minimum: 0,
             maximum: 10,
@@ -441,24 +452,26 @@ describe('services/FastifyController', () => {
             multipleOf: 2,
             enum: [1],
             default: 4,
-            nullable: true,
           },
           floatTwo: {
-            type: 'number',
-            errorMessage: { type: 'must be a float' },
+            type: ['number', 'null'],
+            enum: [2, null],
+            errorMessage: {
+              enum: 'must be one of: 2',
+              type: 'must be a float, or null',
+            },
             default: null,
-            nullable: true,
           },
           integer: {
             type: 'integer',
             errorMessage: {
-              type: 'must be a integer',
+              type: 'must be an integer',
               minimum: 'must be greater than or equal to 0',
               maximum: 'must be smaller than or equal to 10',
               exclusiveMinimum: 'must be greater than 0',
               exclusiveMaximum: 'must be smaller than 10',
               multipleOf: 'must be a multiple of 2',
-              enum: 'must be one of: "1"',
+              enum: 'must be one of: 1',
             },
             minimum: 0,
             maximum: 10,
@@ -467,18 +480,17 @@ describe('services/FastifyController', () => {
             multipleOf: 2,
             enum: [1],
             default: 4,
-            nullable: true,
           },
           integerTwo: {
-            type: 'integer',
-            errorMessage: { type: 'must be a integer' },
             default: null,
-            nullable: true,
+            enum: [2, null],
+            type: ['integer', 'null'],
+            errorMessage: { enum: 'must be one of: 2', type: 'must be an integer, or null' },
           },
           string: {
-            type: 'string',
+            type: ['string', 'null'],
             errorMessage: {
-              type: 'must be a string',
+              type: 'must be a string, or null',
               maxLength: 'must be no longer than 10 characters',
               minLength: 'must be no shorter than 1 characters',
               pattern: 'must match "test" pattern',
@@ -487,9 +499,8 @@ describe('services/FastifyController', () => {
             maxLength: 10,
             minLength: 1,
             pattern: 'test',
-            enum: ['test'],
+            enum: ['test', null],
             default: '',
-            nullable: true,
           },
           null: { type: 'null', errorMessage: {} },
           binary: {
@@ -497,37 +508,28 @@ describe('services/FastifyController', () => {
             minLength: 10,
             isBinary: true,
             errorMessage: { type: 'must be a base64-encoded binary' },
-            default: null,
-            nullable: true,
           },
           enum: {
             type: 'string',
             errorMessage: { type: 'must be a string', enum: 'must be one of: "test"' },
             enum: ['test'],
-            default: null,
-            nullable: true,
           },
           boolean: {
             type: 'boolean',
-            isBinary: true,
             errorMessage: { type: 'must be a boolean' },
             default: false,
-            nullable: true,
           },
           booleanTwo: {
-            type: 'boolean',
-            isBinary: true,
-            errorMessage: { type: 'must be a boolean' },
+            type: ['boolean', 'null'],
+            errorMessage: { type: 'must be a boolean, or null' },
             default: null,
-            nullable: true,
           },
           relation: {
             isId: true,
-            type: 'string',
-            errorMessage: { type: 'must be a valid id', pattern: 'must be a valid id' },
+            type: ['string', 'null'],
+            errorMessage: { type: 'must be a valid id, or null', pattern: 'must be a valid id' },
             pattern: '^[0-9a-fA-F]{24}$',
             default: null,
-            nullable: true,
           },
           date: {
             type: 'string',
@@ -535,23 +537,23 @@ describe('services/FastifyController', () => {
             errorMessage: {
               type: 'must be a valid date',
               pattern: 'must be a valid date',
-              enum: 'must be one of: "Sun Jan 01 2023 00:00:00 GMT+0000 (Coordinated Universal Time)"',
+              enum: 'must be one of: "2023-01-01T00:00:00.000Z"',
             },
             pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z',
             enum: ['2023-01-01T00:00:00.000Z'],
             default: new Date('2023-01-01'),
-            nullable: true,
           },
           dateTwo: {
-            type: 'string',
+            type: ['string', 'null'],
             isDate: true,
             errorMessage: {
-              type: 'must be a valid date',
+              type: 'must be a valid date, or null',
               pattern: 'must be a valid date',
+              enum: 'must be one of: "2023-01-01T00:00:00.000Z"',
             },
+            enum: ['2023-01-01T00:00:00.000Z', null],
             pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z',
             default: null,
-            nullable: true,
           },
           id: {
             isId: true,
@@ -564,21 +566,31 @@ describe('services/FastifyController', () => {
             pattern: '^[0-9a-fA-F]{24}$',
             enum: ['6478a6c5392350aaced68cf9'],
             default: new Id('6478a6c5392350aaced68cf9'),
-            nullable: true,
+          },
+          idTwo: {
+            isId: true,
+            type: ['string', 'null'],
+            errorMessage: {
+              pattern: 'must be a valid id',
+              type: 'must be a valid id, or null',
+              enum: 'must be one of: "6478a6c5392350aaced68cf9"',
+            },
+            pattern: '^[0-9a-fA-F]{24}$',
+            enum: ['6478a6c5392350aaced68cf9', null],
+            default: new Id('6478a6c5392350aaced68cf9'),
           },
           array: {
             type: ['array', 'null'],
             errorMessage: {
-              type: 'must be a valid array',
+              type: 'must be a valid array, or null',
               minItems: 'must contain at least 3 entries',
               maxItems: 'must not contain more than 10 entries',
               uniqueItems: 'must contain only unique entries',
             },
             items: {
-              type: 'string',
-              errorMessage: { type: 'must be a string' },
+              type: ['string', 'null'],
+              errorMessage: { type: 'must be a string, or null' },
               default: null,
-              nullable: true,
             },
             minItems: 3,
             maxItems: 10,
@@ -586,7 +598,7 @@ describe('services/FastifyController', () => {
             default: null,
           },
           arrayTwo: {
-            type: ['array', 'null'],
+            type: 'array',
             errorMessage: {
               type: 'must be a valid array',
               minItems: 'must contain at least 1 entry',
@@ -594,38 +606,35 @@ describe('services/FastifyController', () => {
               uniqueItems: 'must contain only unique entries',
             },
             items: {
-              type: 'string',
-              errorMessage: { type: 'must be a string' },
+              type: ['string', 'null'],
+              errorMessage: { type: 'must be a string, or null' },
               default: null,
-              nullable: true,
             },
             minItems: 1,
             maxItems: 1,
             uniqueItems: true,
-            default: null,
           },
           dynamicObject: {
             type: ['object', 'null'],
             additionalProperties: false,
             errorMessage: {
-              type: 'must be a valid object',
+              type: 'must be a valid object, or null',
               minProperties: 'must contain at least 3 entries',
               maxProperties: 'must not contain more than 10 entries',
             },
             minProperties: 3,
             maxProperties: 10,
             default: null,
-            properties: {
+            patternProperties: {
               test: {
-                type: 'string',
-                errorMessage: { type: 'must be a string' },
+                type: ['string', 'null'],
+                errorMessage: { type: 'must be a string, or null' },
                 default: null,
-                nullable: true,
               },
             },
           },
           dynamicObjectTwo: {
-            type: ['object', 'null'],
+            type: 'object',
             additionalProperties: false,
             errorMessage: {
               type: 'must be a valid object',
@@ -634,13 +643,11 @@ describe('services/FastifyController', () => {
             },
             minProperties: 1,
             maxProperties: 1,
-            default: null,
-            properties: {
+            patternProperties: {
               test: {
-                type: 'string',
-                errorMessage: { type: 'must be a string' },
+                type: ['string', 'null'],
+                errorMessage: { type: 'must be a string, or null' },
                 default: null,
-                nullable: true,
               },
             },
           },
@@ -650,7 +657,6 @@ describe('services/FastifyController', () => {
         '2xx': {
           type: 'object',
           additionalProperties: false,
-          errorMessage: {},
           nullable: true,
           properties: {
             relation: {
@@ -661,16 +667,517 @@ describe('services/FastifyController', () => {
             },
             array: {
               type: 'array',
-              errorMessage: {},
-              items: { type: 'string', errorMessage: {}, nullable: true },
+              items: { type: 'string', nullable: true },
               nullable: true,
             },
             dynamicObject: {
               type: 'object',
-              additionalProperties: false,
-              errorMessage: {},
+              additionalProperties: true,
               nullable: true,
-              properties: {},
+              patternProperties: {},
+            },
+          },
+        },
+      },
+    });
+  });
+
+  test('[createSchema] update mode', () => {
+    const testMetadata = model.get('test') as DataModelMetadata<CollectionSchema<DataModel>>;
+    expect(controller.createSchema({
+      body: {
+        type: 'object',
+        fields: testMetadata.schema.fields,
+      },
+      response: {
+        '2xx': {
+          type: 'object',
+          fields: {},
+        },
+      },
+    }, 'UPDATE')).toEqual({
+      body: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        errorMessage: { type: 'must be a valid object, or null' },
+        properties: {
+          primitiveOne: {
+            isId: true,
+            type: ['string', 'null'],
+            errorMessage: {
+              type: 'must be a valid id, or null',
+              pattern: 'must be a valid id',
+            },
+            pattern: '^[0-9a-fA-F]{24}$',
+          },
+          primitiveTwo: {
+            type: ['string', 'null'],
+            minLength: 10,
+            isBinary: true,
+            errorMessage: { type: 'must be a base64-encoded binary, or null' },
+          },
+          primitiveThree: {
+            type: ['string', 'null'],
+            errorMessage: { type: 'must be a string, or null' },
+          },
+          arrayOne: {
+            type: ['array', 'null'],
+            errorMessage: { type: 'must be a valid array, or null' },
+            items: {
+              type: ['object', 'null'],
+              additionalProperties: false,
+              errorMessage: { type: 'must be a valid object, or null' },
+              required: ['object'],
+              default: null,
+              properties: {
+                dynamicObject: {
+                  type: ['object', 'null'],
+                  errorMessage: { type: 'must be a valid object, or null' },
+                  additionalProperties: false,
+                  default: null,
+                  patternProperties: {
+                    '^testOne$': {
+                      isId: true,
+                      type: ['string', 'null'],
+                      errorMessage: {
+                        type: 'must be a valid id, or null',
+                        pattern: 'must be a valid id',
+                      },
+                      pattern: '^[0-9a-fA-F]{24}$',
+                      default: null,
+                    },
+                    '^testTwo$': {
+                      isId: true,
+                      type: ['string', 'null'],
+                      errorMessage: {
+                        type: 'must be a valid id, or null',
+                        pattern: 'must be a valid id',
+                      },
+                      pattern: '^[0-9a-fA-F]{24}$',
+                      default: null,
+                    },
+                    '^special(.*)$': {
+                      isId: true,
+                      type: ['string', 'null'],
+                      errorMessage: {
+                        type: 'must be a valid id, or null',
+                        pattern: 'must be a valid id',
+                      },
+                      pattern: '^[0-9a-fA-F]{24}$',
+                      default: null,
+                    },
+                  },
+                },
+                object: {
+                  type: 'object',
+                  additionalProperties: false,
+                  errorMessage: { type: 'must be a valid object' },
+                  properties: {
+                    fieldOne: {
+                      type: ['string', 'null'],
+                      errorMessage: { type: 'must be a string, or null' },
+                      default: null,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          arrayTwo: {
+            type: ['array', 'null'],
+            errorMessage: { type: 'must be a valid array, or null' },
+            items: {
+              isId: true,
+              type: ['string', 'null'],
+              errorMessage: {
+                type: 'must be a valid id, or null',
+                pattern: 'must be a valid id',
+              },
+              pattern: '^[0-9a-fA-F]{24}$',
+              default: null,
+            },
+          },
+          arrayThree: {
+            type: ['array', 'null'],
+            errorMessage: { type: 'must be a valid array, or null' },
+            items: {
+              isId: true,
+              type: ['string', 'null'],
+              errorMessage: {
+                type: 'must be a valid id, or null',
+                pattern: 'must be a valid id',
+              },
+              pattern: '^[0-9a-fA-F]{24}$',
+              default: null,
+            },
+          },
+          arrayFour: {
+            type: ['array', 'null'],
+            errorMessage: { type: 'must be a valid array, or null' },
+            items: {
+              type: ['string', 'null'],
+              errorMessage: { type: 'must be a string, or null' },
+              default: null,
+            },
+          },
+          arrayFive: {
+            type: ['array', 'null'],
+            errorMessage: { type: 'must be a valid array, or null' },
+            items: {
+              type: ['object', 'null'],
+              additionalProperties: false,
+              errorMessage: { type: 'must be a valid object, or null' },
+              default: null,
+              properties: {
+                fieldOne: {
+                  type: ['string', 'null'],
+                  errorMessage: { type: 'must be a string, or null' },
+                  default: null,
+                },
+              },
+            },
+          },
+          dynamicOne: {
+            type: ['object', 'null'],
+            errorMessage: { type: 'must be a valid object, or null' },
+            additionalProperties: false,
+            patternProperties: {
+              '^testOne$': {
+                isId: true,
+                type: ['string', 'null'],
+                errorMessage: {
+                  type: 'must be a valid id, or null',
+                  pattern: 'must be a valid id',
+                },
+                pattern: '^[0-9a-fA-F]{24}$',
+              },
+              '^testTwo$': {
+                isId: true,
+                type: ['string', 'null'],
+                errorMessage: {
+                  type: 'must be a valid id, or null',
+                  pattern: 'must be a valid id',
+                },
+                pattern: '^[0-9a-fA-F]{24}$',
+              },
+              '^testThree$': {
+                type: ['object', 'null'],
+                additionalProperties: false,
+                errorMessage: { type: 'must be a valid object, or null' },
+                properties: {
+                  test: {
+                    type: ['string', 'null'],
+                    errorMessage: { type: 'must be a string, or null' },
+                  },
+                },
+              },
+              '^special(.*)$': {
+                isId: true,
+                type: ['string', 'null'],
+                errorMessage: {
+                  type: 'must be a valid id, or null',
+                  pattern: 'must be a valid id',
+                },
+                pattern: '^[0-9a-fA-F]{24}$',
+              },
+            },
+          },
+          dynamicTwo: {
+            type: ['object', 'null'],
+            errorMessage: { type: 'must be a valid object, or null' },
+            additionalProperties: false,
+            patternProperties: {
+              '^testOne$': {
+                isId: true,
+                type: ['string', 'null'],
+                errorMessage: {
+                  type: 'must be a valid id, or null',
+                  pattern: 'must be a valid id',
+                },
+                pattern: '^[0-9a-fA-F]{24}$',
+              },
+              '^testTwo$': {
+                type: ['object', 'null'],
+                additionalProperties: false,
+                errorMessage: { type: 'must be a valid object, or null' },
+                properties: {
+                  test: {
+                    type: ['string', 'null'],
+                    errorMessage: { type: 'must be a string, or null' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      response: {
+        '2xx': {
+          type: 'object',
+          additionalProperties: false,
+          nullable: true,
+          properties: {},
+        },
+      },
+    });
+    // Just to make sure schemas enumerations are not directly mutated by formatters.
+    const test2Metadata = model.get('test2') as DataModelMetadata<CollectionSchema<DataModel>>;
+    expect(controller.createSchema({
+      body: {
+        type: 'object',
+        fields: test2Metadata.schema.fields,
+      },
+      response: {
+        '2xx': {
+          type: 'object',
+          fields: {
+            _id: { type: 'id' },
+            date: { type: 'date' },
+            float: { type: 'float' },
+            binary: { type: 'binary' },
+            boolean: { type: 'boolean' },
+            integer: { type: 'integer' },
+            relation: { type: 'id', relation: 'test2' },
+            array: { type: 'array', fields: { type: 'string' } },
+            dynamicObject: { type: 'dynamicObject', fields: { test: { type: 'string' } } },
+          },
+        },
+      },
+    }, 'UPDATE')).toEqual({
+      body: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        errorMessage: { type: 'must be a valid object, or null' },
+        properties: {
+          float: {
+            type: 'number',
+            errorMessage: {
+              type: 'must be a float',
+              minimum: 'must be greater than or equal to 0',
+              maximum: 'must be smaller than or equal to 10',
+              exclusiveMinimum: 'must be greater than 0',
+              exclusiveMaximum: 'must be smaller than 10',
+              multipleOf: 'must be a multiple of 2',
+              enum: 'must be one of: 1',
+            },
+            minimum: 0,
+            maximum: 10,
+            exclusiveMinimum: 0,
+            exclusiveMaximum: 10,
+            multipleOf: 2,
+            enum: [1],
+          },
+          floatTwo: {
+            type: ['number', 'null'],
+            enum: [2, null],
+            errorMessage: {
+              enum: 'must be one of: 2',
+              type: 'must be a float, or null',
+            },
+          },
+          integer: {
+            type: 'integer',
+            errorMessage: {
+              type: 'must be an integer',
+              minimum: 'must be greater than or equal to 0',
+              maximum: 'must be smaller than or equal to 10',
+              exclusiveMinimum: 'must be greater than 0',
+              exclusiveMaximum: 'must be smaller than 10',
+              multipleOf: 'must be a multiple of 2',
+              enum: 'must be one of: 1',
+            },
+            minimum: 0,
+            maximum: 10,
+            exclusiveMinimum: 0,
+            exclusiveMaximum: 10,
+            multipleOf: 2,
+            enum: [1],
+          },
+          integerTwo: {
+            enum: [2, null],
+            type: ['integer', 'null'],
+            errorMessage: { enum: 'must be one of: 2', type: 'must be an integer, or null' },
+          },
+          string: {
+            type: ['string', 'null'],
+            errorMessage: {
+              type: 'must be a string, or null',
+              maxLength: 'must be no longer than 10 characters',
+              minLength: 'must be no shorter than 1 characters',
+              pattern: 'must match "test" pattern',
+              enum: 'must be one of: "test"',
+            },
+            maxLength: 10,
+            minLength: 1,
+            pattern: 'test',
+            enum: ['test', null],
+          },
+          null: { type: 'null', errorMessage: {} },
+          binary: {
+            type: 'string',
+            minLength: 10,
+            isBinary: true,
+            errorMessage: { type: 'must be a base64-encoded binary' },
+          },
+          enum: {
+            type: 'string',
+            errorMessage: {
+              type: 'must be a string',
+              enum: 'must be one of: "test"',
+            },
+            enum: ['test'],
+          },
+          booleanTwo: {
+            type: ['boolean', 'null'],
+            errorMessage: { type: 'must be a boolean, or null' },
+          },
+          relation: {
+            isId: true,
+            type: ['string', 'null'],
+            errorMessage: {
+              type: 'must be a valid id, or null',
+              pattern: 'must be a valid id',
+            },
+            pattern: '^[0-9a-fA-F]{24}$',
+          },
+          boolean: { type: 'boolean', errorMessage: { type: 'must be a boolean' } },
+          date: {
+            type: 'string',
+            isDate: true,
+            errorMessage: {
+              type: 'must be a valid date',
+              pattern: 'must be a valid date',
+              enum: 'must be one of: "2023-01-01T00:00:00.000Z"',
+            },
+            pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z',
+            enum: ['2023-01-01T00:00:00.000Z'],
+          },
+          dateTwo: {
+            type: ['string', 'null'],
+            isDate: true,
+            errorMessage: {
+              type: 'must be a valid date, or null',
+              pattern: 'must be a valid date',
+              enum: 'must be one of: "2023-01-01T00:00:00.000Z"',
+            },
+            enum: ['2023-01-01T00:00:00.000Z', null],
+            pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z',
+          },
+          id: {
+            isId: true,
+            type: 'string',
+            errorMessage: {
+              type: 'must be a valid id',
+              pattern: 'must be a valid id',
+              enum: 'must be one of: "6478a6c5392350aaced68cf9"',
+            },
+            pattern: '^[0-9a-fA-F]{24}$',
+            enum: ['6478a6c5392350aaced68cf9'],
+          },
+          idTwo: {
+            isId: true,
+            type: ['string', 'null'],
+            errorMessage: {
+              pattern: 'must be a valid id',
+              type: 'must be a valid id, or null',
+              enum: 'must be one of: "6478a6c5392350aaced68cf9"',
+            },
+            pattern: '^[0-9a-fA-F]{24}$',
+            enum: ['6478a6c5392350aaced68cf9', null],
+          },
+          array: {
+            type: ['array', 'null'],
+            errorMessage: {
+              type: 'must be a valid array, or null',
+              minItems: 'must contain at least 3 entries',
+              maxItems: 'must not contain more than 10 entries',
+              uniqueItems: 'must contain only unique entries',
+            },
+            items: {
+              type: ['string', 'null'],
+              errorMessage: { type: 'must be a string, or null' },
+              default: null,
+            },
+            minItems: 3,
+            maxItems: 10,
+            uniqueItems: true,
+          },
+          arrayTwo: {
+            type: 'array',
+            errorMessage: {
+              type: 'must be a valid array',
+              minItems: 'must contain at least 1 entry',
+              maxItems: 'must not contain more than 1 entry',
+              uniqueItems: 'must contain only unique entries',
+            },
+            items: {
+              type: ['string', 'null'],
+              errorMessage: { type: 'must be a string, or null' },
+              default: null,
+            },
+            minItems: 1,
+            maxItems: 1,
+            uniqueItems: true,
+          },
+          dynamicObject: {
+            type: ['object', 'null'],
+            errorMessage: {
+              type: 'must be a valid object, or null',
+              minProperties: 'must contain at least 3 entries',
+              maxProperties: 'must not contain more than 10 entries',
+            },
+            additionalProperties: false,
+            minProperties: 3,
+            maxProperties: 10,
+            patternProperties: {
+              test: {
+                type: ['string', 'null'],
+                errorMessage: { type: 'must be a string, or null' },
+              },
+            },
+          },
+          dynamicObjectTwo: {
+            type: 'object',
+            errorMessage: {
+              type: 'must be a valid object',
+              minProperties: 'must contain at least 1 entry',
+              maxProperties: 'must not contain more than 1 entry',
+            },
+            additionalProperties: false,
+            minProperties: 1,
+            maxProperties: 1,
+            patternProperties: {
+              test: {
+                type: ['string', 'null'],
+                errorMessage: { type: 'must be a string, or null' },
+              },
+            },
+          },
+        },
+      },
+      response: {
+        '2xx': {
+          type: 'object',
+          additionalProperties: false,
+          nullable: true,
+          properties: {
+            relation: { oneOf: [{ type: 'string' }, { $ref: 'test2.json' }] },
+            _id: { type: 'string', nullable: true },
+            date: { type: 'string', nullable: true },
+            float: { type: 'number', nullable: true },
+            binary: { type: 'string', nullable: true },
+            boolean: { type: 'boolean', nullable: true },
+            integer: { type: 'integer', nullable: true },
+            array: {
+              type: 'array',
+              items: { type: 'string', nullable: true },
+              nullable: true,
+            },
+            dynamicObject: {
+              type: 'object',
+              additionalProperties: true,
+              nullable: true,
+              patternProperties: { test: { type: 'string', nullable: true } },
             },
           },
         },

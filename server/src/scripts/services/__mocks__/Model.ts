@@ -7,6 +7,7 @@
  */
 
 import { type Document } from 'mongodb';
+import { type DataModelMetadata } from '@perseid/core';
 import schema from 'scripts/services/__mocks__/schema';
 
 /** `services/Model` mock. */
@@ -36,7 +37,10 @@ export default class Model {
 
   public getPublicSchema = vi.fn(() => ({}));
 
-  public getCollection(collection: string): CollectionDataModel<Document> {
-    return ((schema as Document)[collection]) ?? this.defaultCollection;
+  public get(collection: string): DataModelMetadata<Document> {
+    return {
+      permissions: new Set(),
+      schema: ((schema as Document)[collection]) ?? this.defaultCollection,
+    };
   }
 }

@@ -15,14 +15,29 @@ import {
   type ClientSession,
   type MongoServerError,
 } from 'mongodb';
+import {
+  Id,
+  forEach,
+  type Results,
+  type IdSchema,
+  type DateSchema,
+  type FieldSchema,
+  type ArraySchema,
+  type NumberSchema,
+  type StringSchema,
+  type ObjectSchema,
+  type DefaultDataModel,
+  type DynamicObjectSchema,
+  DataModelMetadata,
+  CollectionSchema,
+} from '@perseid/core';
 import { isPlainObject } from 'basx';
 import type Logger from 'scripts/services/Logger';
 import type BaseModel from 'scripts/services/Model';
 import DatabaseError from 'scripts/errors/Database';
 import type CacheClient from 'scripts/services/CacheClient';
-import { Id, forEach, type DataModel as DefaultTypes } from '@perseid/core';
 
-type RelationsPerCollection<Types> = Record<keyof Types, Map<string, string[]>>;
+type RelationsPerCollection<DataModel> = Record<keyof DataModel, Map<string, string[]>>;
 
 /** Mongo index. */
 export interface Index {
@@ -59,8 +74,8 @@ export interface MongoValidationSchema {
 }
 
 /** Perseid data model to Mongo validation schema formatters. */
-export interface MongoFormatters<Types> {
-  [type: string]: (model: FieldDataModel<Types>) => MongoValidationSchema;
+export interface MongoFormatters<DataModel> {
+  [type: string]: (model: FieldSchema<DataModel>) => MongoValidationSchema;
 }
 
 /** Migration callback. */
@@ -90,10 +105,10 @@ const defaultMigration: MigrationCallback = (): Promise<void> => Promise.resolve
  */
 export default class DatabaseClient<
   /** Data model types definitions. */
-  Types = DefaultTypes,
+  DataModel = DefaultDataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 > {
   /** Default sorting pipeline. */
   protected readonly DEFAULT_SORTING_PIPELINE: Document[] = [];
@@ -120,12 +135,12 @@ export default class DatabaseClient<
   protected readonly DEFAULT_QUERY_OPTIONS: CommandOptions = {};
 
   /** List of formatters, used to format a perseid data model into its MongoDB equivalent. */
-  protected readonly FORMATTERS: MongoFormatters<Types> = {
+  protected readonly FORMATTERS: MongoFormatters<DataModel> = {
     null() {
       return { bsonType: ['null'] };
     },
     id(model) {
-      const { enum: enumerations } = model as IdDataModel<Types>;
+      const { enum: enumerations } = model as IdSchema<DataModel>;
       const formattedField: MongoValidationSchema = { bsonType: ['objectId'] };
       if (enumerations !== undefined) {
         formattedField.enum = enumerations.map((id) => `${id}`);
@@ -152,7 +167,7 @@ export default class DatabaseClient<
     },
     date(model) {
       const formattedField: MongoValidationSchema = { bsonType: ['date'] };
-      const { enum: enumerations } = model as DateDataModel;
+      const { enum: enumerations } = model as DateSchema;
       if (enumerations !== undefined) {
         formattedField.enum = enumerations.map((date) => date.toISOString());
       }
@@ -171,7 +186,7 @@ export default class DatabaseClient<
         exclusiveMinimum,
         exclusiveMaximum,
         enum: enumerations,
-      } = model as NumberDataModel;
+      } = model as NumberSchema;
       if (minimum !== undefined) {
         formattedField.minimum = minimum;
       }
@@ -207,7 +222,7 @@ export default class DatabaseClient<
         exclusiveMinimum,
         exclusiveMaximum,
         enum: enumerations,
-      } = model as NumberDataModel;
+      } = model as NumberSchema;
       if (minimum !== undefined) {
         formattedField.minimum = minimum;
       }
@@ -241,7 +256,7 @@ export default class DatabaseClient<
         maxLength,
         minLength,
         enum: enumerations,
-      } = model as StringDataModel;
+      } = model as StringSchema;
       if (maxLength !== undefined) {
         formattedField.maxLength = maxLength;
       }
@@ -265,7 +280,7 @@ export default class DatabaseClient<
         bsonType: ['object'],
         additionalProperties: false,
       };
-      const { fields } = model as ObjectDataModel<Types>;
+      const { fields } = model as ObjectSchema<DataModel>;
       if (!model.required) {
         formattedField.bsonType.push('null');
       }
@@ -281,7 +296,7 @@ export default class DatabaseClient<
         bsonType: ['object'],
         additionalProperties: false,
       };
-      const { fields, minItems, maxItems } = model as DynamicObjectDataModel<Types>;
+      const { fields, minItems, maxItems } = model as DynamicObjectSchema<DataModel>;
       if (minItems !== undefined) {
         formattedField.minProperties = minItems;
       }
@@ -291,8 +306,8 @@ export default class DatabaseClient<
       if (!model.required) {
         formattedField.bsonType.push('null');
       }
-      formattedField.patternProperties = Object.keys(fields).reduce((properties, key) => ({
-        ...properties,
+      formattedField.patternProperties = Object.keys(fields).reduce((patternProperties, key) => ({
+        ...patternProperties,
         [key]: this.FORMATTERS[fields[key].type](fields[key]),
       }), {});
       return formattedField;
@@ -303,7 +318,7 @@ export default class DatabaseClient<
         maxItems,
         minItems,
         uniqueItems,
-      } = model as ArrayDataModel<Types>;
+      } = model as ArraySchema<DataModel>;
       const formattedField: MongoValidationSchema = {
         bsonType: ['array'],
         items: this.FORMATTERS[fields.type](fields),
@@ -346,10 +361,10 @@ export default class DatabaseClient<
   protected isConnected: boolean;
 
   /** List of fields in data model representing external relations, per collection. */
-  protected relationsPerCollection: RelationsPerCollection<Types>;
+  protected relationsPerCollection: RelationsPerCollection<DataModel>;
 
   /** List of fields in data model referencing each collection, grouped by this collection. */
-  protected invertedRelationsPerCollection: RelationsPerCollection<Types>;
+  protected invertedRelationsPerCollection: RelationsPerCollection<DataModel>;
 
   /**
    * Formats `input` to match MongoDB data types specifications.
@@ -360,12 +375,12 @@ export default class DatabaseClient<
    *
    * @returns MongoDB-formatted input.
    */
-  protected formatInput<Collection extends keyof Types>(
-    input: Partial<Types[Collection]>,
-    model: FieldDataModel<Types>,
+  protected formatInput<Collection extends keyof DataModel>(
+    input: Partial<DataModel[Collection]>,
+    model: FieldSchema<DataModel>,
   ): Document {
-    const { type } = model as FieldDataModel<Types>;
-    const { fields } = model as ArrayDataModel<Types>;
+    const { type } = model as FieldSchema<DataModel>;
+    const { fields } = model as ArraySchema<DataModel>;
 
     // Null value (e.g., optional fields)...
     if (input === null) {
@@ -383,10 +398,10 @@ export default class DatabaseClient<
         const actualIndex = isArray ? index : keys[index];
         formattedInput[actualIndex] = this.formatInput(
           (input as Document)[actualIndex],
-          isArray ? fields : (model as DynamicObjectDataModel<Types>).fields[key],
+          isArray ? fields : (model as DynamicObjectSchema<DataModel>).fields[key],
         );
       }
-      return formattedInput as Partial<Types[Collection]>;
+      return formattedInput as Partial<DataModel[Collection]>;
     }
 
     // Objects...
@@ -396,10 +411,10 @@ export default class DatabaseClient<
       for (let index = 0, { length } = keys; index < length; index += 1) {
         formattedInput[keys[index]] = this.formatInput(
           (input as Document)[keys[index]],
-          (model as ObjectDataModel<Types>).fields[keys[index]],
+          (model as ObjectSchema<DataModel>).fields[keys[index]],
         );
       }
-      return formattedInput as Partial<Types[Collection]>;
+      return formattedInput as Partial<DataModel[Collection]>;
     }
 
     // Primitive values...
@@ -424,13 +439,13 @@ export default class DatabaseClient<
    *
    * @returns Formatted output.
    */
-  protected formatOutput<Collection extends keyof Types>(
-    output: Partial<Types[Collection]>,
-    model: FieldDataModel<Types>,
+  protected formatOutput<Collection extends keyof DataModel>(
+    output: Partial<DataModel[Collection]>,
+    model: FieldSchema<DataModel>,
     projections: Document | 1,
-  ): Partial<Types[Collection]> | Id | ArrayBuffer | null {
-    const { type } = model as FieldDataModel<Types>;
-    const { fields } = model as ArrayDataModel<Types>;
+  ): Partial<DataModel[Collection]> | Id | ArrayBuffer | null {
+    const { type } = model as FieldSchema<DataModel>;
+    const { fields } = model as ArraySchema<DataModel>;
 
     // Null or undefined value...
     if (output === undefined || output === null) {
@@ -443,7 +458,7 @@ export default class DatabaseClient<
       for (let index = 0, { length } = output as unknown as string[]; index < length; index += 1) {
         formattedOutput[index] = this.formatOutput((<Document>output)[index], fields, projections);
       }
-      return formattedOutput as Partial<Types[Collection]>;
+      return formattedOutput as Partial<DataModel[Collection]>;
     }
 
     // (dynamic) Objects...
@@ -455,22 +470,23 @@ export default class DatabaseClient<
         const pattern = (patterns.find((p) => p.test(keys[index])) as RegExp).source;
         formattedOutput[keys[index]] = this.formatOutput(
           (output as Document)[keys[index]],
-          (model as ObjectDataModel<Types>).fields[pattern],
+          (model as ObjectSchema<DataModel>).fields[pattern],
           projections === 1 ? 1 : (projections as Document)[keys[index]],
         );
       }
-      return formattedOutput as Partial<Types[Collection]>;
+      return formattedOutput as Partial<DataModel[Collection]>;
     }
 
     // Primitive values...
     if (type === 'id') {
-      const { relation } = model as IdDataModel<Types>;
+      const { relation } = model as IdSchema<DataModel>;
+      const metaData = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
       return (output instanceof ObjectId || relation === undefined)
         ? new Id(`${output}`)
         : this.formatOutput(output, {
           type: 'object',
-          fields: this.model.getCollection(relation).fields,
-        }, projections) as Partial<Types[Collection]>;
+          fields: metaData.schema.fields,
+        }, projections) as Partial<DataModel[Collection]>;
     }
     if (type === 'binary') {
       const { buffer } = output as unknown as Binary;
@@ -493,7 +509,7 @@ export default class DatabaseClient<
    *
    * @throws If any collection still references resource.
    */
-  protected async checkReferencesTo(collection: keyof Types, id: Id): Promise<void> {
+  protected async checkReferencesTo(collection: keyof DataModel, id: Id): Promise<void> {
     const referencesToResource = this.invertedRelationsPerCollection[collection];
 
     this.logger.debug(
@@ -542,7 +558,10 @@ export default class DatabaseClient<
    *
    * @returns Collection's indexed fields.
    */
-  protected getCollectionIndexedFields(model: FieldDataModel<Types>, path: string[] = []): Index[] {
+  protected getCollectionIndexedFields(
+    model: FieldSchema<DataModel>,
+    path: string[] = [],
+  ): Index[] {
     if (model.type === 'object') {
       const { fields } = model;
       return Object.keys(fields).reduce((indexedFields, fieldName) => indexedFields.concat(
@@ -561,9 +580,9 @@ export default class DatabaseClient<
     }
 
     const indexedFields: Index[] = [];
-    if ((model as StringDataModel).unique) {
+    if ((model as StringSchema).unique) {
       indexedFields.push({ key: { [path.join('.')]: 1 }, unique: true });
-    } else if ((model as StringDataModel).index) {
+    } else if ((model as StringSchema).index) {
       indexedFields.push({ key: { [path.join('.')]: 1 } });
     }
     return indexedFields;
@@ -579,7 +598,7 @@ export default class DatabaseClient<
    * @param path Current path in schema. Used for recursivity, do not use it directly!
    */
   protected scanRelationsFrom(
-    schema: FieldDataModel<Types>,
+    schema: FieldSchema<DataModel>,
     relations: Map<string, string[]>,
     path: string[] = [],
   ): void {
@@ -604,7 +623,7 @@ export default class DatabaseClient<
    *
    * @returns Mongo validation schema.
    */
-  protected createSchema(model: ObjectDataModel<Types>): { $jsonSchema: MongoValidationSchema; } {
+  protected createSchema(model: ObjectSchema<DataModel>): { $jsonSchema: MongoValidationSchema; } {
     return { $jsonSchema: this.FORMATTERS.object(model) };
   }
 
@@ -638,7 +657,7 @@ export default class DatabaseClient<
     maximumDepth: number,
     checkIndexing: boolean,
     splittedPath: string[],
-    model?: FieldDataModel<Types>,
+    model?: FieldSchema<DataModel>,
     projections: Document = {},
     currentDepth = 1,
   ): Document {
@@ -652,7 +671,7 @@ export default class DatabaseClient<
     // Primitives...
     const { type } = model;
     if (splittedPath.length === 1) {
-      const actualModel = ((type === 'array') ? model.fields : model) as DateDataModel;
+      const actualModel = ((type === 'array') ? model.fields : model) as DateSchema;
       if (checkIndexing && !actualModel.unique && !actualModel.index) {
         throw new DatabaseError('INVALID_INDEX', { path });
       }
@@ -696,11 +715,12 @@ export default class DatabaseClient<
     }
 
     // External relations...
-    const { relation } = model as IdDataModel<Types>;
+    const { relation } = model as IdSchema<DataModel>;
     if (type === 'id' && relation !== undefined) {
-      const subModel: ObjectDataModel<Types> = {
+      const metaData = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
+      const subModel: ObjectSchema<DataModel> = {
         type: 'object',
-        fields: this.model.getCollection(relation).fields,
+        fields: metaData.schema.fields,
       };
       return {
         ...projections,
@@ -718,7 +738,7 @@ export default class DatabaseClient<
     }
 
     // Objects...
-    const { fields } = model as ObjectDataModel<Types>;
+    const { fields } = model as ObjectSchema<DataModel>;
     const subModel = fields?.[field];
     return {
       ...projections,
@@ -749,7 +769,7 @@ export default class DatabaseClient<
    */
   protected generateProjectionsFrom(
     fields: { classic: string[]; indexed?: string[] },
-    model: FieldDataModel<Types>,
+    model: FieldSchema<DataModel>,
     maximumDepth: number,
   ): Document {
     let projections: Document = {};
@@ -787,7 +807,7 @@ export default class DatabaseClient<
    */
   protected generateLookupsPipelineFrom(
     projections: Document,
-    model: FieldDataModel<Types>,
+    model: FieldSchema<DataModel>,
     path: string[] = [],
     isFlatArray = false,
   ): Document[] {
@@ -795,14 +815,15 @@ export default class DatabaseClient<
       const { type } = model;
 
       // External relations...
-      const { relation } = model as IdDataModel<Types>;
+      const { relation } = model as IdSchema<DataModel>;
       if (type === 'id' && relation !== undefined) {
         const fullPath = path.join('.');
         const fieldName = path.at(-1) as string;
         const rootPath = path.slice(0, path.length - 1).join('.');
+        const metaData = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
         const subPipeline = this.generateLookupsPipelineFrom(
           projections,
-          { type: 'object', fields: this.model.getCollection(relation).fields },
+          { type: 'object', fields: metaData.schema.fields },
         );
         return ([{
           $lookup: {
@@ -848,7 +869,7 @@ export default class DatabaseClient<
 
       // Arrays...
       if (type === 'array') {
-        const { fields } = model as ArrayDataModel<Types>;
+        const { fields } = model as ArraySchema<DataModel>;
         // "Flat" arrays directly contain primitives, and not nested structures.
         const isFlat = fields.type === 'id';
         const subPipeline = this.generateLookupsPipelineFrom(projections, fields, path, !isFlat);
@@ -859,7 +880,7 @@ export default class DatabaseClient<
       // Dynamic objects...
       if (type === 'dynamicObject') {
         const pipeline: Document[] = [];
-        const { fields } = model as DynamicObjectDataModel<Types>;
+        const { fields } = model as DynamicObjectSchema<DataModel>;
         const patterns = Object.keys(fields).map((pattern) => new RegExp(pattern));
         Object.keys(projections).forEach((fieldName) => {
           const pattern = (patterns.find((p) => p.test(fieldName)) as RegExp).source;
@@ -875,7 +896,7 @@ export default class DatabaseClient<
 
       // Objects...
       const pipeline: Document[] = [];
-      const { fields } = model as ObjectDataModel<Types>;
+      const { fields } = model as ObjectSchema<DataModel>;
       Object.keys(projections).forEach((fieldName) => {
         pipeline.push(...this.generateLookupsPipelineFrom(
           projections[fieldName],
@@ -1075,26 +1096,26 @@ export default class DatabaseClient<
 
     // Generating the list of paths for which each collection is a foreign key...
     const collections = this.model.getCollections();
-    const relationsPerCollection: Partial<RelationsPerCollection<Types>> = {};
+    const relationsPerCollection: Partial<RelationsPerCollection<DataModel>> = {};
     collections.forEach((collection) => {
       const collectionForeignKeys = new Map();
-      const { fields } = this.model.getCollection(collection);
-      this.scanRelationsFrom({ type: 'object', fields }, collectionForeignKeys);
+      const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+      this.scanRelationsFrom({ type: 'object', fields: metaData.schema.fields }, collectionForeignKeys);
       relationsPerCollection[collection] = collectionForeignKeys;
     });
     const invertedRelationsPerCollection = collections.reduce((invertedRelations, collection) => ({
       ...invertedRelations,
       [collection]: new Map(),
-    }), {}) as RelationsPerCollection<Types>;
-    (Object.keys(relationsPerCollection) as (keyof Types)[]).forEach((collection) => {
-      (relationsPerCollection as RelationsPerCollection<Types>)[collection].forEach(
+    }), {}) as RelationsPerCollection<DataModel>;
+    (Object.keys(relationsPerCollection) as (keyof DataModel)[]).forEach((collection) => {
+      (relationsPerCollection as RelationsPerCollection<DataModel>)[collection].forEach(
         (value, key) => {
-          invertedRelationsPerCollection[key as keyof Types].set(collection as string, value);
+          invertedRelationsPerCollection[key as keyof DataModel].set(collection as string, value);
         },
       );
     });
     this.invertedRelationsPerCollection = invertedRelationsPerCollection;
-    this.relationsPerCollection = relationsPerCollection as RelationsPerCollection<Types>;
+    this.relationsPerCollection = relationsPerCollection as RelationsPerCollection<DataModel>;
   }
 
   /**
@@ -1107,12 +1128,12 @@ export default class DatabaseClient<
    * @param maximumDepth Maximum allowed level of resources depth. Defaults to `3`.
    */
   public checkFields(
-    collection: keyof Types,
+    collection: keyof DataModel,
     fields: string[],
     maximumDepth = this.DEFAULT_MAXIMUM_DEPTH,
   ): void {
-    const { fields: collectionFields } = this.model.getCollection(collection);
-    const collectionModel: ObjectDataModel<Types> = { type: 'object', fields: collectionFields };
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const collectionModel: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     this.generateProjectionsFrom({ classic: fields }, collectionModel, maximumDepth);
   }
 
@@ -1180,12 +1201,12 @@ export default class DatabaseClient<
    *
    * @param resource New resource to insert.
    */
-  public async create<Collection extends keyof Types>(
+  public async create<Collection extends keyof DataModel>(
     collection: Collection,
-    resource: Types[Collection],
+    resource: DataModel[Collection],
   ): Promise<void> {
-    const { fields } = this.model.getCollection(collection);
-    const newResource = this.formatInput(resource, { type: 'object', fields });
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const newResource = this.formatInput(resource, { type: 'object', fields: metaData.schema.fields });
 
     this.logger.debug(
       `[DatabaseClient][create] Inserting new resource into collection ${collection as string}:`,
@@ -1206,16 +1227,16 @@ export default class DatabaseClient<
    *
    * @param payload Updated resource payload.
    */
-  public async update<Collection extends keyof Types>(
+  public async update<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
-    payload: Partial<Types[Collection]>,
+    payload: Partial<DataModel[Collection]>,
   ): Promise<void> {
-    const { fields, enableDeletion } = this.model.getCollection(collection);
-    const filter = enableDeletion
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const filter = metaData.schema.enableDeletion
       ? { _id: new ObjectId(`${id}`) }
       : { ...this.DELETION_FILTER_PIPELINE[0].$match, _id: new ObjectId(`${id}`) };
-    const updates = this.formatInput(payload, { type: 'object', fields });
+    const updates = this.formatInput(payload, { type: 'object', fields: metaData.schema.fields });
 
     this.logger.debug(
       `[DatabaseClient][update] Updating resource ${id} in collection ${collection as string}:`,
@@ -1238,13 +1259,13 @@ export default class DatabaseClient<
    *
    * @returns `true` if resource was updated, `false` otherwise.
    */
-  public async exclusiveUpdate<Collection extends keyof Types>(
+  public async exclusiveUpdate<Collection extends keyof DataModel>(
     collection: Collection,
     filters: SearchFilters,
-    payload: Partial<Types[Collection]>,
+    payload: Partial<DataModel[Collection]>,
   ): Promise<boolean> {
-    const { enableDeletion, fields } = this.model.getCollection(collection);
-    const updates = this.formatInput(payload, { type: 'object', fields });
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const updates = this.formatInput(payload, { type: 'object', fields: metaData.schema.fields });
 
     this.logger.debug(
       `[DatabaseClient][exclusiveUpdate] Updating resources in collection ${collection as string}:`,
@@ -1253,11 +1274,11 @@ export default class DatabaseClient<
     this.logger.debug(payload);
 
     return this.handleError(async () => {
-      const formattedFilters = enableDeletion
+      const formattedFilters = metaData.schema.enableDeletion
         ? filters
         : { ...this.DELETION_FILTER_PIPELINE[0].$match, ...filters };
       const response = await this.database.collection(collection as string).findOneAndUpdate(
-        this.formatInput(formattedFilters, { type: 'object', fields }),
+        this.formatInput(formattedFilters, { type: 'object', fields: metaData.schema.fields }),
         { $set: updates },
         { projection: { _id: 1 } },
       );
@@ -1276,19 +1297,19 @@ export default class DatabaseClient<
    *
    * @returns Resource if it exists, `null` otherwise.
    */
-  public async view<Collection extends keyof Types>(
+  public async view<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
     options = this.DEFAULT_QUERY_OPTIONS,
-  ): Promise<Types[Collection] | null> {
+  ): Promise<DataModel[Collection] | null> {
     const requestedFields = { classic: options.fields ?? [] };
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
-    const { fields, enableDeletion } = this.model.getCollection(collection);
-    const model: ObjectDataModel<Types> = { type: 'object', fields };
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const model: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     const projections = this.generateProjectionsFrom(requestedFields, model, maximumDepth);
     const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
 
-    const resultsPipeline = (enableDeletion
+    const resultsPipeline = (metaData.schema.enableDeletion
       ? [{ $match: { _id: new ObjectId(`${id}`) } }]
       : [{ $match: { ...this.DELETION_FILTER_PIPELINE[0].$match, _id: new ObjectId(`${id}`) } }] as Document[])
       .concat(lookupPipeline)
@@ -1303,8 +1324,8 @@ export default class DatabaseClient<
     return this.handleError(async () => {
       const databaseCollection = this.database.collection(collection as string);
       const response = await databaseCollection.aggregate(resultsPipeline).toArray();
-      const result = (response[0] ?? null) as unknown as Partial<Types[Collection]>;
-      return this.formatOutput(result, model, projections) as Types[Collection];
+      const result = (response[0] ?? null) as unknown as Partial<DataModel[Collection]>;
+      return this.formatOutput(result, model, projections) as DataModel[Collection];
     });
   }
 
@@ -1319,11 +1340,11 @@ export default class DatabaseClient<
    *
    * @returns Paginated list of resources.
    */
-  public async search<Collection extends keyof Types>(
+  public async search<Collection extends keyof DataModel>(
     collection: Collection,
     body: SearchBody,
     options = this.DEFAULT_QUERY_OPTIONS,
-  ): Promise<Results<Types[Collection]>> {
+  ): Promise<Results<DataModel[Collection]>> {
     const query = body.query ?? null;
     const filters = body.filters ?? null;
     const sortBy = options.sortBy ?? [];
@@ -1333,8 +1354,8 @@ export default class DatabaseClient<
       classic: requestedFields,
       indexed: sortBy.concat(query?.on ?? []).concat(Object.keys(filters ?? {})),
     };
-    const { fields, enableDeletion } = this.model.getCollection(collection);
-    const model: ObjectDataModel<Types> = { type: 'object', fields };
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const model: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const projections = this.generateProjectionsFrom(allFields, model, maximumDepth);
     const searchPipeline = this.generateSearchPipelineFrom(query, filters);
@@ -1342,7 +1363,7 @@ export default class DatabaseClient<
     const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
     const paginationPipeline = this.generatePaginationPipelineFrom(options.offset, options.limit);
 
-    const resultsPipeline = (enableDeletion ? [] : this.DELETION_FILTER_PIPELINE)
+    const resultsPipeline = (metaData.schema.enableDeletion ? [] : this.DELETION_FILTER_PIPELINE)
       .concat(lookupPipeline)
       .concat(searchPipeline)
       .concat(sortingPipeline)
@@ -1369,7 +1390,7 @@ export default class DatabaseClient<
         total: response.total[0]?.total ?? 0,
         results: (options.limit === 0)
           ? []
-          : response.results.map((result: Partial<Types[Collection]>) => (
+          : response.results.map((result: Partial<DataModel[Collection]>) => (
             this.formatOutput(result, model, projections)
           )),
       };
@@ -1385,23 +1406,23 @@ export default class DatabaseClient<
    *
    * @returns Paginated list of resources.
    */
-  public async list<Collection extends keyof Types>(
+  public async list<Collection extends keyof DataModel>(
     collection: Collection,
     options = this.DEFAULT_QUERY_OPTIONS,
-  ): Promise<Results<Types[Collection]>> {
+  ): Promise<Results<DataModel[Collection]>> {
     const sortBy = options.sortBy ?? [];
     const sortOrder = options.sortOrder ?? [];
     const requestedFields = options.fields ?? [];
     const allFields = { classic: requestedFields, indexed: sortBy };
-    const { fields, enableDeletion } = this.model.getCollection(collection);
-    const model: ObjectDataModel<Types> = { type: 'object', fields };
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const model: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const projections = this.generateProjectionsFrom(allFields, model, maximumDepth);
     const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
     const sortingPipeline = this.generateSortingPipelineFrom(sortBy, sortOrder);
     const paginationPipeline = this.generatePaginationPipelineFrom(options.offset, options.limit);
 
-    const resultsPipeline = (enableDeletion ? [] : this.DELETION_FILTER_PIPELINE)
+    const resultsPipeline = (metaData.schema.enableDeletion ? [] : this.DELETION_FILTER_PIPELINE)
       .concat(lookupPipeline)
       .concat(sortingPipeline)
       .concat([
@@ -1427,7 +1448,7 @@ export default class DatabaseClient<
         total: response.total[0]?.total ?? 0,
         results: (options.limit === 0)
           ? []
-          : response.results.map((result: Partial<Types[Collection]>) => (
+          : response.results.map((result: Partial<DataModel[Collection]>) => (
             this.formatOutput(result, model, projections)
           )),
       };
@@ -1446,17 +1467,17 @@ export default class DatabaseClient<
    *
    * @returns `true` if resource has been successfully deleted, `false` otherwise.
    */
-  public async delete<Collection extends keyof Types>(
+  public async delete<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
-    payload: Partial<Types[Collection]> = {},
+    payload: Partial<DataModel[Collection]> = {},
   ): Promise<boolean> {
-    const { fields, enableDeletion } = this.model.getCollection(collection);
-    const model: ObjectDataModel<Types> = { type: 'object', fields };
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const model: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     const resourceId = new ObjectId(`${id}`);
 
     return this.handleError(async () => {
-      if (enableDeletion !== false) {
+      if (metaData.schema.enableDeletion !== false) {
         this.logger.debug(
           `[DatabaseClient][delete] Deleting resource ${id} from collection ${collection as string}...`,
         );
@@ -1505,11 +1526,11 @@ export default class DatabaseClient<
    *
    * @param collection Name of the collection to create.
    */
-  public async resetCollection<Collection extends keyof Types>(
+  public async resetCollection<Collection extends keyof DataModel>(
     collection: Collection,
   ): Promise<void> {
     this.logger.info(`[DatabaseClient][resetCollection] Resetting collection ${collection as string}...`);
-    const { fields } = this.model.getCollection(collection);
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
     await this.handleError(async () => {
       const collectionExists = (await this.database
         .listCollections({ name: collection }).toArray()).length > 0;
@@ -1517,10 +1538,10 @@ export default class DatabaseClient<
         await this.database.dropCollection(collection as string);
       }
       await this.database.createCollection(collection as string, {
-        validator: this.createSchema({ type: 'object', fields }),
+        validator: this.createSchema({ type: 'object', fields: metaData.schema.fields }),
       });
       await this.database.collection(collection as string)
-        .createIndexes(this.getCollectionIndexedFields({ type: 'object', fields }));
+        .createIndexes(this.getCollectionIndexedFields({ type: 'object', fields: metaData.schema.fields }));
     });
   }
 
@@ -1531,26 +1552,27 @@ export default class DatabaseClient<
    *
    * @param migration Optional migration to perform. Defaults to an empty Promise.
    */
-  public async updateCollection<Collection extends keyof Types>(
+  public async updateCollection<Collection extends keyof DataModel>(
     collection: Collection,
     migration = defaultMigration,
   ): Promise<void> {
     this.logger.info(`[DatabaseClient][updateCollection] Updating collection ${collection as string}...`);
-    const { fields } = this.model.getCollection(collection);
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const collectionSchema: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     await this.handleError(async () => {
       const session = await this.client.startSession();
-      const collectionIndexedFields = this.getCollectionIndexedFields({ type: 'object', fields });
+      const collectionIndexedFields = this.getCollectionIndexedFields(collectionSchema);
       await this.database.command({
         collMod: collection as string,
         validationLevel: 'strict', // Order matters here!
-        validator: this.createSchema({ type: 'object', fields }),
+        validator: this.createSchema(collectionSchema),
       }, { session });
       await this.database.collection(collection as string).dropIndexes({ session });
       await migration(session);
       await this.database.collection(collection as string).createIndexes(collectionIndexedFields);
       await session.endSession();
       const invalidDocuments = await this.database.collection(collection as string).find({
-        $nor: [this.createSchema({ type: 'object', fields })],
+        $nor: [this.createSchema(collectionSchema)],
       }, { limit: 1 }).toArray();
       if (invalidDocuments.length > 0) {
         await this.database.collection(collection as string).insertOne(invalidDocuments[0]);
@@ -1563,7 +1585,7 @@ export default class DatabaseClient<
    *
    * @param collection Name of the collection to drop from database.
    */
-  public async dropCollection(collection: keyof Types): Promise<void> {
+  public async dropCollection(collection: keyof DataModel): Promise<void> {
     await this.database.dropCollection(collection as string);
   }
 
@@ -1606,7 +1628,7 @@ export default class DatabaseClient<
    * @throws If integrity checks failed.
    */
   public async checkIntegrity(
-    collection?: keyof Types,
+    collection?: keyof DataModel,
   ): Promise<Record<string, Record<string, Id[]>>> {
     if (collection === undefined) {
       const results: Record<string, Record<string, Id[]>> = {};
@@ -1637,14 +1659,14 @@ export default class DatabaseClient<
     const conditions: Document[] = [];
     const originOfTimes = new Date('2021-01-01');
     const errors: Record<string, Id[]> = {};
-    const collectionModel = this.model.getCollection(collection);
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
 
     // Checking automatic fields...
-    if (collectionModel.enableDeletion === false && collectionModel.enableTimestamps) {
+    if (metaData.schema.enableDeletion === false && metaData.schema.enableTimestamps) {
       // Incorrect deletion.
       conditions.push({ _isDeleted: true, _updatedAt: null });
     }
-    if (collectionModel.enableTimestamps) {
+    if (metaData.schema.enableTimestamps) {
       // _createdAt not in time range.
       conditions.push({
         $or: [{ _createdAt: { $lt: originOfTimes } }, { _createdAt: { $gte: now } }],
@@ -1662,7 +1684,7 @@ export default class DatabaseClient<
         ],
       });
     }
-    if (collectionModel.enableAuthors && collectionModel.enableTimestamps) {
+    if (metaData.schema.enableAuthors && metaData.schema.enableTimestamps) {
       // Either one of _updatedAt / _updatedBy is null and not the other one.
       conditions.push({ _updatedAt: { $eq: null }, _updatedBy: { $ne: null } });
       conditions.push({ _updatedBy: { $eq: null }, _updatedAt: { $ne: null } });
@@ -1679,7 +1701,7 @@ export default class DatabaseClient<
     errors.NO_RESOURCE = [];
 
     // Checking foreign keys...
-    if (collectionModel.enableAuthors) {
+    if (metaData.schema.enableAuthors) {
       errors.NO_RESOURCE.push(...(await this.database.collection(collection as string).aggregate([
         {
           $lookup: {

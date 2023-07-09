@@ -6,13 +6,13 @@
  *
  */
 
-import { Id } from '@perseid/core';
 import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
 import EngineError from 'scripts/errors/Engine';
 import OAuthEngine from 'scripts/services/OAuthEngine';
 import CacheClient from 'scripts/services/CacheClient';
 import EmailClient from 'scripts/services/EmailClient';
+import { type CollectionSchema, Id } from '@perseid/core';
 import DatabaseClient from 'scripts/services/DatabaseClient';
 import { type DataModel } from 'scripts/services/__mocks__/schema';
 
@@ -38,7 +38,7 @@ describe('services/OAuthEngine', () => {
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
   const emailClient = new EmailClient(logger);
   const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
-  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionDataModel<DataModel>>);
+  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionSchema<DataModel>>);
   const databaseClient = new DatabaseClient<DataModel>(model, logger, cacheClient, {
     cacheDuration: 0,
     connectionLimit: 0,

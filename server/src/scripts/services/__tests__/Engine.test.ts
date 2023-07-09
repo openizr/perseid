@@ -6,13 +6,13 @@
  *
  */
 
-import { Id } from '@perseid/core';
 import Model from 'scripts/services/Model';
 import Engine from 'scripts/services/Engine';
 import Logger from 'scripts/services/Logger';
 import EngineError from 'scripts/errors/Engine';
 import CacheClient from 'scripts/services/CacheClient';
 import DatabaseClient from 'scripts/services/DatabaseClient';
+import { type CollectionSchema, type ObjectSchema, Id } from '@perseid/core';
 import { type DataModel as BaseDataModel } from 'scripts/services/__mocks__/schema';
 
 interface DataModel extends BaseDataModel {
@@ -20,6 +20,7 @@ interface DataModel extends BaseDataModel {
     rootObject: {
       fieldOne: string | null;
     } | null;
+    date: Date | null;
     array: ({
       fieldOne: Id | null;
       fieldTwo: string | null;
@@ -56,7 +57,7 @@ describe('services/Engine', () => {
   const context = {} as CommandContext;
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
   const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
-  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionDataModel<DataModel>>);
+  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionSchema<DataModel>>);
   const databaseClient = new DatabaseClient<DataModel>(model, logger, cacheClient, {
     cacheDuration: 0,
     connectionLimit: 0,
@@ -70,9 +71,10 @@ describe('services/Engine', () => {
     queueLimit: 0,
     user: '',
   });
-  const dataModel: ObjectDataModel<DataModel> = {
+  const dataModel: ObjectSchema<DataModel> = {
     type: 'object',
     fields: {
+      date: { type: 'date' },
       rootObject: {
         type: 'object',
         fields: {
@@ -128,6 +130,7 @@ describe('services/Engine', () => {
     expect(engine.deepMerge({}, {}, { type: 'integer' })).toEqual({});
     expect(engine.deepMerge({
       rootObject: null,
+      date: null,
       array: [{
         fieldTwo: null,
         fieldOne: new Id('64723318e84f943f1ad6578e'),
@@ -135,9 +138,11 @@ describe('services/Engine', () => {
         dynamicOne: null,
       }],
     }, {
+      date: new Date('2023-01-01'),
       rootObject: null,
       array: [{ fieldTwo: null, fieldThree: {} }, {}, null],
     }, dataModel)).toEqual({
+      date: new Date('2023-01-01'),
       array: [{
         fieldTwo: null,
         fieldThree: {},

@@ -13,11 +13,11 @@ import {
   type Document,
   MongoServerError,
 } from 'mongodb';
-import { Id } from '@perseid/core';
 import Model from 'scripts/services/Model';
 import Logger from 'scripts/services/Logger';
 import DatabaseError from 'scripts/errors/Database';
 import CacheClient from 'scripts/services/CacheClient';
+import { type CollectionSchema, Id } from '@perseid/core';
 import DatabaseClient from 'scripts/services/DatabaseClient';
 import { type DataModel } from 'scripts/services/__mocks__/schema';
 
@@ -47,7 +47,7 @@ describe('services/DatabaseClient', () => {
   const mongoClient = new MongoClient('', {});
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
   const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
-  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionDataModel<DataModel>>);
+  const model = new Model<DataModel>({} as Record<keyof DataModel, CollectionSchema<DataModel>>);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -108,7 +108,7 @@ describe('services/DatabaseClient', () => {
         testOne: new Id('646b9be5e921d0ef42f8a142'),
         testTwo: { test: 'test' },
       },
-    }, { type: 'object', fields: model.getCollection('test').fields })).toEqual({
+    }, { type: 'object', fields: model.get('test' as const).schema.fields })).toEqual({
       primitiveOne: new ObjectId('646b9be5e921d0ef42f8a149'),
       primitiveTwo: new Binary('test'),
       primitiveThree: 'test',
@@ -147,7 +147,7 @@ describe('services/DatabaseClient', () => {
     expect(databaseClient.formatOutput({
       primitiveOne: new ObjectId('646b9be5e921d0ef42f8a149'),
       primitiveTwo: new Binary('test'),
-    } as Document, { type: 'object', fields: model.getCollection('test').fields }, {
+    } as Document, { type: 'object', fields: model.get('test' as const).schema.fields }, {
       primitiveThree: 1,
     })).toEqual({
       primitiveThree: null,
@@ -191,7 +191,7 @@ describe('services/DatabaseClient', () => {
         testOne: new ObjectId('646b9be5e921d0ef42f8a142'),
         testTwo: { test: 'test' },
       },
-    } as Document, { type: 'object', fields: model.getCollection('test').fields }, {
+    } as Document, { type: 'object', fields: model.get('test' as const).schema.fields }, {
       primitiveOne: 1,
       primitiveTwo: 1,
       arrayOne: {
@@ -316,7 +316,7 @@ describe('services/DatabaseClient', () => {
   test('[createSchema]', () => {
     expect(databaseClient.createSchema({
       type: 'object',
-      fields: model.getCollection('test').fields,
+      fields: model.get('test' as const).schema.fields,
     })).toEqual({
       $jsonSchema: {
         bsonType: ['object', 'null'],
@@ -417,10 +417,10 @@ describe('services/DatabaseClient', () => {
       },
     });
     // Just to make sure schemas enumerations are not directly mutated by formatters.
-    databaseClient.createSchema({ type: 'object', fields: model.getCollection('test2').fields });
+    databaseClient.createSchema({ type: 'object', fields: model.get('test2' as const).schema.fields });
     expect(databaseClient.createSchema({
       type: 'object',
-      fields: model.getCollection('test2').fields,
+      fields: model.get('test2' as const).schema.fields,
     })).toEqual({
       $jsonSchema: {
         bsonType: ['object', 'null'],
@@ -430,34 +430,34 @@ describe('services/DatabaseClient', () => {
           'integer', 'integerTwo',
           'string', '_id',
           'null', 'binary',
-          'enum', 'boolean',
-          'booleanTwo', 'relation',
+          'enum', 'booleanTwo',
+          'relation', 'boolean',
           'date', 'dateTwo',
-          'id', 'array',
+          'id', 'idTwo', 'array',
           'arrayTwo', 'dynamicObject',
           'dynamicObjectTwo',
         ],
         properties: {
           float: {
-            bsonType: ['int', 'double', 'null'],
+            bsonType: ['int', 'double'],
             minimum: 0,
             maximum: 10,
             exclusiveMinimum: true,
             exclusiveMaximum: true,
             multipleOf: 2,
-            enum: [1, null],
+            enum: [1],
           },
-          floatTwo: { bsonType: ['int', 'double', 'null'] },
+          floatTwo: { bsonType: ['int', 'double', 'null'], enum: [2, null] },
           integer: {
-            bsonType: ['int', 'null'],
+            bsonType: ['int'],
             minimum: 0,
             maximum: 10,
             exclusiveMinimum: true,
             exclusiveMaximum: true,
             multipleOf: 2,
-            enum: [1, null],
+            enum: [1],
           },
-          integerTwo: { bsonType: ['int', 'null'] },
+          integerTwo: { bsonType: ['int', 'null'], enum: [2, null] },
           string: {
             bsonType: ['string', 'null'],
             maxLength: 10,
@@ -467,17 +467,18 @@ describe('services/DatabaseClient', () => {
           },
           _id: { bsonType: ['objectId', 'null'] },
           null: { bsonType: ['null'] },
-          binary: { bsonType: ['binData', 'null'] },
-          enum: { bsonType: ['string', 'null'], enum: ['test', null] },
-          boolean: { bsonType: ['bool', 'null'] },
+          binary: { bsonType: ['binData'] },
+          enum: { bsonType: ['string'], enum: ['test'] },
           booleanTwo: { bsonType: ['bool', 'null'] },
           relation: { bsonType: ['objectId', 'null'] },
-          date: {
-            bsonType: ['date', 'null'],
-            enum: ['2023-01-01T00:00:00.000Z', null],
-          },
-          dateTwo: { bsonType: ['date', 'null'] },
+          boolean: { bsonType: ['bool'] },
+          date: { bsonType: ['date'], enum: ['2023-01-01T00:00:00.000Z'] },
+          dateTwo: { bsonType: ['date', 'null'], enum: ['2023-01-01T00:00:00.000Z', null] },
           id: {
+            bsonType: ['objectId'],
+            enum: ['6478a6c5392350aaced68cf9'],
+          },
+          idTwo: {
             bsonType: ['objectId', 'null'],
             enum: ['6478a6c5392350aaced68cf9', null],
           },
@@ -489,7 +490,7 @@ describe('services/DatabaseClient', () => {
             uniqueItems: true,
           },
           arrayTwo: {
-            bsonType: ['array', 'null'],
+            bsonType: ['array'],
             items: { bsonType: ['string', 'null'] },
             minItems: 1,
             maxItems: 1,
@@ -503,7 +504,7 @@ describe('services/DatabaseClient', () => {
             patternProperties: { test: { bsonType: ['string', 'null'] } },
           },
           dynamicObjectTwo: {
-            bsonType: ['object', 'null'],
+            bsonType: ['object'],
             additionalProperties: false,
             minProperties: 1,
             maxProperties: 1,
@@ -517,7 +518,7 @@ describe('services/DatabaseClient', () => {
   test('[getCollectionIndexedFields]', () => {
     expect(databaseClient.getCollectionIndexedFields({
       type: 'object',
-      fields: model.getCollection('test').fields,
+      fields: model.get('test' as const).schema.fields,
     })).toEqual([
       { key: { _id: 1 } },
       { key: { primitiveOne: 1 }, unique: true },
@@ -586,12 +587,12 @@ describe('services/DatabaseClient', () => {
     expect(() => {
       databaseClient.generateProjectionsFrom({
         classic: ['arrayFour._id'],
-      }, { type: 'object', fields: model.getCollection('test').fields }, 3);
+      }, { type: 'object', fields: model.get('test' as const).schema.fields }, 3);
     }).toThrow(new DatabaseError('INVALID_FIELD', { path: 'arrayFour._id' }));
     expect(() => {
       databaseClient.generateProjectionsFrom({
         classic: ['invalid.test'],
-      }, { type: 'object', fields: model.getCollection('test').fields }, 3);
+      }, { type: 'object', fields: model.get('test' as const).schema.fields }, 3);
     }).toThrow(new DatabaseError('INVALID_FIELD', { path: 'invalid.test' }));
   });
 
@@ -599,7 +600,7 @@ describe('services/DatabaseClient', () => {
     expect(() => {
       databaseClient.generateProjectionsFrom({
         classic: ['arrayTwo._id'],
-      }, { type: 'object', fields: model.getCollection('test').fields }, 1);
+      }, { type: 'object', fields: model.get('test' as const).schema.fields }, 1);
     }).toThrow(new DatabaseError('MAXIMUM_DEPTH_EXCEEDED', { path: 'arrayTwo._id' }));
   });
 
@@ -608,7 +609,7 @@ describe('services/DatabaseClient', () => {
       databaseClient.generateProjectionsFrom({
         classic: [],
         indexed: ['arrayFour'],
-      }, { type: 'object', fields: model.getCollection('test').fields }, 3);
+      }, { type: 'object', fields: model.get('test' as const).schema.fields }, 3);
     }).toThrow(new DatabaseError('INVALID_INDEX', { path: 'arrayFour' }));
   });
 
@@ -637,7 +638,7 @@ describe('services/DatabaseClient', () => {
         'dynamicOne.testOne.relations',
       ],
       indexed: ['arrayThree'],
-    }, { type: 'object', fields: model.getCollection('test').fields }, 10)).toEqual({
+    }, { type: 'object', fields: model.get('test' as const).schema.fields }, 10)).toEqual({
       _id: 1,
       primitiveOne: 1,
       primitiveTwo: 1,
@@ -721,7 +722,7 @@ describe('services/DatabaseClient', () => {
         specialTestThree: 1,
       },
       dynamicTwo: 1,
-    }, { type: 'object', fields: model.getCollection('test').fields })).toEqual([
+    }, { type: 'object', fields: model.get('test' as const).schema.fields })).toEqual([
       {
         $lookup: {
           as: '__arrayOne.dynamicObject.testOne',

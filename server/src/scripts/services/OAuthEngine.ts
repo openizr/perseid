@@ -6,6 +6,13 @@
  *
  */
 
+import {
+  Id,
+  type User,
+  type Payload,
+  type UpdatePayload,
+  type DefaultDataModel,
+} from '@perseid/core';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Engine from 'scripts/services/Engine';
@@ -16,7 +23,6 @@ import type BaseModel from 'scripts/services/Model';
 import EmailClient from 'scripts/services/EmailClient';
 import type CacheClient from 'scripts/services/CacheClient';
 import type BaseDatabaseClient from 'scripts/services/DatabaseClient';
-import { Id, type DataModel as DefaultTypes, type User } from '@perseid/core';
 
 /**
  * Generated OAuth credentials.
@@ -69,7 +75,7 @@ export interface OAuthEngineSettings {
  */
 export default class OAuthEngine<
   /** Data model types definitions. */
-  Types extends DefaultTypes = DefaultTypes,
+  Types extends DefaultDataModel = DefaultDataModel,
 
   /** Model class types definitions. */
   Model extends BaseModel<Types> = BaseModel<Types>,

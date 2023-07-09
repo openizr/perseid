@@ -6,30 +6,33 @@
  *
  */
 
-import { deepMerge, deepCopy } from 'basx';
-import { type DataModel as DefaultTypes } from '@perseid/core';
-
-/** Data model types definitions. */
-export type DataModel<Types> = Record<keyof Types, CollectionDataModel<Types>>;
+import {
+  Model as BaseModel,
+  type ArraySchema,
+  type FieldSchema,
+  type StringSchema,
+  type ObjectSchema,
+  type DataModelSchema,
+  type DefaultDataModel,
+  type CollectionSchema,
+  type DataModelMetadata,
+} from '@perseid/core';
 
 /**
  * Data model.
  */
 export default class Model<
   /** Data model types definitions. */
-  Types = DefaultTypes,
-> {
-  /** Generated data model. */
-  protected model: DataModel<Types>;
-
+  DataModel = DefaultDataModel,
+> extends BaseModel<DataModel> {
   /** Public data model schema, used for data model introspection on front-end. */
-  protected publicSchema: DataModel<Types>;
+  protected publicSchema: DataModelSchema<DataModel>;
 
   /** List of relations per collection, along with their respective path in the model. */
-  protected relationsPerCollection: Record<keyof Types, Set<string>>;
+  protected relationsPerCollection: { [Collection in keyof DataModel]: Set<string> };
 
   /** Default data model schema. */
-  public static readonly DEFAULT_MODEL: DataModel<DefaultTypes> = {
+  public static readonly DEFAULT_MODEL: DataModelSchema<DefaultDataModel> = {
     // TODO create a specific 'point' type and proper index type in @perseid.
     // _location: {
     //   type: 'object',
@@ -133,16 +136,16 @@ export default class Model<
    * list will be generated: `["A", "B"]`. Defaults to `new Set()`.
    */
   protected generatePublicSchemaFrom(
-    model: FieldDataModel<Types>,
+    model: FieldSchema<DataModel>,
     relations: Set<string> = new Set(),
-  ): FieldDataModel<Types> {
+  ): FieldSchema<DataModel> {
     const { errorMessages, type, ...rest } = model;
     if (errorMessages) {
       // No-op.
     }
     if (type === 'array') {
       const { fields } = model;
-      return <ArrayDataModel<Types>>{
+      return <ArraySchema<DataModel>>{
         type,
         ...rest,
         fields: this.generatePublicSchemaFrom(fields, relations),
@@ -156,19 +159,20 @@ export default class Model<
           ...fields,
           [key]: this.generatePublicSchemaFrom(model.fields[key], relations),
         }), {}),
-      } as FieldDataModel<Types>;
+      } as FieldSchema<DataModel>;
     }
     if (type === 'id' && model.relation !== undefined) {
       const relation = model.relation as string;
       const isRelationAlreadyProcessed = relations.has(relation);
       if (!isRelationAlreadyProcessed) {
         relations.add(relation);
-        const { fields } = this.getCollection(model.relation);
+        const { schema } = (this.get(model.relation as string) as DataModelMetadata<DataModel>);
+        const { fields } = schema as CollectionSchema<DataModel>;
         this.generatePublicSchemaFrom({ type: 'object', fields }, relations);
       }
     }
-    const { unique, index, ...subRest } = rest as Omit<StringDataModel, 'type'>;
-    return <FieldDataModel<Types>>{ type, index: unique || index, ...subRest };
+    const { unique, index, ...subRest } = rest as Omit<StringSchema, 'type'>;
+    return <FieldSchema<DataModel>>{ type, index: unique || index, ...subRest };
   }
 
   /**
@@ -179,7 +183,7 @@ export default class Model<
    *
    * @returns Generated custom data model.
    */
-  public static email(overrides: Partial<StringDataModel> = {}): StringDataModel {
+  public static email(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
       customType: 'email',
@@ -201,7 +205,7 @@ export default class Model<
    *
    * @returns Generated custom data model.
    */
-  public static tinyText(overrides: Partial<StringDataModel> = {}): StringDataModel {
+  public static tinyText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       maxLength: 50,
       type: 'string',
@@ -219,7 +223,7 @@ export default class Model<
    *
    * @returns Generated custom data model.
    */
-  public static shortText(overrides: Partial<StringDataModel> = {}): StringDataModel {
+  public static shortText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
       maxLength: 100,
@@ -237,7 +241,7 @@ export default class Model<
    *
    * @returns Generated custom data model.
    */
-  public static mediumText(overrides: Partial<StringDataModel> = {}): StringDataModel {
+  public static mediumText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
       maxLength: 500,
@@ -255,7 +259,7 @@ export default class Model<
    *
    * @returns Generated custom data model.
    */
-  public static longText(overrides: Partial<StringDataModel> = {}): StringDataModel {
+  public static longText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
       maxLength: 2500,
@@ -273,7 +277,7 @@ export default class Model<
    *
    * @returns Generated custom data model.
    */
-  public static hugeText(overrides: Partial<StringDataModel> = {}): StringDataModel {
+  public static hugeText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
       maxLength: 10000,
@@ -291,7 +295,7 @@ export default class Model<
    *
    * @returns Generated custom data model.
    */
-  public static token(overrides: Partial<StringDataModel> = {}): StringDataModel {
+  public static token(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
       customType: 'token',
@@ -313,7 +317,7 @@ export default class Model<
    *
    * @returns Generated custom data model.
    */
-  public static password(overrides: Partial<StringDataModel> = {}): StringDataModel {
+  public static password(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
       customType: 'password',
@@ -336,8 +340,8 @@ export default class Model<
    * @returns Generated custom data model.
    */
   public static credentials(
-    overrides: Partial<ObjectDataModel<unknown>> = {},
-  ): ObjectDataModel<unknown> {
+    overrides: Partial<ObjectSchema<unknown>> = {},
+  ): ObjectSchema<unknown> {
     return {
       type: 'object',
       customType: 'credentials',
@@ -365,101 +369,21 @@ export default class Model<
    *
    * @param schema Schema from which to generate data model.
    */
-  constructor(schema: DataModel<Types>) {
-    const model = deepCopy(schema);
-
-    Object.keys(model).forEach((collectionName) => {
-      const collection = collectionName as keyof Types;
-      const automaticFields: CollectionDataModel<Types> = {
-        version: model[collection].version,
-        enableAuthors: model[collection].enableAuthors ?? false,
-        enableDeletion: model[collection].enableDeletion ?? true,
-        enableTimestamps: model[collection].enableTimestamps ?? false,
-        fields: {
-          _id: {
-            type: 'id',
-            index: true,
-            required: true,
-          },
-        },
-      };
-      if (automaticFields.version !== undefined) {
-        automaticFields.fields._version = {
-          type: 'integer',
-          index: true,
-          required: true,
-        };
-      }
-      if (!automaticFields.enableDeletion) {
-        automaticFields.fields._isDeleted = {
-          type: 'boolean',
-          index: true,
-          required: true,
-          default: false,
-        };
-      }
-      if (automaticFields.enableAuthors && (model as { users: unknown; }).users !== undefined) {
-        automaticFields.fields._createdBy = {
-          type: 'id',
-          index: true,
-          required: collection !== 'users',
-          relation: 'users' as keyof Types,
-        };
-        automaticFields.fields._updatedBy = {
-          type: 'id',
-          index: true,
-          relation: 'users' as keyof Types,
-        };
-      }
-      if (automaticFields.enableTimestamps) {
-        automaticFields.fields._createdAt = {
-          type: 'date',
-          index: true,
-          required: true,
-        };
-        automaticFields.fields._updatedAt = {
-          type: 'date',
-          index: true,
-        };
-      }
-      // To make automatic fields always appear at the top.
-      model[collection] = deepMerge(automaticFields, model[collection]);
-    });
-
-    this.model = model;
-    const collections = Object.keys(model);
-    const publicSchema: Partial<DataModel<Types>> = {};
-    const relationsPerCollection: Record<string, Set<string>> = {};
-    collections.forEach((collection) => {
+  constructor(schema: DataModelSchema<DataModel>) {
+    super(schema);
+    const collections = Object.keys(schema);
+    const publicSchema = {} as DataModelSchema<DataModel>;
+    const relationsPerCollection = {} as { [Collection in keyof DataModel]: Set<string> };
+    (collections as (keyof DataModel)[]).forEach((collection) => {
       relationsPerCollection[collection] = new Set();
-      const { fields } = model[collection as keyof Types];
-      publicSchema[collection as keyof Types] = this.generatePublicSchemaFrom(
+      const { fields } = schema[collection];
+      publicSchema[collection] = this.generatePublicSchemaFrom(
         { type: 'object', fields },
         relationsPerCollection[collection],
-      ) as CollectionDataModel<Types>;
+      ) as CollectionSchema<DataModel>;
     });
-    this.publicSchema = publicSchema as DataModel<Types>;
-    this.relationsPerCollection = relationsPerCollection as Record<keyof Types, Set<string>>;
-  }
-
-  /**
-   * Returns the list of all data model collections names.
-   *
-   * @returns Data model collections names.
-   */
-  public getCollections(): (keyof Types)[] {
-    return Object.keys(this.model) as (keyof Types)[];
-  }
-
-  /**
-   * Returns generated data model for collection `collection`.
-   *
-   * @param collection Name of the collection for which to get data model.
-   *
-   * @returns Collection generated data model.
-   */
-  public getCollection(collection: keyof Types): Readonly<CollectionDataModel<Types>> {
-    return this.model[collection];
+    this.publicSchema = publicSchema;
+    this.relationsPerCollection = relationsPerCollection;
   }
 
   /**
@@ -469,11 +393,11 @@ export default class Model<
    *
    * @returns Public data model schema for all related collections.
    */
-  public getPublicSchema(collection: keyof Types): DataModel<Types> {
-    const collections = [...this.relationsPerCollection[collection]] as (keyof Types)[];
+  public getPublicSchema(collection: keyof DataModel): DataModelSchema<DataModel> {
+    const collections = [...this.relationsPerCollection[collection]] as (keyof DataModel)[];
     return collections.reduce((finalSchema, currentCollection) => ({
       ...finalSchema,
       [currentCollection]: this.publicSchema[currentCollection],
-    }), {} as DataModel<Types>);
+    }), {} as DataModelSchema<DataModel>);
   }
 }

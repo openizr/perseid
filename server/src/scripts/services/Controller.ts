@@ -9,8 +9,15 @@
 import {
   Id,
   type User,
+  type DateSchema,
+  type FieldSchema,
+  type ObjectSchema,
+  type StringSchema,
   type UserPermissions,
-  type DataModel as DefaultTypes,
+  type DefaultDataModel,
+  type CollectionSchema,
+  type DataModelMetadata,
+  type DynamicObjectSchema,
 } from '@perseid/core';
 import jwt from 'jsonwebtoken';
 import { isPlainObject } from 'basx';
@@ -74,7 +81,7 @@ export interface ControllerSettings<Types> {
  */
 export default class Controller<
   /** Data model types definitions. */
-  Types extends DefaultTypes = DefaultTypes,
+  Types extends DefaultDataModel = DefaultDataModel,
 
   /** Model class types definitions. */
   Model extends BaseModel<Types> = BaseModel<Types>,
@@ -171,14 +178,13 @@ export default class Controller<
     const requestedFields = fields.split(',');
     const addPermission = permissions.add.bind(permissions);
     addPermission(`${this.toSnakeCase(collection as string)}_VIEW`);
-    const { fields: collectionFields } = this.model.getCollection(collection);
-    const model: FieldDataModel<Types> = { type: 'object', fields: collectionFields };
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
 
     for (let index = 0, { length } = requestedFields; index < length; index += 1) {
       let subPath = '';
       const path = requestedFields[index];
       const splittedPath = path.split('.');
-      let currentModel: FieldDataModel<Types> = model;
+      let currentModel: FieldSchema<Types> = { type: 'object', fields: metaData.schema.fields };
 
       // Walking through the model...
       while (splittedPath.length > 0 && currentModel !== undefined) {
@@ -186,18 +192,20 @@ export default class Controller<
         if (splittedPath.length === 0 && subPath === '*') {
           break;
         } else {
-          currentModel = (currentModel as ObjectDataModel<Types>).fields?.[subPath];
-          (currentModel as DateDataModel)?.permissions?.forEach(addPermission);
+          currentModel = (currentModel as ObjectSchema<Types>).fields?.[subPath];
+          (currentModel as DateSchema)?.permissions?.forEach(addPermission);
 
           if (currentModel?.type === 'array') {
             currentModel = currentModel.fields;
-            (currentModel as StringDataModel).permissions?.forEach(addPermission);
+            (currentModel as StringSchema).permissions?.forEach(addPermission);
           }
           if (currentModel?.type === 'id' && currentModel.relation !== undefined) {
+            const { relation } = currentModel;
             addPermission(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
-            currentModel = { type: 'object', fields: this.model.getCollection(currentModel.relation).fields };
+            const data = this.model.get(relation) as DataModelMetadata<CollectionSchema<Types>>;
+            currentModel = { type: 'object', fields: data.schema.fields };
           } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {
-            const subFields: DynamicObjectDataModel<Types>['fields'] = currentModel.fields;
+            const subFields: DynamicObjectSchema<Types>['fields'] = currentModel.fields;
             const patterns = Object.keys(subFields).map((pattern) => new RegExp(pattern));
             const pattern = (patterns.find((p) => p.test(splittedPath[0])) as RegExp).source;
             currentModel = { type: 'object', fields: { [splittedPath[0]]: subFields[pattern] } };
@@ -213,7 +221,7 @@ export default class Controller<
       } else if (currentModel?.type === 'object') {
         const keys = Object.keys(currentModel.fields);
         for (let i = 0, { length: keysLength } = keys; i < keysLength; i += 1) {
-          (currentModel.fields[keys[i]] as StringDataModel).permissions?.forEach(addPermission);
+          (currentModel.fields[keys[i]] as StringSchema).permissions?.forEach(addPermission);
           finalFields.add(path.replace('*', keys[i]));
         }
       } else {
@@ -245,30 +253,30 @@ export default class Controller<
     const filterFields = Object.keys(filters);
     const formattedFilters: SearchFilters = {};
     const addPermission = permissions.add.bind(permissions);
-    const { fields: collectionFields } = this.model.getCollection(collection);
-    const model: FieldDataModel<Types> = { type: 'object', fields: collectionFields };
-
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
     for (let index = 0, { length } = filterFields; index < length; index += 1) {
       let subPath = '';
       const path = filterFields[index];
       const splittedPath = path.split('.');
-      let currentModel: FieldDataModel<Types> = model;
+      let currentModel: FieldSchema<Types> = { type: 'object', fields: metaData.schema.fields };
 
       // Walking through the model...
       while (splittedPath.length > 0 && currentModel !== undefined) {
         subPath = splittedPath.shift() as string;
-        currentModel = (currentModel as ObjectDataModel<Types>).fields?.[subPath];
-        (currentModel as StringDataModel)?.permissions?.forEach(addPermission);
+        currentModel = (currentModel as ObjectSchema<Types>).fields?.[subPath];
+        (currentModel as StringSchema)?.permissions?.forEach(addPermission);
 
         if (currentModel?.type === 'array') {
           currentModel = currentModel.fields;
-          (currentModel as StringDataModel).permissions?.forEach(addPermission);
+          (currentModel as StringSchema).permissions?.forEach(addPermission);
         }
         if (currentModel?.type === 'id' && currentModel.relation !== undefined && splittedPath.length > 0) {
+          const { relation } = currentModel;
           permissions.add(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
-          currentModel = { type: 'object', fields: this.model.getCollection(currentModel.relation).fields };
+          const data = this.model.get(relation) as DataModelMetadata<CollectionSchema<Types>>;
+          currentModel = { type: 'object', fields: data.schema.fields };
         } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {
-          const subFields: DynamicObjectDataModel<Types>['fields'] = currentModel.fields;
+          const subFields: DynamicObjectSchema<Types>['fields'] = currentModel.fields;
           const patterns = Object.keys(subFields).map((pattern) => new RegExp(pattern));
           const pattern = (patterns.find((p) => p.test(splittedPath[0])) as RegExp).source;
           currentModel = { type: 'object', fields: { [splittedPath[0]]: subFields[pattern] } };

@@ -9,10 +9,18 @@
 import {
   Id,
   type Ids,
+  type Results,
   type Authors,
+  type Payload,
   type Version,
   type Deletion,
   type Timestamps,
+  type FieldSchema,
+  type ArraySchema,
+  type UpdatePayload,
+  type CollectionSchema,
+  type DataModelMetadata,
+  type DynamicObjectSchema,
 } from '@perseid/core';
 import Logger from 'scripts/services/Logger';
 import EngineError from 'scripts/errors/Engine';
@@ -71,7 +79,7 @@ export default class Engine<
   protected deepMerge<Collection extends keyof Types>(
     resource: Partial<Types[Collection]>,
     payload: UpdatePayload<Types[Collection]>,
-    dataModel: FieldDataModel<Types>,
+    dataModel: FieldSchema<Types>,
     foreignIds: Map<string, Record<string, Set<string>>> = new Map(),
     path: string[] = [],
   ): UpdatePayload<Types[Collection]> {
@@ -79,8 +87,9 @@ export default class Engine<
 
     // Expanded relation...
     if (type === 'id' && dataModel.relation !== undefined && payload !== null && !(payload instanceof Id)) {
+      const data = this.model.get(dataModel.relation) as DataModelMetadata<CollectionSchema<Types>>;
       return this.deepMerge(resource, payload, {
-        type: 'object', fields: this.model.getCollection(dataModel.relation).fields,
+        type: 'object', fields: data.schema.fields,
       }, foreignIds, path);
     }
 
@@ -100,13 +109,13 @@ export default class Engine<
     // Arrays...
     if (type === 'array' && payload !== null) {
       const newArray = [];
-      const { fields } = dataModel as ArrayDataModel<Types>;
+      const { fields } = dataModel as ArraySchema<Types>;
       const arrayPayload = payload as unknown as Types[Collection][];
       const arrayResource = (resource ?? this.defaultPayload) as unknown as Types[Collection][];
       for (let i = 0, { length } = arrayPayload; i < length; i += 1) {
         if (arrayPayload[i] !== null) {
           const mergedValue = this.deepMerge(
-            arrayResource[i] ?? this.defaultPayload,
+            arrayResource[i] !== undefined ? arrayResource[i] : this.defaultPayload,
             arrayPayload[i],
             fields,
             foreignIds,
@@ -128,7 +137,7 @@ export default class Engine<
     // (dynamic) Objects...
     if ((type === 'dynamicObject' || type === 'object') && payload !== null) {
       const isDynamic = type === 'dynamicObject';
-      const { fields } = dataModel as DynamicObjectDataModel<Types>;
+      const { fields } = dataModel as DynamicObjectSchema<Types>;
       const payloadKeys = Object.keys(payload);
       const newDynamicObject: UpdatePayload<Types[Collection]> = {};
       const resourceKeys = Object.keys(resource ?? this.defaultPayload);
@@ -137,8 +146,9 @@ export default class Engine<
       for (let i = 0, { length } = payloadKeys; i < length; i += 1) {
         const key = payloadKeys[i] as keyof UpdatePayload<Types[Collection]>;
         if ((isDynamic && payload[key] !== null) || !isDynamic) {
+          const subResource = resource?.[key];
           const mergedValue = this.deepMerge(
-            resource?.[key] ?? this.defaultPayload,
+            ((subResource !== undefined) ? subResource : this.defaultPayload as any),
             payload[key] as unknown as Types[Collection],
             fields[!isDynamic
               ? payloadKeys[i] : (patterns.find((p) => p.test(String(key))) as RegExp).source],
@@ -255,10 +265,10 @@ export default class Engine<
     context: CommandContext,
   ): Types[Collection] {
     const isCreation = (resource === null);
-    const collectionModel = this.model.getCollection(collection);
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
     const fullPayload: Partial<Ids & Authors & Version & Deletion & Timestamps> = { ...payload };
 
-    if (collectionModel.enableAuthors) {
+    if (metaData.schema.enableAuthors) {
       if (isCreation) {
         fullPayload._updatedBy = null;
         fullPayload._createdBy = context.user?._id ?? null;
@@ -267,7 +277,7 @@ export default class Engine<
       }
     }
 
-    if (collectionModel.enableTimestamps) {
+    if (metaData.schema.enableTimestamps) {
       if (isCreation) {
         fullPayload._updatedAt = null;
         fullPayload._createdAt = new Date();
@@ -280,12 +290,12 @@ export default class Engine<
       fullPayload._id = new Id();
     }
 
-    if (isCreation && collectionModel.enableDeletion === false) {
+    if (isCreation && metaData.schema.enableDeletion === false) {
       fullPayload._isDeleted = false;
     }
 
-    if (isCreation && collectionModel.version !== undefined) {
-      fullPayload._version = collectionModel.version;
+    if (isCreation && metaData.schema.version !== undefined) {
+      fullPayload._version = metaData.schema.version;
     }
 
     return fullPayload as Types[Collection];
@@ -350,12 +360,12 @@ export default class Engine<
     context: CommandContext,
   ): Promise<Types[Collection]> {
     const foreignIds = new Map();
-    const { fields } = this.model.getCollection(collection);
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
     const resource = this.defaultPayload as Types[Collection];
     const newPayload = payload as unknown as UpdatePayload<Types[Collection]>;
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
     const fullPayload = await this.checkAndUpdatePayload(collection, null, newPayload, context);
-    this.deepMerge(resource, fullPayload, { type: 'object', fields }, foreignIds);
+    this.deepMerge(resource, fullPayload, { type: 'object', fields: metaData.schema.fields }, foreignIds);
     await this.checkForeignIds(collection, resource, fullPayload, foreignIds, context);
     await this.databaseClient.create(collection, fullPayload as Types[Collection]);
     return this.view(collection, (fullPayload as Types[Collection] as Ids)._id, options);
@@ -386,7 +396,8 @@ export default class Engine<
     context: CommandContext,
   ): Promise<Types[Collection]> {
     const foreignIds = new Map();
-    const { fields } = this.model.getCollection(collection);
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
+    const { fields } = metaData.schema;
     const resource = await this.view(collection, id, { fields: Object.keys(fields) });
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
     const fullPayload = await this.checkAndUpdatePayload(collection, resource, payload, context);
