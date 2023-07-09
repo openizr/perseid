@@ -19,9 +19,9 @@ import toSnakeCase from 'scripts/helpers/toSnakeCase';
 export type DataModelSchema<DataModel> = Record<keyof DataModel, CollectionSchema<DataModel>>;
 
 /** Data model metadata. */
-export interface DataModelMetadata<DataModel> {
+export interface DataModelMetadata<SchemaType> {
   permissions: Set<string>;
-  schema: FieldSchema<DataModel> | CollectionSchema<DataModel>;
+  schema: SchemaType;
 }
 
 /**
@@ -126,8 +126,10 @@ export default class Model<
    *
    * @returns Data model metadata if path exists, `null` otherwise.
    */
-  public get(path: string): DataModelMetadata<DataModel> | null {
-    const splittedPath = path.split('.');
+  public get<T>(path: T): T extends keyof DataModel
+    ? DataModelMetadata<CollectionSchema<DataModel>>
+    : DataModelMetadata<FieldSchema<DataModel>> | null {
+    const splittedPath = (path as string).split('.');
     const collection = splittedPath.shift() as keyof DataModel;
     let currentSchema = this.schema[collection] as FieldSchema<DataModel>;
     const permissions = new Set<string>([`${toSnakeCase(collection as string)}_VIEW`]);
@@ -156,9 +158,11 @@ export default class Model<
       }
     }
 
-    return currentSchema === undefined ? null : {
+    return (currentSchema === undefined ? null : {
       permissions,
       schema: currentSchema,
-    };
+    }) as T extends keyof DataModel
+      ? DataModelMetadata<CollectionSchema<DataModel>>
+      : DataModelMetadata<FieldSchema<DataModel>> | null;
   }
 }

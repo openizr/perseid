@@ -6,6 +6,10 @@
  *
  */
 
+import { createRequire } from 'module';
+
+const require = createRequire('/');
+
 /**
  * Isomorphic universally unique identifiers generator.
  * Inspired from mongodb ObjectId implementation and Snowflake algorithm.

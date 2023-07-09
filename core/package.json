@@ -1,6 +1,6 @@
 {
   "name": "@perseid/core",
-  "version": "0.0.10",
+  "version": "0.0.14",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",

@@ -634,9 +634,9 @@ export abstract class Logger {
 export type DataModelSchema<DataModel> = Record<keyof DataModel, CollectionSchema<DataModel>>;
 
 /** Data model metadata. */
-export interface DataModelMetadata<DataModel> {
+export interface DataModelMetadata<SchemaType> {
   permissions: Set<string>;
-  schema: FieldSchema<DataModel> | CollectionSchema<DataModel>;
+  schema: SchemaType;
 }
 
 /**
@@ -670,5 +670,7 @@ export class Model<
    *
    * @returns Data model metadata if path exists, `null` otherwise.
    */
-  public get(path: string): DataModelMetadata<DataModel> | null;
+  public get<T>(path: T): T extends keyof DataModel
+    ? DataModelMetadata<CollectionSchema<DataModel>>
+    : DataModelMetadata<FieldSchema<DataModel>> | null;
 }
