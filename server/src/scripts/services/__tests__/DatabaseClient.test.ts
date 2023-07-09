@@ -26,6 +26,7 @@ type TestDatabaseClient = DatabaseClient<DataModel> & {
   formatInput: DatabaseClient<DataModel>['formatInput'];
   formatOutput: DatabaseClient<DataModel>['formatOutput'];
   createSchema: DatabaseClient<DataModel>['createSchema'];
+  formatPayload: DatabaseClient<DataModel>['formatPayload'];
   checkForeignIds: DatabaseClient<DataModel>['checkForeignIds'];
   checkReferencesTo: DatabaseClient<DataModel>['checkReferencesTo'];
   generateProjectionsFrom: DatabaseClient<DataModel>['generateProjectionsFrom'];
@@ -108,7 +109,7 @@ describe('services/DatabaseClient', () => {
         testOne: new Id('646b9be5e921d0ef42f8a142'),
         testTwo: { test: 'test' },
       },
-    }, { type: 'object', fields: model.get('test' as const).schema.fields })).toEqual({
+    })).toEqual({
       primitiveOne: new ObjectId('646b9be5e921d0ef42f8a149'),
       primitiveTwo: new Binary('test'),
       primitiveThree: 'test',
@@ -143,15 +144,75 @@ describe('services/DatabaseClient', () => {
     });
   });
 
+  test('[formatPayload]', () => {
+    expect(databaseClient.formatPayload({
+      primitiveOne: new Id('646b9be5e921d0ef42f8a149'),
+      primitiveTwo: new ArrayBuffer(10),
+      primitiveThree: 'test',
+      arrayOne: [
+        {
+          dynamicObject: {
+            testOne: new Id('646b9be5e921d0ef42f8a147'),
+          },
+          object: {
+            fieldOne: 'test',
+          },
+        },
+      ],
+      arrayTwo: [
+        null,
+        new Id('646b9be5e921d0ef42f8a150'),
+      ],
+      arrayFour: ['testOne', 'testTwo'],
+      arrayFive: [{ fieldOne: 'test' }, null],
+      dynamicOne: {
+        testOne: new Id('646b9be5e921d0ef42f8a142'),
+        testTwo: new Id('646b9be5e921d0ef42f8a143'),
+        testThree: { test: 'test' },
+        specialTest: new Id('646b9be5e921d0ef42f8a141'),
+        specialTestTwo: new Id('646b9be5e921d0ef42f8a142'),
+        specialTestThree: new Id('646b9be5e921d0ef42f8a146'),
+      },
+      dynamicTwo: {
+        testOne: new Id('646b9be5e921d0ef42f8a142'),
+        testTwo: { test: 'test' },
+      },
+    })).toEqual({
+      primitiveOne: new ObjectId('646b9be5e921d0ef42f8a149'),
+      primitiveTwo: new Binary('test'),
+      primitiveThree: 'test',
+      arrayOne: [
+        {
+          dynamicObject: {
+            testOne: new ObjectId('646b9be5e921d0ef42f8a147'),
+          },
+          object: {
+            fieldOne: 'test',
+          },
+        },
+      ],
+      arrayTwo: [
+        null,
+        new ObjectId('646b9be5e921d0ef42f8a150'),
+      ],
+      arrayFour: ['testOne', 'testTwo'],
+      arrayFive: [{ fieldOne: 'test' }, null],
+      'dynamicOne.testOne': new ObjectId('646b9be5e921d0ef42f8a142'),
+      'dynamicOne.testTwo': new ObjectId('646b9be5e921d0ef42f8a143'),
+      'dynamicOne.testThree.test': 'test',
+      'dynamicOne.specialTest': new ObjectId('646b9be5e921d0ef42f8a141'),
+      'dynamicOne.specialTestTwo': new ObjectId('646b9be5e921d0ef42f8a142'),
+      'dynamicOne.specialTestThree': new ObjectId('646b9be5e921d0ef42f8a146'),
+      'dynamicTwo.testOne': new ObjectId('646b9be5e921d0ef42f8a142'),
+      'dynamicTwo.testTwo.test': 'test',
+    });
+  });
+
   test('[formatOutput]', () => {
     expect(databaseClient.formatOutput({
       primitiveOne: new ObjectId('646b9be5e921d0ef42f8a149'),
       primitiveTwo: new Binary('test'),
-    } as Document, { type: 'object', fields: model.get('test' as const).schema.fields }, {
-      primitiveThree: 1,
-    })).toEqual({
-      primitiveThree: null,
-    });
+    } as Document, { primitiveThree: 1 })).toEqual({ primitiveThree: null });
 
     expect(databaseClient.formatOutput({
       primitiveOne: new ObjectId('646b9be5e921d0ef42f8a149'),
@@ -191,7 +252,7 @@ describe('services/DatabaseClient', () => {
         testOne: new ObjectId('646b9be5e921d0ef42f8a142'),
         testTwo: { test: 'test' },
       },
-    } as Document, { type: 'object', fields: model.get('test' as const).schema.fields }, {
+    } as Document, {
       primitiveOne: 1,
       primitiveTwo: 1,
       arrayOne: {

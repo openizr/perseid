@@ -27,9 +27,9 @@ import {
   type StringSchema,
   type ObjectSchema,
   type DefaultDataModel,
+  type CollectionSchema,
+  type DataModelMetadata,
   type DynamicObjectSchema,
-  DataModelMetadata,
-  CollectionSchema,
 } from '@perseid/core';
 import { isPlainObject } from 'basx';
 import type Logger from 'scripts/services/Logger';
@@ -98,6 +98,7 @@ export interface DatabaseClientSettings {
   cacheDuration: number;
 }
 
+const decoder = new TextDecoder();
 const defaultMigration: MigrationCallback = (): Promise<void> => Promise.resolve();
 
 /**
@@ -371,61 +372,70 @@ export default class DatabaseClient<
    *
    * @param input Input to format.
    *
-   * @param model Current input data model.
-   *
    * @returns MongoDB-formatted input.
    */
   protected formatInput<Collection extends keyof DataModel>(
     input: Partial<DataModel[Collection]>,
-    model: FieldSchema<DataModel>,
   ): Document {
-    const { type } = model as FieldSchema<DataModel>;
-    const { fields } = model as ArraySchema<DataModel>;
-
-    // Null value (e.g., optional fields)...
-    if (input === null) {
-      return null as unknown as Document;
-    }
-
-    // Arrays and dynamic objects...
-    const isArray = (type === 'array');
-    if (isArray || type === 'dynamicObject') {
-      const keys: Document = isArray ? input : Object.keys(input);
-      const formattedInput: Document = isArray ? [] : {};
-      const patterns = isArray ? [] : Object.keys(fields).map((pattern) => new RegExp(pattern));
-      for (let index = 0, { length } = keys; index < length; index += 1) {
-        const key = isArray ? index : (patterns.find((p) => p.test(keys[index])) as RegExp).source;
-        const actualIndex = isArray ? index : keys[index];
-        formattedInput[actualIndex] = this.formatInput(
-          (input as Document)[actualIndex],
-          isArray ? fields : (model as DynamicObjectSchema<DataModel>).fields[key],
-        );
+    if (Array.isArray(input)) {
+      const formattedInput: Document[] = [];
+      for (let index = 0, { length } = input; index < length; index += 1) {
+        formattedInput.push(this.formatInput((input as Document)[index]));
       }
-      return formattedInput as Partial<DataModel[Collection]>;
+      return formattedInput;
     }
 
-    // Objects...
-    if (type === 'object') {
+    if (isPlainObject(input)) {
       const keys = Object.keys(input);
       const formattedInput: Document = {};
       for (let index = 0, { length } = keys; index < length; index += 1) {
-        formattedInput[keys[index]] = this.formatInput(
-          (input as Document)[keys[index]],
-          (model as ObjectSchema<DataModel>).fields[keys[index]],
-        );
+        formattedInput[keys[index]] = this.formatInput((input as Document)[keys[index]]);
       }
-      return formattedInput as Partial<DataModel[Collection]>;
+      return formattedInput;
     }
 
-    // Primitive values...
-    if (type === 'id') {
+    if (input instanceof Id) {
       return new ObjectId(`${input}`);
     }
-    if (type === 'binary') {
-      const decoder = new TextDecoder();
+
+    if (input instanceof ArrayBuffer) {
       return new Binary(decoder.decode(input as unknown as ArrayBuffer));
     }
+
     return input;
+  }
+
+  /**
+   * Formats `payload` for MongoDB update.
+   *
+   * @param payload Payload to format.
+   *
+   * @returns MongoDB-formatted payload.
+   */
+  protected formatPayload<Collection extends keyof DataModel>(
+    payload: Partial<DataModel[Collection]>,
+    path: (keyof Partial<DataModel[Collection]>)[] = [],
+  ): Document {
+    let formattedPayload: Document = {};
+    const keys = Object.keys(payload) as (keyof Partial<DataModel[Collection]>)[];
+    for (let index = 0, { length } = keys; index < length; index += 1) {
+      const subPath = path.concat([keys[index]]);
+      const flattenedPath = subPath.join('.');
+      const subPayload = payload[keys[index]] as Partial<DataModel[Collection]>;
+      if (isPlainObject(subPayload)) {
+        const formattedSubPayload = this.formatPayload(subPayload, subPath);
+        formattedPayload = { ...formattedPayload, ...formattedSubPayload };
+      } else if (subPayload instanceof Id) {
+        formattedPayload[flattenedPath] = new ObjectId(`${subPayload}`);
+      } else if (subPayload instanceof ArrayBuffer) {
+        formattedPayload[flattenedPath] = new Binary(decoder.decode(subPayload));
+      } else if (Array.isArray(subPayload)) {
+        formattedPayload[flattenedPath] = this.formatInput(subPayload);
+      } else {
+        formattedPayload[flattenedPath] = subPayload;
+      }
+    }
+    return formattedPayload;
   }
 
   /**
@@ -433,71 +443,49 @@ export default class DatabaseClient<
    *
    * @param output Output to format.
    *
-   * @param model Current output data model.
-   *
    * @param projections List of current output fields to return.
    *
    * @returns Formatted output.
    */
   protected formatOutput<Collection extends keyof DataModel>(
-    output: Partial<DataModel[Collection]>,
-    model: FieldSchema<DataModel>,
+    output: Document,
     projections: Document | 1,
-  ): Partial<DataModel[Collection]> | Id | ArrayBuffer | null {
-    const { type } = model as FieldSchema<DataModel>;
-    const { fields } = model as ArraySchema<DataModel>;
-
-    // Null or undefined value...
-    if (output === undefined || output === null) {
-      return null;
-    }
-
-    // Arrays...
-    if (type === 'array') {
+  ): Partial<DataModel[Collection]> {
+    if (Array.isArray(output)) {
       const formattedOutput: Document = [];
       for (let index = 0, { length } = output as unknown as string[]; index < length; index += 1) {
-        formattedOutput[index] = this.formatOutput((<Document>output)[index], fields, projections);
+        formattedOutput[index] = this.formatOutput((<Document>output)[index], projections);
       }
       return formattedOutput as Partial<DataModel[Collection]>;
     }
 
-    // (dynamic) Objects...
-    if (type === 'object' || type === 'dynamicObject') {
+    if (isPlainObject(output)) {
       const formattedOutput: Document = {};
       const keys = Object.keys(projections === 1 ? output : projections);
-      const patterns = Object.keys(fields).map((pattern) => new RegExp(pattern));
       for (let index = 0, { length } = keys; index < length; index += 1) {
-        const pattern = (patterns.find((p) => p.test(keys[index])) as RegExp).source;
         formattedOutput[keys[index]] = this.formatOutput(
           (output as Document)[keys[index]],
-          (model as ObjectSchema<DataModel>).fields[pattern],
           projections === 1 ? 1 : (projections as Document)[keys[index]],
         );
       }
       return formattedOutput as Partial<DataModel[Collection]>;
     }
 
-    // Primitive values...
-    if (type === 'id') {
-      const { relation } = model as IdSchema<DataModel>;
-      const metaData = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
-      return (output instanceof ObjectId || relation === undefined)
-        ? new Id(`${output}`)
-        : this.formatOutput(output, {
-          type: 'object',
-          fields: metaData.schema.fields,
-        }, projections) as Partial<DataModel[Collection]>;
+    if (output instanceof ObjectId) {
+      return new Id(`${output}`) as unknown as Partial<DataModel[Collection]>;
     }
-    if (type === 'binary') {
-      const { buffer } = output as unknown as Binary;
+
+    if (output instanceof Binary) {
+      const { buffer } = output;
       const binary = new ArrayBuffer(buffer.length);
       const arrayBuffer = new Uint8Array(binary);
       for (let i = 0; i < buffer.length; i += 1) {
         arrayBuffer[i] = buffer[i];
       }
-      return binary;
+      return binary as unknown as Partial<DataModel[Collection]>;
     }
-    return output;
+
+    return (output ?? null) as Partial<DataModel[Collection]>;
   }
 
   /**
@@ -1205,13 +1193,12 @@ export default class DatabaseClient<
     collection: Collection,
     resource: DataModel[Collection],
   ): Promise<void> {
-    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-    const newResource = this.formatInput(resource, { type: 'object', fields: metaData.schema.fields });
+    const newResource = this.formatInput(resource);
 
     this.logger.debug(
       `[DatabaseClient][create] Inserting new resource into collection ${collection as string}:`,
     );
-    this.logger.debug(resource);
+    this.logger.debug(newResource);
 
     await this.handleError(async () => {
       await this.database.collection(collection as string).insertOne(newResource);
@@ -1236,12 +1223,12 @@ export default class DatabaseClient<
     const filter = metaData.schema.enableDeletion
       ? { _id: new ObjectId(`${id}`) }
       : { ...this.DELETION_FILTER_PIPELINE[0].$match, _id: new ObjectId(`${id}`) };
-    const updates = this.formatInput(payload, { type: 'object', fields: metaData.schema.fields });
+    const updates = this.formatPayload(payload);
 
     this.logger.debug(
       `[DatabaseClient][update] Updating resource ${id} in collection ${collection as string}:`,
     );
-    this.logger.debug(payload);
+    this.logger.debug(updates);
 
     await this.handleError(async () => {
       await this.database.collection(collection as string).updateOne(filter, { $set: updates });
@@ -1265,20 +1252,20 @@ export default class DatabaseClient<
     payload: Partial<DataModel[Collection]>,
   ): Promise<boolean> {
     const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-    const updates = this.formatInput(payload, { type: 'object', fields: metaData.schema.fields });
+    const updates = this.formatPayload(payload);
 
     this.logger.debug(
       `[DatabaseClient][exclusiveUpdate] Updating resources in collection ${collection as string}:`,
     );
     this.logger.debug(filters);
-    this.logger.debug(payload);
+    this.logger.debug(updates);
 
     return this.handleError(async () => {
       const formattedFilters = metaData.schema.enableDeletion
         ? filters
         : { ...this.DELETION_FILTER_PIPELINE[0].$match, ...filters };
       const response = await this.database.collection(collection as string).findOneAndUpdate(
-        this.formatInput(formattedFilters, { type: 'object', fields: metaData.schema.fields }),
+        this.formatInput(formattedFilters),
         { $set: updates },
         { projection: { _id: 1 } },
       );
@@ -1325,7 +1312,7 @@ export default class DatabaseClient<
       const databaseCollection = this.database.collection(collection as string);
       const response = await databaseCollection.aggregate(resultsPipeline).toArray();
       const result = (response[0] ?? null) as unknown as Partial<DataModel[Collection]>;
-      return this.formatOutput(result, model, projections) as DataModel[Collection];
+      return this.formatOutput(result, projections) as DataModel[Collection];
     });
   }
 
@@ -1391,7 +1378,7 @@ export default class DatabaseClient<
         results: (options.limit === 0)
           ? []
           : response.results.map((result: Partial<DataModel[Collection]>) => (
-            this.formatOutput(result, model, projections)
+            this.formatOutput(result, projections)
           )),
       };
     });
@@ -1449,7 +1436,7 @@ export default class DatabaseClient<
         results: (options.limit === 0)
           ? []
           : response.results.map((result: Partial<DataModel[Collection]>) => (
-            this.formatOutput(result, model, projections)
+            this.formatOutput(result, projections)
           )),
       };
     });
@@ -1473,7 +1460,6 @@ export default class DatabaseClient<
     payload: Partial<DataModel[Collection]> = {},
   ): Promise<boolean> {
     const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-    const model: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     const resourceId = new ObjectId(`${id}`);
 
     return this.handleError(async () => {
@@ -1489,7 +1475,7 @@ export default class DatabaseClient<
         return response.deletedCount === 1;
       }
 
-      const fullPayload = { _isDeleted: true, ...this.formatInput(payload, model) };
+      const fullPayload = { _isDeleted: true, ...this.formatPayload(payload) };
       this.logger.debug(
         `[DatabaseClient][delete] Updating resource ${id} in collection ${collection as string}:`,
       );
