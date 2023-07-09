@@ -17,19 +17,19 @@ import {
   Id,
   type Role,
   type User,
+  type IdSchema,
+  type DateSchema,
+  type ArraySchema,
   type FieldSchema,
+  type BinarySchema,
+  type NumberSchema,
+  type StringSchema,
+  type ObjectSchema,
+  type BooleanSchema,
   type DefaultDataModel,
   type CollectionSchema,
   type DataModelMetadata,
-  IdSchema,
-  BinarySchema,
-  BooleanSchema,
-  DateSchema,
-  NumberSchema,
-  StringSchema,
-  ObjectSchema,
-  DynamicObjectSchema,
-  ArraySchema,
+  type DynamicObjectSchema,
 } from '@perseid/core';
 import os from 'os';
 import Ajv from 'ajv';
@@ -45,6 +45,7 @@ import ajvErrors from 'ajv-errors';
 import multiparty from 'multiparty';
 import { createWriteStream } from 'fs';
 import Gone from 'scripts/errors/Gone';
+import { type IncomingMessage } from 'http';
 import BaseModel from 'scripts/services/Model';
 import NotFound from 'scripts/errors/NotFound';
 import Conflict from 'scripts/errors/Conflict';
@@ -52,7 +53,6 @@ import EngineError from 'scripts/errors/Engine';
 import Forbidden from 'scripts/errors/Forbidden';
 import type Logger from 'scripts/services/Logger';
 import BadRequest from 'scripts/errors/BadRequest';
-import { type IncomingMessage as Payload } from 'http';
 import Unauthorized from 'scripts/errors/Unauthorized';
 import NotAcceptable from 'scripts/errors/NotAcceptable';
 import type OAuthEngine from 'scripts/services/OAuthEngine';
@@ -942,7 +942,7 @@ export default class FastifyController<
    * @returns Parsed payload.
    */
   protected parseFormData(
-    payload: Payload,
+    payload: IncomingMessage,
     options: FormDataOptions = {},
   ): Promise<FormDataFields> {
     let totalSize = 0;

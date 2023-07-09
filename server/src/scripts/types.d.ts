@@ -9,8 +9,16 @@
 import {
   type Id,
   type User,
+  type Payload,
+  type Results,
+  type FieldSchema,
+  type StringSchema,
+  type ObjectSchema,
+  type UpdatePayload,
+  type DataModelSchema,
+  type DefaultDataModel,
+  type Model as BaseModel,
   type Logger as BaseLogger,
-  type DefaultDataModel as DefaultTypes,
 } from '@perseid/core';
 import {
   type Db,
@@ -30,13 +38,9 @@ import { type IncomingMessage } from 'http';
 import { type KeywordDefinition } from 'ajv/dist/types';
 import { type DestinationStream, type Logger as PinoLogger } from 'pino';
 
-type BaseModel<Types> = Model<Types>;
-
 type BaseDatabaseClient<Types> = DatabaseClient<Types>;
 
 type RelationsPerCollection<Types> = Record<keyof Types, Map<string, string[]>>;
-
-interface Details { [key: string]: unknown; }
 
 type PinoDestination = DestinationStream & {
   flushSync: () => void;
@@ -46,15 +50,15 @@ type PinoDestination = DestinationStream & {
 export * from '@perseid/core';
 
 /**
- * Database search filters.
- * Each key is a field name, and its related value is the filter value.
- * For instance, to fetch only resources for which `firstField` is either `'a'`, `'b'` or `'c'`
- * and `secondField` is `42`, you should write the following:
- * `{
- *    firstField: ['a', 'b', 'c'],
- *    secondField: 42,
- * }`
- */
+   * Database search filters.
+   * Each key is a field name, and its related value is the filter value.
+   * For instance, to fetch only resources for which `firstField` is either `'a'`, `'b'` or `'c'`
+   * and `secondField` is `42`, you should write the following:
+   * `{
+   *    firstField: ['a', 'b', 'c'],
+   *    secondField: 42,
+   * }`
+   */
 export interface SearchFilters {
   [fieldPath: string]: (
     string | Date | number | boolean | Id | null |
@@ -127,587 +131,6 @@ export interface CommandContext {
 }
 
 /**
- * Database results.
- */
-export interface Results<T> {
-  /** Total number of results that matched query. */
-  total: number;
-
-  /** Limited list of results that are actually returned. */
-  results: T[];
-}
-
-/**
- * Resource creation payload (excluding all automatic fields).
- */
-export type Payload<T> = {
-  [K in keyof T as Exclude<K, `_${string}`>]: Payload<T[K]>;
-};
-
-/**
- * Resource update payload.
- */
-export type UpdatePayload<T> = {
-  [K in keyof T]?: UpdatePayload<T[K]>;
-};
-
-/**
- * Common properties for all data model fields.
- */
-export interface GenericFieldDataModel {
-  /**
-   * Custom type name to assign to that field, in addition to its actual type.
-   * Very useful to customize behaviours. For instance, you might want to display a specific
-   * component for email addresses on front-end, even though their real type is `string`.
-   */
-  customType?: string;
-
-  /** Whether field is required. */
-  required?: boolean;
-
-  /** Additional permissions required to access that field. */
-  permissions?: string[];
-
-  /** Custom error messages when user inputs do not match data model. */
-  errorMessages?: {
-    [errorType: string]: string;
-  };
-}
-
-/**
- * String field data model.
- */
-export interface StringDataModel extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'string';
-
-  /**
-   * Whether to index this field.
-   * A database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  index?: boolean;
-
-  /** Specific set of values allowed for that field. */
-  enum?: string[];
-
-  /** Default value for that field. */
-  default?: string;
-
-  /**
-   * Whether field's value should be unique across the whole collection (e.g. an email address).
-   * A unique database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  unique?: boolean;
-
-  /** RegExp user inputs must pass for that field. */
-  pattern?: string;
-
-  /** Field minimum length. */
-  minLength?: number;
-
-  /** Field maximum length. */
-  maxLength?: number;
-}
-
-/**
- * Number field data model.
- */
-export interface NumberDataModel extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'integer' | 'float';
-
-  /**
-   * Whether to index this field.
-   * A database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  index?: boolean;
-
-  /** Specific set of values allowed for that field. */
-  enum?: number[];
-
-  /** Default value for that field. */
-  default?: number;
-
-  /**
-   * Whether field's value should be unique across the whole collection (e.g. an email address).
-   * A unique database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  unique?: boolean;
-
-  /** Field minimum value. */
-  minimum?: number;
-
-  /** Field maximum value. */
-  maximum?: number;
-
-  /** Field exclusive minimum value. */
-  exclusiveMinimum?: number;
-
-  /** Field exclusive maximum value. */
-  exclusiveMaximum?: number;
-
-  /** Value to use as a multiple for user inputs. */
-  multipleOf?: number;
-}
-
-/**
- * Boolean field data model.
- */
-export interface BooleanDataModel extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'boolean';
-
-  /**
-   * Whether to index this field.
-   * A database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  index?: boolean;
-
-  /** Default value for that field. */
-  default?: boolean;
-}
-
-/**
- * Id field data model.
- */
-export interface IdDataModel<Types> extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'id';
-
-  /** Specific set of values allowed for that field. */
-  enum?: Id[];
-
-  /**
-   * Whether to index this field.
-   * A database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  index?: boolean;
-
-  /**
-   * Whether field's value should be unique across the whole collection (e.g. an email address).
-   * A unique database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  unique?: boolean;
-
-  /** Default value for that field. */
-  default?: Id;
-
-  /** Name of the collection the id refers to. See it as a foreign key. */
-  relation?: keyof Types;
-}
-
-/**
- * Date field data model.
- */
-export interface DateDataModel extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'date';
-
-  /** Specific set of values allowed for that field. */
-  enum?: Date[];
-
-  /**
-   * Whether to index this field.
-   * A database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  index?: boolean;
-
-  /**
-   * Whether field's value should be unique across the whole collection (e.g. an email address).
-   * A unique database index will be created, and user will be able to use that field for sorting,
-   * searching, and filtering in queries.
-   */
-  unique?: boolean;
-
-  /** Default value for that field. */
-  default?: Date;
-}
-
-/**
- * Binary field data model.
- */
-export interface BinaryDataModel extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'binary';
-
-  /** Default value for that field. */
-  default?: ArrayBuffer;
-}
-
-/**
- * Null field data model.
- */
-export interface NullDataModel extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'null';
-}
-
-/**
- * Object field data model.
- */
-export interface ObjectDataModel<Types> extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'object';
-
-  /** Sub-fields data model. */
-  fields: {
-    [fieldName: string]: FieldDataModel<Types>;
-  };
-}
-
-/**
- * Dynamic object field data model.
- * See https://json-schema.org/understanding-json-schema/reference/object.html#pattern-properties.
- */
-export interface DynamicObjectDataModel<Types> extends GenericFieldDataModel {
-  /** Data type. */
-  type: 'dynamicObject';
-
-  /** Minimum required number of sub-fields. */
-  minItems?: number;
-
-  /** Maximum allowed number of sub-fields. */
-  maxItems?: number;
-
-  /** Sub-fields data model, keyed by pattern. */
-  fields: {
-    [pattern: string]: FieldDataModel<Types>;
-  };
-}
-
-/**
- * Array field data model.
- */
-export interface ArrayDataModel<Types> extends Omit<GenericFieldDataModel, 'permissions'> {
-  /** Data type. */
-  type: 'array';
-
-  /** Minimum required number of items in the array. */
-  minItems?: number;
-
-  /** Maximum allowed number of items in the array. */
-  maxItems?: number;
-
-  /** Items data model. */
-  fields: FieldDataModel<Types>;
-
-  /** Whether each array item should be unique. */
-  uniqueItems?: boolean;
-}
-
-/**
- * Any field data model.
- */
-export type FieldDataModel<Types> = (
-  NullDataModel |
-  DateDataModel |
-  NumberDataModel |
-  StringDataModel |
-  BinaryDataModel |
-  BooleanDataModel |
-  IdDataModel<Types> |
-  ArrayDataModel<Types> |
-  ObjectDataModel<Types> |
-  DynamicObjectDataModel<Types>
-);
-
-/**
- * Collection data model.
- */
-export interface CollectionDataModel<Types> {
-  /**
-   * Data model version for this collection. Can be useful for applying different logics depending
-   * on the data model version of a given resource in that collection.
-   */
-  version?: number;
-
-  /** Whether to generate and manage`_createdBy` and `_updatedBy` fields for that collection. */
-  enableAuthors?: boolean;
-
-  /** Whether to generate and manage the `_isDeleted` field for that collection. */
-  enableDeletion?: boolean;
-
-  /** Whether to generate and manage`_createdAt` and `_updatedAt` fields for that collection. */
-  enableTimestamps?: boolean;
-
-  /** Collection fields data model. */
-  fields: {
-    [fieldName: string]: FieldDataModel<Types>;
-  };
-}
-
-/**
- * Generic HTTP error.
- */
-export class HttpError extends Error {
-  public code: string | number;
-
-  constructor(code: string | number, message: string);
-}
-
-/**
- * HTTP 400 error.
- */
-export class BadRequest extends HttpError { }
-
-/**
- * HTTP 409 error.
- */
-export class Conflict extends HttpError { }
-
-/**
- * Database error.
- */
-export class DatabaseError extends Error {
-  /** Error code. */
-  public code: string;
-
-  /** Error details. */
-  public details: Details;
-
-  /**
-   * Class constructor.
-   *
-   * @param code Error code.
-   *
-   * @param details Error details.
-   */
-  constructor(code: string, details?: Details);
-}
-
-/**
- * Engine error.
- */
-export class EngineError extends Error {
-  /** Error code. */
-  public code: string;
-
-  /** Error details. */
-  public details: Details;
-
-  /**
-   * Class constructor.
-   *
-   * @param code Error code.
-   *
-   * @param details Error details.
-   */
-  constructor(code: string, details?: Details);
-}
-
-/**
- * HTTP 403 error.
- */
-export class Forbidden extends HttpError { }
-
-/**
- * HTTP 410 error.
- */
-export class Gone extends HttpError { }
-
-/**
- * HTTP 406 error.
- */
-export class NotAcceptable extends HttpError { }
-
-/**
- * HTTP 404 error.
- */
-export class NotFound extends HttpError { }
-
-/**
- * HTTP 413 error.
- */
-export class RequestEntityTooLarge extends HttpError { }
-
-/**
- * HTTP 429 error.
- */
-export class TooManyRequests extends HttpError { }
-
-/**
- * HTTP 401 error.
- */
-export class Unauthorized extends HttpError { }
-
-/**
- * HTTP 422 error.
- */
-export class UnprocessableEntity extends HttpError { }
-
-/** Data model types definitions. */
-export type DataModel<Types> = Record<keyof Types, CollectionDataModel<Types>>;
-
-/**
- * Data model.
- */
-export class Model<
-  /** Data model types definitions. */
-  Types = DefaultTypes,
-> {
-  /** Generated data model. */
-  protected model: DataModel<Types>;
-
-  /** Public data model schema, used for data model introspection on front-end. */
-  protected publicSchema: DataModel<Types>;
-
-  /** List of relations per collection, along with their respective path in the model. */
-  protected relationsPerCollection: Record<keyof Types, Set<string>>;
-
-  /** Default data model schema. */
-  public static readonly DEFAULT_MODEL: DataModel<DefaultTypes>;
-
-  /**
-   * Generates public data schema from `model`.
-   *
-   * @param model Model from which to generate schema.
-   *
-   * @param relations Optional parameter, use it to also extract all relations declared in the
-   * model. If this parameter is passed, a list of all collections referenced directly or indirectly
-   * (i.e. by following subsequent relations) in the model will be generated and stored in that
-   * variable. For instance, if `model` contains a field that references a collection A, that in
-   * turn references collection B, that eventually references the initial collection, the following
-   * list will be generated: `["A", "B"]`. Defaults to `new Set()`.
-   */
-  protected generatePublicSchemaFrom(
-    model: FieldDataModel<Types>,
-    relations?: Set<string>,
-  ): FieldDataModel<Types>;
-
-  /**
-   * `email` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static email(overrides?: Partial<StringDataModel>): StringDataModel;
-
-  /**
-   * `tinyText` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static tinyText(overrides?: Partial<StringDataModel>): StringDataModel;
-
-  /**
-   * `shortText` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static shortText(overrides?: Partial<StringDataModel>): StringDataModel;
-
-  /**
-   * `mediumText` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static mediumText(overrides?: Partial<StringDataModel>): StringDataModel;
-
-  /**
-   * `longText` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static longText(overrides?: Partial<StringDataModel>): StringDataModel;
-
-  /**
-   * `hugeText` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static hugeText(overrides?: Partial<StringDataModel>): StringDataModel;
-
-  /**
-   * `token` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static token(overrides?: Partial<StringDataModel>): StringDataModel;
-
-  /**
-   * `password` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static password(overrides?: Partial<StringDataModel>): StringDataModel;
-
-  /**
-   * `credentials` custom data model type generator.
-   *
-   * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
-   *
-   * @returns Generated custom data model.
-   */
-  public static credentials(
-    overrides?: Partial<ObjectDataModel<unknown>>,
-  ): ObjectDataModel<unknown>;
-
-  /**
-   * Class constructor.
-   *
-   * @param schema Schema from which to generate data model.
-   */
-  constructor(schema: DataModel<Types>);
-
-  /**
-   * Returns the list of all data model collections names.
-   *
-   * @returns Data model collections names.
-   */
-  public getCollections(): (keyof Types)[];
-
-  /**
-   * Returns generated data model for collection `collection`.
-   *
-   * @param collection Name of the collection for which to get data model.
-   *
-   * @returns Collection generated data model.
-   */
-  public getCollection(collection: keyof Types): Readonly<CollectionDataModel<Types>>;
-
-  /**
-   * Returns public data model schema for `collection`, and all its direct or indirect relations.
-   *
-   * @param collection Name of the collection for which to get public data model schema.
-   *
-   * @returns Public data model schema for all related collections.
-   */
-  public getPublicSchema(collection: keyof Types): DataModel<Types>;
-}
-
-/**
  * Logger settings
  */
 export interface LoggerSettings {
@@ -734,9 +157,6 @@ export class Logger extends BaseLogger {
   /** Minimum logging level (all logs below that level won't be logs). */
   public readonly level: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
-  /** Only for pino compatibility. */
-  public readonly silent: null;
-
   /**
    * Class constructor.
    *
@@ -748,6 +168,11 @@ export class Logger extends BaseLogger {
    * Only for pino compatibility.
    */
   public child(): PinoLogger;
+
+  /**
+   * Only for pino compatibility.
+   */
+  public silent(message: unknown, ...args: unknown[]): void;
 
   /**
    * @deprecated Use `debug` instead.
@@ -914,9 +339,9 @@ export interface MongoValidationSchema {
   };
 }
 
-/** Perseid data model to Mongo validation schema formatters. */
-export interface MongoFormatters<Types> {
-  [type: string]: (model: FieldDataModel<Types>) => MongoValidationSchema;
+/** Perseid schema to Mongo validation schema formatters. */
+export interface MongoFormatters<DataModel> {
+  [type: string]: (schema: FieldSchema<DataModel>) => MongoValidationSchema;
 }
 
 /** Migration callback. */
@@ -944,10 +369,10 @@ export interface DatabaseClientSettings {
  */
 export class DatabaseClient<
   /** Data model types definitions. */
-  Types = DefaultTypes,
+  DataModel = DefaultDataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 > {
   /** Default sorting pipeline. */
   protected readonly DEFAULT_SORTING_PIPELINE: Document[];
@@ -974,7 +399,7 @@ export class DatabaseClient<
   protected readonly DEFAULT_QUERY_OPTIONS: CommandOptions;
 
   /** List of formatters, used to format a perseid data model into its MongoDB equivalent. */
-  protected readonly FORMATTERS: MongoFormatters<Types>;
+  protected readonly FORMATTERS: MongoFormatters<DataModel>;
 
   /** Logging system. */
   protected logger: Logger;
@@ -998,23 +423,32 @@ export class DatabaseClient<
   protected isConnected: boolean;
 
   /** List of fields in data model representing external relations, per collection. */
-  protected relationsPerCollection: RelationsPerCollection<Types>;
+  protected relationsPerCollection: RelationsPerCollection<DataModel>;
 
   /** List of fields in data model referencing each collection, grouped by this collection. */
-  protected invertedRelationsPerCollection: RelationsPerCollection<Types>;
+  protected invertedRelationsPerCollection: RelationsPerCollection<DataModel>;
 
   /**
    * Formats `input` to match MongoDB data types specifications.
    *
    * @param input Input to format.
    *
-   * @param model Current input data model.
-   *
    * @returns MongoDB-formatted input.
    */
-  protected formatInput<Collection extends keyof Types>(
-    input: Partial<Types[Collection]>,
-    model: FieldDataModel<Types>,
+  protected formatInput<Collection extends keyof DataModel>(
+    input: Partial<DataModel[Collection]>,
+  ): Document;
+
+  /**
+   * Formats `payload` for MongoDB update.
+   *
+   * @param payload Payload to format.
+   *
+   * @returns MongoDB-formatted payload.
+   */
+  protected formatPayload<Collection extends keyof DataModel>(
+    payload: Partial<DataModel[Collection]>,
+    path?: (keyof Partial<DataModel[Collection]>)[],
   ): Document;
 
   /**
@@ -1022,17 +456,14 @@ export class DatabaseClient<
    *
    * @param output Output to format.
    *
-   * @param model Current output data model.
-   *
    * @param projections List of current output fields to return.
    *
    * @returns Formatted output.
    */
-  protected formatOutput<Collection extends keyof Types>(
-    output: Partial<Types[Collection]>,
-    model: FieldDataModel<Types>,
+  protected formatOutput<Collection extends keyof DataModel>(
+    output: Document,
     projections: Document | 1,
-  ): Partial<Types[Collection]> | Id | ArrayBuffer | null;
+  ): Partial<DataModel[Collection]>;
 
   /**
    * Makes sure that no collection references resource with id `id` from `collection`.
@@ -1043,16 +474,19 @@ export class DatabaseClient<
    *
    * @throws If any collection still references resource.
    */
-  protected checkReferencesTo(collection: keyof Types, id: Id): Promise<void>;
+  protected checkReferencesTo(collection: keyof DataModel, id: Id): Promise<void>;
 
   /**
-   * Returns all indexed fields for `collection`.
+   * Returns all indexed fields for `schema`.
    *
-   * @param collection Name of the collection for which to get indexes.
+   * @param schema Current data model schema for which to get indexes.
    *
    * @returns Collection's indexed fields.
    */
-  protected getCollectionIndexedFields(model: FieldDataModel<Types>, path?: string[]): Index[];
+  protected getCollectionIndexedFields(
+    schema: FieldSchema<DataModel>,
+    path?: string[],
+  ): Index[];
 
   /**
    * Scans `schema` to find foreign keys.
@@ -1064,19 +498,19 @@ export class DatabaseClient<
    * @param path Current path in schema. Used for recursivity, do not use it directly!
    */
   protected scanRelationsFrom(
-    schema: FieldDataModel<Types>,
+    schema: FieldSchema<DataModel>,
     relations: Map<string, string[]>,
     path?: string[],
   ): void;
 
   /**
-   * Creates a Mongo validation schema from `model`.
+   * Creates a Mongo validation schema from `schema`.
    *
-   * @param model Model from which to create validation schema.
+   * @param schema Model from which to create validation schema.
    *
    * @returns Mongo validation schema.
    */
-  protected createSchema(model: ObjectDataModel<Types>): { $jsonSchema: MongoValidationSchema; };
+  protected createSchema(schema: ObjectSchema<DataModel>): { $jsonSchema: MongoValidationSchema; };
 
   /**
    * Generates MongoDB-flavored projections object, from `path`.
@@ -1089,7 +523,7 @@ export class DatabaseClient<
    *
    * @param splittedPath Remaining path to analyze.
    *
-   * @param model Current path data model.
+   * @param schema Current path data model schema.
    *
    * @param projections Current path projections object.
    *
@@ -1108,7 +542,7 @@ export class DatabaseClient<
     maximumDepth: number,
     checkIndexing: boolean,
     splittedPath: string[],
-    model?: FieldDataModel<Types>,
+    schema?: FieldSchema<DataModel>,
     projections?: Document,
     currentDepth?: number,
   ): Document;
@@ -1120,7 +554,7 @@ export class DatabaseClient<
    *
    * @param fields Fields from which to generate projections object.
    *
-   * @param model Root collection data model.
+   * @param schema Root collection schema.
    *
    * @param maximumDepth Maximum allowed level of resources depth.
    *
@@ -1128,7 +562,7 @@ export class DatabaseClient<
    */
   protected generateProjectionsFrom(
     fields: { classic: string[]; indexed?: string[] },
-    model: FieldDataModel<Types>,
+    schema: FieldSchema<DataModel>,
     maximumDepth: number,
   ): Document;
 
@@ -1137,9 +571,9 @@ export class DatabaseClient<
    *
    * @param projections Projections from which to generate pipeline.
    *
-   * @param model Current path data model.
+   * @param schema Current path data model schema.
    *
-   * @param path Current path in model. Used for recursivity, do not use it directly!
+   * @param path Current path in data model. Used for recursivity, do not use it directly!
    *
    * @param isFlatArray Whether current path is part of a flat array.
    * Used for recursivity, do not use it directly!
@@ -1148,7 +582,7 @@ export class DatabaseClient<
    */
   protected generateLookupsPipelineFrom(
     projections: Document,
-    model: FieldDataModel<Types>,
+    schema: FieldSchema<DataModel>,
     path?: string[],
     isFlatArray?: boolean,
   ): Document[];
@@ -1234,7 +668,7 @@ export class DatabaseClient<
    * @param maximumDepth Maximum allowed level of resources depth. Defaults to `3`.
    */
   public checkFields(
-    collection: keyof Types,
+    collection: keyof DataModel,
     fields: string[],
     maximumDepth?: number,
   ): void;
@@ -1257,9 +691,9 @@ export class DatabaseClient<
    *
    * @param resource New resource to insert.
    */
-  public create<Collection extends keyof Types>(
+  public create<Collection extends keyof DataModel>(
     collection: Collection,
-    resource: Types[Collection],
+    resource: DataModel[Collection],
   ): Promise<void>;
 
   /**
@@ -1271,10 +705,10 @@ export class DatabaseClient<
    *
    * @param payload Updated resource payload.
    */
-  public update<Collection extends keyof Types>(
+  public update<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
-    payload: Partial<Types[Collection]>,
+    payload: Partial<DataModel[Collection]>,
   ): Promise<void>;
 
   /**
@@ -1288,10 +722,10 @@ export class DatabaseClient<
    *
    * @returns `true` if resource was updated, `false` otherwise.
    */
-  public exclusiveUpdate<Collection extends keyof Types>(
+  public exclusiveUpdate<Collection extends keyof DataModel>(
     collection: Collection,
     filters: SearchFilters,
-    payload: Partial<Types[Collection]>,
+    payload: Partial<DataModel[Collection]>,
   ): Promise<boolean>;
 
   /**
@@ -1305,11 +739,11 @@ export class DatabaseClient<
    *
    * @returns Resource if it exists, `null` otherwise.
    */
-  public view<Collection extends keyof Types>(
+  public view<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
-    options?: CommandOptions,
-  ): Promise<Types[Collection] | null>;
+    options?: number,
+  ): Promise<DataModel[Collection] | null>;
 
   /**
    * Fetches a paginated list of resources from `collection`, that match specific filters/query.
@@ -1322,11 +756,11 @@ export class DatabaseClient<
    *
    * @returns Paginated list of resources.
    */
-  public search<Collection extends keyof Types>(
+  public search<Collection extends keyof DataModel>(
     collection: Collection,
     body: SearchBody,
-    options?: CommandOptions,
-  ): Promise<Results<Types[Collection]>>;
+    options?: number,
+  ): Promise<Results<DataModel[Collection]>>;
 
   /**
    * Fetches a paginated list of resources from `collection`.
@@ -1337,10 +771,10 @@ export class DatabaseClient<
    *
    * @returns Paginated list of resources.
    */
-  public list<Collection extends keyof Types>(
+  public list<Collection extends keyof DataModel>(
     collection: Collection,
     options?: CommandOptions,
-  ): Promise<Results<Types[Collection]>>;
+  ): Promise<Results<DataModel[Collection]>>;
 
   /**
    * Deletes resource with id `id` from `collection`.
@@ -1354,10 +788,10 @@ export class DatabaseClient<
    *
    * @returns `true` if resource has been successfully deleted, `false` otherwise.
    */
-  public delete<Collection extends keyof Types>(
+  public delete<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
-    payload?: Partial<Types[Collection]>,
+    payload?: Partial<DataModel[Collection]>,
   ): Promise<boolean>;
 
   /**
@@ -1375,7 +809,7 @@ export class DatabaseClient<
    *
    * @param collection Name of the collection to create.
    */
-  public resetCollection<Collection extends keyof Types>(
+  public resetCollection<Collection extends keyof DataModel>(
     collection: Collection,
   ): Promise<void>;
 
@@ -1386,7 +820,7 @@ export class DatabaseClient<
    *
    * @param migration Optional migration to perform. Defaults to an empty Promise.
    */
-  public updateCollection<Collection extends keyof Types>(
+  public updateCollection<Collection extends keyof DataModel>(
     collection: Collection,
     migration?: MigrationCallback,
   ): Promise<void>;
@@ -1396,7 +830,7 @@ export class DatabaseClient<
    *
    * @param collection Name of the collection to drop from database.
    */
-  public dropCollection(collection: keyof Types): Promise<void>;
+  public dropCollection(collection: keyof DataModel): Promise<void>;
 
   /**
    * Resets the whole underlying database, re-creating collections, indexes, and such.
@@ -1413,7 +847,7 @@ export class DatabaseClient<
    * @throws If integrity checks failed.
    */
   public checkIntegrity(
-    collection?: keyof Types,
+    collection?: keyof DataModel,
   ): Promise<Record<string, Record<string, Id[]>>>;
 }
 
@@ -1459,6 +893,148 @@ export class EmailClient {
     signInUrl: string,
     temporaryPassword: string,
   ): Promise<void>;
+}
+
+/**
+ * Data model.
+ */
+export class Model<
+  /** Data model types definitions. */
+  DataModel = DefaultDataModel,
+> extends BaseModel<DataModel> {
+  /** Public data model schema, used for data model introspection on front-end. */
+  protected publicSchema: DataModelSchema<DataModel>;
+
+  /** List of relations per collection, along with their respective path in the model. */
+  protected relationsPerCollection: { [Collection in keyof DataModel]: Set<string> };
+
+  /** Default data model schema. */
+  public static readonly DEFAULT_MODEL: DataModelSchema<DefaultDataModel>;
+
+  /**
+   * Generates public data schema from `schema`.
+   *
+   * @param schema Data model schema from which to generate public schema.
+   *
+   * @param relations Optional parameter, use it to also extract all relations declared in the
+   * model. If this parameter is passed, a list of all collections referenced directly or indirectly
+   * (i.e. by following subsequent relations) in the model will be generated and stored in that
+   * variable. For instance, if `schema` contains a field that references a collection A, that in
+   * turn references collection B, that eventually references the initial collection, the following
+   * list will be generated: `["A", "B"]`. Defaults to `new Set()`.
+   */
+  protected generatePublicSchemaFrom(
+    schema: FieldSchema<DataModel>,
+    relations?: Set<string>,
+  ): FieldSchema<DataModel>;
+
+  /**
+   * `email` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static email(overrides?: Partial<StringSchema>): StringSchema;
+
+  /**
+   * `tinyText` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static tinyText(overrides?: Partial<StringSchema>): StringSchema;
+
+  /**
+   * `shortText` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static shortText(overrides?: Partial<StringSchema>): StringSchema;
+
+  /**
+   * `mediumText` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static mediumText(overrides?: Partial<StringSchema>): StringSchema;
+
+  /**
+   * `longText` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static longText(overrides?: Partial<StringSchema>): StringSchema;
+
+  /**
+   * `hugeText` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static hugeText(overrides?: Partial<StringSchema>): StringSchema;
+
+  /**
+   * `token` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static token(overrides?: Partial<StringSchema>): StringSchema;
+
+  /**
+   * `password` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static password(overrides?: Partial<StringSchema>): StringSchema;
+
+  /**
+   * `credentials` custom data model schema type generator.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ required: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static credentials(
+    overrides?: Partial<ObjectSchema<unknown>>,
+  ): ObjectSchema<unknown>;
+
+  /**
+   * Class constructor.
+   *
+   * @param schema Schema from which to generate data model.
+   */
+  constructor(schema: DataModelSchema<DataModel>);
+
+  /**
+   * Returns public data model schema for `collection`, and all its direct or indirect relations.
+   *
+   * @param collection Name of the collection for which to get public data model schema.
+   *
+   * @returns Public data model schema for all related collections.
+   */
+  public getPublicSchema(collection: keyof DataModel): DataModelSchema<DataModel>;
 }
 
 /**
@@ -1542,13 +1118,13 @@ export class Profiler {
  */
 export class Engine<
   /** Data model types definitions. */
-  Types,
+  DataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  DatabaseClient extends BaseDatabaseClient<Types> = BaseDatabaseClient<Types>,
+  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
 > {
   /** Data model. */
   protected model: Model;
@@ -1561,58 +1137,6 @@ export class Engine<
 
   /** Default update payload, used as a fallback when there is no change to perform on resource. */
   protected defaultPayload: Partial<Payload<unknown>>;
-
-  /**
-   * Performs a deep (recursive) merge of `resource` and `payload`. Rules are the following:
-   *  - `null` is a special value that signifies "remove the item" in an array or a dynamic object.
-   *    For instance, merging `[1, 2, 3]` and `[null, 2, null]` will give `[2]`.
-   *  - If payload has less items than the original resource, remaining items will be added. For
-   *    instance, merging `[1, 2, 3, 4]` and `[9, 10]` will give `[9, 10, 3, 4]`.
-   *  - If `payload` and `resource` are deeply equal, `undefined` is returned.
-   *
-   * @param resource Original resource on which to apply the deep merge.
-   *
-   * @param payload New values to partially update resource with.
-   *
-   * @param dataModel Current field data model (used to determine wether field is an array or a
-   * dynamic object).
-   *
-   * @param foreignIds Optional parameter, use it to also extract foreign ids from payload. If this
-   * parameter is passed, a list of foreign ids per collection will be generated and stored in that
-   * variable. Defaults to `new Map()`.
-   *
-   * @param path Current path in schema. Used for recursivity, do not use it directly!
-   *
-   * @returns A deep merge of `resource` and `payload`.
-   */
-  protected deepMerge<Collection extends keyof Types>(
-    resource: Partial<Types[Collection]>,
-    payload: UpdatePayload<Types[Collection]>,
-    dataModel: FieldDataModel<Types>,
-    foreignIds?: Map<string, Record<string, Set<string>>>,
-    path?: string[],
-  ): UpdatePayload<Types[Collection]>;
-
-  /**
-   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
-   *
-   * @param collection Collection for which to check foreign ids.
-   *
-   * @param resource Current resource being updated, if applicable.
-   *
-   * @param payload Payload for updating or creating resource.
-   *
-   * @param foreignIds Foreign ids map, generated from `deepMerge`.
-   *
-   * @param context Command context.
-   */
-  protected checkForeignIds<Collection extends keyof Types>(
-    collection: Collection,
-    resource: Types[Collection] | null,
-    payload: UpdatePayload<Types[Collection]>,
-    foreignIds: Map<string, Record<string, Set<string>>>,
-    context: CommandContext,
-  ): Promise<void>;
 
   /**
    * Returns filters to apply when checking foreign ids referencing other relations.
@@ -1631,14 +1155,29 @@ export class Engine<
    *
    * @returns Filters to apply to check foreign ids.
    */
-  protected createRelationFilters<Collection extends keyof Types>(
+  protected createRelationFilters<Collection extends keyof DataModel>(
     collection: Collection,
     path: string,
     ids: Id[],
-    resource: Types[Collection] | null,
-    payload: UpdatePayload<Types[Collection]>,
+    payload: UpdatePayload<DataModel[Collection]>,
     context: CommandContext,
   ): SearchFilters;
+
+  /**
+   * Makes sure that foreign ids in `payload` reference existing resources that match specific
+   * conditions.
+   *
+   * @param collection Collection for which to check foreign ids.
+   *
+   * @param payload Payload for updating or creating resource.
+   *
+   * @param context Command context.
+   */
+  protected checkForeignIds<Collection extends keyof DataModel>(
+    collection: Collection,
+    payload: UpdatePayload<DataModel[Collection]>,
+    context: CommandContext,
+  ): Promise<void>;
 
   /**
    * Returns updated `payload` with automatic fields.
@@ -1653,30 +1192,26 @@ export class Engine<
    *
    * @returns Payload with automatic fields.
    */
-  protected withAutomaticFields<Collection extends keyof Types>(
+  protected withAutomaticFields<Collection extends keyof DataModel>(
     collection: Collection,
-    resource: Types[Collection] | null,
-    payload: Payload<Types[Collection]> | UpdatePayload<Types[Collection]>,
-    context: CommandContext,
-  ): Types[Collection];
+    payload: Payload<DataModel[Collection]> | UpdatePayload<DataModel[Collection]>,
+    context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
+  ): DataModel[Collection];
 
   /**
    * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
    *
    * @param collection Payload collection.
    *
-   * @param resource Current resource being updated, if applicable.
-   *
    * @param payload Payload to validate and update.
    *
    * @param context Command context.
    */
-  protected checkAndUpdatePayload<Collection extends keyof Types>(
+  protected checkAndUpdatePayload<Collection extends keyof DataModel>(
     collection: Collection,
-    resource: Types[Collection] | null,
-    payload: UpdatePayload<Types[Collection]>,
-    context: CommandContext,
-  ): Promise<Partial<Types[Collection]>>;
+    payload: UpdatePayload<DataModel[Collection]>,
+    context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
+  ): Promise<Partial<DataModel[Collection]>>;
 
   /**
    * Class constructor.
@@ -1706,12 +1241,12 @@ export class Engine<
    *
    * @returns Newly created resource.
    */
-  public create<Collection extends keyof Types>(
+  public create<Collection extends keyof DataModel>(
     collection: Collection,
-    payload: Payload<Types[Collection]>,
+    payload: Payload<DataModel[Collection]>,
     options: CommandOptions,
     context: CommandContext,
-  ): Promise<Types[Collection]>;
+  ): Promise<DataModel[Collection]>;
 
   /**
    * Updates resource with id `id` from `collection`.
@@ -1730,13 +1265,13 @@ export class Engine<
    *
    * @throws If resource does not exist or has been deleted.
    */
-  public update<Collection extends keyof Types>(
+  public update<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
-    payload: UpdatePayload<Types[Collection]>,
+    payload: UpdatePayload<DataModel[Collection]>,
     options: CommandOptions,
     context: CommandContext,
-  ): Promise<Types[Collection]>;
+  ): Promise<DataModel[Collection]>;
 
   /**
    * Fetches resource with id `id` from `collection`.
@@ -1751,11 +1286,11 @@ export class Engine<
    *
    * @throws If resource does not exist or has been deleted.
    */
-  public view<Collection extends keyof Types>(
+  public view<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
     options: CommandOptions,
-  ): Promise<Types[Collection]>;
+  ): Promise<DataModel[Collection]>;
 
   /**
    * Fetches a paginated list of resources from `collection`.
@@ -1766,10 +1301,10 @@ export class Engine<
    *
    * @returns Paginated list of resources.
    */
-  public list<Collection extends keyof Types>(
+  public list<Collection extends keyof DataModel>(
     collection: Collection,
     options: CommandOptions,
-  ): Promise<Results<Types[Collection]>>;
+  ): Promise<Results<DataModel[Collection]>>;
 
   /**
    * Fetches a paginated list of resources from `collection` according to given search options.
@@ -1782,11 +1317,11 @@ export class Engine<
    *
    * @returns Paginated list of resources.
    */
-  public search<Collection extends keyof Types>(
+  public search<Collection extends keyof DataModel>(
     collection: Collection,
     search: SearchBody,
     options: CommandOptions,
-  ): Promise<Results<Types[Collection]>>;
+  ): Promise<Results<DataModel[Collection]>>;
 
   /**
    * Deletes resource with id `id` from `collection`.
@@ -1799,7 +1334,7 @@ export class Engine<
    *
    * @throws If resource does not exist or has been deleted.
    */
-  public delete<Collection extends keyof Types>(
+  public delete<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
     context: CommandContext,
@@ -1809,19 +1344,6 @@ export class Engine<
    * Resets the whole system, including database.
    */
   public reset(...args: unknown[]): Promise<void>;
-
-  /**
-   * Performs integrity checks on `collection` if specified, or on the whole database.
-   *
-   * @param collection Name of the collection on which to perform the integrity checks.
-   *
-   * @returns List of found integrity errors, per collection.
-   *
-   * @throws If integrity checks failed.
-   */
-  public checkIntegrity(
-    collection?: keyof Types,
-  ): Promise<Record<string, Record<string, Id[]>>>;
 }
 
 /**
@@ -1875,14 +1397,14 @@ export interface OAuthEngineSettings {
  */
 export class OAuthEngine<
   /** Data model types definitions. */
-  Types extends DefaultTypes = DefaultTypes,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  DatabaseClient extends BaseDatabaseClient<Types> = BaseDatabaseClient<Types>,
-> extends Engine<Types, Model, DatabaseClient> {
+  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
+> extends Engine<DataModel, Model, DatabaseClient> {
   /** Default duration before a refresh token expires. */
   protected readonly REFRESH_TOKEN_DURATION: number; // 30 days.
 
@@ -1915,18 +1437,15 @@ export class OAuthEngine<
    *
    * @param collection Payload collection.
    *
-   * @param resource Current resource being updated, if applicable.
-   *
    * @param payload Payload to validate and update.
    *
    * @param context Command context.
    */
-  protected checkAndUpdatePayload<Collection extends keyof Types>(
+  protected checkAndUpdatePayload<Collection extends keyof DataModel>(
     collection: Collection,
-    resource: Types[Collection] | null,
-    payload: UpdatePayload<Types[Collection]>,
-    context: CommandContext,
-  ): Promise<Partial<Types[Collection]>>;
+    payload: UpdatePayload<DataModel[Collection]>,
+    context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
+  ): Promise<Partial<DataModel[Collection]>>;
 
   /**
    * Class constructor.
@@ -1965,12 +1484,12 @@ export class OAuthEngine<
    *
    * @returns Newly created resource.
    */
-  public create<Collection extends keyof Types>(
+  public create<Collection extends keyof DataModel>(
     collection: Collection,
-    payload: Payload<Types[Collection]>,
+    payload: Payload<DataModel[Collection]>,
     options: CommandOptions,
     context: CommandContext,
-  ): Promise<Types[Collection]>;
+  ): Promise<DataModel[Collection]>;
 
   /**
    * Verifies `accessToken` validity.
@@ -2007,9 +1526,9 @@ export class OAuthEngine<
    * @throws If password and confirmation mismatch.
    */
   public signUp(
-    email: Types['users']['email'],
-    password: Types['users']['password'],
-    passwordConfirmation: Types['users']['password'],
+    email: DataModel['users']['email'],
+    password: DataModel['users']['password'],
+    passwordConfirmation: DataModel['users']['password'],
     context: CommandContext,
   ): Promise<Credentials>;
 
@@ -2077,8 +1596,8 @@ export class OAuthEngine<
    * @throws If reset token is not valid.
    */
   public resetPassword(
-    password: Types['users']['password'],
-    passwordConfirmation: Types['users']['password'],
+    password: DataModel['users']['password'],
+    passwordConfirmation: DataModel['users']['password'],
     resetToken: string,
   ): Promise<void>;
 
@@ -2128,7 +1647,7 @@ export interface BuiltInEndpoint {
 }
 
 /** List of all available built-in endpoints. */
-export interface BuiltInEndpoints<Types> {
+export interface BuiltInEndpoints<DataModel> {
   oAuth: {
     signUp?: BuiltInEndpoint;
     signIn?: BuiltInEndpoint;
@@ -2139,18 +1658,18 @@ export interface BuiltInEndpoints<Types> {
     requestPasswordReset?: BuiltInEndpoint;
     requestEmailVerification?: BuiltInEndpoint;
   };
-  collections: Partial<Record<keyof Types, CollectionBuiltInEndpoints>>;
+  collections: Partial<Record<keyof DataModel, CollectionBuiltInEndpoints>>;
 }
 
 /**
  * Controller settings.
  */
-export interface ControllerSettings<Types> {
+export interface ControllerSettings<DataModel> {
   /** Release version. Will be sent back along with responses through the "X-App-Release" header. */
   version: string;
 
   /** List of built-in endpoints to register. */
-  endpoints: BuiltInEndpoints<Types>;
+  endpoints: BuiltInEndpoints<DataModel>;
 }
 
 /**
@@ -2158,19 +1677,19 @@ export interface ControllerSettings<Types> {
  */
 export class Controller<
   /** Data model types definitions. */
-  Types extends DefaultTypes = DefaultTypes,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  Engine extends OAuthEngine<Types> = OAuthEngine<Types>,
+  Engine extends OAuthEngine<DataModel> = OAuthEngine<DataModel>,
 > {
   /** Expired token error code. */
-  protected readonly TOKEN_EXPIRED_CODE = 'TOKEN_EXPIRED';
+  protected readonly TOKEN_EXPIRED_CODE: string;
 
   /** User not verified error code. */
-  protected readonly NOT_VERIFIED_CODE = 'NOT_VERIFIED';
+  protected readonly NOT_VERIFIED_CODE: string;
 
   /** Capital character token regexp. */
   protected readonly CAPITAL_TOKEN: RegExp;
@@ -2188,7 +1707,7 @@ export class Controller<
   protected version: string;
 
   /** List of built-in endpoints to register. */
-  protected endpoints: BuiltInEndpoints<Types>;
+  protected endpoints: BuiltInEndpoints<DataModel>;
 
   /**
    * Transforms `value` into SNAKE_CASE.
@@ -2222,7 +1741,7 @@ export class Controller<
    * @return List of requested fields.
    */
   protected generateFieldsFrom(
-    collection: keyof Types,
+    collection: keyof DataModel,
     fields: string,
     permissions?: Set<string>,
   ): string[];
@@ -2241,7 +1760,7 @@ export class Controller<
    * @return Formatted search filters.
    */
   protected formatSearchFilters(
-    collection: keyof Types,
+    collection: keyof DataModel,
     filters: SearchFilters,
     permissions?: Set<string>,
   ): SearchFilters;
@@ -2262,7 +1781,7 @@ export class Controller<
    * @returns Parsed query params.
    */
   protected parseQuery(
-    collection: keyof Types,
+    collection: keyof DataModel,
     query: Record<string, string>,
     permissions?: Set<string>,
   ): {
@@ -2286,7 +1805,7 @@ export class Controller<
    * @returns Parsed search body.
    */
   public parseSearchBody(
-    collection: keyof Types,
+    collection: keyof DataModel,
     body: SearchBody,
     permissions?: Set<string>,
   ): SearchBody;
@@ -2328,20 +1847,20 @@ export class Controller<
     model: Model,
     logger: Logger,
     engine: Engine,
-    settings: ControllerSettings<Types>,
+    settings: ControllerSettings<DataModel>,
   );
 }
 
 /**
  * API validation schema.
  */
-export interface ModelSchema<Types> {
-  body?: FieldDataModel<Types>;
-  query?: FieldDataModel<Types>;
-  params?: FieldDataModel<Types>;
-  headers?: FieldDataModel<Types>;
+export interface ModelSchema<DataModel> {
+  body?: FieldSchema<DataModel>;
+  query?: FieldSchema<DataModel>;
+  params?: FieldSchema<DataModel>;
+  headers?: FieldSchema<DataModel>;
   response?: {
-    [status: string]: FieldDataModel<Types>;
+    [status: string]: FieldSchema<DataModel>;
   };
 }
 
@@ -2388,10 +1907,11 @@ export interface ValidationError {
  * Ajv validation schema.
  */
 export interface AjvValidationSchema {
-  type: (
+  type?: (
     'null' | 'object' | 'string' | 'array' | 'boolean' | 'number' | 'integer'
     | ('null' | 'object' | 'string' | 'array' | 'boolean' | 'number' | 'integer')[]
   );
+  $ref?: string;
   isId?: boolean;
   isDate?: boolean;
   isBinary?: boolean;
@@ -2410,7 +1930,8 @@ export interface AjvValidationSchema {
   exclusiveMinimum?: number;
   exclusiveMaximum?: number;
   required?: string[];
-  errorMessage: {
+  oneOf?: AjvValidationSchema[];
+  errorMessage?: {
     [key: string]: string;
   };
   additionalProperties?: boolean;
@@ -2428,9 +1949,9 @@ export interface AjvValidationSchema {
 /**
  * Perseid data model to Ajv validation schema formatters.
  */
-export interface AjvFormatters<Types> {
+export interface AjvFormatters<DataModel> {
   [type: string]: (
-    model: FieldDataModel<Types>,
+    model: FieldSchema<DataModel>,
     mode: 'RESPONSE' | 'CREATE' | 'UPDATE'
   ) => AjvValidationSchema;
 }
@@ -2438,12 +1959,12 @@ export interface AjvFormatters<Types> {
 /**
  * Custom endpoint configuration.
  */
-export interface EndpointSettings<Types> {
+export interface EndpointSettings<DataModel> {
   /** Whether to authenticate user for that endpoint. */
   authenticate?: boolean;
 
   /** Name of the collection for which to generate the endpoint, if applicable. */
-  collection?: keyof Types;
+  collection?: keyof DataModel;
 
   /** Whether to ignore access token expiration. Useful for endpoints like refresh token. */
   ignoreExpiration?: boolean;
@@ -2452,7 +1973,7 @@ export interface EndpointSettings<Types> {
   additionalPermissions?: string[];
 
   /** API validation schema for that endpoint. */
-  schema?: ModelSchema<Types>;
+  schema?: ModelSchema<DataModel>;
 
   /** Endpoint type, if applicable. Use in combination with `collection`. */
   type?: 'SEARCH' | 'LIST' | 'CREATE' | 'UPDATE' | 'VIEW' | 'DELETE';
@@ -2469,14 +1990,14 @@ export interface EndpointSettings<Types> {
  */
 export class FastifyController<
   /** Data model types definitions. */
-  Types extends DefaultTypes = DefaultTypes,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  Engine extends OAuthEngine<Types> = OAuthEngine<Types>,
-> extends Controller<Types, Model, Engine> {
+  Engine extends OAuthEngine<DataModel> = OAuthEngine<DataModel>,
+> extends Controller<DataModel, Model, Engine> {
   /** HTTP 404 error code. */
   protected readonly NOT_FOUND_CODE: string;
 
@@ -2487,13 +2008,13 @@ export class FastifyController<
   protected readonly KEYWORDS: KeywordDefinition[];
 
   /** List of formatters, used to format a perseid data model into its Ajv equivalent. */
-  protected readonly FORMATTERS: AjvFormatters<Types>;
+  protected readonly FORMATTERS: AjvFormatters<DataModel>;
 
   /** Increment used for `multipart/form-data` payloads parsing. */
   protected increment: number;
 
   /** Built-in API handlers for OAuth related endpoints. */
-  protected apiHandlers: Record<string, EndpointSettings<Types>>;
+  protected apiHandlers: Record<string, EndpointSettings<DataModel>>;
 
   /**
    * Creates an Ajv validation schema from `schema`.
@@ -2507,7 +2028,7 @@ export class FastifyController<
    * @returns Ajv validation schema.
    */
   protected createSchema(
-    schema: ModelSchema<Types>,
+    schema: ModelSchema<DataModel>,
     mode: 'CREATE' | 'UPDATE',
     transformer?: (schema: FastifySchema) => FastifySchema,
   ): FastifySchema;
@@ -2595,7 +2116,7 @@ export class FastifyController<
     model: Model,
     logger: Logger,
     engine: Engine,
-    settings: ControllerSettings<Types>,
+    settings: ControllerSettings<DataModel>,
   );
 
   /**
@@ -2605,7 +2126,7 @@ export class FastifyController<
    *
    * @returns Fastify endpoint to register.
    */
-  public createEndpoint(settings: EndpointSettings<Types>): {
+  public createEndpoint(settings: EndpointSettings<DataModel>): {
     handler: (request: FastifyRequest, response: FastifyReply) => Promise<void>;
     schema: FastifySchema;
   };
