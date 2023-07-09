@@ -1298,8 +1298,9 @@ export default class FastifyController<
     // See https://www.fastify.io/docs/latest/Reference/Validation-and-Serialization/.
     const schemas: Record<string, AjvValidationSchema> = {};
     this.model.getCollections().forEach((collection) => {
-      const { schema: { fields } } = this.model.get('users') as DataModelMetadata<CollectionSchema<DataModel>>;
-      const collectionResponseSchema = this.FORMATTERS.object({ type: 'object', fields }, 'RESPONSE');
+      const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+      const collectionSchema = { type: 'object' as const, fields: metaData.schema.fields };
+      const collectionResponseSchema = this.FORMATTERS.object(collectionSchema, 'RESPONSE');
       schemas[`${collection as string}.json`] = collectionResponseSchema;
     });
 

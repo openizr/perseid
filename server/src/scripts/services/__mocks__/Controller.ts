@@ -15,14 +15,14 @@ import { type ControllerSettings } from 'scripts/services/Controller';
  * `services/Controller` mock.
  */
 
-export default class <Types> {
+export default class <DataModel> {
   protected model: Model;
 
   protected logger: Logger;
 
-  protected engine: Engine<Types>;
+  protected engine: Engine<DataModel>;
 
-  protected settings: ControllerSettings<Types>;
+  protected settings: ControllerSettings<DataModel>;
 
   protected endpoints = {
     oAuth: {
@@ -70,8 +70,8 @@ export default class <Types> {
   public constructor(
     model: Model,
     logger: Logger,
-    engine: Engine<Types>,
-    settings: ControllerSettings<Types>,
+    engine: Engine<DataModel>,
+    settings: ControllerSettings<DataModel>,
   ) {
     this.model = model;
     this.logger = logger;

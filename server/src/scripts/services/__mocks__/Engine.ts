@@ -9,8 +9,8 @@
 import { type Document } from 'mongodb';
 import type Model from 'scripts/services/Model';
 import type Logger from 'scripts/services/Logger';
-import { type DataModel, type User, Id } from '@perseid/core';
 import type DatabaseClient from 'scripts/services/DatabaseClient';
+import { type DefaultDataModel, type User, Id } from '@perseid/core';
 
 /**
  * `services/Engine` mock.
@@ -28,7 +28,6 @@ export default class {
   protected automaticFieldValue = new Date('2023-01-01');
 
   protected checkAndUpdatePayload(
-    _command: string,
     _collection: string,
     payload: Document,
   ): Document {
@@ -40,7 +39,7 @@ export default class {
   }
 
   protected create(
-    collection: keyof DataModel,
+    collection: keyof DefaultDataModel,
     payload: User,
   ): Document {
     this.databaseClient.create(collection, payload);

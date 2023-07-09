@@ -73,9 +73,9 @@ export interface MongoValidationSchema {
   };
 }
 
-/** Perseid data model to Mongo validation schema formatters. */
+/** Perseid schema to Mongo validation schema formatters. */
 export interface MongoFormatters<DataModel> {
-  [type: string]: (model: FieldSchema<DataModel>) => MongoValidationSchema;
+  [type: string]: (schema: FieldSchema<DataModel>) => MongoValidationSchema;
 }
 
 /** Migration callback. */
@@ -140,45 +140,45 @@ export default class DatabaseClient<
     null() {
       return { bsonType: ['null'] };
     },
-    id(model) {
-      const { enum: enumerations } = model as IdSchema<DataModel>;
+    id(schema) {
+      const { enum: enumerations } = schema as IdSchema<DataModel>;
       const formattedField: MongoValidationSchema = { bsonType: ['objectId'] };
       if (enumerations !== undefined) {
         formattedField.enum = enumerations.map((id) => `${id}`);
       }
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.enum?.push(null);
         formattedField.bsonType.push('null');
       }
       return formattedField;
     },
-    binary(model) {
+    binary(schema) {
       const formattedField: MongoValidationSchema = { bsonType: ['binData'] };
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.bsonType.push('null');
       }
       return formattedField;
     },
-    boolean(model) {
+    boolean(schema) {
       const formattedField: MongoValidationSchema = { bsonType: ['bool'] };
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.bsonType.push('null');
       }
       return formattedField;
     },
-    date(model) {
+    date(schema) {
       const formattedField: MongoValidationSchema = { bsonType: ['date'] };
-      const { enum: enumerations } = model as DateSchema;
+      const { enum: enumerations } = schema as DateSchema;
       if (enumerations !== undefined) {
         formattedField.enum = enumerations.map((date) => date.toISOString());
       }
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.enum?.push(null);
         formattedField.bsonType.push('null');
       }
       return formattedField;
     },
-    float(model) {
+    float(schema) {
       const formattedField: MongoValidationSchema = { bsonType: ['int', 'double'] };
       const {
         minimum,
@@ -187,7 +187,7 @@ export default class DatabaseClient<
         exclusiveMinimum,
         exclusiveMaximum,
         enum: enumerations,
-      } = model as NumberSchema;
+      } = schema as NumberSchema;
       if (minimum !== undefined) {
         formattedField.minimum = minimum;
       }
@@ -208,13 +208,13 @@ export default class DatabaseClient<
       if (enumerations !== undefined) {
         formattedField.enum = [...enumerations];
       }
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.enum?.push(null);
         formattedField.bsonType.push('null');
       }
       return formattedField;
     },
-    integer(model) {
+    integer(schema) {
       const formattedField: MongoValidationSchema = { bsonType: ['int'] };
       const {
         minimum,
@@ -223,7 +223,7 @@ export default class DatabaseClient<
         exclusiveMinimum,
         exclusiveMaximum,
         enum: enumerations,
-      } = model as NumberSchema;
+      } = schema as NumberSchema;
       if (minimum !== undefined) {
         formattedField.minimum = minimum;
       }
@@ -244,20 +244,20 @@ export default class DatabaseClient<
       if (enumerations !== undefined) {
         formattedField.enum = [...enumerations];
       }
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.enum?.push(null);
         formattedField.bsonType.push('null');
       }
       return formattedField;
     },
-    string(model) {
+    string(schema) {
       const formattedField: MongoValidationSchema = { bsonType: ['string'] };
       const {
         pattern,
         maxLength,
         minLength,
         enum: enumerations,
-      } = model as StringSchema;
+      } = schema as StringSchema;
       if (maxLength !== undefined) {
         formattedField.maxLength = maxLength;
       }
@@ -270,19 +270,19 @@ export default class DatabaseClient<
       if (enumerations !== undefined) {
         formattedField.enum = [...enumerations];
       }
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.enum?.push(null);
         formattedField.bsonType.push('null');
       }
       return formattedField;
     },
-    object: (model) => {
+    object: (schema) => {
       const formattedField: MongoValidationSchema = {
         bsonType: ['object'],
         additionalProperties: false,
       };
-      const { fields } = model as ObjectSchema<DataModel>;
-      if (!model.required) {
+      const { fields } = schema as ObjectSchema<DataModel>;
+      if (!schema.required) {
         formattedField.bsonType.push('null');
       }
       formattedField.required = Object.keys(fields);
@@ -292,19 +292,19 @@ export default class DatabaseClient<
       }), {});
       return formattedField;
     },
-    dynamicObject: (model) => {
+    dynamicObject: (schema) => {
       const formattedField: MongoValidationSchema = {
         bsonType: ['object'],
         additionalProperties: false,
       };
-      const { fields, minItems, maxItems } = model as DynamicObjectSchema<DataModel>;
+      const { fields, minItems, maxItems } = schema as DynamicObjectSchema<DataModel>;
       if (minItems !== undefined) {
         formattedField.minProperties = minItems;
       }
       if (maxItems !== undefined) {
         formattedField.maxProperties = maxItems;
       }
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.bsonType.push('null');
       }
       formattedField.patternProperties = Object.keys(fields).reduce((patternProperties, key) => ({
@@ -313,13 +313,13 @@ export default class DatabaseClient<
       }), {});
       return formattedField;
     },
-    array: (model) => {
+    array: (schema) => {
       const {
         fields,
         maxItems,
         minItems,
         uniqueItems,
-      } = model as ArraySchema<DataModel>;
+      } = schema as ArraySchema<DataModel>;
       const formattedField: MongoValidationSchema = {
         bsonType: ['array'],
         items: this.FORMATTERS[fields.type](fields),
@@ -333,7 +333,7 @@ export default class DatabaseClient<
       if (uniqueItems !== undefined) {
         formattedField.uniqueItems = uniqueItems;
       }
-      if (!model.required) {
+      if (!schema.required) {
         formattedField.bsonType.push('null');
       }
       return formattedField;
@@ -540,37 +540,37 @@ export default class DatabaseClient<
   }
 
   /**
-   * Returns all indexed fields for `collection`.
+   * Returns all indexed fields for `schema`.
    *
-   * @param collection Name of the collection for which to get indexes.
+   * @param schema Current data model schema for which to get indexes.
    *
    * @returns Collection's indexed fields.
    */
   protected getCollectionIndexedFields(
-    model: FieldSchema<DataModel>,
+    schema: FieldSchema<DataModel>,
     path: string[] = [],
   ): Index[] {
-    if (model.type === 'object') {
-      const { fields } = model;
+    if (schema.type === 'object') {
+      const { fields } = schema;
       return Object.keys(fields).reduce((indexedFields, fieldName) => indexedFields.concat(
         this.getCollectionIndexedFields(fields[fieldName], path.concat([fieldName])),
       ), [] as Index[]);
     }
-    if (model.type === 'dynamicObject') {
-      const { fields } = model;
+    if (schema.type === 'dynamicObject') {
+      const { fields } = schema;
       return Object.keys(fields).reduce((indexedFields, fieldName) => indexedFields.concat(
         this.getCollectionIndexedFields(fields[fieldName], path.concat([fieldName])),
       ), [] as Index[]);
     }
-    if (model.type === 'array') {
-      const { fields } = model;
+    if (schema.type === 'array') {
+      const { fields } = schema;
       return this.getCollectionIndexedFields(fields, path);
     }
 
     const indexedFields: Index[] = [];
-    if ((model as StringSchema).unique) {
+    if ((schema as StringSchema).unique) {
       indexedFields.push({ key: { [path.join('.')]: 1 }, unique: true });
-    } else if ((model as StringSchema).index) {
+    } else if ((schema as StringSchema).index) {
       indexedFields.push({ key: { [path.join('.')]: 1 } });
     }
     return indexedFields;
@@ -605,14 +605,14 @@ export default class DatabaseClient<
   }
 
   /**
-   * Creates a Mongo validation schema from `model`.
+   * Creates a Mongo validation schema from `schema`.
    *
-   * @param model Model from which to create validation schema.
+   * @param schema Model from which to create validation schema.
    *
    * @returns Mongo validation schema.
    */
-  protected createSchema(model: ObjectSchema<DataModel>): { $jsonSchema: MongoValidationSchema; } {
-    return { $jsonSchema: this.FORMATTERS.object(model) };
+  protected createSchema(schema: ObjectSchema<DataModel>): { $jsonSchema: MongoValidationSchema; } {
+    return { $jsonSchema: this.FORMATTERS.object(schema) };
   }
 
   /**
@@ -626,7 +626,7 @@ export default class DatabaseClient<
    *
    * @param splittedPath Remaining path to analyze.
    *
-   * @param model Current path data model.
+   * @param schema Current path data model schema.
    *
    * @param projections Current path projections object.
    *
@@ -645,11 +645,11 @@ export default class DatabaseClient<
     maximumDepth: number,
     checkIndexing: boolean,
     splittedPath: string[],
-    model?: FieldSchema<DataModel>,
+    schema?: FieldSchema<DataModel>,
     projections: Document = {},
     currentDepth = 1,
   ): Document {
-    if (model === undefined) {
+    if (schema === undefined) {
       throw new DatabaseError('INVALID_FIELD', { path });
     }
     if (currentDepth > maximumDepth) {
@@ -657,9 +657,9 @@ export default class DatabaseClient<
     }
 
     // Primitives...
-    const { type } = model;
+    const { type } = schema;
     if (splittedPath.length === 1) {
-      const actualModel = ((type === 'array') ? model.fields : model) as DateSchema;
+      const actualModel = ((type === 'array') ? schema.fields : schema) as DateSchema;
       if (checkIndexing && !actualModel.unique && !actualModel.index) {
         throw new DatabaseError('INVALID_INDEX', { path });
       }
@@ -671,7 +671,7 @@ export default class DatabaseClient<
 
     // Arrays...
     if (type === 'array') {
-      const { fields: subModel } = model;
+      const { fields: subModel } = schema;
       return this.projectFromPath(
         path,
         maximumDepth,
@@ -685,7 +685,7 @@ export default class DatabaseClient<
 
     // Dynamic objects...
     if (type === 'dynamicObject') {
-      const { fields: subFields } = model;
+      const { fields: subFields } = schema;
       const patterns = Object.keys(subFields).map((pattern) => new RegExp(pattern));
       const subModel = subFields[(patterns.find((p) => p.test(field)) as RegExp).source];
       return {
@@ -703,7 +703,7 @@ export default class DatabaseClient<
     }
 
     // External relations...
-    const { relation } = model as IdSchema<DataModel>;
+    const { relation } = schema as IdSchema<DataModel>;
     if (type === 'id' && relation !== undefined) {
       const metaData = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
       const subModel: ObjectSchema<DataModel> = {
@@ -726,7 +726,7 @@ export default class DatabaseClient<
     }
 
     // Objects...
-    const { fields } = model as ObjectSchema<DataModel>;
+    const { fields } = schema as ObjectSchema<DataModel>;
     const subModel = fields?.[field];
     return {
       ...projections,
@@ -749,7 +749,7 @@ export default class DatabaseClient<
    *
    * @param fields Fields from which to generate projections object.
    *
-   * @param model Root collection data model.
+   * @param schema Root collection schema.
    *
    * @param maximumDepth Maximum allowed level of resources depth.
    *
@@ -757,7 +757,7 @@ export default class DatabaseClient<
    */
   protected generateProjectionsFrom(
     fields: { classic: string[]; indexed?: string[] },
-    model: FieldSchema<DataModel>,
+    schema: FieldSchema<DataModel>,
     maximumDepth: number,
   ): Document {
     let projections: Document = {};
@@ -767,13 +767,13 @@ export default class DatabaseClient<
     for (let index = 0, { length } = uniqueClassicFields; index < length; index += 1) {
       const path = uniqueClassicFields[index];
       const rootPath = [''].concat(path.split('.'));
-      projections = this.projectFromPath(path, maximumDepth, false, rootPath, model, projections);
+      projections = this.projectFromPath(path, maximumDepth, false, rootPath, schema, projections);
     }
     const uniqueIndexedFields = [...new Set(fields.indexed)];
     for (let index = 0, { length } = uniqueIndexedFields; index < length; index += 1) {
       const path = uniqueIndexedFields[index];
       const rootPath = [''].concat(path.split('.'));
-      projections = this.projectFromPath(path, maximumDepth, true, rootPath, model, projections);
+      projections = this.projectFromPath(path, maximumDepth, true, rootPath, schema, projections);
     }
 
     return projections;
@@ -784,9 +784,9 @@ export default class DatabaseClient<
    *
    * @param projections Projections from which to generate pipeline.
    *
-   * @param model Current path data model.
+   * @param schema Current path data model schema.
    *
-   * @param path Current path in model. Used for recursivity, do not use it directly!
+   * @param path Current path in data model. Used for recursivity, do not use it directly!
    *
    * @param isFlatArray Whether current path is part of a flat array.
    * Used for recursivity, do not use it directly!
@@ -795,15 +795,15 @@ export default class DatabaseClient<
    */
   protected generateLookupsPipelineFrom(
     projections: Document,
-    model: FieldSchema<DataModel>,
+    schema: FieldSchema<DataModel>,
     path: string[] = [],
     isFlatArray = false,
   ): Document[] {
     if (isPlainObject(projections)) {
-      const { type } = model;
+      const { type } = schema;
 
       // External relations...
-      const { relation } = model as IdSchema<DataModel>;
+      const { relation } = schema as IdSchema<DataModel>;
       if (type === 'id' && relation !== undefined) {
         const fullPath = path.join('.');
         const fieldName = path.at(-1) as string;
@@ -857,7 +857,7 @@ export default class DatabaseClient<
 
       // Arrays...
       if (type === 'array') {
-        const { fields } = model as ArraySchema<DataModel>;
+        const { fields } = schema as ArraySchema<DataModel>;
         // "Flat" arrays directly contain primitives, and not nested structures.
         const isFlat = fields.type === 'id';
         const subPipeline = this.generateLookupsPipelineFrom(projections, fields, path, !isFlat);
@@ -868,7 +868,7 @@ export default class DatabaseClient<
       // Dynamic objects...
       if (type === 'dynamicObject') {
         const pipeline: Document[] = [];
-        const { fields } = model as DynamicObjectSchema<DataModel>;
+        const { fields } = schema as DynamicObjectSchema<DataModel>;
         const patterns = Object.keys(fields).map((pattern) => new RegExp(pattern));
         Object.keys(projections).forEach((fieldName) => {
           const pattern = (patterns.find((p) => p.test(fieldName)) as RegExp).source;
@@ -884,7 +884,7 @@ export default class DatabaseClient<
 
       // Objects...
       const pipeline: Document[] = [];
-      const { fields } = model as ObjectSchema<DataModel>;
+      const { fields } = schema as ObjectSchema<DataModel>;
       Object.keys(projections).forEach((fieldName) => {
         pipeline.push(...this.generateLookupsPipelineFrom(
           projections[fieldName],
@@ -1292,9 +1292,9 @@ export default class DatabaseClient<
     const requestedFields = { classic: options.fields ?? [] };
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-    const model: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
-    const projections = this.generateProjectionsFrom(requestedFields, model, maximumDepth);
-    const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
+    const schema: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
+    const projections = this.generateProjectionsFrom(requestedFields, schema, maximumDepth);
+    const lookupPipeline = this.generateLookupsPipelineFrom(projections, schema);
 
     const resultsPipeline = (metaData.schema.enableDeletion
       ? [{ $match: { _id: new ObjectId(`${id}`) } }]
@@ -1342,12 +1342,12 @@ export default class DatabaseClient<
       indexed: sortBy.concat(query?.on ?? []).concat(Object.keys(filters ?? {})),
     };
     const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-    const model: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
+    const schema: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
-    const projections = this.generateProjectionsFrom(allFields, model, maximumDepth);
+    const projections = this.generateProjectionsFrom(allFields, schema, maximumDepth);
     const searchPipeline = this.generateSearchPipelineFrom(query, filters);
     const sortingPipeline = this.generateSortingPipelineFrom(sortBy, sortOrder);
-    const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
+    const lookupPipeline = this.generateLookupsPipelineFrom(projections, schema);
     const paginationPipeline = this.generatePaginationPipelineFrom(options.offset, options.limit);
 
     const resultsPipeline = (metaData.schema.enableDeletion ? [] : this.DELETION_FILTER_PIPELINE)
@@ -1402,10 +1402,10 @@ export default class DatabaseClient<
     const requestedFields = options.fields ?? [];
     const allFields = { classic: requestedFields, indexed: sortBy };
     const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-    const model: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
+    const schema: ObjectSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
-    const projections = this.generateProjectionsFrom(allFields, model, maximumDepth);
-    const lookupPipeline = this.generateLookupsPipelineFrom(projections, model);
+    const projections = this.generateProjectionsFrom(allFields, schema, maximumDepth);
+    const lookupPipeline = this.generateLookupsPipelineFrom(projections, schema);
     const sortingPipeline = this.generateSortingPipelineFrom(sortBy, sortOrder);
     const paginationPipeline = this.generatePaginationPipelineFrom(options.offset, options.limit);
 

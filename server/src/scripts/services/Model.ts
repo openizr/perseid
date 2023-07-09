@@ -124,27 +124,27 @@ export default class Model<
   };
 
   /**
-   * Generates public data schema from `model`.
+   * Generates public data schema from `schema`.
    *
-   * @param model Model from which to generate schema.
+   * @param schema Data model schema from which to generate public schema.
    *
    * @param relations Optional parameter, use it to also extract all relations declared in the
    * model. If this parameter is passed, a list of all collections referenced directly or indirectly
    * (i.e. by following subsequent relations) in the model will be generated and stored in that
-   * variable. For instance, if `model` contains a field that references a collection A, that in
+   * variable. For instance, if `schema` contains a field that references a collection A, that in
    * turn references collection B, that eventually references the initial collection, the following
    * list will be generated: `["A", "B"]`. Defaults to `new Set()`.
    */
   protected generatePublicSchemaFrom(
-    model: FieldSchema<DataModel>,
+    schema: FieldSchema<DataModel>,
     relations: Set<string> = new Set(),
   ): FieldSchema<DataModel> {
-    const { errorMessages, type, ...rest } = model;
+    const { errorMessages, type, ...rest } = schema;
     if (errorMessages) {
       // No-op.
     }
     if (type === 'array') {
-      const { fields } = model;
+      const { fields } = schema;
       return <ArraySchema<DataModel>>{
         type,
         ...rest,
@@ -155,20 +155,19 @@ export default class Model<
       return {
         type,
         ...rest,
-        fields: Object.keys(model.fields).reduce((fields, key) => ({
+        fields: Object.keys(schema.fields).reduce((fields, key) => ({
           ...fields,
-          [key]: this.generatePublicSchemaFrom(model.fields[key], relations),
+          [key]: this.generatePublicSchemaFrom(schema.fields[key], relations),
         }), {}),
       } as FieldSchema<DataModel>;
     }
-    if (type === 'id' && model.relation !== undefined) {
-      const relation = model.relation as string;
+    if (type === 'id' && schema.relation !== undefined) {
+      const relation = schema.relation as string;
       const isRelationAlreadyProcessed = relations.has(relation);
       if (!isRelationAlreadyProcessed) {
         relations.add(relation);
-        const { schema } = (this.get(model.relation as string) as DataModelMetadata<DataModel>);
-        const { fields } = schema as CollectionSchema<DataModel>;
-        this.generatePublicSchemaFrom({ type: 'object', fields }, relations);
+        const data = this.get(schema.relation) as DataModelMetadata<CollectionSchema<DataModel>>;
+        this.generatePublicSchemaFrom({ type: 'object', fields: data.schema.fields }, relations);
       }
     }
     const { unique, index, ...subRest } = rest as Omit<StringSchema, 'type'>;
@@ -176,12 +175,12 @@ export default class Model<
   }
 
   /**
-   * `email` custom data model type generator.
+   * `email` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static email(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
@@ -198,12 +197,12 @@ export default class Model<
   }
 
   /**
-   * `tinyText` custom data model type generator.
+   * `tinyText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static tinyText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
@@ -216,12 +215,12 @@ export default class Model<
   }
 
   /**
-   * `shortText` custom data model type generator.
+   * `shortText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static shortText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
@@ -234,12 +233,12 @@ export default class Model<
   }
 
   /**
-   * `mediumText` custom data model type generator.
+   * `mediumText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static mediumText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
@@ -252,12 +251,12 @@ export default class Model<
   }
 
   /**
-   * `longText` custom data model type generator.
+   * `longText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static longText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
@@ -270,12 +269,12 @@ export default class Model<
   }
 
   /**
-   * `hugeText` custom data model type generator.
+   * `hugeText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static hugeText(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
@@ -288,12 +287,12 @@ export default class Model<
   }
 
   /**
-   * `token` custom data model type generator.
+   * `token` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static token(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
@@ -310,12 +309,12 @@ export default class Model<
   }
 
   /**
-   * `password` custom data model type generator.
+   * `password` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static password(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
@@ -332,12 +331,12 @@ export default class Model<
   }
 
   /**
-   * `credentials` custom data model type generator.
+   * `credentials` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ required: true }`.
    *
-   * @returns Generated custom data model.
+   * @returns Generated custom data model schema.
    */
   public static credentials(
     overrides: Partial<ObjectSchema<unknown>> = {},

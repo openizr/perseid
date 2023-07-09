@@ -10,7 +10,7 @@ import {
   type Id,
   type User,
   type Logger as BaseLogger,
-  type DataModel as DefaultTypes,
+  type DefaultDataModel as DefaultTypes,
 } from '@perseid/core';
 import {
   type Db,

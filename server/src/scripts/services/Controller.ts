@@ -51,7 +51,7 @@ export interface BuiltInEndpoint {
 }
 
 /** List of all available built-in endpoints. */
-export interface BuiltInEndpoints<Types> {
+export interface BuiltInEndpoints<DataModel> {
   oAuth: {
     signUp?: BuiltInEndpoint;
     signIn?: BuiltInEndpoint;
@@ -62,18 +62,18 @@ export interface BuiltInEndpoints<Types> {
     requestPasswordReset?: BuiltInEndpoint;
     requestEmailVerification?: BuiltInEndpoint;
   };
-  collections: Partial<Record<keyof Types, CollectionBuiltInEndpoints>>;
+  collections: Partial<Record<keyof DataModel, CollectionBuiltInEndpoints>>;
 }
 
 /**
  * Controller settings.
  */
-export interface ControllerSettings<Types> {
+export interface ControllerSettings<DataModel> {
   /** Release version. Will be sent back along with responses through the "X-App-Release" header. */
   version: string;
 
   /** List of built-in endpoints to register. */
-  endpoints: BuiltInEndpoints<Types>;
+  endpoints: BuiltInEndpoints<DataModel>;
 }
 
 /**
@@ -81,13 +81,13 @@ export interface ControllerSettings<Types> {
  */
 export default class Controller<
   /** Data model types definitions. */
-  Types extends DefaultDataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  Engine extends OAuthEngine<Types> = OAuthEngine<Types>,
+  Engine extends OAuthEngine<DataModel> = OAuthEngine<DataModel>,
 > {
   /** Expired token error code. */
   protected readonly TOKEN_EXPIRED_CODE = 'TOKEN_EXPIRED';
@@ -111,7 +111,7 @@ export default class Controller<
   protected version: string;
 
   /** List of built-in endpoints to register. */
-  protected endpoints: BuiltInEndpoints<Types>;
+  protected endpoints: BuiltInEndpoints<DataModel>;
 
   /**
    * Transforms `value` into SNAKE_CASE.
@@ -170,7 +170,7 @@ export default class Controller<
    * @return List of requested fields.
    */
   protected generateFieldsFrom(
-    collection: keyof Types,
+    collection: keyof DataModel,
     fields: string,
     permissions = new Set(),
   ): string[] {
@@ -178,13 +178,13 @@ export default class Controller<
     const requestedFields = fields.split(',');
     const addPermission = permissions.add.bind(permissions);
     addPermission(`${this.toSnakeCase(collection as string)}_VIEW`);
-    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
 
     for (let index = 0, { length } = requestedFields; index < length; index += 1) {
       let subPath = '';
       const path = requestedFields[index];
       const splittedPath = path.split('.');
-      let currentModel: FieldSchema<Types> = { type: 'object', fields: metaData.schema.fields };
+      let currentModel: FieldSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
 
       // Walking through the model...
       while (splittedPath.length > 0 && currentModel !== undefined) {
@@ -192,7 +192,7 @@ export default class Controller<
         if (splittedPath.length === 0 && subPath === '*') {
           break;
         } else {
-          currentModel = (currentModel as ObjectSchema<Types>).fields?.[subPath];
+          currentModel = (currentModel as ObjectSchema<DataModel>).fields?.[subPath];
           (currentModel as DateSchema)?.permissions?.forEach(addPermission);
 
           if (currentModel?.type === 'array') {
@@ -202,10 +202,10 @@ export default class Controller<
           if (currentModel?.type === 'id' && currentModel.relation !== undefined) {
             const { relation } = currentModel;
             addPermission(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
-            const data = this.model.get(relation) as DataModelMetadata<CollectionSchema<Types>>;
+            const data = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
             currentModel = { type: 'object', fields: data.schema.fields };
           } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {
-            const subFields: DynamicObjectSchema<Types>['fields'] = currentModel.fields;
+            const subFields: DynamicObjectSchema<DataModel>['fields'] = currentModel.fields;
             const patterns = Object.keys(subFields).map((pattern) => new RegExp(pattern));
             const pattern = (patterns.find((p) => p.test(splittedPath[0])) as RegExp).source;
             currentModel = { type: 'object', fields: { [splittedPath[0]]: subFields[pattern] } };
@@ -246,24 +246,24 @@ export default class Controller<
    * @return Formatted search filters.
    */
   protected formatSearchFilters(
-    collection: keyof Types,
+    collection: keyof DataModel,
     filters: SearchFilters,
     permissions = new Set(),
   ): SearchFilters {
     const filterFields = Object.keys(filters);
     const formattedFilters: SearchFilters = {};
     const addPermission = permissions.add.bind(permissions);
-    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
     for (let index = 0, { length } = filterFields; index < length; index += 1) {
       let subPath = '';
       const path = filterFields[index];
       const splittedPath = path.split('.');
-      let currentModel: FieldSchema<Types> = { type: 'object', fields: metaData.schema.fields };
+      let currentModel: FieldSchema<DataModel> = { type: 'object', fields: metaData.schema.fields };
 
       // Walking through the model...
       while (splittedPath.length > 0 && currentModel !== undefined) {
         subPath = splittedPath.shift() as string;
-        currentModel = (currentModel as ObjectSchema<Types>).fields?.[subPath];
+        currentModel = (currentModel as ObjectSchema<DataModel>).fields?.[subPath];
         (currentModel as StringSchema)?.permissions?.forEach(addPermission);
 
         if (currentModel?.type === 'array') {
@@ -273,10 +273,10 @@ export default class Controller<
         if (currentModel?.type === 'id' && currentModel.relation !== undefined && splittedPath.length > 0) {
           const { relation } = currentModel;
           permissions.add(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
-          const data = this.model.get(relation) as DataModelMetadata<CollectionSchema<Types>>;
+          const data = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
           currentModel = { type: 'object', fields: data.schema.fields };
         } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {
-          const subFields: DynamicObjectSchema<Types>['fields'] = currentModel.fields;
+          const subFields: DynamicObjectSchema<DataModel>['fields'] = currentModel.fields;
           const patterns = Object.keys(subFields).map((pattern) => new RegExp(pattern));
           const pattern = (patterns.find((p) => p.test(splittedPath[0])) as RegExp).source;
           currentModel = { type: 'object', fields: { [splittedPath[0]]: subFields[pattern] } };
@@ -320,7 +320,7 @@ export default class Controller<
    * @returns Parsed query params.
    */
   protected parseQuery(
-    collection: keyof Types,
+    collection: keyof DataModel,
     query: Record<string, string>,
     permissions = new Set(),
   ): {
@@ -357,7 +357,7 @@ export default class Controller<
    * @returns Parsed search body.
    */
   public parseSearchBody(
-    collection: keyof Types,
+    collection: keyof DataModel,
     body: SearchBody,
     permissions = new Set(),
   ): SearchBody {
@@ -490,7 +490,7 @@ export default class Controller<
     model: Model,
     logger: Logger,
     engine: Engine,
-    settings: ControllerSettings<Types>,
+    settings: ControllerSettings<DataModel>,
   ) {
     this.model = model;
     this.logger = logger;

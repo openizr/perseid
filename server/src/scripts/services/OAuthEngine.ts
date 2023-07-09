@@ -75,14 +75,14 @@ export interface OAuthEngineSettings {
  */
 export default class OAuthEngine<
   /** Data model types definitions. */
-  Types extends DefaultDataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  DatabaseClient extends BaseDatabaseClient<Types> = BaseDatabaseClient<Types>,
-> extends Engine<Types, Model, DatabaseClient> {
+  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
+> extends Engine<DataModel, Model, DatabaseClient> {
   /** Default duration before a refresh token expires. */
   protected readonly REFRESH_TOKEN_DURATION = 30 * 24 * 3600 * 1000; // 30 days.
 
@@ -131,42 +131,37 @@ export default class OAuthEngine<
    *
    * @param collection Payload collection.
    *
-   * @param resource Current resource being updated, if applicable.
-   *
    * @param payload Payload to validate and update.
    *
    * @param context Command context.
    */
-  protected async checkAndUpdatePayload<Collection extends keyof Types>(
+  protected async checkAndUpdatePayload<Collection extends keyof DataModel>(
     collection: Collection,
-    resource: Types[Collection] | null,
-    payload: UpdatePayload<Types[Collection]>,
-    context: CommandContext,
-  ): Promise<Partial<Types[Collection]>> {
-    const newPayload = await super.checkAndUpdatePayload(collection, resource, payload, context);
+    payload: UpdatePayload<DataModel[Collection]>,
+    context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
+  ): Promise<Partial<DataModel[Collection]>> {
+    const fullPayload = await super.checkAndUpdatePayload(collection, payload, context);
 
     if (collection === 'users') {
-      const { credentials } = context as CommandContext & { credentials: Credentials | null };
-      const userPayload = newPayload as Partial<Types['users']>;
-      if (resource === null && userPayload.roles === undefined) {
-        userPayload.roles = [];
-      }
+      const userPayload = fullPayload as Partial<DataModel['users']>;
+      const { credentials } = context as unknown as { credentials: Credentials | null };
       // Whenever users change their password, we automatically sign them out of all their
       // devices, as a security measure. Successfully resetting users password also means verifying
       // their email at the same time.
       if (userPayload.password !== undefined) {
         userPayload._devices = [];
         userPayload.password = await bcrypt.hash(userPayload.password, 10);
-        userPayload._verifiedAt = (resource as Types['users'])?._verifiedAt ?? new Date();
+        userPayload._verifiedAt = context.user?._verifiedAt ?? new Date();
       }
-      if (resource === null) {
+      if (context.mode === 'CREATE') {
         userPayload._apiKeys = [];
         userPayload._devices = [];
+        userPayload.roles = userPayload.roles ?? [];
         userPayload._verifiedAt = (context.user !== undefined) ? new Date() : null;
       }
       // When credentials are passed in context, it means that we must either revoke or update them.
       if (credentials !== undefined) {
-        const _devices = (resource as Types['users'])?._devices ?? [];
+        const _devices = context.user?._devices ?? [];
         const deviceId = context.deviceId ?? (credentials as Credentials).deviceId;
         const deviceIndex = _devices.findIndex((device) => device.id === deviceId);
         const [device] = _devices.splice(deviceIndex, deviceIndex >= 0 ? 1 : 0);
@@ -182,7 +177,7 @@ export default class OAuthEngine<
       }
     }
 
-    return newPayload;
+    return fullPayload;
   }
 
   /**
@@ -227,18 +222,18 @@ export default class OAuthEngine<
    *
    * @returns Newly created resource.
    */
-  public async create<Collection extends keyof Types>(
+  public async create<Collection extends keyof DataModel>(
     collection: Collection,
-    payload: Payload<Types[Collection]>,
+    payload: Payload<DataModel[Collection]>,
     options: CommandOptions,
     context: CommandContext,
-  ): Promise<Types[Collection]> {
+  ): Promise<DataModel[Collection]> {
     const newResource = await super.create(collection, payload, options, context);
 
     if (collection === 'users') {
       // Sending invite...
-      const { email } = newResource as Types['users'];
-      const password = (payload as Payload<Types['users']>).password as string;
+      const { email } = newResource as DataModel['users'];
+      const password = (payload as Payload<DataModel['users']>).password as string;
       await this.emailClient.sendInviteEmail(email, `${this.settings.baseUrl}/sign-in`, password);
     }
 
@@ -298,9 +293,9 @@ export default class OAuthEngine<
    * @throws If password and confirmation mismatch.
    */
   public async signUp(
-    email: Types['users']['email'],
-    password: Types['users']['password'],
-    passwordConfirmation: Types['users']['password'],
+    email: DataModel['users']['email'],
+    password: DataModel['users']['password'],
+    passwordConfirmation: DataModel['users']['password'],
     context: CommandContext,
   ): Promise<Credentials> {
     if (passwordConfirmation !== undefined && passwordConfirmation !== password) {
@@ -309,13 +304,13 @@ export default class OAuthEngine<
 
     const newId = new Id();
     const credentials = this.generateCredentials(newId);
-    const fullContext = { ...context, credentials };
-    const payload = { email, password } as UpdatePayload<Types['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', null, payload, fullContext);
-    await this.databaseClient.create('users', { ...fullPayload as Types['users'], _id: newId });
+    const payload = { email, password } as UpdatePayload<DataModel['users']>;
+    const fullContext = { ...context, credentials, mode: 'CREATE' as const };
+    const fullPayload = await this.checkAndUpdatePayload('users', payload, fullContext);
+    await this.databaseClient.create('users', { ...fullPayload as DataModel['users'], _id: newId });
 
     const newVerificationToken = randomBytes(12).toString('hex');
-    const cacheKey = createHash('sha1').update(`verify_${(fullPayload as Types['users'])._id}`).digest('hex');
+    const cacheKey = createHash('sha1').update(`verify_${(fullPayload as DataModel['users'])._id}`).digest('hex');
     const verificationUrl = `${this.settings.baseUrl}/verify-email?verificationToken=${newVerificationToken}`;
     await this.cacheClient.set(cacheKey, newVerificationToken, 3600 * 2); // In 2 hours.
     await this.emailClient.sendVerificationEmail(email, verificationUrl);
@@ -359,9 +354,13 @@ export default class OAuthEngine<
 
     const deviceId = /^[0-9a-fA-F]{24}$/.test(`${context.deviceId}`) ? context.deviceId : undefined;
     const credentials = this.generateCredentials(user._id, deviceId);
-    const fullContext = { ...context, user, credentials };
-    const payload = {} as UpdatePayload<Types['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, fullContext);
+    const payload = {} as UpdatePayload<DataModel['users']>;
+    const fullPayload = await this.checkAndUpdatePayload('users', payload, {
+      ...context,
+      user,
+      credentials,
+      mode: 'UPDATE',
+    } as CommandContext & { mode: 'UPDATE' });
     await this.databaseClient.update('users', user._id, fullPayload);
 
     return credentials;
@@ -406,8 +405,9 @@ export default class OAuthEngine<
     }
 
     // Updating user credentials...
-    const payload = { _verifiedAt: new Date() } as Partial<Types['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, context);
+    const fullContext = { ...context, mode: 'UPDATE' as const };
+    const payload = { _verifiedAt: new Date() } as Partial<DataModel['users']>;
+    const fullPayload = await this.checkAndUpdatePayload('users', payload, fullContext);
     await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
   }
@@ -448,8 +448,8 @@ export default class OAuthEngine<
    * @throws If reset token is not valid.
    */
   public async resetPassword(
-    password: Types['users']['password'],
-    passwordConfirmation: Types['users']['password'],
+    password: DataModel['users']['password'],
+    passwordConfirmation: DataModel['users']['password'],
     resetToken: string,
   ): Promise<void> {
     if (passwordConfirmation !== password) {
@@ -467,8 +467,8 @@ export default class OAuthEngine<
     }
 
     const [user] = users.results;
-    const payload = { password } as Partial<Types['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', user, payload, { user });
+    const payload = { password } as Partial<DataModel['users']>;
+    const fullPayload = await this.checkAndUpdatePayload('users', payload, { user, mode: 'UPDATE' });
     await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
   }
@@ -496,8 +496,8 @@ export default class OAuthEngine<
       throw new EngineError('INVALID_REFRESH_TOKEN');
     }
 
-    const fullContext = { ...context, credentials };
-    const fullPayload = await this.checkAndUpdatePayload('users', user, {}, fullContext);
+    const fullContext = { ...context, credentials, mode: 'UPDATE' as const };
+    const fullPayload = await this.checkAndUpdatePayload('users', {}, fullContext);
     await this.databaseClient.update('users', user._id, fullPayload);
     return credentials;
   }
@@ -509,8 +509,8 @@ export default class OAuthEngine<
    */
   public async signOut(context: CommandContext): Promise<void> {
     const { user } = context;
-    const fullContext = { ...context, credentials: null };
-    const fullPayload = await this.checkAndUpdatePayload('users', user, {}, fullContext);
+    const fullContext = { ...context, credentials: null, mode: 'UPDATE' as const };
+    const fullPayload = await this.checkAndUpdatePayload('users', {}, fullContext);
     await this.databaseClient.update('users', user._id, fullPayload);
   }
 
@@ -544,11 +544,11 @@ export default class OAuthEngine<
         'USERS_DETAILS_VIEW',
         'USERS_ROLES_UPDATE',
       ]),
-    } as Payload<Types['roles']>, {}, { user: { _id } as unknown as User });
+    } as Payload<DataModel['roles']>, {}, { user: { _id } as unknown as User });
 
     this.logger.info('[OAuthEngine][reset] Updating root user...');
     await this.databaseClient.update('users', _id, {
       roles: [newRole._id],
-    } as Partial<Types['users']>);
+    } as Partial<DataModel['users']>);
   }
 }

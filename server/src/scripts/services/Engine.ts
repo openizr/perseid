@@ -31,13 +31,13 @@ import type BaseDatabaseClient from 'scripts/services/DatabaseClient';
  */
 export default class Engine<
   /** Data model types definitions. */
-  Types,
+  DataModel,
 
   /** Model class types definitions. */
-  Model extends BaseModel<Types> = BaseModel<Types>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  DatabaseClient extends BaseDatabaseClient<Types> = BaseDatabaseClient<Types>,
+  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
 > {
   /** Data model. */
   protected model: Model;
@@ -68,11 +68,11 @@ export default class Engine<
    *
    * @returns Filters to apply to check foreign ids.
    */
-  protected createRelationFilters<Collection extends keyof Types>(
+  protected createRelationFilters<Collection extends keyof DataModel>(
     collection: Collection,
     path: string,
     ids: Id[],
-    payload: UpdatePayload<Types[Collection]>,
+    payload: UpdatePayload<DataModel[Collection]>,
     context: CommandContext,
   ): SearchFilters {
     this.logger.silent(collection, path, payload, context);
@@ -89,17 +89,17 @@ export default class Engine<
    *
    * @param context Command context.
    */
-  protected async checkForeignIds<Collection extends keyof Types>(
+  protected async checkForeignIds<Collection extends keyof DataModel>(
     collection: Collection,
-    payload: UpdatePayload<Types[Collection]>,
+    payload: UpdatePayload<DataModel[Collection]>,
     context: CommandContext,
   ): Promise<void> {
     const foreignIds: Map<string, Record<string, Set<string>>> = new Map();
-    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
 
     const getForeignIds = (
-      currentPayload: UpdatePayload<Types[Collection]>,
-      schema: FieldSchema<Types>,
+      currentPayload: UpdatePayload<DataModel[Collection]>,
+      schema: FieldSchema<DataModel>,
       path: string[],
     ): void => {
       // Null...
@@ -109,8 +109,9 @@ export default class Engine<
 
       // Expanded relation...
       if (schema.type === 'id' && schema.relation !== undefined && !(currentPayload instanceof Id)) {
-        const data = this.model.get(schema.relation) as DataModelMetadata<CollectionSchema<Types>>;
-        getForeignIds(currentPayload, { type: 'object', fields: data.schema.fields }, path);
+        const relation = this.model.get(schema.relation);
+        const { schema: subSchema } = relation as DataModelMetadata<CollectionSchema<DataModel>>;
+        getForeignIds(currentPayload, { type: 'object', fields: subSchema.fields }, path);
         return;
       }
 
@@ -129,7 +130,7 @@ export default class Engine<
 
       // Arrays...
       if (schema.type === 'array') {
-        const arrayPayload = currentPayload as unknown as Types[Collection][];
+        const arrayPayload = currentPayload as unknown as DataModel[Collection][];
         for (let i = 0, { length } = arrayPayload; i < length; i += 1) {
           getForeignIds(arrayPayload[i], schema.fields, path);
         }
@@ -140,8 +141,8 @@ export default class Engine<
       if (schema.type === 'object') {
         const currentPayloadKeys = Object.keys(currentPayload);
         for (let i = 0, { length } = currentPayloadKeys; i < length; i += 1) {
-          const key = currentPayloadKeys[i] as keyof UpdatePayload<Types[Collection]>;
-          const subPayload = currentPayload[key] as unknown as Types[Collection];
+          const key = currentPayloadKeys[i] as keyof UpdatePayload<DataModel[Collection]>;
+          const subPayload = currentPayload[key] as unknown as DataModel[Collection];
           getForeignIds(subPayload, schema.fields[key as string], path);
         }
         return;
@@ -152,8 +153,8 @@ export default class Engine<
         const currentPayloadKeys = Object.keys(currentPayload);
         const patterns = Object.keys(schema.fields).map((pattern) => new RegExp(pattern));
         for (let i = 0, { length } = currentPayloadKeys; i < length; i += 1) {
-          const key = currentPayloadKeys[i] as keyof UpdatePayload<Types[Collection]>;
-          const subPayload = currentPayload[key] as unknown as Types[Collection];
+          const key = currentPayloadKeys[i] as keyof UpdatePayload<DataModel[Collection]>;
+          const subPayload = currentPayload[key] as unknown as DataModel[Collection];
           const pattern = (patterns.find((p) => p.test(String(key))) as RegExp).source;
           getForeignIds(subPayload, schema.fields[pattern], path);
         }
@@ -189,13 +190,13 @@ export default class Engine<
    *
    * @returns Payload with automatic fields.
    */
-  protected withAutomaticFields<Collection extends keyof Types>(
+  protected withAutomaticFields<Collection extends keyof DataModel>(
     collection: Collection,
-    payload: Payload<Types[Collection]> | UpdatePayload<Types[Collection]>,
+    payload: Payload<DataModel[Collection]> | UpdatePayload<DataModel[Collection]>,
     context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
-  ): Types[Collection] {
+  ): DataModel[Collection] {
     const isCreation = (context.mode === 'CREATE');
-    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<Types>>;
+    const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
     const fullPayload: Partial<Ids & Authors & Version & Deletion & Timestamps> = { ...payload };
 
     if (metaData.schema.enableAuthors) {
@@ -228,7 +229,7 @@ export default class Engine<
       fullPayload._version = metaData.schema.version;
     }
 
-    return fullPayload as Types[Collection];
+    return fullPayload as DataModel[Collection];
   }
 
   /**
@@ -240,11 +241,11 @@ export default class Engine<
    *
    * @param context Command context.
    */
-  protected async checkAndUpdatePayload<Collection extends keyof Types>(
+  protected async checkAndUpdatePayload<Collection extends keyof DataModel>(
     collection: Collection,
-    payload: UpdatePayload<Types[Collection]>,
+    payload: UpdatePayload<DataModel[Collection]>,
     context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
-  ): Promise<Partial<Types[Collection]>> {
+  ): Promise<Partial<DataModel[Collection]>> {
     return this.withAutomaticFields(collection, payload, context);
   }
 
@@ -280,19 +281,19 @@ export default class Engine<
    *
    * @returns Newly created resource.
    */
-  public async create<Collection extends keyof Types>(
+  public async create<Collection extends keyof DataModel>(
     collection: Collection,
-    payload: Payload<Types[Collection]>,
+    payload: Payload<DataModel[Collection]>,
     options: CommandOptions,
     context: CommandContext,
-  ): Promise<Types[Collection]> {
+  ): Promise<DataModel[Collection]> {
     const fullContext = { ...context, mode: 'CREATE' as const };
-    const newPayload = payload as unknown as UpdatePayload<Types[Collection]>;
+    const newPayload = payload as unknown as UpdatePayload<DataModel[Collection]>;
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
     const fullPayload = await this.checkAndUpdatePayload(collection, newPayload, fullContext);
     await this.checkForeignIds(collection, fullPayload, context);
-    await this.databaseClient.create(collection, fullPayload as Types[Collection]);
-    return this.view(collection, (fullPayload as Types[Collection] as Ids)._id, options);
+    await this.databaseClient.create(collection, fullPayload as DataModel[Collection]);
+    return this.view(collection, (fullPayload as DataModel[Collection] as Ids)._id, options);
   }
 
   /**
@@ -312,13 +313,13 @@ export default class Engine<
    *
    * @throws If resource does not exist or has been deleted.
    */
-  public async update<Collection extends keyof Types>(
+  public async update<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
-    payload: UpdatePayload<Types[Collection]>,
+    payload: UpdatePayload<DataModel[Collection]>,
     options: CommandOptions,
     context: CommandContext,
-  ): Promise<Types[Collection]> {
+  ): Promise<DataModel[Collection]> {
     const fullContext = { ...context, mode: 'UPDATE' as const };
     this.databaseClient.checkFields(collection, options.fields ?? [], options.maximumDepth);
     const fullPayload = await this.checkAndUpdatePayload(collection, payload, fullContext);
@@ -340,11 +341,11 @@ export default class Engine<
    *
    * @throws If resource does not exist or has been deleted.
    */
-  public async view<Collection extends keyof Types>(
+  public async view<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
     options: CommandOptions,
-  ): Promise<Types[Collection]> {
+  ): Promise<DataModel[Collection]> {
     const resource = await this.databaseClient.view(collection, id, { fields: options.fields });
 
     if (resource === null) {
@@ -363,10 +364,10 @@ export default class Engine<
    *
    * @returns Paginated list of resources.
    */
-  public async list<Collection extends keyof Types>(
+  public async list<Collection extends keyof DataModel>(
     collection: Collection,
     options: CommandOptions,
-  ): Promise<Results<Types[Collection]>> {
+  ): Promise<Results<DataModel[Collection]>> {
     return this.databaseClient.list(collection, options);
   }
 
@@ -381,11 +382,11 @@ export default class Engine<
    *
    * @returns Paginated list of resources.
    */
-  public async search<Collection extends keyof Types>(
+  public async search<Collection extends keyof DataModel>(
     collection: Collection,
     search: SearchBody,
     options: CommandOptions,
-  ): Promise<Results<Types[Collection]>> {
+  ): Promise<Results<DataModel[Collection]>> {
     return this.databaseClient.search(collection, search, options);
   }
 
@@ -400,7 +401,7 @@ export default class Engine<
    *
    * @throws If resource does not exist or has been deleted.
    */
-  public async delete<Collection extends keyof Types>(
+  public async delete<Collection extends keyof DataModel>(
     collection: Collection,
     id: Id,
     context: CommandContext,
