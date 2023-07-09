@@ -100,6 +100,7 @@ const controller = new FastifyController(model, logger, engine, {
 });
 
 async function main(): Promise<void> {
+  await databaseClient.checkIntegrity();
   if (process.argv.includes('--reset')) {
     await engine.reset('test@test.test', 'Hello123!');
     process.exit(0);

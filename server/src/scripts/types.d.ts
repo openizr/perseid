@@ -43,6 +43,8 @@ type PinoDestination = DestinationStream & {
   on: (event: string, callback: () => void) => void;
 };
 
+export * from '@perseid/core';
+
 /**
  * Database search filters.
  * Each key is a field name, and its related value is the filter value.

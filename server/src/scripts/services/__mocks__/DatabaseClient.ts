@@ -23,6 +23,8 @@ export default class {
 
   public checkForeignIds = vi.fn();
 
+  public checkIntegrity = vi.fn();
+
   public view = vi.fn(() => ((process.env.NO_RESULT === 'true')
     ? null
     : ({ _id: new Id('64723318e84f943f1ad6578b') })));

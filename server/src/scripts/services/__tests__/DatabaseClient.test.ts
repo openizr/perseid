@@ -1405,9 +1405,9 @@ describe('services/DatabaseClient', () => {
       { $project: { _id: 1 } },
     ]);
     expect(mongoClient.db().collection('users').aggregate).toHaveBeenCalledWith([
-      { $project: {} },
-      { $project: {} },
-      { $project: {} },
+      { $project: { _createdAt: 1 } },
+      { $project: { _createdAt: 1 } },
+      { $project: { _createdAt: 1 } },
       { $match: { $or: [] } },
       { $project: { _id: 1 } },
     ]);
@@ -1417,9 +1417,9 @@ describe('services/DatabaseClient', () => {
       { $project: { _id: 1 } },
     ]);
     expect(mongoClient.db().collection('roles').aggregate).toHaveBeenCalledWith([
-      { $project: {} },
-      { $project: {} },
-      { $project: {} },
+      { $project: { _createdAt: 1 } },
+      { $project: { _createdAt: 1 } },
+      { $project: { _createdAt: 1 } },
       { $match: { $or: [] } },
       { $project: { _id: 1 } },
     ]);
@@ -1428,9 +1428,22 @@ describe('services/DatabaseClient', () => {
       { $match: { $or: [] } },
       { $project: { _id: 1 } },
     ]);
+    const matchStage = {
+      $match: {
+        $or: [
+          { _isDeleted: { $ne: true } },
+          {
+            _isDeleted: true,
+            _updatedAt: { $exists: true },
+            $expr: { $lt: ['$$createdAt', '$_updatedAt'] },
+          },
+        ],
+      },
+    };
     expect(mongoClient.db().collection('test').aggregate).toHaveBeenCalledWith([
       {
         $project: {
+          _createdAt: 1,
           'arrayOne__dynamicObject__^testOne$': { $ifNull: ['$arrayOne.dynamicObject.^testOne$', []] },
           'arrayOne__dynamicObject__^testTwo$': { $ifNull: ['$arrayOne.dynamicObject.^testTwo$', []] },
           'arrayOne__dynamicObject__^special(__*)$': { $ifNull: ['$arrayOne.dynamicObject.^special(.*)$', []] },
@@ -1444,6 +1457,7 @@ describe('services/DatabaseClient', () => {
       },
       {
         $project: {
+          _createdAt: 1,
           'arrayOne__dynamicObject__^testOne$': {
             $cond: {
               if: {
@@ -1528,6 +1542,7 @@ describe('services/DatabaseClient', () => {
       },
       {
         $project: {
+          _createdAt: 1,
           'arrayOne__dynamicObject__^testOne$': { $setUnion: ['$arrayOne__dynamicObject__^testOne$', []] },
           'arrayOne__dynamicObject__^testTwo$': { $setUnion: ['$arrayOne__dynamicObject__^testTwo$', []] },
           'arrayOne__dynamicObject__^special(__*)$': {
@@ -1547,7 +1562,8 @@ describe('services/DatabaseClient', () => {
           as: '__arrayOne__dynamicObject__^testOne$',
           localField: 'arrayOne__dynamicObject__^testOne$',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1556,7 +1572,8 @@ describe('services/DatabaseClient', () => {
           as: '__arrayOne__dynamicObject__^testTwo$',
           localField: 'arrayOne__dynamicObject__^testTwo$',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1565,7 +1582,8 @@ describe('services/DatabaseClient', () => {
           as: '__arrayOne__dynamicObject__^special(__*)$',
           localField: 'arrayOne__dynamicObject__^special(__*)$',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1574,7 +1592,8 @@ describe('services/DatabaseClient', () => {
           as: '__arrayTwo',
           localField: 'arrayTwo',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1583,7 +1602,8 @@ describe('services/DatabaseClient', () => {
           as: '__dynamicOne__^testOne$',
           localField: 'dynamicOne__^testOne$',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1592,7 +1612,8 @@ describe('services/DatabaseClient', () => {
           as: '__dynamicOne__^special(__*)$',
           localField: 'dynamicOne__^special(__*)$',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1601,7 +1622,8 @@ describe('services/DatabaseClient', () => {
           as: '__dynamicTwo__^testOne$',
           localField: 'dynamicTwo__^testOne$',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1610,7 +1632,8 @@ describe('services/DatabaseClient', () => {
           as: '__arrayThree',
           localField: 'arrayThree',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1619,7 +1642,8 @@ describe('services/DatabaseClient', () => {
           as: '__dynamicOne__^testTwo$',
           localField: 'dynamicOne__^testTwo$',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1733,10 +1757,11 @@ describe('services/DatabaseClient', () => {
     ]);
     expect(mongoClient.db().collection('externalRelation').aggregate).toHaveBeenCalledWith([
       {
-        $project: { relations: { $ifNull: ['$relations', []] } },
+        $project: { _createdAt: 1, relations: { $ifNull: ['$relations', []] } },
       },
       {
         $project: {
+          _createdAt: 1,
           relations: {
             $cond: {
               if: { $eq: [{ $type: '$relations' }, 'array'] },
@@ -1747,7 +1772,7 @@ describe('services/DatabaseClient', () => {
         },
       },
       {
-        $project: { relations: { $setUnion: ['$relations', []] } },
+        $project: { _createdAt: 1, relations: { $setUnion: ['$relations', []] } },
       },
       {
         $lookup: {
@@ -1755,7 +1780,8 @@ describe('services/DatabaseClient', () => {
           as: '__relations',
           localField: 'relations',
           foreignField: '_id',
-          pipeline: [{ $project: { _id: 1 } }],
+          let: { createdAt: '$_createdAt' },
+          pipeline: [matchStage, { $project: { _id: 1 } }],
         },
       },
       {
@@ -1777,9 +1803,9 @@ describe('services/DatabaseClient', () => {
       { $project: { _id: 1 } },
     ]);
     expect(mongoClient.db().collection('otherExternalRelation').aggregate).toHaveBeenCalledWith([
-      { $project: {} },
-      { $project: {} },
-      { $project: {} },
+      { $project: { _createdAt: 1 } },
+      { $project: { _createdAt: 1 } },
+      { $project: { _createdAt: 1 } },
       { $match: { $or: [] } },
       { $project: { _id: 1 } },
     ]);

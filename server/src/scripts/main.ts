@@ -32,6 +32,8 @@ import RequestEntityTooLarge from 'scripts/errors/RequestEntityTooLarge';
 
 /* c8 ignore start */
 
+export * from '@perseid/core';
+
 export { Model };
 export { Logger };
 export { Engine };

@@ -11,6 +11,7 @@ import * as exports from 'scripts/main';
 
 describe('main', () => {
   vi.mock('fastify');
+  vi.mock('@perseid/core');
   vi.mock('scripts/services/Model');
   vi.mock('scripts/services/Logger');
   vi.mock('scripts/services/Engine');
@@ -29,6 +30,8 @@ describe('main', () => {
 
   test('correctly exports library', async () => {
     expect(Object.keys(exports)).toEqual([
+      'Id',
+      'test',
       'Model',
       'Logger',
       'Engine',

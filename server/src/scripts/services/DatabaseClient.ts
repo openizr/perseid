@@ -1732,7 +1732,7 @@ export default class DatabaseClient<
     const collectionRelations = this.relationsPerCollection[collection];
     const relationsPipeline: Document[] = [];
     const missingRelations: Document[] = [];
-    const transformations: Document[] = [{}, {}, {}];
+    const transformations: Document[] = [{ _createdAt: 1 }, { _createdAt: 1 }, { _createdAt: 1 }];
     [...collectionRelations.keys()].forEach((relation) => {
       (collectionRelations.get(relation) as string[]).forEach((path) => {
         // We need to flatten paths to prevent MongoDB memory overflow errors.
@@ -1770,7 +1770,23 @@ export default class DatabaseClient<
             as: `__${flattenPath}`,
             localField: flattenPath,
             foreignField: '_id',
-            pipeline: [{ $project: { _id: 1 } }],
+            let: { createdAt: '$_createdAt' },
+            pipeline: [
+              // Resources that have been deleted before being referenced by other resources.
+              {
+                $match: {
+                  $or: [
+                    { _isDeleted: { $ne: true } },
+                    {
+                      _isDeleted: true,
+                      _updatedAt: { $exists: true },
+                      $expr: { $lt: ['$$createdAt', '$_updatedAt'] },
+                    },
+                  ],
+                },
+              },
+              { $project: { _id: 1 } },
+            ],
           },
         });
       });
