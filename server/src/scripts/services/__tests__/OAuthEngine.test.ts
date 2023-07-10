@@ -34,7 +34,7 @@ describe('services/OAuthEngine', () => {
   vi.setSystemTime(new Date('2023-01-01'));
 
   let engine: TestOAuthEngine;
-  const context = {} as unknown as CommandContext;
+  const context = { deviceId: '' } as unknown as CommandContext;
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
   const emailClient = new EmailClient(logger);
   const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });

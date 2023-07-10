@@ -162,7 +162,7 @@ export default class OAuthEngine<
       // When credentials are passed in context, it means that we must either revoke or update them.
       if (credentials !== undefined) {
         const _devices = context.user?._devices ?? [];
-        const deviceId = context.deviceId ?? (credentials as Credentials).deviceId;
+        const deviceId = credentials?.deviceId ?? context.deviceId as string;
         const deviceIndex = _devices.findIndex((device) => device.id === deviceId);
         const [device] = _devices.splice(deviceIndex, deviceIndex >= 0 ? 1 : 0);
         if (credentials !== null) {
@@ -354,8 +354,7 @@ export default class OAuthEngine<
 
     const deviceId = /^[0-9a-fA-F]{24}$/.test(`${context.deviceId}`) ? context.deviceId : undefined;
     const credentials = this.generateCredentials(user._id, deviceId);
-    const payload = {} as UpdatePayload<DataModel['users']>;
-    const fullPayload = await this.checkAndUpdatePayload('users', payload, {
+    const fullPayload = await this.checkAndUpdatePayload('users', {}, {
       ...context,
       user,
       credentials,
@@ -405,8 +404,8 @@ export default class OAuthEngine<
     }
 
     // Updating user credentials...
+    const payload = { _verifiedAt: new Date() };
     const fullContext = { ...context, mode: 'UPDATE' as const };
-    const payload = { _verifiedAt: new Date() } as Partial<DataModel['users']>;
     const fullPayload = await this.checkAndUpdatePayload('users', payload, fullContext);
     await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
@@ -467,7 +466,7 @@ export default class OAuthEngine<
     }
 
     const [user] = users.results;
-    const payload = { password } as Partial<DataModel['users']>;
+    const payload = { password };
     const fullPayload = await this.checkAndUpdatePayload('users', payload, { user, mode: 'UPDATE' });
     await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
