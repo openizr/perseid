@@ -129,10 +129,7 @@ async function main(): Promise<void> {
       },
     });
 
-    app.register((instance, _opts, done) => {
-      controller.createEndpoints(instance);
-      done();
-    }, { prefix: '/perseid' });
+    controller.createEndpoints(app, { prefix: '/perseid' });
 
     app.listen({ port: parseInt(process.env.BACKEND_EXAMPLES_PORT as string, 10), host: '0.0.0.0' }, (error) => {
       if (error) {

@@ -31,7 +31,7 @@ describe('main', () => {
   test('correctly exports library', async () => {
     expect(Object.keys(exports)).toEqual([
       'Id',
-      'test',
+      'toSnakeCase',
       'Model',
       'Logger',
       'Engine',

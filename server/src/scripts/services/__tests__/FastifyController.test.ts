@@ -1627,6 +1627,15 @@ describe('services/FastifyController', () => {
       put: vi.fn(),
       post: vi.fn(),
       delete: vi.fn(),
+    };
+    const instance = {
+      addHook: vi.fn(async (_event, callback) => {
+        try {
+          await callback();
+        } catch (e) {
+          // No-op.
+        }
+      }),
       setErrorHandler: vi.fn(),
       setNotFoundHandler: vi.fn(),
       setValidatorCompiler: vi.fn(),
@@ -1636,15 +1645,9 @@ describe('services/FastifyController', () => {
         callback('', { headers: { 'content-type': 'application/json' }, on: vi.fn() }, vi.fn());
       }),
       setSchemaErrorFormatter: vi.fn(),
-      addHook: vi.fn(async (_event, callback) => {
-        try {
-          await callback();
-        } catch (e) {
-          // No-op.
-        }
-      }),
+      register: vi.fn((callback) => callback(server, null, vi.fn())),
     } as unknown as FastifyInstance;
-    controller.createEndpoints(server);
+    controller.createEndpoints(instance);
     expect(server.delete).toHaveBeenCalledTimes(2);
     expect(server.delete).toHaveBeenCalledWith('/users/:id', { handler: expect.any(Function), schema: {} });
     expect(server.delete).toHaveBeenCalledWith('/roles/:id', { handler: expect.any(Function), schema: {} });
@@ -1670,12 +1673,12 @@ describe('services/FastifyController', () => {
     expect(server.post).toHaveBeenCalledWith('/oauth/verify-email', { handler: expect.any(Function), schema: {} });
     expect(server.post).toHaveBeenCalledWith('/oauth/reset-password', { handler: expect.any(Function), schema: {} });
     expect(server.post).toHaveBeenCalledWith('/oauth/refresh-token', { handler: expect.any(Function), schema: {} });
-    expect(server.addHook).toHaveBeenCalledTimes(3);
-    expect(server.addHook).toHaveBeenCalledWith('onSend', expect.any(Function));
-    expect(server.addHook).toHaveBeenCalledWith('onTimeout', expect.any(Function));
-    expect(server.addHook).toHaveBeenCalledWith('preSerialization', expect.any(Function));
-    expect(server.setSerializerCompiler).toHaveBeenCalledTimes(1);
-    expect(server.setValidatorCompiler).toHaveBeenCalledTimes(1);
-    expect(server.addContentTypeParser).toHaveBeenCalledTimes(1);
+    expect(instance.addHook).toHaveBeenCalledTimes(3);
+    expect(instance.addHook).toHaveBeenCalledWith('onSend', expect.any(Function));
+    expect(instance.addHook).toHaveBeenCalledWith('onTimeout', expect.any(Function));
+    expect(instance.addHook).toHaveBeenCalledWith('preSerialization', expect.any(Function));
+    expect(instance.setSerializerCompiler).toHaveBeenCalledTimes(1);
+    expect(instance.setValidatorCompiler).toHaveBeenCalledTimes(1);
+    expect(instance.addContentTypeParser).toHaveBeenCalledTimes(1);
   });
 });

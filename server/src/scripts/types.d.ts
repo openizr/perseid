@@ -29,9 +29,10 @@ import {
 import {
   type FastifyError,
   type FastifyReply,
-  type FastifyRequest,
-  type FastifyInstance,
   type FastifySchema,
+  type FastifyRequest,
+  type RegisterOptions,
+  type FastifyInstance,
 } from 'fastify';
 import { type Stream } from 'stream';
 import { type IncomingMessage } from 'http';
@@ -2132,9 +2133,11 @@ export class FastifyController<
   };
 
   /**
-   * Registers hooks, handlers, oAuth and CRUD-related endpoints to `server`.
+   * Registers hooks, handlers, oAuth and CRUD-related endpoints to `instance`.
    *
-   * @param server Fastify instance to register endpoints and hooks to.
+   * @param instance Fastify instance to register endpoints and hooks to.
+   *
+   * @param options Additional options to pass to fastify `register` function.
    */
-  public createEndpoints(server: FastifyInstance): void;
+  public createEndpoints(instance: FastifyInstance, options?: RegisterOptions): void;
 }

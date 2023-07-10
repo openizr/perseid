@@ -9,14 +9,16 @@
 import {
   type FastifyError,
   type FastifyReply,
+  type FastifySchema,
   type FastifyRequest,
   type FastifyInstance,
-  type FastifySchema,
+  type RegisterOptions,
 } from 'fastify';
 import {
   Id,
   type Role,
   type User,
+  toSnakeCase,
   type IdSchema,
   type DateSchema,
   type ArraySchema,
@@ -1277,11 +1279,13 @@ export default class FastifyController<
   }
 
   /**
-   * Registers hooks, handlers, oAuth and CRUD-related endpoints to `server`.
+   * Registers hooks, handlers, oAuth and CRUD-related endpoints to `instance`.
    *
-   * @param server Fastify instance to register endpoints and hooks to.
+   * @param instance Fastify instance to register endpoints and hooks to.
+   *
+   * @param options Additional options to pass to fastify `register` function.
    */
-  public createEndpoints(server: FastifyInstance): void {
+  public createEndpoints(instance: FastifyInstance, options?: RegisterOptions): void {
     const ajv = new Ajv({
       allErrors: true,
       useDefaults: true,
@@ -1414,232 +1418,27 @@ export default class FastifyController<
       },
     };
 
-    // Model endpoint.
-    server.get('/_model', this.createEndpoint({
-      authenticate: true,
-      handler: async (request, response) => {
-        const { collection } = request.query as { collection: keyof DataModel; };
-        response.status(200).send(this.model.getPublicSchema(collection));
-      },
-    }));
-
-    // OAuth endpoints.
-    const { oAuth, collections } = this.endpoints;
-    Object.keys(oAuth).forEach((key) => {
-      const method = (key === 'resetPassword' || key === 'verifyEmail') ? 'put' : 'post';
-      const oAuthEndpoint = oAuth[key as keyof BuiltInEndpoints<DataModel>['oAuth']] as BuiltInEndpoint;
-      server[method](oAuthEndpoint.path, this.createEndpoint(this.apiHandlers[key]));
-    });
-
-    // CRUD endpoints.
-    (Object.keys(collections) as (keyof DataModel)[]).forEach((collection) => {
-      const collectionEndpoints = collections[collection] as CollectionBuiltInEndpoints;
-      const resultParamsSchema: ObjectSchema<DataModel> = {
-        type: 'object',
-        required: true,
-        fields: {
-          // Allows usage of "me" as an identifier in users-related endpoints.
-          id: (collection !== 'users')
-            ? { type: 'id', required: true }
-            : {
-              type: 'string',
-              required: true,
-              pattern: /^(me|[0-9a-fA-F]{24})$/.source,
-              errorMessages: {
-                type: 'must be a valid id, or "me"',
-                pattern: 'must be a valid id, or "me"',
-              },
-            },
-        },
-      };
-      (Object.keys(collectionEndpoints) as EndpointType[]).forEach((endpoint) => {
-        const { path, maximumDepth } = collectionEndpoints[endpoint] as BuiltInEndpoint;
-        if (endpoint === 'create') {
-          const data = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-          server.post(path, this.createEndpoint({
-            collection,
-            type: 'CREATE',
-            authenticate: true,
-            additionalPermissions: [`${this.toSnakeCase(collection as string)}_CREATE`],
-            schemaTransformer: (schema) => ({
-              ...schema,
-              response: { '2xx': resultResponseSchema(collection) },
-            }),
-            handler: async (request, response) => {
-              const body = request.body as DataModel[keyof DataModel];
-              const context = request.params as CommandContext;
-              const options = { ...request.query as CommandOptions, maximumDepth };
-              const resource = await this.engine.create(collection, body, options, context);
-              response.status(201).send(resource);
-            },
-            schema: {
-              response: {},
-              query: resultQuerySchema,
-              body: {
-                type: 'object',
-                required: true,
-                fields: data.schema.fields,
-              },
-            },
-          }));
-        } else if (endpoint === 'update') {
-          const data = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-          server.put(path, this.createEndpoint({
-            collection,
-            type: 'UPDATE',
-            authenticate: true,
-            additionalPermissions: [`${this.toSnakeCase(collection as string)}_UPDATE`],
-            schemaTransformer: (schema) => ({
-              ...schema,
-              response: { '2xx': resultResponseSchema(collection) },
-            }),
-            handler: async (request, response) => {
-              const { id } = request.params as { id: Id; };
-              const body = request.body as DataModel[keyof DataModel];
-              const context = request.params as CommandContext;
-              const options = { ...request.query as CommandOptions, maximumDepth };
-              const resource = await this.engine.update(collection, id, body, options, context);
-              response.status(200).send(resource);
-            },
-            schema: {
-              response: {},
-              query: resultQuerySchema,
-              params: resultParamsSchema,
-              body: {
-                type: 'object',
-                required: true,
-                fields: data.schema.fields,
-              },
-            },
-          }));
-        } else if (endpoint === 'list') {
-          server.get(path, this.createEndpoint({
-            collection,
-            type: 'LIST',
-            authenticate: true,
-            additionalPermissions: [`${this.toSnakeCase(collection as string)}_LIST`],
-            schemaTransformer: (schema) => ({
-              ...schema,
-              response: { '2xx': resultsResponseSchema(collection) },
-            }),
-            handler: async (request, response) => {
-              const options = { ...request.query as CommandOptions, maximumDepth };
-              const results = await this.engine.list(collection, options);
-              response.send(results);
-            },
-            schema: {
-              query: resultsQuerySchema,
-              response: {},
-            },
-          }));
-        } else if (endpoint === 'view') {
-          server.get(path, this.createEndpoint({
-            collection,
-            type: 'VIEW',
-            authenticate: true,
-            additionalPermissions: [`${this.toSnakeCase(collection as string)}_VIEW`],
-            schemaTransformer: (schema) => ({
-              ...schema,
-              response: { '2xx': resultResponseSchema(collection) },
-            }),
-            handler: async (request, response) => {
-              const { id } = request.params as { id: Id; };
-              const options = { ...request.query as CommandOptions, maximumDepth };
-              const resource = await this.engine.view(collection, id, options);
-              response.status(200).send(resource);
-            },
-            schema: {
-              response: {},
-              query: resultQuerySchema,
-              params: resultParamsSchema,
-            },
-          }));
-        } else if (endpoint === 'search') {
-          server.post(path, this.createEndpoint({
-            collection,
-            type: 'SEARCH',
-            authenticate: true,
-            additionalPermissions: [`${this.toSnakeCase(collection as string)}_SEARCH`],
-            schemaTransformer: (schema) => {
-              const bodySchema = schema.body as AjvValidationSchema;
-              return {
-                ...schema,
-                body: {
-                  ...bodySchema,
-                  properties: {
-                    ...bodySchema.properties,
-                    filters: {
-                      ...(bodySchema.properties as { filters: AjvValidationSchema; }).filters,
-                      additionalProperties: true,
-                      patternProperties: {
-                        '^[0-9A-Za-z.]$': {
-                          oneOf: [
-                            { type: 'string' },
-                            { type: 'array', items: { type: 'string' } },
-                          ],
-                        },
-                      },
-                    },
-                  },
-                },
-                response: {
-                  '2xx': resultsResponseSchema(collection),
-                },
-              };
-            },
-            handler: async (request, response) => {
-              const searchBody = request.body as SearchBody;
-              const options = { ...request.query as CommandOptions, maximumDepth };
-              const results = await this.engine.search(collection, searchBody, options);
-              response.status(200).send(results);
-            },
-            schema: {
-              response: {},
-              body: searchBodySchema,
-              query: resultsQuerySchema,
-            },
-          }));
-        } else if (endpoint === 'delete') {
-          server.delete(path, this.createEndpoint({
-            collection,
-            type: 'DELETE',
-            authenticate: true,
-            additionalPermissions: [`${this.toSnakeCase(collection as string)}_DELETE`],
-            handler: async (request, response) => {
-              const { id } = request.params as { id: Id; };
-              await this.engine.delete(collection, id, request.params as CommandContext);
-              response.status(200).send();
-            },
-            schema: {
-              params: resultParamsSchema,
-              response: { '2xx': { type: 'null' } },
-            },
-          }));
-        }
-      });
-    });
-
-    server.addHook('preSerialization', async (_request, _response, payload): Promise<unknown> => (
+    instance.addHook('preSerialization', async (_request, _response, payload): Promise<unknown> => (
       this.formatOutput(payload)
     ));
 
     // API Versionning.
-    server.addHook('onSend', async (_request, response, payload) => {
+    instance.addHook('onSend', async (_request, response, payload) => {
       response.header('X-App-Release', this.version);
       return payload;
     });
 
     // Default errors handlers.
-    server.setSchemaErrorFormatter(this.formatError);
-    server.setNotFoundHandler(this.handleNotFound);
-    server.setErrorHandler(this.handleError.bind(this));
-    server.setValidatorCompiler(({ schema }) => ajv.compile(schema));
-    server.setSerializerCompiler(({ schema }) => fastJsonStringify(schema as Schema, {
+    instance.setSchemaErrorFormatter(this.formatError);
+    instance.setNotFoundHandler(this.handleNotFound);
+    instance.setErrorHandler(this.handleError.bind(this));
+    instance.setValidatorCompiler(({ schema }) => ajv.compile(schema));
+    instance.setSerializerCompiler(({ schema }) => fastJsonStringify(schema as Schema, {
       schema: schemas as unknown as Record<string, Schema>,
     }));
 
     // Logs requests timeouts.
-    server.addHook('onTimeout', (request, _response, done) => {
+    instance.addHook('onTimeout', (request, _response, done) => {
       this.logger.error(new Error(`Request "${request.method} ${request.url}" timed out.`), {
         statusCode: 504,
         url: request.url,
@@ -1649,9 +1448,9 @@ export default class FastifyController<
       done();
     });
 
-    // Catch-all for unsupported content types. Prevents fastify from throwing HTTP 500 when dealing
-    // with unknown payloads. See https://www.fastify.io/docs/latest/ContentTypeParser/.
-    server.addContentTypeParser('*', (_request, payload, next) => {
+    // Catch-all for unsupported content types. Prevents fastify from throwing HTTP 500 when
+    // dealing with unknown payloads. See https://www.fastify.io/docs/latest/ContentTypeParser/.
+    instance.addContentTypeParser('*', (_request, payload, next) => {
       if (/^multipart\/form-data/.test(payload.headers['content-type'] as string)) {
         next(null, payload);
       } else {
@@ -1660,5 +1459,213 @@ export default class FastifyController<
         payload.on('end', () => { next(null, data); });
       }
     });
+
+    instance.register((server, _, done) => {
+      // Model endpoint.
+      server.get('/_model', this.createEndpoint({
+        authenticate: true,
+        handler: async (request, response) => {
+          const { collection } = request.query as { collection: keyof DataModel; };
+          response.status(200).send(this.model.getPublicSchema(collection));
+        },
+      }));
+
+      // OAuth endpoints.
+      const { oAuth, collections } = this.endpoints;
+      Object.keys(oAuth).forEach((key) => {
+        const method = (key === 'resetPassword' || key === 'verifyEmail') ? 'put' : 'post';
+        const oAuthEndpoint = oAuth[key as keyof BuiltInEndpoints<DataModel>['oAuth']] as BuiltInEndpoint;
+        server[method](oAuthEndpoint.path, this.createEndpoint(this.apiHandlers[key]));
+      });
+
+      // CRUD endpoints.
+      (Object.keys(collections) as (keyof DataModel)[]).forEach((collection) => {
+        const collectionEndpoints = collections[collection] as CollectionBuiltInEndpoints;
+        const resultParamsSchema: ObjectSchema<DataModel> = {
+          type: 'object',
+          required: true,
+          fields: {
+            // Allows usage of "me" as an identifier in users-related endpoints.
+            id: (collection !== 'users')
+              ? { type: 'id', required: true }
+              : {
+                type: 'string',
+                required: true,
+                pattern: /^(me|[0-9a-fA-F]{24})$/.source,
+                errorMessages: {
+                  type: 'must be a valid id, or "me"',
+                  pattern: 'must be a valid id, or "me"',
+                },
+              },
+          },
+        };
+        (Object.keys(collectionEndpoints) as EndpointType[]).forEach((endpoint) => {
+          const { path, maximumDepth } = collectionEndpoints[endpoint] as BuiltInEndpoint;
+          const data = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+          if (endpoint === 'create') {
+            server.post(path, this.createEndpoint({
+              collection,
+              type: 'CREATE',
+              authenticate: true,
+              additionalPermissions: [`${toSnakeCase(collection as string)}_CREATE`],
+              schemaTransformer: (schema) => ({
+                ...schema,
+                response: { '2xx': resultResponseSchema(collection) },
+              }),
+              handler: async (request, response) => {
+                const body = request.body as DataModel[keyof DataModel];
+                const context = request.params as CommandContext;
+                const fullOptions = { ...request.query as CommandOptions, maximumDepth };
+                const resource = await this.engine.create(collection, body, fullOptions, context);
+                response.status(201).send(resource);
+              },
+              schema: {
+                response: {},
+                query: resultQuerySchema,
+                body: {
+                  type: 'object',
+                  required: true,
+                  fields: data.schema.fields,
+                },
+              },
+            }));
+          } else if (endpoint === 'update') {
+            server.put(path, this.createEndpoint({
+              collection,
+              type: 'UPDATE',
+              authenticate: true,
+              additionalPermissions: [`${toSnakeCase(collection as string)}_UPDATE`],
+              schemaTransformer: (schema) => ({
+                ...schema,
+                response: { '2xx': resultResponseSchema(collection) },
+              }),
+              handler: async (request, response) => {
+                const { id } = request.params as { id: Id; };
+                const body = request.body as DataModel[keyof DataModel];
+                const context = request.params as CommandContext;
+                const fullOpts = { ...request.query as CommandOptions, maximumDepth };
+                const resource = await this.engine.update(collection, id, body, fullOpts, context);
+                response.status(200).send(resource);
+              },
+              schema: {
+                response: {},
+                query: resultQuerySchema,
+                params: resultParamsSchema,
+                body: {
+                  type: 'object',
+                  required: true,
+                  fields: data.schema.fields,
+                },
+              },
+            }));
+          } else if (endpoint === 'list') {
+            server.get(path, this.createEndpoint({
+              collection,
+              type: 'LIST',
+              authenticate: true,
+              additionalPermissions: [`${toSnakeCase(collection as string)}_LIST`],
+              schemaTransformer: (schema) => ({
+                ...schema,
+                response: { '2xx': resultsResponseSchema(collection) },
+              }),
+              handler: async (request, response) => {
+                const fullOptions = { ...request.query as CommandOptions, maximumDepth };
+                const results = await this.engine.list(collection, fullOptions);
+                response.send(results);
+              },
+              schema: {
+                query: resultsQuerySchema,
+                response: {},
+              },
+            }));
+          } else if (endpoint === 'view') {
+            server.get(path, this.createEndpoint({
+              collection,
+              type: 'VIEW',
+              authenticate: true,
+              additionalPermissions: [`${toSnakeCase(collection as string)}_VIEW`],
+              schemaTransformer: (schema) => ({
+                ...schema,
+                response: { '2xx': resultResponseSchema(collection) },
+              }),
+              handler: async (request, response) => {
+                const { id } = request.params as { id: Id; };
+                const fullOptions = { ...request.query as CommandOptions, maximumDepth };
+                const resource = await this.engine.view(collection, id, fullOptions);
+                response.status(200).send(resource);
+              },
+              schema: {
+                response: {},
+                query: resultQuerySchema,
+                params: resultParamsSchema,
+              },
+            }));
+          } else if (endpoint === 'search') {
+            server.post(path, this.createEndpoint({
+              collection,
+              type: 'SEARCH',
+              authenticate: true,
+              additionalPermissions: [`${toSnakeCase(collection as string)}_SEARCH`],
+              schemaTransformer: (schema) => {
+                const bodySchema = schema.body as AjvValidationSchema;
+                return {
+                  ...schema,
+                  body: {
+                    ...bodySchema,
+                    properties: {
+                      ...bodySchema.properties,
+                      filters: {
+                        ...(bodySchema.properties as { filters: AjvValidationSchema; }).filters,
+                        additionalProperties: true,
+                        patternProperties: {
+                          '^[0-9A-Za-z.]$': {
+                            oneOf: [
+                              { type: 'string' },
+                              { type: 'array', items: { type: 'string' } },
+                            ],
+                          },
+                        },
+                      },
+                    },
+                  },
+                  response: {
+                    '2xx': resultsResponseSchema(collection),
+                  },
+                };
+              },
+              handler: async (request, response) => {
+                const searchBody = request.body as SearchBody;
+                const fullOptions = { ...request.query as CommandOptions, maximumDepth };
+                const results = await this.engine.search(collection, searchBody, fullOptions);
+                response.status(200).send(results);
+              },
+              schema: {
+                response: {},
+                body: searchBodySchema,
+                query: resultsQuerySchema,
+              },
+            }));
+          } else if (endpoint === 'delete') {
+            server.delete(path, this.createEndpoint({
+              collection,
+              type: 'DELETE',
+              authenticate: true,
+              additionalPermissions: [`${toSnakeCase(collection as string)}_DELETE`],
+              handler: async (request, response) => {
+                const { id } = request.params as { id: Id; };
+                await this.engine.delete(collection, id, request.params as CommandContext);
+                response.status(200).send();
+              },
+              schema: {
+                params: resultParamsSchema,
+                response: { '2xx': { type: 'null' } },
+              },
+            }));
+          }
+        });
+      });
+
+      done();
+    }, options);
   }
 }

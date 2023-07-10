@@ -487,10 +487,10 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@perseid/core@^0.0.14":
-  version "0.0.14"
-  resolved "https://registry.yarnpkg.com/@perseid/core/-/core-0.0.14.tgz#380dd92b9cded14ddc4765a8929b5d3b820c3698"
-  integrity sha512-xZdvrI8ZwlLvYKrRvtCJz802Q1ABSE0PU/UzNX/Yu9is5THVxv3EvDw9sUc2Upqz2qkhdHyd/xkOcR6QIYRpkA==
+"@perseid/core@^0.0.15":
+  version "0.0.15"
+  resolved "https://registry.yarnpkg.com/@perseid/core/-/core-0.0.15.tgz#07cb7f997fc92ab85b6012ec75f49367f4d85575"
+  integrity sha512-vwi4EryEKqdsS7O8C4xucN4hd6H0blw0zOxgfKlKNt3VmFGwziCKeMIrFJHLzXAGcLslBso6FZw9t2P22GL92w==
 
 "@sveltejs/vite-plugin-svelte@^2.0.3":
   version "2.2.0"

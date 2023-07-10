@@ -21,6 +21,8 @@ type TestModel = Model<unknown & {
 };
 
 describe('services/Model', () => {
+  vi.mock('@perseid/core');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -172,6 +174,7 @@ describe('services/Model', () => {
         fields: {
           _id: { type: 'id', index: true, required: true },
           type: { type: 'string' },
+          _version: { type: 'integer' },
         },
       },
     });

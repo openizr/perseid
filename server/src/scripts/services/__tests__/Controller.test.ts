@@ -28,7 +28,6 @@ type TestController = Controller<DataModel> & {
   rbac: Controller['rbac'];
   parseQuery: Controller['parseQuery'];
   catchErrors: Controller['catchErrors'];
-  toSnakeCase: Controller['toSnakeCase'];
   formatOutput: Controller['formatOutput'];
   generateFieldsFrom: Controller['generateFieldsFrom'];
   formatSearchFilters: Controller['formatSearchFilters'];
@@ -112,11 +111,6 @@ describe('services/Controller', () => {
   });
 
   test('[generateFieldsFrom]', () => {
-    expect(controller.toSnakeCase('relation')).toBe('RELATION');
-    expect(controller.toSnakeCase('externalRelation')).toBe('EXTERNAL_RELATION');
-  });
-
-  test('[generateFieldsFrom]', () => {
     const permissions = new Set();
     expect(controller.generateFieldsFrom('test', [
       '*',
@@ -183,13 +177,13 @@ describe('services/Controller', () => {
       'dynamicOne.testOne.relations',
     ]);
     expect([...permissions]).toEqual([
-      'TEST_VIEW',
+      'SNAKE_CASED_test_VIEW',
       'PRIMITIVE_THREE_VIEW',
       'ARRAY_ONE_VIEW',
       'ARRAY_ONE_OBJECT_VIEW',
       'ARRAY_ONE_OBJECT_FIELD_ONE_VIEW',
-      'EXTERNAL_RELATION_VIEW',
-      'OTHER_EXTERNAL_RELATION_VIEW',
+      'SNAKE_CASED_externalRelation_VIEW',
+      'SNAKE_CASED_otherExternalRelation_VIEW',
     ]);
   });
 
@@ -216,7 +210,7 @@ describe('services/Controller', () => {
       relation: new Id('646b9be5e921d0ef42f8a147'),
       'relation._id': new Id('646b9be5e921d0ef42f8a147'),
     });
-    expect([...permissions]).toEqual(['ARRAY_VIEW', 'INTEGER_VIEW', 'EXTERNAL_RELATION_VIEW']);
+    expect([...permissions]).toEqual(['ARRAY_VIEW', 'INTEGER_VIEW', 'SNAKE_CASED_externalRelation_VIEW']);
   });
 
   test('[parseQuery] no sortOrder', () => {
@@ -227,7 +221,7 @@ describe('services/Controller', () => {
       sortBy: ['_id'],
       sortOrder: [],
     });
-    expect([...permissions]).toEqual(['TEST2_VIEW']);
+    expect([...permissions]).toEqual(['SNAKE_CASED_test2_VIEW']);
   });
 
   test('[parseQuery] with sortOrder', () => {
@@ -243,7 +237,7 @@ describe('services/Controller', () => {
       sortOrder: [-1],
       other: 'test',
     });
-    expect([...permissions]).toEqual(['TEST2_VIEW', 'ARRAY_VIEW']);
+    expect([...permissions]).toEqual(['SNAKE_CASED_test2_VIEW', 'ARRAY_VIEW']);
   });
 
   test('[parseSearchBody] no search query nor filters', () => {
@@ -267,7 +261,7 @@ describe('services/Controller', () => {
       },
       filters: {},
     });
-    expect([...permissions]).toEqual(['TEST2_VIEW', 'ARRAY_VIEW']);
+    expect([...permissions]).toEqual(['SNAKE_CASED_test2_VIEW', 'ARRAY_VIEW']);
   });
 
   test('[catchErrors] TOKEN_EXPIRED', () => {

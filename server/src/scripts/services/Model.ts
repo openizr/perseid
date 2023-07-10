@@ -375,7 +375,7 @@ export default class Model<
     const relationsPerCollection = {} as { [Collection in keyof DataModel]: Set<string> };
     (collections as (keyof DataModel)[]).forEach((collection) => {
       relationsPerCollection[collection] = new Set();
-      const { fields } = schema[collection];
+      const { fields } = this.schema[collection];
       publicSchema[collection] = this.generatePublicSchemaFrom(
         { type: 'object', fields },
         relationsPerCollection[collection],

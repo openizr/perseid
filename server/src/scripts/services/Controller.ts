@@ -9,6 +9,7 @@
 import {
   Id,
   type User,
+  toSnakeCase,
   type DateSchema,
   type FieldSchema,
   type ObjectSchema,
@@ -95,9 +96,6 @@ export default class Controller<
   /** User not verified error code. */
   protected readonly NOT_VERIFIED_CODE = 'NOT_VERIFIED';
 
-  /** Capital character token regexp. */
-  protected readonly CAPITAL_TOKEN = /([A-Z])/g;
-
   /** Data model to use. */
   protected model: Model;
 
@@ -112,19 +110,6 @@ export default class Controller<
 
   /** List of built-in endpoints to register. */
   protected endpoints: BuiltInEndpoints<DataModel>;
-
-  /**
-   * Transforms `value` into SNAKE_CASE.
-   *
-   * @param value Value to transform.
-   *
-   * @returns Transformed value.
-   */
-  protected toSnakeCase(value: string): string {
-    return (value.match(this.CAPITAL_TOKEN) ?? [] as string[]).reduce((match, char: string) => (
-      match.replace(new RegExp(char), `_${char}`)
-    ), value).toUpperCase();
-  }
 
   /**
    * Formats `output` to match fastify data types specifications.
@@ -177,7 +162,7 @@ export default class Controller<
     const finalFields: Set<string> = new Set();
     const requestedFields = fields.split(',');
     const addPermission = permissions.add.bind(permissions);
-    addPermission(`${this.toSnakeCase(collection as string)}_VIEW`);
+    addPermission(`${toSnakeCase(collection as string)}_VIEW`);
     const metaData = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
 
     for (let index = 0, { length } = requestedFields; index < length; index += 1) {
@@ -201,7 +186,7 @@ export default class Controller<
           }
           if (currentModel?.type === 'id' && currentModel.relation !== undefined) {
             const { relation } = currentModel;
-            addPermission(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
+            addPermission(`${toSnakeCase(currentModel.relation as string)}_VIEW`);
             const data = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
             currentModel = { type: 'object', fields: data.schema.fields };
           } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {
@@ -272,7 +257,7 @@ export default class Controller<
         }
         if (currentModel?.type === 'id' && currentModel.relation !== undefined && splittedPath.length > 0) {
           const { relation } = currentModel;
-          permissions.add(`${this.toSnakeCase(currentModel.relation as string)}_VIEW`);
+          permissions.add(`${toSnakeCase(currentModel.relation as string)}_VIEW`);
           const data = this.model.get(relation) as DataModelMetadata<CollectionSchema<DataModel>>;
           currentModel = { type: 'object', fields: data.schema.fields };
         } else if (currentModel?.type === 'dynamicObject' && splittedPath.length > 0 && splittedPath[0] !== '*') {

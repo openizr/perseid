@@ -10,6 +10,7 @@ import {
   Id,
   type User,
   type Payload,
+  toSnakeCase,
   type UpdatePayload,
   type DefaultDataModel,
 } from '@perseid/core';
@@ -532,12 +533,12 @@ export default class OAuthEngine<
       name: 'ROOT',
       permissions: this.model.getCollections().reduce((permissions, collection) => (
         permissions.concat([
-          `${(collection as string).toUpperCase()}_VIEW`,
-          `${(collection as string).toUpperCase()}_LIST`,
-          `${(collection as string).toUpperCase()}_SEARCH`,
-          `${(collection as string).toUpperCase()}_CREATE`,
-          `${(collection as string).toUpperCase()}_UPDATE`,
-          `${(collection as string).toUpperCase()}_DELETE`,
+          `${toSnakeCase(collection as string)}_VIEW`,
+          `${toSnakeCase(collection as string)}_LIST`,
+          `${toSnakeCase(collection as string)}_SEARCH`,
+          `${toSnakeCase(collection as string)}_CREATE`,
+          `${toSnakeCase(collection as string)}_UPDATE`,
+          `${toSnakeCase(collection as string)}_DELETE`,
         ])
       ), [
         'USERS_DETAILS_VIEW',

@@ -11,4 +11,21 @@
  */
 
 export const Id = String;
-export const test = true;
+export const toSnakeCase = (text: string): string => `SNAKE_CASED_${text}`;
+export class Model {
+  protected schema: Record<string, unknown>;
+
+  public get = vi.fn((collection) => ({ schema: this.schema[collection] }));
+
+  constructor(schema: Record<string, unknown>) {
+    this.schema = { ...schema };
+    this.schema.otherExternalRelation = {
+      ...schema.otherExternalRelation as Record<string, unknown>,
+    };
+    const { otherExternalRelation } = this.schema;
+    (otherExternalRelation as { fields: { _version: Record<string, unknown> } }).fields = {
+      ...(otherExternalRelation as { fields: { _version: Record<string, unknown> } }).fields,
+      ...{ _version: { type: 'integer' } },
+    };
+  }
+}
