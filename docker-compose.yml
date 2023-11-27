@@ -33,25 +33,25 @@ services:
   #     - all
   #     - jobs
 
-  # server:
-  #   tty: true
-  #   user: node:node
-  #   image: openizr/node:6.0.0-dev
-  #   container_name: ${PROJECT_NAME}_server
-  #   env_file:
-  #     - .env
-  #   command: sh -c "yarn && yarn run dev"
-  #   volumes:
-  #     - ./packages/server:/var/www/html
-  #     - ~/.cache/yarn:/home/node/.cache/yarn
-  #   ports:
-  #     - "${HOST_IP}:${BACKEND_EXAMPLES_PORT}:${BACKEND_EXAMPLES_PORT}"
-  #   depends_on:
-  #     - mongodb
-  #   profiles:
-  #     - all
-  #     - client
-  #     - server
+  server:
+    tty: true
+    user: node:node
+    image: openizr/node:6.0.0-dev
+    container_name: ${PROJECT_NAME}_server
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./packages/server:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    ports:
+      - "${HOST_IP}:${BACKEND_EXAMPLES_PORT}:${BACKEND_EXAMPLES_PORT}"
+    depends_on:
+      - mongodb
+    profiles:
+      - all
+      - client
+      - server
 
   # client:
   #   tty: true
@@ -106,11 +106,7 @@ services:
     depends_on:
       - mongodb
     profiles:
-      - all
-      - jobs
-      - core
-      - server
-      - client
+      - examples
 
   mongodb:
     tty: true

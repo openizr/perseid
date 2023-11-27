@@ -1,0 +1,1165 @@
+{
+	"info": {
+		"_postman_id": "7d594ad7-0377-4af9-8626-f788b8b5c4a9",
+		"name": "Test API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "20716386"
+	},
+	"item": [
+		{
+			"name": "authentication",
+			"item": [
+				{
+					"name": "/auth/sign-up",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('DEVICE_ID', jsonData.deviceId);",
+									"    pm.environment.set('ACCESS_TOKEN', jsonData.accessToken);",
+									"    pm.environment.set('REFRESH_TOKEN', jsonData.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{USER_EMAIL}}\",\n    \"password\": \"{{USER_PASSWORD}}\",\n    \"passwordConfirmation\": \"{{USER_PASSWORD}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/sign-up",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"sign-up"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/sign-in",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('DEVICE_ID', jsonData.deviceId);",
+									"    pm.environment.set('ACCESS_TOKEN', jsonData.accessToken);",
+									"    pm.environment.set('REFRESH_TOKEN', jsonData.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							},
+							{
+								"key": "origin",
+								"value": "https://azodijaziod.com",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{USER_EMAIL}}\",\n    \"password\": \"{{USER_PASSWORD}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/sign-in",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"sign-in"
+							]
+						},
+						"description": "Signs user in."
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/refresh-token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('DEVICE_ID', jsonData.deviceId);",
+									"    pm.environment.set('ACCESS_TOKEN', jsonData.accessToken);",
+									"    pm.environment.set('REFRESH_TOKEN', jsonData.refreshToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-device-id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2NTIzNDQ0NzQsImV4cCI6MTY1MjM0NTY3NCwiYXVkIjoiVG4weHJrZmpWT1NQNmtGcVBBY2kiLCJpc3MiOiJkYXNoYm9hcmQua2l2YnJva2VyLmNvbSIsInN1YiI6IjYyN2E5MTdmZjM5NTJmOWUwZDEzMmI1Zl8wNGI3MGIzYWFiMjMxNGQzNzIyNzJlNzYifQ.NUH3eW7M3ky_ZXt27bcC291HOss2wghoIvuNPb9AfQGljWSxX_zcfR02he7fw2d9JwtGCkhFwnweG3Hp5tYtGyntpIU_7oLpCF3BdMu3AH49pk_JYfWCZ7PZONIagV5tSvaAhpLuRu8Nx5L7gbEy8ww-tAFJRMxWz0j7iJ23Me1RI-lBU6sjeoE_CfOyXMGwDe1QMHSjH1vzAAOFh6li6kitT8vMUN3jgPbEZPXJw6tlHUDS2iFXLJzw6cx0yHsYKC4nu49PoL_9IvxztN0dtOL2YS7SrZrp2ONIUdkWRXn0daDSg9r1vre69A7iwB0P-BZqTzlGClqB1hUTYoQJTalUS5APE91fiP4-JtNAT50IhTKwOBbUTDi9iNYmn23oOFouqrfYLaPZJFjs3Lw3WuWjPA1J7f2D_w_ulbAp0bihYvwqnFlUCANlDYCZCcO3kMmdFgAuRSBSux8UH1vmmqY6Sa5Huv2pTYZG09H4kXEWzA39NLWSSZVqEuqGPl87kEL6sQSVHKJYuwTsfg0doL3nV2yQu6Ag86CRzxNa1b7MCD0IjwjU03EVVGkatjTDiMl9qnCshBWitwCZPj2CzRDU4zamRzTC5QcT3QMuZROoqZaa6bhA4k8q8EI9W2lywzmKEDbnbnd5XNJju872AfdUeYCZt8i9pqMA0WVrcnM",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{REFRESH_TOKEN}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/refresh-token",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"refresh-token"
+							]
+						},
+						"description": "Refreshes user access token."
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/verify-email",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/verify-email",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"verify-email"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/verify-email",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"verificationToken\": \"{{VERIFICATION_TOKEN}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/verify-email",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"verify-email"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/reset-password",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{USER_EMAIL}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/reset-password",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"reset-password"
+							]
+						},
+						"description": "Sends a password reset email to user."
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/reset-password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"resetToken\": \"{{RESET_TOKEN}}\",\n    \"password\": \"{{USER_PASSWORD}}\",\n    \"passwordConfirmation\": \"{{USER_PASSWORD}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/reset-password",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/sign-out",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/sign-out",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"sign-out"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Authenticaton-related endpoints."
+		},
+		{
+			"name": "roles",
+			"item": [
+				{
+					"name": "/roles",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('ROLE_ID', jsonData._id);",
+									"    pm.test(\"initial values are correct\", () => {",
+									"        pm.expect(jsonData.updatedBy).to.eql(null);",
+									"        pm.expect(jsonData.updatedAt).to.eql(null);",
+									"        pm.expect(jsonData.createdBy).not.to.eql(null);",
+									"        pm.expect(jsonData.createdAt).not.to.eql(null);",
+									"    });",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"DEFAULT\",\n    \"permissions\": [\n        \"USERS_SEARCH\"\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/roles?fields=*",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"roles"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "*"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/roles/:id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/roles/{{ROLE_ID}}?fields=*,_createdBy.email",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"roles",
+								"{{ROLE_ID}}"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "*,_createdBy.email"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/roles/:id",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"new values are correct\", () => {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.updatedBy).not.to.eql(null);",
+									"        pm.expect(jsonData.updatedAt).not.to.eql(null);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"ADMIN\",\n    \"permissions\": [\n        \"USERS_CREATE\"\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/roles/{{ROLE_ID}}?fields=*,_createdBy.email",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"roles",
+								"{{ROLE_ID}}"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "*,_createdBy.email"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/roles",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/roles?fields=name,_updatedBy,_createdBy._updatedBy&sortBy=_id&sortOrder=1&limit=0&offset=0",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"roles"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "name,_updatedBy,_createdBy._updatedBy"
+								},
+								{
+									"key": "sortBy",
+									"value": "_id"
+								},
+								{
+									"key": "sortOrder",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "0"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/roles/:id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/roles/{{ROLE_ID}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"roles",
+								"{{ROLE_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/roles/search",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": {\n        \"on\": [\"name\"],\n        \"text\": \"ADMIN\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/roles/search?fields=name&sortBy=name&sortOrder=1&limit=2&offset=0",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"roles",
+								"search"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "name"
+								},
+								{
+									"key": "sortBy",
+									"value": "name"
+								},
+								{
+									"key": "sortOrder",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "2"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Updatable fields:\n\n*   name\n*   unitPriceET\n*   reference\n*   url\n*   margin\n*   EANCode\n*   provider\n*   picture\n    \n\nIndexed (sortable, searchable, filterable) fields:\n\n*   url\n*   reference\n*   name"
+		},
+		{
+			"name": "users",
+			"item": [
+				{
+					"name": "/users",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('USER_ID', jsonData._id);",
+									"    pm.test(\"initial values are correct\", () => {",
+									"        pm.expect(jsonData.updatedBy).to.eql(null);",
+									"        pm.expect(jsonData.updatedAt).to.eql(null);",
+									"        pm.expect(jsonData.createdBy).not.to.eql(null);",
+									"        pm.expect(jsonData.createdAt).not.to.eql(null);",
+									"    });",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@email.com\",\n    \"password\": \"Test123!\",\n    \"roles\": []\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/users",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/users/:id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/{{USER_ID}}?fields=_updatedBy.email",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"{{USER_ID}}"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "_updatedBy.email"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/users/me",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/me?fields=email,roles.permissions",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"me"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "email,roles.permissions"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/users/:id",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"new values are correct\", () => {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.updatedBy).not.to.eql(null);",
+									"        pm.expect(jsonData.updatedAt).not.to.eql(null);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"roles\": [\"{{ROLE_ID}}\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/{{USER_ID}}?fields=email",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"{{USER_ID}}"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "email"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/users/me",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"new values are correct\", () => {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.updatedBy).not.to.eql(null);",
+									"        pm.expect(jsonData.updatedAt).not.to.eql(null);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"roles\": [\"{{ROLE_ID}}\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/me?fields=*",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"me"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "*"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/users",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/users",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/users/:id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/{{USER_ID}}",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"{{USER_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/users/search",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": {\n        \"on\": [\n            \"email\"\n        ],\n        \"text\": \"test\"\n    },\n    \"filters\": {\n        \"_updatedBy.email\": \"test@test.com\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_BASE_URL}}/users/search?fields=_createdBy",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"users",
+								"search"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "_createdBy"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "API_BASE_URL",
+			"value": "http://localhost:5070/perseid",
+			"type": "string"
+		},
+		{
+			"key": "USER_EMAIL",
+			"value": "test@test.test",
+			"type": "string"
+		},
+		{
+			"key": "USER_PASSWORD",
+			"value": "Hello123!",
+			"type": "string"
+		},
+		{
+			"key": "DEVICE_ID",
+			"value": "6fc8ad36d1ac6b1e579a83c2",
+			"type": "string"
+		},
+		{
+			"key": "ACCESS_TOKEN",
+			"value": "6fc8ad36d1ac6b1e579a83c2",
+			"type": "string"
+		},
+		{
+			"key": "REFRESH_TOKEN",
+			"value": "6fc8ad36d1ac6b1e579a83c2",
+			"type": "string"
+		},
+		{
+			"key": "VERIFICATION_TOKEN",
+			"value": "6fc8ad36d1ac6b1e579a83c2",
+			"type": "string"
+		},
+		{
+			"key": "RESET_TOKEN",
+			"value": "6fc8ad36d1ac6b1e579a83c2",
+			"type": "string"
+		},
+		{
+			"key": "ROLE_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "USER_ID",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
