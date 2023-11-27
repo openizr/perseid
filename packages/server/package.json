@@ -1,0 +1,111 @@
+{
+  "name": "@perseid/server",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./main.js",
+  "types": "./types.d.ts",
+  "description": "Dynamic, model-based REST APIs generator",
+  "repository": "https://github.com/openizr/perseid",
+  "bugs": "https://github.com/openizr/perseid/issues",
+  "contributors": [
+    {
+      "name": "Matthieu Jabbour",
+      "email": "matthieu.jabbour@gmail.com",
+      "homepage": "https://github.com/matthieujabbour"
+    }
+  ],
+  "keywords": [
+    "perseid",
+    "server",
+    "api",
+    "generator",
+    "rest"
+  ],
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.3",
+    "@types/multiparty": "^0.0.33",
+    "@perseid/dev-kit": "^7.0.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/@perseid/dev-kit/main.cjs"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "src/__mocks__/**/*.ts"
+        ],
+        "rules": {
+          "max-classes-per-file": "off",
+          "no-await-in-loop": "off"
+        }
+      },
+      {
+        "files": [
+          "*.test.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/unbound-method": "off"
+        }
+      },
+      {
+        "files": [
+          "*.d.ts"
+        ],
+        "rules": {
+          "no-shadow": "off",
+          "no-use-before-define": "off",
+          "max-classes-per-file": "off"
+        }
+      },
+      {
+        "files": [
+          "*.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/no-floating-promises": "off"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "@perseid/core": "^1.0.0",
+    "ajv": "^8.12.0",
+    "ajv-errors": "^3.0.0",
+    "basx": "^2.0.1",
+    "bcrypt": "^5.1.1",
+    "fast-json-stringify": "^5.8.0",
+    "fastify": "^4.23.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.1.0",
+    "multiparty": "^4.2.3",
+    "pino": "^8.15.1",
+    "pino-pretty": "^10.2.0"
+  },
+  "devKitConfig": {
+    "target": "node",
+    "runInDev": true,
+    "splitChunks": false,
+    "entries": {
+      "dist": "./scripts/main.ts",
+      "main": "./scripts/testing.ts"
+    },
+    "srcPath": "src",
+    "distPath": "dist",
+    "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
+  },
+  "engines": {
+    "node": ">= 18.0.0",
+    "npm": ">= 8.0.0"
+  },
+  "scripts": {
+    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "build:types": "cp src/scripts/types.d.ts dist && mv dist/dist.js dist/main.js && mv dist/dist.js.map dist/main.js.map",
+    "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types",
+    "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache"
+  }
+}
