@@ -1,0 +1,104 @@
+{
+  "name": "@perseid/jobs",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./main.js",
+  "types": "./types.d.ts",
+  "description": "Fast, scalable job scheduler",
+  "repository": "https://github.com/openizr/perseid",
+  "bugs": "https://github.com/openizr/perseid/issues",
+  "contributors": [
+    {
+      "name": "Matthieu Jabbour",
+      "email": "matthieu.jabbour@gmail.com",
+      "homepage": "https://github.com/matthieujabbour"
+    }
+  ],
+  "keywords": [
+    "perseid",
+    "job",
+    "scheduler",
+    "tasks",
+    "cron"
+  ],
+  "devDependencies": {
+    "@perseid/dev-kit": "^7.0.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/@perseid/dev-kit/main.cjs"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "*.d.ts",
+          "src/__mocks__/**/*.ts"
+        ],
+        "rules": {
+          "max-classes-per-file": "off",
+          "no-await-in-loop": "off"
+        }
+      },
+      {
+        "files": [
+          "*.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/unbound-method": "off"
+        }
+      },
+      {
+        "files": [
+          "JobScheduler.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/no-dynamic-delete": "off"
+        }
+      },
+      {
+        "files": [
+          "*.d.ts"
+        ],
+        "rules": {
+          "import/no-unresolved": "off",
+          "import/no-extraneous-dependencies": "off",
+          "import/export": "off",
+          "import/no-relative-packages": "off",
+          "import/no-cycle": "off",
+          "import/no-self-import": "off",
+          "max-classes-per-file": "off"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "@perseid/core": "^1.0.0",
+    "@perseid/server": "^1.0.0",
+    "pino": "^8.14.1"
+  },
+  "devKitConfig": {
+    "target": "node",
+    "runInDev": true,
+    "splitChunks": false,
+    "entries": {
+      "dist": "./scripts/main.ts",
+      "main": "./scripts/testing.ts"
+    },
+    "srcPath": "src",
+    "distPath": "dist",
+    "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
+  },
+  "engines": {
+    "node": ">= 18.0.0",
+    "npm": ">= 8.0.0"
+  },
+  "scripts": {
+    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "build:types": "cp src/scripts/types.d.ts dist && mv dist/dist.js dist/main.js && mv dist/dist.js.map dist/main.js.map",
+    "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types",
+    "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache"
+  }
+}
