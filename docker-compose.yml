@@ -18,20 +18,23 @@ services:
       - all
       - core
 
-  # jobs:
-  #   tty: true
-  #   user: node:node
-  #   image: openizr/node:6.0.0-dev
-  #   container_name: ${PROJECT_NAME}_jobs
-  #   env_file:
-  #     - .env
-  #   command: sh -c "yarn && yarn run dev"
-  #   volumes:
-  #     - ./packages/jobs:/var/www/html
-  #     - ~/.cache/yarn:/home/node/.cache/yarn
-  #   profiles:
-  #     - all
-  #     - jobs
+  jobs:
+    tty: true
+    user: node:node
+    image: openizr/node:6.0.0-dev
+    container_name: ${PROJECT_NAME}_jobs
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./packages/jobs:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    depends_on:
+      - mongodb
+    profiles:
+      - all
+      - client
+      - jobs
 
   server:
     tty: true
