@@ -1,0 +1,56 @@
+{
+  "license": "MIT",
+  "devDependencies": {
+    "@perseid/dev-kit": "file:../../../dist",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/svelte": "^4.0.4",
+    "@testing-library/vue": "^8.0.0",
+    "@types/prop-types": "^15.7.9",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18"
+  },
+  "dependencies": {
+    "basx": "^2.0.1",
+    "diox": "^6.0.2",
+    "postcss-inline-svg": "^6.0.0",
+    "prop-types": "^15.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "svelte": "^4.2.8",
+    "vite-svg-loader": "^5.1.0",
+    "vue": "^3.3.13"
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/@perseid/dev-kit/main.cjs"
+    ]
+  },
+  "devKitConfig": {
+    "target": "web",
+    "devServer": {
+      "host": "0.0.0.0",
+      "port": "FRONTEND_EXAMPLES_PORT"
+    },
+    "html": "./html/index.html",
+    "srcPath": "src",
+    "distPath": "public",
+    "banner": "/*!\n * Copyright (c) Openizr.\n * All rights reserved.\n */",
+    "env": {
+      "development": {
+        "ENV": "development",
+        "NODE_ENV": "development"
+      },
+      "production": {
+        "ENV": "production",
+        "NODE_ENV": "production"
+      }
+    }
+  },
+  "scripts": {
+    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "build": "node node_modules/@perseid/dev-kit/scripts/build.js",
+    "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
+    "postinstall": "rm -f node_modules/.eslintcache && (mv ../../../.eslintrc ../../../_eslintrc &>/dev/null) || true"
+  }
+}
