@@ -1,0 +1,164 @@
+{
+  "name": "@perseid/store",
+  "version": "7.0.1",
+  "license": "MIT",
+  "type": "module",
+  "main": "./core.js",
+  "types": "./core.d.ts",
+  "description": "Complete state management for both front and back ends",
+  "repository": "https://github.com/openizr/perseid",
+  "bugs": "https://github.com/openizr/perseid/issues",
+  "contributors": [
+    {
+      "name": "Matthieu Jabbour",
+      "email": "matthieu.jabbour@gmail.com",
+      "homepage": "https://github.com/matthieujabbour"
+    }
+  ],
+  "keywords": [
+    "state",
+    "management",
+    "react",
+    "vue",
+    "svelte",
+    "store",
+    "typescript",
+    "javascript",
+    "frontend",
+    "backend",
+    "global",
+    "ui",
+    "flux",
+    "router"
+  ],
+  "devDependencies": {
+    "@perseid/dev-kit": "^8.0.1",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/svelte": "^4.0.5",
+    "@testing-library/vue": "^8.0.1",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "coveralls": "^3.1.1"
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/@perseid/dev-kit/main.cjs"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "*.d.ts"
+        ],
+        "rules": {
+          "no-undef": "off",
+          "import/order": "off",
+          "import/named": "off",
+          "import/export": "off",
+          "import/no-cycle": "off",
+          "react/no-typos": "off",
+          "import/extensions": "off",
+          "no-use-before-define": "off",
+          "import/no-duplicates": "off",
+          "import/no-unresolved": "off",
+          "max-classes-per-file": "off",
+          "import/no-self-import": "off",
+          "import/no-named-as-default": "off",
+          "import/no-relative-packages": "off",
+          "import/no-named-as-default-member": "off",
+          "import/no-extraneous-dependencies": "off",
+          "@typescript-eslint/no-explicit-any": "off"
+        }
+      },
+      {
+        "files": [
+          "*.test.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/unbound-method": "off"
+        }
+      },
+      {
+        "files": [
+          "Store.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/unbound-method": "off",
+          "@typescript-eslint/no-dynamic-delete": "off",
+          "@typescript-eslint/no-misused-promises": "off"
+        }
+      },
+      {
+        "files": [
+          "src/scripts/connectors/react.ts"
+        ],
+        "rules": {
+          "react-hooks/exhaustive-deps": "off"
+        }
+      },
+      {
+        "files": [
+          "src/scripts/connectors/vue.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/no-explicit-any": "off",
+          "@typescript-eslint/no-unsafe-assignment": "off"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "path-to-regexp": "^6.2.1"
+  },
+  "engines": {
+    "node": ">= 18.0.0",
+    "npm": ">= 8.0.0"
+  },
+  "devKitConfig": {
+    "target": "web",
+    "devServer": {
+      "host": "0.0.0.0",
+      "port": "FRONTEND_EXAMPLES_PORT"
+    },
+    "html": "./__playground__/index.html",
+    "entries": {
+      "core": "./scripts/core/index.ts",
+      "connectors/vue": "./scripts/connectors/vue.ts",
+      "connectors/react": "./scripts/connectors/react.ts",
+      "connectors/svelte": "./scripts/connectors/svelte.ts",
+      "extensions/router": "./scripts/extensions/router.ts"
+    },
+    "runInDev": true,
+    "splitChunks": true,
+    "srcPath": "src",
+    "distPath": "dist",
+    "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
+  },
+  "scripts": {
+    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer svelte react react-dom vue",
+    "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json",
+    "build:types": "cp src/scripts/core.d.ts dist && cp src/scripts/svelte.d.ts dist/connectors && cp src/scripts/vue.d.ts dist/connectors && cp src/scripts/react.d.ts dist/connectors && cp src/scripts/router.d.ts dist/extensions"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "svelte": "^4.2.8",
+    "vue": "^3.3.13"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  }
+}

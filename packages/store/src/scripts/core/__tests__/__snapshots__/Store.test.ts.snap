@@ -1,0 +1,335 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`core/Store > combine > correctly creates combined module if all modules' ids exist 1`] = `
+Store {
+  "combine": [Function],
+  "combinedModules": {
+    "moduleA": {
+      "moduleIds": [
+        "moduleA",
+      ],
+      "reducer": [Function],
+      "subscriptions": {},
+    },
+    "moduleB": {
+      "moduleIds": [
+        "moduleB",
+      ],
+      "reducer": [Function],
+      "subscriptions": {},
+    },
+    "moduleC": {
+      "moduleIds": [
+        "moduleA",
+        "moduleB",
+      ],
+      "reducer": [MockFunction spy],
+      "subscriptions": {},
+    },
+  },
+  "dispatch": [Function],
+  "index": 0,
+  "middlewares": [],
+  "modules": {
+    "moduleA": {
+      "actions": {},
+      "combinedModules": [
+        "moduleA",
+        "moduleC",
+      ],
+      "mutations": {
+        "ADD": [Function],
+        "BAD": [Function],
+        "NOOP": [Function],
+      },
+      "state": {
+        "test": 0,
+      },
+    },
+    "moduleB": {
+      "actions": {
+        "ADD": [Function],
+      },
+      "combinedModules": [
+        "moduleB",
+        "moduleC",
+      ],
+      "mutations": {
+        "ADD": [Function],
+      },
+      "state": {
+        "test": 5,
+      },
+    },
+  },
+  "mutate": [Function],
+  "register": [Function],
+  "uncombine": [Function],
+  "unregister": [Function],
+}
+`;
+
+exports[`core/Store > constructor > always correctly instanciates 1`] = `
+Store {
+  "combine": [Function],
+  "combinedModules": {},
+  "dispatch": [Function],
+  "index": 0,
+  "middlewares": [],
+  "modules": {},
+  "mutate": [Function],
+  "register": [Function],
+  "uncombine": [Function],
+  "unregister": [Function],
+}
+`;
+
+exports[`core/Store > register > correctly registers module if id is not already used 1`] = `
+Store {
+  "combine": [Function],
+  "combinedModules": {
+    "module": {
+      "moduleIds": [
+        "module",
+      ],
+      "reducer": [Function],
+      "subscriptions": {},
+    },
+  },
+  "dispatch": [Function],
+  "index": 0,
+  "middlewares": [],
+  "modules": {
+    "module": {
+      "actions": {},
+      "combinedModules": [
+        "module",
+      ],
+      "mutations": {
+        "ADD": [Function],
+        "BAD": [Function],
+        "NOOP": [Function],
+      },
+      "state": {
+        "test": 0,
+      },
+    },
+  },
+  "mutate": [Function],
+  "register": [Function],
+  "uncombine": [Function],
+  "unregister": [Function],
+}
+`;
+
+exports[`core/Store > subscribe > correctly subscribes to the given module if it exists 1`] = `
+Store {
+  "combine": [Function],
+  "combinedModules": {
+    "moduleA": {
+      "moduleIds": [
+        "moduleA",
+      ],
+      "reducer": [Function],
+      "subscriptions": {},
+    },
+    "moduleB": {
+      "moduleIds": [
+        "moduleB",
+      ],
+      "reducer": [Function],
+      "subscriptions": {},
+    },
+    "moduleC": {
+      "moduleIds": [
+        "moduleA",
+        "moduleB",
+      ],
+      "reducer": [Function],
+      "subscriptions": {
+        "641676f1d7d8a": [MockFunction spy] {
+          "calls": [
+            [
+              {
+                "a": 0,
+                "b": {
+                  "test": 5,
+                },
+              },
+            ],
+          ],
+          "results": [],
+        },
+      },
+    },
+  },
+  "dispatch": [Function],
+  "index": 1,
+  "middlewares": [],
+  "modules": {
+    "moduleA": {
+      "actions": {},
+      "combinedModules": [
+        "moduleA",
+        "moduleC",
+      ],
+      "mutations": {
+        "ADD": [Function],
+        "BAD": [Function],
+        "NOOP": [Function],
+      },
+      "state": {
+        "test": 0,
+      },
+    },
+    "moduleB": {
+      "actions": {
+        "ADD": [Function],
+      },
+      "combinedModules": [
+        "moduleB",
+        "moduleC",
+      ],
+      "mutations": {
+        "ADD": [Function],
+      },
+      "state": {
+        "test": 5,
+      },
+    },
+  },
+  "mutate": [Function],
+  "register": [Function],
+  "uncombine": [Function],
+  "unregister": [Function],
+}
+`;
+
+exports[`core/Store > uncombine > correctly uncombines the combined module if it has no more subscriptions 1`] = `
+Store {
+  "combine": [Function],
+  "combinedModules": {
+    "module": {
+      "moduleIds": [
+        "module",
+      ],
+      "reducer": [Function],
+      "subscriptions": {},
+    },
+  },
+  "dispatch": [Function],
+  "index": 1,
+  "middlewares": [],
+  "modules": {
+    "module": {
+      "actions": {},
+      "combinedModules": [
+        "module",
+      ],
+      "mutations": {
+        "ADD": [Function],
+        "BAD": [Function],
+        "NOOP": [Function],
+      },
+      "state": {
+        "test": 0,
+      },
+    },
+  },
+  "mutate": [Function],
+  "register": [Function],
+  "uncombine": [Function],
+  "unregister": [Function],
+}
+`;
+
+exports[`core/Store > unregister > correctly unregisters if module does not have related combined modules 1`] = `
+Store {
+  "combine": [Function],
+  "combinedModules": {},
+  "dispatch": [Function],
+  "index": 0,
+  "middlewares": [],
+  "modules": {},
+  "mutate": [Function],
+  "register": [Function],
+  "uncombine": [Function],
+  "unregister": [Function],
+}
+`;
+
+exports[`core/Store > unsubscribe > correctly unsubscribes from the given module if it exists 1`] = `
+Store {
+  "combine": [Function],
+  "combinedModules": {
+    "module": {
+      "moduleIds": [
+        "module",
+      ],
+      "reducer": [Function],
+      "subscriptions": {},
+    },
+  },
+  "dispatch": [Function],
+  "index": 1,
+  "middlewares": [],
+  "modules": {
+    "module": {
+      "actions": {},
+      "combinedModules": [
+        "module",
+      ],
+      "mutations": {
+        "ADD": [Function],
+        "BAD": [Function],
+        "NOOP": [Function],
+      },
+      "state": {
+        "test": 0,
+      },
+    },
+  },
+  "mutate": [Function],
+  "register": [Function],
+  "uncombine": [Function],
+  "unregister": [Function],
+}
+`;
+
+exports[`core/Store > unsubscribe > correctly unsubscribes several listeners from the given module in any order 1`] = `
+Store {
+  "combine": [Function],
+  "combinedModules": {
+    "module": {
+      "moduleIds": [
+        "module",
+      ],
+      "reducer": [Function],
+      "subscriptions": {},
+    },
+  },
+  "dispatch": [Function],
+  "index": 2,
+  "middlewares": [],
+  "modules": {
+    "module": {
+      "actions": {},
+      "combinedModules": [
+        "module",
+      ],
+      "mutations": {
+        "ADD": [Function],
+        "BAD": [Function],
+        "NOOP": [Function],
+      },
+      "state": {
+        "test": 0,
+      },
+    },
+  },
+  "mutate": [Function],
+  "register": [Function],
+  "uncombine": [Function],
+  "unregister": [Function],
+}
+`;
