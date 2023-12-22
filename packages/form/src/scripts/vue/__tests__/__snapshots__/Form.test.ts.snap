@@ -1,0 +1,122 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vue/Form > renders correctly - loading next step 1`] = `
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div
+    class="perseid-form__steps"
+  >
+    
+    
+    <!--v-if-->
+  </div>
+</form>
+`;
+
+exports[`vue/Form > renders correctly - with active step 1`] = `
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div
+    class="perseid-form__steps"
+  >
+    
+    <!--
+        Specifying the active step prevent browsers auto-fill system from changing fields
+        located in other steps, resetting previous steps and breaking overall UX.
+      -->
+    
+    <div
+      class="perseid-form__step perseid-form__step--start--active"
+      id="start"
+    >
+      <div
+        class="perseid-form__step__fields"
+        name="step"
+      >
+        <!--
+      Key is composed of both step and field ids, in order to ensure each field is correctly reset
+      when user changes his journey in previous steps.
+    -->
+        
+        
+      </div>
+    </div>
+    <div
+      class="perseid-form__step perseid-form__step--end"
+      id="end"
+    >
+      <div
+        class="perseid-form__step__fields"
+        name="step"
+      >
+        <!--
+      Key is composed of both step and field ids, in order to ensure each field is correctly reset
+      when user changes his journey in previous steps.
+    -->
+        
+        
+      </div>
+    </div>
+    
+    
+    <!--v-if-->
+  </div>
+</form>
+`;
+
+exports[`vue/Form > renders correctly - with active step 2`] = `
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div
+    class="perseid-form__steps"
+  >
+    
+    <!--
+        Specifying the active step prevent browsers auto-fill system from changing fields
+        located in other steps, resetting previous steps and breaking overall UX.
+      -->
+    
+    <div
+      class="perseid-form__step perseid-form__step--start--active"
+      id="start"
+    >
+      <div
+        class="perseid-form__step__fields"
+        name="step"
+      >
+        <!--
+      Key is composed of both step and field ids, in order to ensure each field is correctly reset
+      when user changes his journey in previous steps.
+    -->
+        
+        
+      </div>
+    </div>
+    <div
+      class="perseid-form__step perseid-form__step--end"
+      id="end"
+    >
+      <div
+        class="perseid-form__step__fields"
+        name="step"
+      >
+        <!--
+      Key is composed of both step and field ids, in order to ensure each field is correctly reset
+      when user changes his journey in previous steps.
+    -->
+        
+        
+      </div>
+    </div>
+    
+    
+    <!--v-if-->
+  </div>
+</form>
+`;

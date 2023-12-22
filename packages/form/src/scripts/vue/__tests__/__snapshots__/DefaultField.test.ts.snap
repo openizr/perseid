@@ -1,0 +1,41 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vue/DefaultField > renders correctly - binary field 1`] = `
+<pre
+  field="[object Object]"
+>
+      {
+  "path": "root.0.test",
+  "type": "binary",
+  "status": "initial",
+  "error": null,
+  "active": false,
+  "required": true,
+  "value": "&lt;Binary&gt;",
+  "field": "&lt;Component&gt;",
+  "engine": "&lt;Engine&gt;",
+  "useSubscription": "&lt;Function&gt;"
+}
+  
+</pre>
+`;
+
+exports[`vue/DefaultField > renders correctly - non-binary field 1`] = `
+<pre
+  field="[object Object]"
+>
+      {
+  "path": "root.0.test",
+  "type": "string",
+  "status": "initial",
+  "error": null,
+  "active": false,
+  "required": true,
+  "value": null,
+  "field": "&lt;Component&gt;",
+  "engine": "&lt;Engine&gt;",
+  "useSubscription": "&lt;Function&gt;"
+}
+  
+</pre>
+`;

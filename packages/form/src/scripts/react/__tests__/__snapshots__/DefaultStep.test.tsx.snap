@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/DefaultStep > renders correctly 1`] = `
+<div
+  class="perseid-form__step__fields"
+>
+  <div>
+    {"active":false,"engine":{},"path":"root.0.test","type":"string","error":null,"value":null,"status":"initial","required":false}
+  </div>
+</div>
+`;

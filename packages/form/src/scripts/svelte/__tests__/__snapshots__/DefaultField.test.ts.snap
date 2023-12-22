@@ -1,0 +1,47 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/DefaultField > renders correctly - binary field 1`] = `
+<div>
+  <pre>
+      
+    {
+  "path": "root.0.test",
+  "type": "binary",
+  "status": "initial",
+  "error": null,
+  "active": false,
+  "required": true,
+  "value": "&lt;Binary&gt;",
+  "Field": "&lt;Component&gt;",
+  "engine": "&lt;Engine&gt;",
+  "useSubscription": "&lt;Function&gt;"
+}
+    
+
+  </pre>
+  <!--&lt;DefaultField&gt;-->
+</div>
+`;
+
+exports[`svelte/DefaultField > renders correctly - non-binary field 1`] = `
+<div>
+  <pre>
+      
+    {
+  "path": "root.0.test",
+  "type": "string",
+  "status": "initial",
+  "error": null,
+  "active": false,
+  "required": true,
+  "value": null,
+  "Field": "&lt;Component&gt;",
+  "engine": "&lt;Engine&gt;",
+  "useSubscription": "&lt;Function&gt;"
+}
+    
+
+  </pre>
+  <!--&lt;DefaultField&gt;-->
+</div>
+`;

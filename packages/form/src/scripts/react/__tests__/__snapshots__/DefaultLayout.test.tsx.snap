@@ -1,0 +1,17 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/DefaultLayout > renders correctly 1`] = `
+<div
+  class="perseid-form__steps"
+>
+  <div>
+    Step 1
+  </div>
+  <div>
+    Step 2
+  </div>
+  <div>
+    LOADER
+  </div>
+</div>
+`;
