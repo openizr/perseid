@@ -9,6 +9,7 @@ import { render } from '@testing-library/react';
 describe('react/Home', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.TEST = 'true';
   });
 
   test('renders correctly - basic', () => {
