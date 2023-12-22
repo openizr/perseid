@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/DefaultStep > renders correctly 1`] = `
+<div>
+  <div
+    class="perseid-form__step__fields"
+  >
+    
+    <pre>
+        
+      {
+  "path": "root.0.test",
+  "type": "string",
+  "status": "initial",
+  "error": null,
+  "active": false,
+  "required": false,
+  "value": null,
+  "Field": "&lt;Component&gt;",
+  "engine": "&lt;Engine&gt;",
+  "useSubscription": "&lt;Function&gt;"
+}
+      
+
+    </pre>
+    <!--&lt;DefaultField&gt;-->
+    
+    
+  </div>
+  <!--&lt;DefaultStep&gt;-->
+</div>
+`;

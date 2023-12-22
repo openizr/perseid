@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/DefaultLayout > renders correctly 1`] = `
+<div>
+  <div
+    class="perseid-form__steps"
+  >
+     
+    <!--&lt;DefaultLoader&gt;-->
+    
+  </div>
+  <!--&lt;DefaultLayout&gt;-->
+</div>
+`;

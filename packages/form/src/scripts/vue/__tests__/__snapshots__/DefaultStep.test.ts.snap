@@ -1,0 +1,31 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vue/DefaultStep > renders correctly 1`] = `
+<div
+  class="perseid-form__step__fields"
+>
+  <!--
+      Key is composed of both step and field ids, in order to ensure each field is correctly reset
+      when user changes his journey in previous steps.
+    -->
+  
+  <pre
+    name="field"
+  >
+        {
+  "path": "root.0.test",
+  "type": "string",
+  "status": "initial",
+  "error": null,
+  "active": false,
+  "required": false,
+  "value": null,
+  "field": "&lt;Component&gt;",
+  "engine": "&lt;Engine&gt;",
+  "useSubscription": "&lt;Function&gt;"
+}
+  
+  </pre>
+  
+</div>
+`;
