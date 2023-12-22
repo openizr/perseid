@@ -8,18 +8,6 @@
 
 import Engine from 'scripts/core/Engine';
 
-declare module '*.svelte' {
-  import { SvelteComponent } from 'svelte';
-
-  export default SvelteComponent;
-}
-
-declare module '*.vue' {
-  import Vue from 'vue';
-
-  export default Vue;
-}
-
 declare global {
   type Data = any;
   type FormPlugin = (engine: Engine) => void;
