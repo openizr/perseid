@@ -1,0 +1,124 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Table > renders correctly - empty rows 1`] = `
+<div
+  class="table   no-result"
+>
+  <table>
+    <thead
+      class="table__headers"
+    >
+      <tr>
+        <th
+          class="table__headers__column undefined field "
+          tabindex="-1"
+        >
+          Null
+        </th>
+      </tr>
+    </thead>
+    <tbody
+      class="table__values"
+    />
+  </table>
+  <div
+    class="table__loading"
+  >
+    LOADING
+  </div>
+  <div
+    class="table__no-result"
+  >
+    NO_RESULT
+  </div>
+</div>
+`;
+
+exports[`react/components/Table > renders correctly - multiple rows 1`] = `
+<div
+  class="table   "
+>
+  <table>
+    <thead
+      class="table__headers"
+    >
+      <tr>
+        <th
+          class="table__headers__column undefined field "
+          tabindex="-1"
+        >
+          Null
+        </th>
+        <th
+          class="table__headers__column undefined fieldTwo sortable"
+          tabindex="0"
+        >
+          Null
+        </th>
+      </tr>
+    </thead>
+    <tbody
+      class="table__values"
+    >
+      <tr
+        class="table__values__row"
+      >
+        <td
+          class="table__values__row__cell"
+        >
+          test
+        </td>
+        <td
+          class="table__values__row__cell"
+        >
+          test2
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <div
+    class="table__loading"
+  >
+    LOADING
+  </div>
+  <div
+    class="table__no-result"
+  >
+    NO_RESULT
+  </div>
+</div>
+`;
+
+exports[`react/components/Table > renders correctly - no row 1`] = `
+<div
+  class="table  loading "
+>
+  <table>
+    <thead
+      class="table__headers"
+    >
+      <tr>
+        <th
+          class="table__headers__column undefined field "
+          tabindex="-1"
+        >
+          Null
+        </th>
+      </tr>
+    </thead>
+    <tbody
+      class="table__values"
+    />
+  </table>
+  <div
+    class="table__loading"
+  >
+    LOADING
+  </div>
+  <div
+    class="table__no-result"
+  >
+    NO_RESULT
+  </div>
+</div>
+`;

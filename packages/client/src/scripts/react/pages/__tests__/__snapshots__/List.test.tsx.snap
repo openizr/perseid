@@ -1,0 +1,236 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/pages/List > renders correctly - loaded page, no results 1`] = `
+<main
+  class="list-page users"
+>
+  <div
+    id="page-layout"
+  >
+    <span>
+      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+    </span>
+    <div>
+      <div
+        class="list-page__search"
+      >
+        <div
+          id="ui-textfield"
+        >
+          {"autofocus":true,"name":"search","maxlength":50,"id":"search-bar","autocomplete":"off","debounceTimeout":250,"value":"","placeholder":"PAGES.TO_SNAKE_CASE_users.LIST.SEARCH_PLACEHOLDER"}
+          <span
+            class="ui-textfield__wrapper__field"
+          />
+        </div>
+      </div>
+      <div
+        class="list-page__content"
+      >
+        <div
+          id="table"
+        >
+          <span>
+            {"labels":{"loading":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.LOADING","actions":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.ACTIONS","noResult":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.NO_RESULT"},"sorting":null}
+          </span>
+          <div>
+            <div>
+              <span>
+                {"path":"sortableField","isSortable":true}
+              </span>
+              <div
+                id="field-label"
+              >
+                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+              </div>
+            </div>
+            <div>
+              <span>
+                {"path":"nonSortableField","isSortable":false}
+              </span>
+              <div
+                id="field-label"
+              >
+                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+              </div>
+            </div>
+          </div>
+          <div />
+        </div>
+        <div
+          id="pagination"
+        >
+          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":0,"components":{},"collection":"users","currentPage":1,"itemsPerPage":10}
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+`;
+
+exports[`react/pages/List > renders correctly - loaded page, results, view route does not exist 1`] = `
+<main
+  class="list-page users"
+>
+  <div
+    id="page-layout"
+  >
+    <span>
+      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+    </span>
+    <div>
+      <div
+        class="list-page__search"
+      >
+        <div
+          id="ui-textfield"
+        >
+          {"autofocus":true,"name":"search","maxlength":50,"id":"search-bar","autocomplete":"off","debounceTimeout":250,"value":"","placeholder":"PAGES.TO_SNAKE_CASE_users.LIST.SEARCH_PLACEHOLDER"}
+          <span
+            class="ui-textfield__wrapper__field"
+          />
+        </div>
+      </div>
+      <div
+        class="list-page__content"
+      >
+        <div
+          id="table"
+        >
+          <span>
+            {"labels":{"loading":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.LOADING","actions":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.ACTIONS","noResult":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.NO_RESULT"},"sorting":null}
+          </span>
+          <div>
+            <div>
+              <span>
+                {"path":"sortableField","isSortable":true}
+              </span>
+              <div
+                id="field-label"
+              >
+                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+              </div>
+            </div>
+            <div>
+              <span>
+                {"path":"nonSortableField","isSortable":false}
+              </span>
+              <div
+                id="field-label"
+              >
+                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div>
+              <div
+                id="field-value"
+              >
+                {"id":"123456789012345678901234","page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"123456789012345678901234":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"collection":"users","components":{},"loading":false}
+              </div>
+              <div
+                id="field-value"
+              >
+                {"id":"123456789012345678901234","page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"123456789012345678901234":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"collection":"users","components":{},"loading":false}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          id="pagination"
+        >
+          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":20,"components":{},"collection":"users","currentPage":1,"itemsPerPage":10}
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+`;
+
+exports[`react/pages/List > renders correctly - loaded page, results, view route exists 1`] = `
+<main
+  class="list-page users"
+>
+  <div
+    id="page-layout"
+  >
+    <span>
+      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+    </span>
+    <div>
+      <div
+        class="list-page__search"
+      >
+        <div
+          id="ui-textfield"
+        >
+          {"autofocus":true,"name":"search","maxlength":50,"id":"search-bar","autocomplete":"off","debounceTimeout":250,"value":"","placeholder":"PAGES.TO_SNAKE_CASE_users.LIST.SEARCH_PLACEHOLDER"}
+          <span
+            class="ui-textfield__wrapper__field"
+          />
+        </div>
+      </div>
+      <div
+        class="list-page__content"
+      >
+        <div
+          id="table"
+        >
+          <span>
+            {"labels":{"loading":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.LOADING","actions":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.ACTIONS","noResult":"PAGES.TO_SNAKE_CASE_users.LIST.TABLE.NO_RESULT"},"sorting":null}
+          </span>
+          <div>
+            <div>
+              <span>
+                {"path":"sortableField","isSortable":true}
+              </span>
+              <div
+                id="field-label"
+              >
+                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+              </div>
+            </div>
+            <div>
+              <span>
+                {"path":"nonSortableField","isSortable":false}
+              </span>
+              <div
+                id="field-label"
+              >
+                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div>
+              <div
+                id="field-value"
+              >
+                {"id":"123456789012345678901234","page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"123456789012345678901234":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"collection":"users","components":{},"loading":false}
+              </div>
+              <div
+                id="field-value"
+              >
+                {"id":"123456789012345678901234","page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"123456789012345678901234":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"collection":"users","components":{},"loading":false}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          id="pagination"
+        >
+          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":20,"components":{},"collection":"users","currentPage":1,"itemsPerPage":10}
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+`;
+
+exports[`react/pages/List > renders correctly - loading page 1`] = `
+<div
+  id="loader"
+>
+  {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+</div>
+`;

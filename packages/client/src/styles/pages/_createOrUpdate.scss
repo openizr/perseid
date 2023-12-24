@@ -1,0 +1,39 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.create-page,
+.update-page {
+  width: 100%;
+  @include extend(flex flex-col m\:self-start vgap-5 l\:items-start);
+
+  & > .ui-button {
+    @include extend(flex-none self-start);
+  }
+
+  > .perseid-form {
+    flex-basis: 500px;
+  }
+
+  .perseid-form__step__fields {
+    @include extend(flex flex-col vgap-4);
+    [class*='required'] {
+      .ui-textfield__label::after {
+        content: '*';
+        margin-left: var(--gaps-1);
+        color: var(--clr-accent-3-700);
+      }
+    }
+  }
+
+  @include query(l) {
+    width: fit-content;
+    padding-top: var(--gaps-4);
+    margin-left: var(--gaps-4);
+    max-width: calc(100% - var(--gaps-4) * 2);
+  }
+}

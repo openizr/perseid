@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/pages/UpdateUser > renders correctly - loaded page 1`] = `
+<main
+  class="update-user-page"
+>
+  <div
+    class="update-user-page__card"
+  >
+    <div
+      id="ui-title"
+    >
+      {"label":"PAGES.UPDATE_USER.TITLE"}
+    </div>
+    <div
+      id="react-form"
+    >
+      <span>
+        {"configuration":{"root":"root","fields":{},"steps":{}},"Field":{"class":"form-field","args":"[{\\"root.0.test\\":{\\"component\\":\\"Test\\",\\"componentProps\\":{\\"modifiers\\":\\"primary\\"}}},{\\"prefix\\":\\"PAGES.UPDATE_USER\\",\\"services\\":{\\"apiClient\\":{},\\"model\\":{},\\"i18n\\":{},\\"store\\":{}}}]"}}
+      </span>
+    </div>
+  </div>
+</main>
+`;
+
+exports[`react/pages/UpdateUser > renders correctly - loading page 1`] = `
+<div
+  id="loader"
+>
+  {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+</div>
+`;

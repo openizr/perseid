@@ -1,0 +1,125 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/NestedFields > renders correctly - array 1`] = `
+<div
+  class="ui-nested-fields  array"
+>
+  <span
+    class="ui-nested-fields__label"
+  >
+    LABEL
+  </span>
+  <div
+    class="ui-nested-fields__field"
+  >
+    <div
+      id="ui-button"
+    >
+      {"type":"button","icon":"delete"}
+    </div>
+    <div
+      id="field"
+    />
+  </div>
+  <div
+    id="ui-button"
+  >
+    {"icon":"plus","disabled":false}
+  </div>
+  <span
+    class="ui-nested-fields__helper"
+  >
+    HELPER
+  </span>
+</div>
+`;
+
+exports[`react/components/NestedFields > renders correctly - array, \`null\` value 1`] = `
+<div
+  class="ui-nested-fields  array"
+>
+  <span
+    class="ui-nested-fields__label"
+  >
+    LABEL
+  </span>
+  <div
+    id="ui-button"
+  >
+    {"icon":"plus","disabled":false}
+  </div>
+  <span
+    class="ui-nested-fields__helper"
+  >
+    HELPER
+  </span>
+</div>
+`;
+
+exports[`react/components/NestedFields > renders correctly - array, missing items 1`] = `
+<div
+  class="ui-nested-fields  array"
+>
+  <span
+    class="ui-nested-fields__label"
+  >
+    LABEL
+  </span>
+  <div
+    id="ui-button"
+  >
+    {"icon":"plus","disabled":false}
+  </div>
+  <span
+    class="ui-nested-fields__helper"
+  >
+    HELPER
+  </span>
+</div>
+`;
+
+exports[`react/components/NestedFields > renders correctly - array, too many items 1`] = `
+<div
+  class="ui-nested-fields  array"
+>
+  <span
+    class="ui-nested-fields__label"
+  >
+    LABEL
+  </span>
+  <div
+    id="ui-button"
+  >
+    {"icon":"plus","disabled":false}
+  </div>
+  <span
+    class="ui-nested-fields__helper"
+  >
+    HELPER
+  </span>
+</div>
+`;
+
+exports[`react/components/NestedFields > renders correctly - object 1`] = `
+<div
+  class="ui-nested-fields  object"
+>
+  <span
+    class="ui-nested-fields__label"
+  >
+    LABEL
+  </span>
+  <div
+    class="ui-nested-fields__field"
+  >
+    <div
+      id="field"
+    />
+  </div>
+  <span
+    class="ui-nested-fields__helper"
+  >
+    HELPER
+  </span>
+</div>
+`;

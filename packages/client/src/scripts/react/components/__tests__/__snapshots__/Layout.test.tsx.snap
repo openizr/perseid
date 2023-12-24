@@ -1,0 +1,30 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Layout > renders correctly 1`] = `
+<div
+  class="layout"
+>
+  <div
+    id="modal"
+  >
+    {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+  </div>
+  <div
+    id="notifier"
+  >
+    {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+  </div>
+  <div
+    id="menu"
+  >
+    {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+  </div>
+  <div
+    class="layout__content"
+  >
+    <div
+      id="content"
+    />
+  </div>
+</div>
+`;

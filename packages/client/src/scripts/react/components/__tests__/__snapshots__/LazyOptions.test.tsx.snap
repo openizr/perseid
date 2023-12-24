@@ -1,0 +1,53 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/LazyOptions > renders correctly - no results 1`] = `
+<div
+  class="lazy-options  "
+>
+  <div
+    id="ui-textfield"
+  >
+    {"label":"LABEL","disabled":false,"autofocus":false,"debounceTimeout":500,"value":"LABEL","name":"lazy-options-textfield"}
+    <span
+      class="ui-textfield__wrapper__field"
+    />
+  </div>
+  <div
+    id="ui-options"
+  >
+    {"select":true,"options":[{"type":"option","value":"null","disabled":true,"label":"NO_RESULT"}],"disabled":false,"value":"18972182","expanded":false,"name":"lazy-options-options"}
+    <span>
+      <span />
+      <span>
+        <span />
+      </span>
+    </span>
+  </div>
+</div>
+`;
+
+exports[`react/components/LazyOptions > renders correctly - results 1`] = `
+<div
+  class="lazy-options  "
+>
+  <div
+    id="ui-textfield"
+  >
+    {"label":"LABEL","disabled":false,"autofocus":false,"debounceTimeout":500,"value":"LABEL","name":"lazy-options-textfield"}
+    <span
+      class="ui-textfield__wrapper__field"
+    />
+  </div>
+  <div
+    id="ui-options"
+  >
+    {"select":true,"options":[{"value":"test","label":"TEST","type":"option"}],"disabled":false,"value":"18972182","expanded":false,"name":"lazy-options-options"}
+    <span>
+      <span />
+      <span>
+        <span />
+      </span>
+    </span>
+  </div>
+</div>
+`;

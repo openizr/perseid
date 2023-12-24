@@ -1,0 +1,40 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.view-page {
+  max-width: 1920px;
+  @include extend(flex flex-col vgap-5);
+
+  & > .ui-button {
+    @include extend(flex-none self-start);
+  }
+
+  &__fields {
+    @include extend(grid cols-1 s\:cols-2 l\:cols-3 vgap-4 hgap-4);
+
+    &:not([class*='flex-none']) {
+      flex: none;
+    }
+
+    &__field {
+      min-width: 0;
+      overflow: hidden;
+      @include extend(flex flex-col vgap-2 hgap-2);
+
+      &:empty {
+        @include extend(none);
+      }
+    }
+  }
+
+  @include query(l) {
+    padding-top: var(--gaps-4);
+    margin-left: var(--gaps-4);
+    max-width: calc(1600px - var(--gaps-4) * 2);
+  }
+}

@@ -1,0 +1,55 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/pages/CreateOrUpdate > renders correctly - create mode 1`] = `
+<main
+  class="create-page users"
+>
+  <div
+    id="page-layout"
+  >
+    <span>
+      {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"collection":"users","page":"CREATE"}
+    </span>
+    <div>
+      <div
+        id="react-form"
+      >
+        <span>
+          {"configuration":{"root":"root","fields":{},"steps":{}},"Field":{"class":"form-field","args":"[{\\"root.0.test\\":{\\"component\\":\\"Test\\",\\"componentProps\\":{\\"modifiers\\":\\"primary\\"}}},{\\"prefix\\":\\"PAGES.TO_SNAKE_CASE_users.CREATE\\",\\"services\\":{\\"apiClient\\":{},\\"model\\":{},\\"i18n\\":{},\\"store\\":{}}}]"}}
+        </span>
+      </div>
+    </div>
+  </div>
+</main>
+`;
+
+exports[`react/pages/CreateOrUpdate > renders correctly - loading page 1`] = `
+<div
+  id="loader"
+>
+  {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+</div>
+`;
+
+exports[`react/pages/CreateOrUpdate > renders correctly - update mode 1`] = `
+<main
+  class="update-page users"
+>
+  <div
+    id="page-layout"
+  >
+    <span>
+      {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"collection":"users","page":"UPDATE"}
+    </span>
+    <div>
+      <div
+        id="react-form"
+      >
+        <span>
+          {"configuration":{"root":"root","fields":{},"steps":{}},"Field":{"class":"form-field","args":"[{\\"root.0.test\\":{\\"component\\":\\"Test\\",\\"componentProps\\":{\\"modifiers\\":\\"primary\\"}}},{\\"prefix\\":\\"PAGES.TO_SNAKE_CASE_users.UPDATE\\",\\"services\\":{\\"apiClient\\":{},\\"model\\":{},\\"i18n\\":{},\\"store\\":{}}}]"}}
+        </span>
+      </div>
+    </div>
+  </div>
+</main>
+`;

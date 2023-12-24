@@ -1,0 +1,39 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.ui-nested-fields {
+  @include extend(flex flex-col vgap-3);
+
+  &__label {
+    @extend %label;
+  }
+
+  &__field {
+    padding: var(--gaps-2) var(--gaps-1);
+    border-top: 1px solid black;
+    @include extend(flex hgap-2 vgap-2 flex-wrap items-center justify-between);
+
+    & > .ui-button {
+      @include extend(flex-none self-end);
+    }
+
+    & > *:last-child {
+      width: 100%;
+    }
+  }
+
+  &__add {
+    border-top: 1px solid black;
+    padding: var(--gaps-3) var(--gaps-1);
+    @include extend(flex flex-auto hgap-2 vgap-2 flex-wrap items-center justify-between);
+
+    & > .ui-textfield {
+      max-width: 100%;
+    }
+  }
+}

@@ -1,0 +1,57 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+@import 'biuty/core/index.scss';
+@import 'biuty/templates/index.scss';
+
+@import 'styles/pages/index.scss';
+@import 'styles/components/index.scss';
+
+body {
+  height: 100vh;
+  // TODO biuty ----------
+  display: block;
+  min-height: unset;
+  // ---------------------
+  overflow: hidden; // Prevents reloading page when scrolling down on mobile.
+  background: var(--clr-greys-900);
+}
+
+#root {
+  @include extend(h-full flex flex-auto);
+}
+
+::selection {
+  color: var(--clr-greys-900);
+  background: var(--clr-greys-500);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4rem;
+  background: var(--clr-greys-800);
+}
+
+*:hover {
+  ::-webkit-scrollbar-thumb {
+    background: var(--clr-greys-700);
+  }
+}
+
+// TODO biuty ----------
+*:hover {
+  -webkit-tap-highlight-color: transparent;
+}
+// ---------------------
+
+.optional-field {
+  @include extend(flex flex-col vgap-4);
+}

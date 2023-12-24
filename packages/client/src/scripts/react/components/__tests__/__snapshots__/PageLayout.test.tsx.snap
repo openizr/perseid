@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/PageLayout > renders correctly - CREATE/UPDATE page 1`] = `
+<div
+  id="ui-button"
+>
+  {"modifiers":"text","label":"NAVIGATION.GO_BACK"}
+</div>
+`;
+
+exports[`react/components/PageLayout > renders correctly - LIST page, create route available 1`] = `
+<div
+  id="content"
+/>
+`;
+
+exports[`react/components/PageLayout > renders correctly - VIEW page 1`] = `
+<div
+  id="ui-button"
+>
+  {"modifiers":"text","label":"NAVIGATION.GO_BACK"}
+</div>
+`;

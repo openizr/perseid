@@ -1,0 +1,85 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.modal {
+  &__dimmer,
+  &__content {
+    opacity: 0;
+    z-index: 30;
+    pointer-events: none;
+    transition: opacity 250ms ease-in-out;
+  }
+
+  &__dimmer {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    position: fixed;
+    background: #00000077;
+  }
+
+  &__content {
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    position: fixed;
+    overflow-y: overlay;
+    background: #ffffff;
+    padding: var(--gaps-4);
+    transform-origin: center;
+    @include extend(flex flex-col justify-center);
+    transform: translateX(-50%) translateY(-50%) scale(0.5, 0.5);
+    transition:
+      opacity 150ms ease-in-out,
+      transform 150ms ease-in-out;
+
+    &__close-button {
+      position: absolute;
+      top: var(--gaps-4);
+      right: var(--gaps-3);
+
+      .ui-button .ui-icon {
+        width: 1.5rem;
+        height: 1.5rem;
+        background: var(--clr-greys-100);
+      }
+    }
+
+    & > *:last-child {
+      margin-top: var(--gaps-4);
+    }
+  }
+
+  @include modifiers(visible, &) {
+    &__dimmer,
+    &__content {
+      opacity: 1;
+      pointer-events: all;
+      transition: opacity 250ms ease-in-out;
+    }
+
+    &__content {
+      transform: translateX(-50%) translateY(-50%) scale(1, 1);
+      transition:
+        opacity 250ms ease-in-out,
+        transform 250ms ease-in-out;
+    }
+  }
+
+  @include query(l) {
+    &__content {
+      width: fit-content;
+      height: fit-content;
+      padding: var(--gaps-4);
+      max-height: calc(100% - var(--gaps-4));
+    }
+  }
+}

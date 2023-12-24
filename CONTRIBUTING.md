@@ -179,6 +179,7 @@ Here is the list of repositories changelogs to watch for updates, for each packa
 
 - [@nabla/vite-plugin-eslint](https://github.com/nabla/vite-plugin-eslint/releases)
 - [@sveltejs/vite-plugin-svelte](https://github.com/sveltejs/vite-plugin-svelte/releases)
+- [@types/node](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)
 - [@typescript-eslint/eslint-plugin](https://github.com/typescript-eslint/typescript-eslint/releases)
 - [@typescript-eslint/parser](https://github.com/typescript-eslint/typescript-eslint/releases)
 - [@vitejs/plugin-react](https://github.com/vitejs/vite/releases)
@@ -211,6 +212,21 @@ Here is the list of repositories changelogs to watch for updates, for each packa
 - [typedoc](https://github.com/TypeStrong/typedoc/releases)
 - [vite](https://github.com/vitejs/vite/releases)
 - [vitest](https://github.com/vitest-dev/vitest/releases)
+
+### `@perseid/ui`
+
+- [@types/react](https://github.com/DefinitelyTyped/DefinitelyTyped#readme)
+- [@types/react-dom](https://github.com/DefinitelyTyped/DefinitelyTyped#readme)
+- [@testing-library](https://github.com/testing-library/react-testing-library/releases)
+- [@testing-library/react](https://github.com/testing-library/react-testing-library/releases)
+- [@testing-library/svelte](https://github.com/testing-library/svelte-testing-library/releases)
+- [@testing-library/vue](https://github.com/testing-library/vue-testing-library/releases)
+- [coveralls](https://github.com/nickmerwin/node-coveralls/releases)
+- [react](https://github.com/facebook/react/releases)
+- [react-dom](https://github.com/facebook/react/releases)
+- [svelte](https://github.com/sveltejs/svelte/blob/master/CHANGELOG.md)
+- [typescript-dev-kit](https://github.com/openizr/typescript-dev-kit/releases)
+- [vue](https://github.com/vuejs/vue/releases)
 
 
 ## Build & Deployment

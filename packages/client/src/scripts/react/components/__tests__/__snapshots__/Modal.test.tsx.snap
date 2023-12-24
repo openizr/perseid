@@ -1,0 +1,33 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Modal > renders correctly - component does not exist 1`] = `
+<div
+  class="modal example "
+>
+  <div
+    class="modal__dimmer"
+    role="presentation"
+  />
+  <div
+    class="modal__content"
+  />
+</div>
+`;
+
+exports[`react/components/Modal > renders correctly - component exists 1`] = `
+<div
+  class="modal example visible"
+>
+  <div
+    class="modal__dimmer"
+    role="presentation"
+  />
+  <div
+    class="modal__content"
+  >
+    <div>
+      Mock Component
+    </div>
+  </div>
+</div>
+`;

@@ -1,0 +1,23 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.delete-confirmation {
+  @include extend(flex flex-col self-center);
+
+  &__ctas {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: var(--gaps-5);
+  }
+
+  @include query(m) {
+    &__ctas {
+      margin-top: var(--gaps-4);
+    }
+  }
+}

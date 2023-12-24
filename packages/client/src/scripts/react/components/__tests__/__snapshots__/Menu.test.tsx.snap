@@ -1,0 +1,161 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Menu > renders correctly - available routes 1`] = `
+<nav
+  class="menu "
+>
+  <div
+    class="menu__top-bar"
+  >
+    <div
+      id="ui-button"
+    >
+      {"icon":"more"}
+    </div>
+  </div>
+  <div
+    class="menu__panel"
+  >
+    <div
+      id="ui-button"
+    >
+      {"icon":"close"}
+    </div>
+    <span
+      class="menu__panel__title"
+    >
+      MENU.ITEMS.TITLE
+    </span>
+    <ul
+      class="menu__panel__items"
+    >
+      <li
+        class="menu__panel__items__item active"
+        role="menuitem"
+        tabindex="-1"
+      >
+        <div
+          id="ui-link"
+        >
+          {"href":"/users/me","label":"MENU.UPDATE_USER"}
+        </div>
+      </li>
+      <li
+        class="menu__panel__items__item "
+        role="menuitem"
+        tabindex="-1"
+      >
+        <div
+          id="ui-link"
+        >
+          {"href":"/users","label":"MENU.TO_SNAKE_CASE_users"}
+        </div>
+      </li>
+    </ul>
+    <div
+      id="ui-button"
+    >
+      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"text accent-3-color"}
+    </div>
+  </div>
+</nav>
+`;
+
+exports[`react/components/Menu > renders correctly - available routes 2`] = `
+<nav
+  class="menu "
+>
+  <div
+    class="menu__top-bar"
+  >
+    <div
+      id="ui-button"
+    >
+      {"icon":"more"}
+    </div>
+  </div>
+  <div
+    class="menu__panel"
+  >
+    <div
+      id="ui-button"
+    >
+      {"icon":"close"}
+    </div>
+    <span
+      class="menu__panel__title"
+    >
+      MENU.ITEMS.TITLE
+    </span>
+    <ul
+      class="menu__panel__items"
+    >
+      <li
+        class="menu__panel__items__item "
+        role="menuitem"
+        tabindex="-1"
+      >
+        <div
+          id="ui-link"
+        >
+          {"href":"/users/me","label":"MENU.UPDATE_USER"}
+        </div>
+      </li>
+      <li
+        class="menu__panel__items__item active"
+        role="menuitem"
+        tabindex="-1"
+      >
+        <div
+          id="ui-link"
+        >
+          {"href":"/users","label":"MENU.TO_SNAKE_CASE_users"}
+        </div>
+      </li>
+    </ul>
+    <div
+      id="ui-button"
+    >
+      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"text accent-3-color"}
+    </div>
+  </div>
+</nav>
+`;
+
+exports[`react/components/Menu > renders correctly - no routes 1`] = `
+<nav
+  class="menu visible"
+>
+  <div
+    class="menu__top-bar"
+  >
+    <div
+      id="ui-button"
+    >
+      {"icon":"more"}
+    </div>
+  </div>
+  <div
+    class="menu__panel"
+  >
+    <div
+      id="ui-button"
+    >
+      {"icon":"close"}
+    </div>
+    <span
+      class="menu__panel__title"
+    >
+      MENU.ITEMS.TITLE
+    </span>
+    <ul
+      class="menu__panel__items"
+    />
+    <div
+      id="ui-button"
+    >
+      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"text accent-3-color"}
+    </div>
+  </div>
+</nav>
+`;

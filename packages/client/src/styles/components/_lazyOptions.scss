@@ -1,0 +1,89 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.lazy-options {
+  @include extend(flex flex-col);
+
+  .ui-textfield:first-of-type {
+    .ui-textfield__wrapper {
+      margin-bottom: 0;
+    }
+  }
+
+  .ui-textfield:last-of-type {
+    margin-top: var(--gaps-2);
+  }
+
+  .ui-options {
+    max-width: 100%;
+    user-select: none;
+
+    &__wrapper {
+      padding: 0;
+      &__button[name='lazy-options-options'] {
+        display: none;
+      }
+      &__list {
+        border: none;
+      }
+    }
+
+    @include modifiers(select) {
+      .ui-options__wrapper {
+        border: none;
+        &:after {
+          content: none;
+        }
+      }
+    }
+
+    @include modifiers(select) {
+      .ui-options__wrapper__list {
+        width: 100%;
+        font-size: 0.875rem;
+        font-family: var(--ff-poppins-500);
+        opacity: 0;
+        transform: scaleY(0);
+        pointer-events: none;
+        transform-origin: 50% 0;
+        transition:
+          opacity 250ms ease-in,
+          transform 100ms ease-in;
+        background: var(--clr-greys-900);
+        border: 1px solid var(--clr-greys-700);
+        border-top: none;
+      }
+    }
+  }
+
+  &:focus-within {
+    @include modifiers(visible) {
+      .ui-options {
+        @include modifiers(select) {
+          .ui-options__wrapper__list {
+            opacity: 1;
+            transform: scaleY(1);
+            pointer-events: all;
+          }
+        }
+      }
+    }
+  }
+
+  @include modifiers(error) {
+    .ui-textfield__helper {
+      color: var(--clr-accent-3-500);
+    }
+
+    &:focus-within {
+      .ui-textfield__helper {
+        color: var(--clr-accent-2-500);
+      }
+    }
+  }
+}

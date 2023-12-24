@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Loader > renders correctly 1`] = `
+<div
+  class="loader"
+>
+  LOADER.LABEL
+</div>
+`;

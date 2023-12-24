@@ -1,0 +1,140 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.menu {
+  @include extend(l\:flex l\:flex-col);
+
+  &__top-bar {
+    z-index: 20;
+    max-width: 100%;
+    overflow: hidden;
+    box-shadow: var(--shd-1);
+    padding: var(--gaps-2) 0;
+    position: relative; // Necessary for `z-index` property to take effect.
+    @include extend(flex l\:flex-col flex-auto w-full items-start l\:items-center justify-end);
+
+    & > .ui-button {
+      flex: none;
+      @include extend(l\:none);
+
+      @include modifiers(icon) {
+        padding: var(--gaps-2) var(--gaps-3);
+      }
+
+      .ui-icon {
+        width: 1.5rem;
+        height: 1.5rem;
+      }
+    }
+  }
+
+  &__panel {
+    top: 0;
+    z-index: 50;
+    position: fixed;
+    flex: 1 1 auto; // TODO
+    text-align: center; // TODO
+    overflow: auto;
+    box-shadow: var(--shd-1);
+    transition: transform 0.5s;
+    transform: translateY(-100%);
+    background: var(--clr-greys-900);
+    padding: var(--gaps-6) var(--gaps-3) 0 var(--gaps-3);
+    @include extend(w-full h-full flex flex-col items-stretch vgap-4);
+
+    & > .ui-button:first-child {
+      top: var(--gaps-3);
+      right: var(--gaps-3);
+      position: absolute;
+      @include extend(flex-none l\:none);
+
+      .ui-icon {
+        width: 1.5rem;
+        height: 1.5rem;
+      }
+    }
+
+    &__title {
+      font-size: 1.5rem;
+      line-height: 160%;
+      font-family: var(--ff-poppins-500);
+      @include extend(l\:none);
+    }
+
+    &__items {
+      @include extend(flex flex-col vgap-3);
+
+      &__item {
+        .ui-link {
+          @extend %ellipsis;
+          font-size: 1 0.125rem;
+          text-decoration: none;
+          @include extend(block);
+          color: var(--clr-primary-500);
+          font-family: var(--ff-poppins-500);
+          padding: var(--gaps-3) var(--gaps-3);
+          transition: color backgroud 0.35s;
+
+          &:focus-within,
+          &:hover,
+          &:active {
+            color: var(--clr-primary-600);
+          }
+        }
+
+        @include modifiers(active) {
+          .ui-link {
+            color: var(--clr-greys-900);
+            background: var(--clr-primary-500);
+
+            &:focus-within,
+            &:hover,
+            &:active {
+              color: var(--clr-greys-800);
+            }
+          }
+        }
+      }
+    }
+
+    & > .ui-button:last-child {
+      @include extend(flex-none self-center);
+    }
+  }
+
+  @include modifiers(visible, &) {
+    &__panel {
+      transform: translateY(0);
+    }
+  }
+
+  @include query(l) {
+    height: 100%;
+    position: relative;
+    row-gap: var(--gaps-4);
+    max-width: fit-content;
+    box-shadow: var(--shd-1);
+
+    &__top-bar {
+      box-shadow: none;
+    }
+
+    &__panel {
+      width: 100%;
+      padding: 0;
+      box-shadow: none;
+      position: initial;
+      transform: translateY(0);
+      justify-content: space-between;
+
+      & > .ui-button:last-child {
+        transform: translateY(calc(-1 * var(--gaps-4)));
+      }
+    }
+  }
+}

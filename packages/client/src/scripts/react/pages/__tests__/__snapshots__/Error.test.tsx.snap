@@ -1,0 +1,124 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/pages/Error > renders correctly - forbidden error 1`] = `
+<div
+  id="layout"
+>
+  <span>
+    {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+  </span>
+  <div>
+    <main
+      class="error-page  forbidden"
+    >
+      <div
+        id="ui-title"
+      >
+        {"label":"PAGES.ERROR.FORBIDDEN.TITLE"}
+      </div>
+      <div
+        id="ui-title"
+      >
+        {"level":"2","label":"PAGES.ERROR.FORBIDDEN.SUBTITLE"}
+      </div>
+      <div
+        id="ui-link"
+      >
+        {"href":"/fallback-route","label":"PAGES.ERROR.FORBIDDEN.CTA","modifiers":"button"}
+      </div>
+    </main>
+  </div>
+</div>
+`;
+
+exports[`react/pages/Error > renders correctly - generic error 1`] = `
+<div
+  class="layout"
+>
+  <div
+    class="layout__content"
+  >
+    <main
+      class="error-page  generic"
+    >
+      <div
+        id="ui-title"
+      >
+        {"label":"PAGES.ERROR.GENERIC.TITLE"}
+      </div>
+      <div
+        id="ui-title"
+      >
+        {"level":"2","label":"PAGES.ERROR.GENERIC.SUBTITLE"}
+      </div>
+      <div
+        id="ui-link"
+      >
+        {"href":"/fallback-route","label":"PAGES.ERROR.GENERIC.CTA","modifiers":"button"}
+      </div>
+    </main>
+  </div>
+</div>
+`;
+
+exports[`react/pages/Error > renders correctly - not found error (API) 1`] = `
+<div
+  id="layout"
+>
+  <span>
+    {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+  </span>
+  <div>
+    <main
+      class="error-page  resource-not-found"
+    >
+      <div
+        id="ui-title"
+      >
+        {"label":"PAGES.ERROR.NOT_FOUND.TITLE"}
+      </div>
+      <div
+        id="ui-title"
+      >
+        {"level":"2","label":"PAGES.ERROR.NOT_FOUND.SUBTITLE"}
+      </div>
+      <div
+        id="ui-link"
+      >
+        {"href":"/fallback-route","label":"PAGES.ERROR.NOT_FOUND.CTA","modifiers":"button"}
+      </div>
+    </main>
+  </div>
+</div>
+`;
+
+exports[`react/pages/Error > renders correctly - not found error (router) 1`] = `
+<div
+  id="layout"
+>
+  <span>
+    {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"display":false}
+  </span>
+  <div>
+    <main
+      class="error-page  not-found"
+    >
+      <div
+        id="ui-title"
+      >
+        {"label":"PAGES.ERROR.NOT_FOUND.TITLE"}
+      </div>
+      <div
+        id="ui-title"
+      >
+        {"level":"2","label":"PAGES.ERROR.NOT_FOUND.SUBTITLE"}
+      </div>
+      <div
+        id="ui-link"
+      >
+        {"href":"/fallback-route","label":"PAGES.ERROR.NOT_FOUND.CTA","modifiers":"button"}
+      </div>
+    </main>
+  </div>
+</div>
+`;

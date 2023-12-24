@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/ConfirmationModal > renders correctly 1`] = `
+<div
+  class="confirmation-modal"
+>
+  <div
+    id="ui-title"
+  >
+    {"level":"3","modifiers":"2","label":"CONFIRMATION.TITLE"}
+  </div>
+  <div
+    id="ui-title"
+  >
+    {"level":"4","modifiers":"3","label":"CONFIRMATION.SUBTITLE"}
+  </div>
+  <div
+    class="confirmation-modal__ctas"
+  >
+    <div
+      id="ui-button"
+    >
+      {"modifiers":"text","label":"CONFIRMATION.CANCEL"}
+    </div>
+    <div
+      id="ui-button"
+    >
+      {"modifiers":"primary","label":"CONFIRMATION.CONFIRM"}
+    </div>
+  </div>
+</div>
+`;

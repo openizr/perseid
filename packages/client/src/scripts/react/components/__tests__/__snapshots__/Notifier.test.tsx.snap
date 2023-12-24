@@ -1,0 +1,63 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Notifier > renders correctly - no notifications 1`] = `null`;
+
+exports[`react/components/Notifier > renders correctly - notifications 1`] = `
+<div
+  class="notifier"
+>
+  <div
+    class="notification info closed"
+  >
+    <div
+      id="ui-p"
+    >
+      {"label":"Test Message 1"}
+    </div>
+    <div
+      id="ui-button"
+    >
+      {"icon":"close"}
+    </div>
+  </div>
+  <div
+    class="notification warning"
+  >
+    <div
+      id="ui-p"
+    >
+      {"label":"Test Message 2"}
+    </div>
+  </div>
+</div>
+`;
+
+exports[`react/components/Notifier > renders correctly - notifications 2`] = `
+<div
+  class="notifier"
+>
+  <div
+    class="notification info closed"
+  >
+    <div
+      id="ui-p"
+    >
+      {"label":"Test Message 1"}
+    </div>
+    <div
+      id="ui-button"
+    >
+      {"icon":"close"}
+    </div>
+  </div>
+  <div
+    class="notification warning"
+  >
+    <div
+      id="ui-p"
+    >
+      {"label":"Test Message 2"}
+    </div>
+  </div>
+</div>
+`;

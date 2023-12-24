@@ -1,0 +1,66 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.list-page {
+  max-width: 100%;
+  max-height: 100%;
+  padding: var(--gaps-4) var(--gaps-2);
+  @include extend(flex flex-col vgap-4);
+
+  &__search {
+    flex: none;
+    max-width: 100%;
+    min-width: 100%;
+    @include extend(flex flex-auto hgap-2 vgap-2 flex-wrap);
+
+    .ui-button:last-of-type {
+      @include extend(s\:flex-none);
+    }
+  }
+
+  &__filters {
+    flex-grow: 0;
+    display: none;
+
+    @include modifiers(visible) {
+      display: block;
+
+      .perseid-form__step__fields {
+        @include extend(grid items-start cols-1 m\:cols-2 l\:cols-3 hgap-3 vgap-3);
+
+        #root__0__submit {
+          @include extend(col-3);
+        }
+      }
+    }
+  }
+
+  &__content {
+    width: 100%;
+    flex-shrink: 1;
+    overflow: hidden;
+    @include extend(flex flex-col vgap-4 items-center);
+
+    .table {
+      width: 100%;
+    }
+  }
+}
+
+@include query(l) {
+  .list-page {
+    align-items: start;
+    padding: var(--gaps-4) 0;
+    margin-left: var(--gaps-4);
+    max-width: calc(100% - var(--gaps-4) * 2);
+
+    &__search {
+      min-width: 45rem;
+    }
+  }
+}

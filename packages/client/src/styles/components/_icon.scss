@@ -1,0 +1,48 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.ui-icon {
+  background: none;
+  font-style: normal;
+
+  @include modifiers(plus) {
+    &::after {
+      content: '➕';
+    }
+  }
+
+  @include modifiers(signOut) {
+    &::after {
+      content: '🚪';
+    }
+  }
+
+  @include modifiers(edit) {
+    &::after {
+      content: '🖊️';
+    }
+  }
+
+  @include modifiers(delete) {
+    &::after {
+      content: '🗑️';
+    }
+  }
+
+  @include modifiers(close) {
+    &::after {
+      content: '✖️';
+    }
+  }
+
+  @include modifiers(more) {
+    &::after {
+      content: '⚙️';
+    }
+  }
+}

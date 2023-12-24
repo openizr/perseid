@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/FieldLabel > renders correctly 1`] = `
+<span
+  class="field-label"
+>
+  PAGES.TO_SNAKE_CASE_users.LIST.FIELDS.TO_SNAKE_CASE_test.LABEL
+</span>
+`;

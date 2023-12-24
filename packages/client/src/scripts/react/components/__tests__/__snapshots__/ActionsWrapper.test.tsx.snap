@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/ActionsWrapper > renders correctly - user has all permissions 1`] = `
+<div
+  class="actions-wrapper"
+>
+  <div
+    id="ui-button"
+  >
+    {"icon":"more","modifiers":"floating"}
+  </div>
+  <div
+    class="actions-wrapper__actions "
+  >
+    <div
+      id="ui-button"
+    >
+      {"icon":"delete"}
+    </div>
+    <div
+      id="ui-button"
+    >
+      {"icon":"edit"}
+    </div>
+  </div>
+</div>
+`;
+
+exports[`react/components/ActionsWrapper > renders correctly - user has only update permission 1`] = `
+<div
+  class="actions-wrapper"
+>
+  <div
+    id="ui-button"
+  >
+    {"icon":"more","modifiers":"floating"}
+  </div>
+  <div
+    class="actions-wrapper__actions "
+  >
+    <div
+      id="ui-button"
+    >
+      {"icon":"edit"}
+    </div>
+  </div>
+</div>
+`;

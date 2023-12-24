@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/ErrorWrapper > renders correctly - error 1`] = `<FallbackComponent />`;
+
+exports[`react/components/ErrorWrapper > renders correctly - no error 1`] = `
+<div
+  id="test"
+/>
+`;

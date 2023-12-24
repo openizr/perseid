@@ -1,0 +1,44 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Grid > renders correctly 1`] = `
+<div
+  class="design-grid visible"
+>
+  <div
+    class="design-grid__column mobile"
+  />
+  <div
+    class="design-grid__column mobile"
+  />
+  <div
+    class="design-grid__column mobile"
+  />
+  <div
+    class="design-grid__column mobile"
+  />
+  <div
+    class="design-grid__column mobile"
+  />
+  <div
+    class="design-grid__column tablet"
+  />
+  <div
+    class="design-grid__column tablet"
+  />
+  <div
+    class="design-grid__column tablet"
+  />
+  <div
+    class="design-grid__column desktop"
+  />
+  <div
+    class="design-grid__column desktop"
+  />
+  <div
+    class="design-grid__column desktop"
+  />
+  <div
+    class="design-grid__column desktop"
+  />
+</div>
+`;

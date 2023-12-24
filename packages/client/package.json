@@ -1,0 +1,175 @@
+{
+  "name": "@perseid/client",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./main.js",
+  "types": "./core.d.ts",
+  "description": "Dynamic, model-based UIs generator",
+  "repository": "https://github.com/openizr/perseid",
+  "bugs": "https://github.com/openizr/perseid/issues",
+  "contributors": [
+    {
+      "name": "Matthieu Jabbour",
+      "email": "matthieu.jabbour@gmail.com",
+      "homepage": "https://github.com/matthieujabbour"
+    }
+  ],
+  "keywords": [
+    "perseid",
+    "client",
+    "ui",
+    "generator",
+    "react"
+  ],
+  "devDependencies": {
+    "@perseid/dev-kit": "^8.0.1",
+    "@testing-library/react": "^14.0.0",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "coveralls": "^3.1.1"
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/@perseid/dev-kit/main.cjs"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "*.d.ts",
+          "src/__mocks__/**/*.ts",
+          "src/__mocks__/**/*.tsx",
+          "src/scripts/react/components/__mocks__/**/*.tsx"
+        ],
+        "rules": {
+          "react-hooks/exhaustive-deps": "off",
+          "react/prop-types": "off",
+          "max-classes-per-file": "off",
+          "no-await-in-loop": "off"
+        }
+      },
+      {
+        "files": [
+          "src/scripts/core/services/__tests__/**/*.ts"
+        ],
+        "rules": {
+          "prefer-promise-reject-errors": "off",
+          "@typescript-eslint/unbound-method": "off"
+        }
+      },
+      {
+        "files": [
+          "src/scripts/react/components/FormField.tsx",
+          "src/scripts/react/components/NestedFields.tsx",
+          "src/scripts/react/components/OptionalField.tsx"
+        ],
+        "rules": {
+          "react/no-danger": "off",
+          "react/jsx-props-no-spreading": "off"
+        }
+      },
+      {
+        "files": [
+          "src/scripts/core/services/Store.ts",
+          "src/scripts/core/services/ApiClient.ts",
+          "src/scripts/core/services/FormBuilder.ts",
+          "src/scripts/react/components/PageLayout.tsx"
+        ],
+        "rules": {
+          "class-methods-use-this": "off",
+          "@typescript-eslint/unbound-method": "off"
+        }
+      },
+      {
+        "files": [
+          "src/scripts/react/pages/View.tsx",
+          "src/scripts/react/pages/List.tsx",
+          "src/scripts/react/components/Modal.tsx",
+          "src/scripts/react/components/Router.tsx",
+          "src/scripts/react/pages/CreateOrUpdate.tsx",
+          "src/scripts/react/components/BackButton.tsx",
+          "src/scripts/react/components/ActionsWrapper.tsx"
+        ],
+        "rules": {
+          "react/jsx-props-no-spreading": "off"
+        }
+      },
+      {
+        "files": [
+          "*.d.ts"
+        ],
+        "rules": {
+          "import/order": "off",
+          "import/named": "off",
+          "import/no-duplicates": "off",
+          "no-use-before-define": "off",
+          "import/no-unresolved": "off",
+          "@typescript-eslint/no-explicit-any": "off",
+          "import/no-extraneous-dependencies": "off",
+          "import/export": "off",
+          "import/no-relative-packages": "off",
+          "import/no-cycle": "off",
+          "import/no-self-import": "off",
+          "max-classes-per-file": "off"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "@perseid/core": "^1.0.0",
+    "@perseid/form": "^3.0.3",
+    "@perseid/store": "^7.0.1",
+    "biuty": "^2.0.0",
+    "idb-keyval": "^6.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devKitConfig": {
+    "target": "web",
+    "devServer": {
+      "host": "0.0.0.0",
+      "port": "FRONTEND_EXAMPLES_PORT"
+    },
+    "html": "./__playground__/index.html",
+    "entries": {
+      "main": "./scripts/core/index.ts",
+      "react": "./scripts/react/index.ts"
+    },
+    "runInDev": true,
+    "splitChunks": true,
+    "srcPath": "src",
+    "distPath": "dist",
+    "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
+  },
+  "engines": {
+    "node": ">= 18.0.0",
+    "npm": ">= 8.0.0"
+  },
+  "scripts": {
+    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
+    "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure",
+    "pure": "for i in dist/*.js; do sed -i 's/\\([a-z]\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer svelte react react-dom vue",
+    "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "peerDependencies": {
+    "svelte": "^4.2.8",
+    "vue": "^3.3.13"
+  }
+}

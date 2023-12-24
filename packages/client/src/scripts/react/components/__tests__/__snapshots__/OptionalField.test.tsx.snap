@@ -1,0 +1,28 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/OptionalField > renders correctly - displayed 1`] = `
+<div
+  class="optional-field "
+>
+  <div
+    id="ui-button"
+  >
+    {"modifiers":"text","label":"SHOW"}
+  </div>
+</div>
+`;
+
+exports[`react/components/OptionalField > renders correctly - hidden 1`] = `
+<div
+  class="optional-field "
+>
+  <div
+    id="ui-button"
+  >
+    {"modifiers":"text","label":"HIDE"}
+  </div>
+  <div
+    id="field"
+  />
+</div>
+`;

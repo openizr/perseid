@@ -1,0 +1,105 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Pagination > renders correctly - last page selected 1`] = `
+<div
+  class="pagination"
+>
+  <div
+    id="ui-button"
+  >
+    {"iconPosition":"left","label":"PAGINATION.PREVIOUS","modifiers":""}
+  </div>
+  <div
+    class="none s:flex hgap-2"
+  >
+    <button
+      class="pagination__page "
+      type="button"
+    >
+      1
+    </button>
+    <button
+      class="pagination__page "
+      type="button"
+    >
+      2
+    </button>
+    <button
+      class="pagination__page "
+      type="button"
+    >
+      3
+    </button>
+    <button
+      class="pagination__page "
+      type="button"
+    >
+      4
+    </button>
+    <button
+      class="pagination__page active"
+      type="button"
+    >
+      5
+    </button>
+  </div>
+  <div
+    id="ui-button"
+  >
+    {"iconPosition":"right","label":"PAGINATION.NEXT","modifiers":"disabled"}
+  </div>
+</div>
+`;
+
+exports[`react/components/Pagination > renders correctly - multiple pages 1`] = `
+<div
+  class="pagination"
+>
+  <div
+    id="ui-button"
+  >
+    {"iconPosition":"left","label":"PAGINATION.PREVIOUS","modifiers":"disabled"}
+  </div>
+  <div
+    class="none s:flex hgap-2"
+  >
+    <button
+      class="pagination__page active"
+      type="button"
+    >
+      1
+    </button>
+    <button
+      class="pagination__page "
+      type="button"
+    >
+      2
+    </button>
+    <button
+      class="pagination__page "
+      type="button"
+    >
+      3
+    </button>
+    <button
+      class="pagination__page "
+      type="button"
+    >
+      4
+    </button>
+    <button
+      class="pagination__page "
+      type="button"
+    >
+      5
+    </button>
+  </div>
+  <div
+    id="ui-button"
+  >
+    {"iconPosition":"right","label":"PAGINATION.NEXT","modifiers":""}
+  </div>
+</div>
+`;
+
+exports[`react/components/Pagination > renders correctly - one page 1`] = `null`;

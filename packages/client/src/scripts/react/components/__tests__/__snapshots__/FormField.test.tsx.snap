@@ -1,0 +1,117 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`scripts/react/components/FormField > renders correctly - Button 1`] = `
+<div
+  id="ui-button"
+>
+  {"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"initial  "}
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - DatePicker, value is a date 1`] = `
+<div
+  id="ui-textfield"
+>
+  {"name":"root.0.field","modifiers":"test","debounceTimeout":100,"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","value":"2023-01-01T00:00:00.000Z"}
+  <span
+    class="ui-textfield__wrapper__field"
+  />
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - DatePicker, value is not a date 1`] = `
+<div
+  id="ui-textfield"
+>
+  {"name":"root.0.field","modifiers":"test","debounceTimeout":100,"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL"}
+  <span
+    class="ui-textfield__wrapper__field"
+  />
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - FilePicker 1`] = `
+<div
+  id="ui-file-picker"
+>
+  {"name":"root.0.field","modifiers":"test","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL"}
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - LazyOptions 1`] = `
+<div
+  id="lazy-options"
+>
+  {"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","value":"null","modifiers":"test","store":{},"loadingLabel":"loading...","noResultLabel":"no result..."}
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - Message 1`] = `
+<section
+  class="ui-message initial required test"
+>
+  MARKDOWN FOR TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL, false
+</section>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - Object, optional 1`] = `
+<div
+  id="optional-field"
+>
+  {"type":"null","path":"root.0.field","error":null,"value":null,"engine":{},"active":true,"status":"initial","required":false,"modifiers":"object","showLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.SHOW.LABEL","hideLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.HIDE.LABEL"}
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - Object, required 1`] = `
+<div
+  id="nested-fields"
+>
+  {"type":"null","path":"root.0.field","error":null,"engine":{},"status":"initial","active":true,"required":true,"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","value":null,"_canonicalPath":"root.0.field"}
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - Options 1`] = `
+<div
+  id="ui-options"
+>
+  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","options":[{"type":"option","value":"test","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.OPTIONS.undefined"}]}
+  <span>
+    <span />
+    <span>
+      <span />
+    </span>
+  </span>
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - Textarea 1`] = `
+<div
+  id="ui-textarea"
+>
+  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"initial  ","debounceTimeout":100,"readonly":true,"readOnly":true}
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - Textfield, update on blur 1`] = `
+<div
+  id="ui-textfield"
+>
+  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","debounceTimeout":100}
+  <span
+    class="ui-textfield__wrapper__field"
+  />
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - Textfield, update on change 1`] = `
+<div
+  id="ui-textfield"
+>
+  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","debounceTimeout":100,"updateOnBlur":false}
+  <span
+    class="ui-textfield__wrapper__field"
+  />
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - unknown 1`] = `null`;

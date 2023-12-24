@@ -1,0 +1,93 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.verify-email-page {
+  & > div {
+    max-width: 100%;
+    @include extend(flex vgap-3 flex-col);
+
+    & > .ui-button {
+      flex: none;
+    }
+  }
+}
+
+.sign-in-page,
+.sign-up-page,
+.update-user-page,
+.verify-email-page,
+.reset-password-page {
+  overflow: overlay;
+  padding: var(--gaps-4) var(--gaps-2);
+  min-height: 100%; // Necessary to vertically align content.
+  @include extend(w-full flex flex-col items-center justify-center vgap-3);
+
+  &__card {
+    z-index: 10;
+    max-width: 100%;
+    background: var(--clr-greys-900);
+    @include extend(flex flex-col vgap-4);
+
+    & > div {
+      @include extend(grid cols-1 vgap-3);
+    }
+
+    // Prevents displaying an empty card while form is loading.
+    &:not(:has(#root__0)) {
+      display: none;
+    }
+
+    .perseid-form__step {
+      display: none;
+
+      @include modifiers(active) {
+        display: block;
+      }
+    }
+
+    #success__1 .perseid-form__step__fields {
+      @include extend(flex flex-col vgap-4);
+
+      .ui-link {
+        text-align: left; // TODO
+      }
+    }
+
+    .perseid-form__step__fields {
+      @include extend(flex flex-col vgap-3);
+
+      #root__0__title {
+        margin-bottom: var(--gaps-3);
+      }
+
+      #root__0__submit {
+        margin-top: var(--gaps-3);
+      }
+    }
+
+    .ui-link {
+      text-align: center; // TODO
+    }
+  }
+}
+
+@include query(l) {
+  .sign-in-page,
+  .sign-up-page,
+  .update-user-page,
+  .verify-email-page,
+  .reset-password-page {
+    &__card {
+      max-width: 20rem;
+      box-shadow: var(--shd-2);
+      border-radius: var(--shp-default);
+      padding: var(--gaps-3) var(--gaps-5);
+      padding-bottom: var(--gaps-4);
+    }
+  }
+}

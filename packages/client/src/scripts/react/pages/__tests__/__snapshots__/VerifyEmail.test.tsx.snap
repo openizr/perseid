@@ -1,0 +1,49 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/pages/VerifyEmail > renders correctly - email already verified 1`] = `
+<main
+  class="verify-email-page"
+>
+  <div
+    id="loader"
+  >
+    {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+  </div>
+</main>
+`;
+
+exports[`react/pages/VerifyEmail > renders correctly - email must be verified 1`] = `
+<main
+  class="verify-email-page"
+>
+  <div>
+    <div
+      id="ui-title"
+    >
+      {"level":"1","label":"PAGES.VERIFY_EMAIL.TITLE"}
+    </div>
+    <div
+      id="ui-title"
+    >
+      {"level":"2","label":"PAGES.VERIFY_EMAIL.SUBTITLE"}
+    </div>
+    <div
+      id="ui-button"
+    >
+      {"modifiers":"primary","label":"PAGES.VERIFY_EMAIL.CTA"}
+    </div>
+  </div>
+</main>
+`;
+
+exports[`react/pages/VerifyEmail > renders correctly - verifying email 1`] = `
+<main
+  class="verify-email-page"
+>
+  <div
+    id="loader"
+  >
+    {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+  </div>
+</main>
+`;

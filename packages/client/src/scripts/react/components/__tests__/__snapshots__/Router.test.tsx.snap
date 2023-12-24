@@ -1,0 +1,107 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/Router > renders correctly - other error 1`] = `
+<div
+  id="error-wrapper"
+>
+  <span>
+    {}
+  </span>
+  <div>
+    <div
+      id="error-page"
+    >
+      {"services":{"store":{}},"components":{}}
+    </div>
+  </div>
+  <div>
+    <div
+      id="error-page"
+    >
+      {"services":{"store":{}},"components":{},"error":{}}
+    </div>
+  </div>
+</div>
+`;
+
+exports[`react/components/Router > renders correctly - page found, component 1`] = `
+<div
+  id="error-wrapper"
+>
+  <span>
+    {}
+  </span>
+  <div>
+    <div
+      id="error-page"
+    >
+      {"services":{"store":{}},"components":{}}
+    </div>
+  </div>
+  <div>
+    <div
+      id="layout"
+    >
+      <span>
+        {"services":{"store":{}},"components":{}}
+      </span>
+      <div>
+        <div
+          id="page"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`react/components/Router > renders correctly - page found, no component 1`] = `
+<div
+  id="error-wrapper"
+>
+  <span>
+    {}
+  </span>
+  <div>
+    <div
+      id="error-page"
+    >
+      {"services":{"store":{}},"components":{}}
+    </div>
+  </div>
+  <div>
+    <div
+      id="layout"
+    >
+      <span>
+        {"services":{"store":{}},"components":{}}
+      </span>
+      <div />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`react/components/Router > renders correctly - page not found 1`] = `
+<div
+  id="error-wrapper"
+>
+  <span>
+    {}
+  </span>
+  <div>
+    <div
+      id="error-page"
+    >
+      {"services":{"store":{}},"components":{}}
+    </div>
+  </div>
+  <div>
+    <div
+      id="error-page"
+    >
+      {"services":{"store":{}},"components":{},"error":{}}
+    </div>
+  </div>
+</div>
+`;

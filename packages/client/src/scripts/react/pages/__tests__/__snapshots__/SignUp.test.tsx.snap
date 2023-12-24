@@ -1,0 +1,39 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/pages/SignUp > renders correctly - loaded page 1`] = `
+<main
+  class="sign-up-page"
+>
+  <div
+    class="sign-up-page__card"
+  >
+    <div
+      id="ui-title"
+    >
+      {"label":"PAGES.SIGN_UP.TITLE"}
+    </div>
+    <div
+      id="react-form"
+    >
+      <span>
+        {"configuration":{"root":"root","fields":{},"steps":{}},"Field":{"class":"form-field","args":"[{\\"root.0.test\\":{\\"component\\":\\"Test\\",\\"componentProps\\":{\\"modifiers\\":\\"primary\\"}}},{\\"prefix\\":\\"PAGES.SIGN_UP\\",\\"services\\":{\\"apiClient\\":{},\\"model\\":{},\\"i18n\\":{},\\"store\\":{}}}]"}}
+      </span>
+    </div>
+    <div>
+      <div
+        id="ui-link"
+      >
+        {"href":"/sign-in","label":"PAGES.SIGN_UP.SIGN_IN"}
+      </div>
+    </div>
+  </div>
+</main>
+`;
+
+exports[`react/pages/SignUp > renders correctly - loading page 1`] = `
+<div
+  id="loader"
+>
+  {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{}}
+</div>
+`;

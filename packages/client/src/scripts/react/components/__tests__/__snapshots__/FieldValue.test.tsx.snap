@@ -1,0 +1,61 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/components/FieldValue > renders correctly - \`null\` value, loaded 1`] = `
+<div
+  class="field-value"
+>
+  FIELD.FALLBACK.LABEL
+</div>
+`;
+
+exports[`react/components/FieldValue > renders correctly - \`null\` value, loading 1`] = `
+<div
+  class="field-value"
+>
+  FIELD.LOADING.LABEL
+</div>
+`;
+
+exports[`react/components/FieldValue > renders correctly - binary value 1`] = `
+<div
+  class="field-value"
+>
+  <div
+    id="ui-image"
+  >
+    {"alt":"binary","ratio":"square","src":""}
+  </div>
+</div>
+`;
+
+exports[`react/components/FieldValue > renders correctly - classic value 1`] = `
+<div
+  class="field-value"
+>
+  test
+</div>
+`;
+
+exports[`react/components/FieldValue > renders correctly - date value 1`] = `
+<div
+  class="field-value"
+>
+  2023/01/01
+</div>
+`;
+
+exports[`react/components/FieldValue > renders correctly - numeric value 1`] = `
+<div
+  class="field-value"
+>
+  1
+</div>
+`;
+
+exports[`react/components/FieldValue > renders correctly - object value 1`] = `
+<div
+  class="field-value"
+>
+  {"test":"value"}
+</div>
+`;
