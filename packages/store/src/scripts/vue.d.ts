@@ -7,8 +7,8 @@
  */
 
 declare module '@perseid/store/connectors/vue' {
-  import Store from '@perseid/store';
   import { type Ref, type UnwrapRef } from 'vue';
+  import Store, { type Reducer } from '@perseid/store';
 
   /**
    * Registers a new subscription to the specified module.

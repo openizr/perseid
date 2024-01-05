@@ -7,8 +7,8 @@
  */
 
 declare module '@perseid/store/connectors/svelte' {
-  import Store from '@perseid/store';
   import { type Readable } from 'svelte/store';
+  import Store, { type Reducer } from '@perseid/store';
 
   /**
    * Registers a new subscription to the specified module.

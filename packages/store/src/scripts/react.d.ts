@@ -7,7 +7,7 @@
  */
 
 declare module '@perseid/store/connectors/react' {
-  import Store from '@perseid/store';
+  import Store, { type Reducer } from '@perseid/store';
 
   /**
    * Registers a new subscription to the specified module.
