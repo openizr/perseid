@@ -1,0 +1,137 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+/**
+ * Applies given style to `modifiers` BEM+ modifier.
+ *
+ * @param {string} name BEM+ modifiers names to apply style to.
+ *
+ * @param {string} [children = false] Whether to use the mixin for modifiers' children, or the
+ * modifiers themselves.
+ */
+@mixin modifiers($modifiers, $children: false) {
+  $selectors: '';
+  @each $modifier in $modifiers {
+    $selectors: '#{$selectors}[class*="--#{$modifier}"]';
+  }
+
+  @if ($children !=false) {
+    &#{$selectors} #{&} {
+      @content;
+    }
+  } @else {
+    &#{$selectors} {
+      @content;
+    }
+  }
+}
+
+/**
+ * Makes the calling selector inherit given built-in classes.
+ *
+ * @param {string[]} classes List of built-in classes to inherit properties from.
+ */
+@mixin extend($classes) {
+  @each $class in $classes {
+    @if (str-index($class, flex)) {
+      @extend %flex;
+    }
+
+    @if (str-index($class, col-)) {
+      @extend %col;
+    }
+
+    @if (str-index($class, grid)) {
+      @extend %grid;
+    }
+
+    @if (str-index($class, grid) or str-index($class, flex)) {
+      @extend %grid-flex;
+    }
+
+    @if (str-index($class, none) or str-index($class, block)) {
+      @extend %none-block;
+    }
+
+    @if (str-index($class, self)) {
+      @extend %self;
+    }
+
+    @if (str-index($class, w-full)) {
+      @extend %width;
+    }
+
+    @if (str-index($class, h-full)) {
+      @extend %height;
+    }
+
+    @if (str-index($class, text)) {
+      @extend %text;
+    }
+
+    @extend .#{$class};
+  }
+}
+
+/**
+ * Integrates given style into a media query based on `firstBreakpoint` and `secondBreakpoint`.
+ * If only one breakpoint is passed, the media query will be of type "min-width". Otherwise, it will
+ * be of type "min-width" and "max-width". Highest breakpoint value will be considered as the
+ * max-width, while the other one will be min-width.
+ *
+ * @param {string|number} firstBreakpoint First breakpoint. Can be a predefined value (like `xl`),
+ * or an absolute value (like `1200px`).
+ *
+ * @param {string|number} [secondBreakpoint = ''] Second breakpoint. Can be a predefined value
+ * (like `xl`), or an absolute value (like `1200px`).
+ */
+@mixin query($firstBreakpoint, $secondBreakpoint: '') {
+  $firstValue: if(
+    map-has-key($breakpoints, $firstBreakpoint),
+    map-get($breakpoints, $firstBreakpoint),
+    $firstBreakpoint
+  );
+  $secondValue: if(
+    map-has-key($breakpoints, $secondBreakpoint),
+    map-get($breakpoints, $secondBreakpoint),
+    $secondBreakpoint
+  );
+
+  @if (type-of($firstValue) != 'number') {
+    @error "#{$firstValue} is not a valid breakpoint.";
+  }
+
+  @if ($secondValue != '' and type-of($firstValue) != 'number') {
+    @error "#{$secondValue} is not a valid breakpoint.";
+  }
+
+  // For '0px' breakpoint, we don't need to write a media query. The @content code is rendered.
+  @if ($firstValue==0px and $secondValue== '') {
+    @content;
+  }
+
+  // Build a max-width if needed
+  @else if ($secondValue != '') {
+    $query: if(
+      $firstValue <=$secondValue,
+      '(min-width:#{$firstValue}) and (max-width:#{$secondValue - 1})',
+      '(min-width:#{$secondValue}) and (max-width:#{$firstValue - 1})'
+    );
+
+    @media screen and #{$query} {
+      @content;
+    }
+  }
+
+  // Otherwise, build a min-width media query
+  @else {
+    @media screen and (min-width:#{$firstValue}) {
+      @content;
+    }
+  }
+}

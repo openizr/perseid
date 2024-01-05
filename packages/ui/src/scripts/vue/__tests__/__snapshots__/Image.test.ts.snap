@@ -1,0 +1,105 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vue/UIImage > renders correctly - basic 1`] = `
+<div
+  class="ui-image ui-image--square--large"
+>
+  <img
+    alt="test"
+    height="1"
+    loading="lazy"
+    src="https://test.com/a.jpg"
+    width="1"
+  />
+</div>
+`;
+
+exports[`vue/UIImage > renders correctly - custom ratio 1`] = `
+<img
+  alt="test"
+  class="ui-image ui-image--25x32"
+  height="32"
+  loading="lazy"
+  src="https://test.com/a.jpg"
+  width="25"
+/>
+`;
+
+exports[`vue/UIImage > renders correctly - custom ratio with itemprop 1`] = `
+<img
+  alt="test"
+  class="ui-image ui-image--1x5"
+  height="5"
+  itemprop="image"
+  loading="lazy"
+  src="https://test.com/a.jpg"
+  width="1"
+/>
+`;
+
+exports[`vue/UIImage > renders correctly - no lazy 1`] = `
+<div
+  class="ui-image ui-image--square--large"
+>
+  <img
+    alt="test"
+    height="1"
+    src="https://test.com/a.jpg"
+    width="1"
+  />
+</div>
+`;
+
+exports[`vue/UIImage > renders correctly - no lazy custom ratio 1`] = `
+<img
+  alt="test"
+  class="ui-image ui-image--1x5--large"
+  height="5"
+  src="https://test.com/a.jpg"
+  width="1"
+/>
+`;
+
+exports[`vue/UIImage > renders correctly - standard ratio with itemprop 1`] = `
+<div
+  class="ui-image ui-image--landscape"
+>
+  <img
+    alt="test"
+    height="2"
+    itemprop="image"
+    loading="lazy"
+    src="https://test.com/a.jpg"
+    width="3"
+  />
+</div>
+`;
+
+exports[`vue/UIImage > renders correctly - with id 1`] = `
+<div
+  class="ui-image ui-image--portrait"
+  id="test"
+>
+  <img
+    alt="test"
+    height="3"
+    loading="lazy"
+    src="https://test.com/a.jpg"
+    width="2"
+  />
+</div>
+`;
+
+exports[`vue/UIImage > renders correctly - with panoramic ratio 1`] = `
+<div
+  class="ui-image ui-image--panoramic"
+>
+  <img
+    alt="test"
+    height="9"
+    loading="lazy"
+    src="https://test.com/a.jpg"
+    width="16"
+  />
+</div>
+`;

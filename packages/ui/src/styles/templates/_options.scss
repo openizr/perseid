@@ -1,0 +1,91 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.ui-options {
+  user-select: none;
+  max-width: fit-content;
+
+  &__label {
+    @extend %label;
+  }
+
+  &__wrapper {
+    padding: var(--gaps-1) var(--gaps-3);
+    border-radius: var(--shp-default);
+    border: 1px solid var(--clr-greys-100);
+
+    &__option {
+      display: block;
+      cursor: pointer;
+      @extend %ellipsis;
+    }
+
+    &__button:focus {
+      background: var(--clr-greys-500);
+    }
+  }
+
+  @include modifiers(disabled) {
+    @extend %disabled;
+  }
+
+  @include modifiers(select, &) {
+    &__wrapper {
+      position: relative;
+      @include extend(flex hgap-2);
+
+      &:after {
+        content: '>';
+        display: block;
+        transform: rotate(90deg);
+        color: var(--clr-greys-100);
+      }
+
+      &__list {
+        left: 0;
+        top: 100%;
+        z-index: 999;
+        display: none;
+        overflow-y: auto;
+        max-height: 15rem;
+        position: absolute;
+        background: var(--clr-greys-900);
+        border-radius: var(--shp-default);
+        padding: var(--gaps-1) var(--gaps-2);
+        border: 1px solid var(--clr-greys-100);
+
+        &__option {
+          cursor: pointer;
+
+          &:hover,
+          &:focus-within {
+            background: var(--clr-greys-700);
+          }
+
+          @include modifiers(checked) {
+            background: var(--clr-greys-700);
+          }
+        }
+
+        &__header {
+          color: var(--clr-greys-500);
+        }
+
+        &__divider:before {
+          display: block;
+          font-size: 0.75rem;
+          content: '---------------';
+        }
+
+        @include modifiers(expanded) {
+          display: block;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vue/UITitle > renders correctly - basic 1`] = `
+<h1
+  class="ui-title ui-title--large--1"
+>
+  Test
+</h1>
+`;
+
+exports[`vue/UITitle > renders correctly - modifier different than level 1`] = `
+<h1
+  class="ui-title ui-title--5--large"
+>
+  Test
+</h1>
+`;
+
+exports[`vue/UITitle > renders correctly - with id 1`] = `
+<h1
+  class="ui-title ui-title--1"
+  id="test"
+>
+  Test
+</h1>
+`;
+
+exports[`vue/UITitle > renders correctly - with itemprop 1`] = `
+<h1
+  class="ui-title ui-title--1"
+  itemprop="name"
+>
+  <span
+    class="ui-markdown ui-markdown--emphasis"
+  >
+    Test
+  </span>
+</h1>
+`;

@@ -1,0 +1,36 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/UIP > renders correctly - basic 1`] = `
+<div>
+  <p
+    class="ui-p ui-p--large"
+  >
+    Test
+  </p>
+  <!--&lt;P&gt;-->
+</div>
+`;
+
+exports[`svelte/UIP > renders correctly - with id 1`] = `
+<div>
+  <p
+    class="ui-p"
+    id="test"
+  >
+    Test
+  </p>
+  <!--&lt;P&gt;-->
+</div>
+`;
+
+exports[`svelte/UIP > renders correctly - with itemProp 1`] = `
+<div>
+  <p
+    class="ui-p"
+    itemprop="description"
+  >
+    Test
+  </p>
+  <!--&lt;P&gt;-->
+</div>
+`;

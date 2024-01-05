@@ -1,0 +1,49 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.ui-h1 {
+  font-size: 1.75em;
+}
+
+.ui-h2 {
+  font-size: 1.25em;
+}
+
+.ui-h3 {
+  font-size: 1.1em;
+}
+
+.ui-h4 {
+  font-size: 1.1em;
+}
+
+.ui-h5 {
+  font-size: 1.1em;
+}
+
+.ui-h6 {
+  font-size: 1.1em;
+}
+
+.ui-p {
+  font-size: 1em;
+}
+
+.ui-link {
+  &,
+  &:visited {
+    color: initial;
+    text-decoration: underline;
+  }
+}
+
+.ui-markdown {
+  @include modifiers(strong) {
+    font-weight: 900;
+  }
+}

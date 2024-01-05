@@ -1,0 +1,427 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/UIFilePicker > renders correctly - basic 1`] = `
+<div>
+  <div
+    class="ui-file-picker ui-file-picker--large"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - disabled 1`] = `
+<div>
+  <div
+    class="ui-file-picker ui-file-picker--disabled"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="-1"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - multiple 1`] = `
+<div>
+  <div
+    class="ui-file-picker ui-file-picker--multiple"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        multiple=""
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - multiple with listeners 1`] = `
+<div>
+  <div
+    class="ui-file-picker ui-file-picker--multiple"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        multiple=""
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        /path/to/file1.png
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with accept 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        accept="image/*"
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with helper 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+    <span
+      class="ui-file-picker__helper"
+    >
+      Helper
+    </span>
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with id 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+    id="test"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with label 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+  >
+    <label
+      class="ui-file-picker__label"
+      for="z8a8d7a5zad4"
+    >
+      Label
+    </label>
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with left icon 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+      <i
+        class="ui-icon ui-icon--star"
+      />
+      <!--&lt;Icon&gt;-->
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with listeners 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        /path/to/file1.png
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with placeholder 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        Pick...
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with right icon 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+      <i
+        class="ui-icon ui-icon--star"
+      />
+      <!--&lt;Icon&gt;-->
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        undefined
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;
+
+exports[`svelte/UIFilePicker > renders correctly - with value 1`] = `
+<div>
+  <div
+    class="ui-file-picker"
+  >
+     
+    <div
+      class="ui-file-picker__wrapper"
+    >
+       
+      <input
+        class="ui-file-picker__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+        type="file"
+      />
+       
+       
+      <span
+        class="ui-file-picker__wrapper__placeholder"
+      >
+        test.png
+      </span>
+    </div>
+     
+  </div>
+  <!--&lt;FilePicker&gt;-->
+</div>
+`;

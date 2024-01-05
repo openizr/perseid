@@ -1,0 +1,49 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/UITooltip > renders correctly - basic 1`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip ui-tooltip--top"
+  role="tooltip"
+>
+  <button
+    type="button"
+  >
+    i
+  </button>
+</div>
+`;
+
+exports[`react/UITooltip > renders correctly - with description 1`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip ui-tooltip--top--described"
+  role="tooltip"
+>
+  <button
+    type="button"
+  >
+    i
+  </button>
+  <span
+    class="ui-tooltip__description"
+    role="status"
+  >
+    Description
+  </span>
+</div>
+`;
+
+exports[`react/UITooltip > renders correctly - with description 2`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip ui-tooltip--top"
+  role="tooltip"
+>
+  <button
+    type="button"
+  >
+    i
+  </button>
+</div>
+`;

@@ -1,0 +1,434 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vue/UITextfield > renders correctly - autocomplete off 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - basic 1`] = `
+<div
+  class="ui-textfield ui-textfield--large"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - readonly 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      readonly=""
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with autofocus 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      autofocus=""
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with disabled 1`] = `
+<div
+  class="ui-textfield ui-textfield--disabled"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      disabled=""
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="-1"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with helper 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <span
+    class="ui-textfield__helper"
+  >
+    <span
+      class="ui-markdown ui-markdown--emphasis"
+    >
+      Helper
+    </span>
+  </span>
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with id 1`] = `
+<div
+  class="ui-textfield"
+  id="my-id"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with label 1`] = `
+<div
+  class="ui-textfield"
+>
+  <label
+    class="ui-textfield__label"
+    for="z8a8d7a5zad4"
+  >
+    <span
+      class="ui-markdown ui-markdown--emphasis"
+    >
+      Label
+    </span>
+  </label>
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with left icon 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <span
+      class="ui-textfield__wrapper__icon"
+      role="button"
+      tabindex="0"
+    >
+      <i
+        class="ui-icon ui-icon--star"
+      />
+    </span>
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with listeners and debounce 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <span
+      class="ui-textfield__wrapper__icon"
+      role="button"
+      tabindex="0"
+    >
+      <i
+        class="ui-icon ui-icon--star"
+      />
+    </span>
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with placeholder 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      placeholder="test..."
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with right icon 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <span
+      class="ui-textfield__wrapper__icon"
+      role="button"
+      tabindex="0"
+    >
+      <i
+        class="ui-icon ui-icon--star"
+      />
+    </span>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with transform and allowedKeys 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="10"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with transform and allowedKeys 2`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="10"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with type number 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      max="30"
+      min="0"
+      name="test"
+      size="100"
+      step="10"
+      tabindex="0"
+      type="number"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UITextfield > renders correctly - with value 1`] = `
+<div
+  class="ui-textfield"
+>
+  <!--v-if-->
+  <div
+    class="ui-textfield__wrapper"
+  >
+    <!--v-if-->
+    <input
+      autocomplete="off"
+      class="ui-textfield__wrapper__field"
+      id="z8a8d7a5zad4"
+      name="test"
+      size="100"
+      tabindex="0"
+      type="text"
+    />
+    <!--v-if-->
+  </div>
+  <!--v-if-->
+</div>
+`;

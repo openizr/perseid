@@ -1,0 +1,111 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/UIButton > renders correctly - basic 1`] = `
+<button
+  class="ui-button ui-button--large"
+  tabindex="0"
+  type="button"
+>
+  <span
+    class="ui-button__label"
+  >
+    Test
+  </span>
+</button>
+`;
+
+exports[`react/UIButton > renders correctly - default type 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="button"
+/>
+`;
+
+exports[`react/UIButton > renders correctly - disabled 1`] = `
+<button
+  class="ui-button ui-button--disabled"
+  tabindex="-1"
+  type="button"
+/>
+`;
+
+exports[`react/UIButton > renders correctly - icon only 1`] = `
+<button
+  class="ui-button ui-button--icon"
+  tabindex="0"
+  type="button"
+>
+  <i
+    class="ui-icon ui-icon--star"
+  />
+</button>
+`;
+
+exports[`react/UIButton > renders correctly - icon only 2`] = `
+<button
+  class="ui-button ui-button--icon"
+  tabindex="0"
+  type="button"
+>
+  <i
+    class="ui-icon ui-icon--star"
+  />
+</button>
+`;
+
+exports[`react/UIButton > renders correctly - label with icon 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="button"
+>
+  <i
+    class="ui-icon ui-icon--star"
+  />
+  <span
+    class="ui-button__label"
+  >
+    Test
+  </span>
+</button>
+`;
+
+exports[`react/UIButton > renders correctly - no label 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="button"
+/>
+`;
+
+exports[`react/UIButton > renders correctly - type submit 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="submit"
+/>
+`;
+
+exports[`react/UIButton > renders correctly - with id 1`] = `
+<button
+  class="ui-button"
+  id="test"
+  tabindex="0"
+  type="button"
+>
+  <span
+    class="ui-button__label"
+  >
+    Test
+  </span>
+</button>
+`;
+
+exports[`react/UIButton > renders correctly - with listeners 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="button"
+/>
+`;

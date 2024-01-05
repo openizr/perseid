@@ -1,0 +1,132 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vue/UIButton > renders correctly - basic 1`] = `
+<button
+  class="ui-button ui-button--large"
+  tabindex="0"
+  type="button"
+>
+  <!--v-if-->
+  <span
+    class="ui-button__label"
+  >
+    Test
+  </span>
+  <!--v-if-->
+</button>
+`;
+
+exports[`vue/UIButton > renders correctly - disabled 1`] = `
+<button
+  class="ui-button ui-button--disabled"
+  tabindex="-1"
+  type="button"
+>
+  <!--v-if-->
+  <!--v-if-->
+  <!--v-if-->
+</button>
+`;
+
+exports[`vue/UIButton > renders correctly - icon only 1`] = `
+<button
+  class="ui-button ui-button--icon"
+  tabindex="0"
+  type="button"
+>
+  <i
+    class="ui-icon ui-icon--star"
+  />
+  <!--v-if-->
+  <!--v-if-->
+</button>
+`;
+
+exports[`vue/UIButton > renders correctly - label with icon 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="button"
+>
+  <i
+    class="ui-icon ui-icon--star"
+  />
+  <span
+    class="ui-button__label"
+  >
+    Test
+  </span>
+  <!--v-if-->
+</button>
+`;
+
+exports[`vue/UIButton > renders correctly - no label 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="button"
+>
+  <!--v-if-->
+  <!--v-if-->
+  <!--v-if-->
+</button>
+`;
+
+exports[`vue/UIButton > renders correctly - right icon 1`] = `
+<button
+  class="ui-button ui-button--icon"
+  tabindex="0"
+  type="button"
+>
+  <!--v-if-->
+  <!--v-if-->
+  <i
+    class="ui-icon ui-icon--star"
+  />
+</button>
+`;
+
+exports[`vue/UIButton > renders correctly - type submit 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="submit"
+>
+  <!--v-if-->
+  <span
+    class="ui-button__label"
+  >
+    Test
+  </span>
+  <!--v-if-->
+</button>
+`;
+
+exports[`vue/UIButton > renders correctly - with id 1`] = `
+<button
+  class="ui-button ui-button--large"
+  id="test"
+  tabindex="0"
+  type="button"
+>
+  <!--v-if-->
+  <span
+    class="ui-button__label"
+  >
+    Test
+  </span>
+  <!--v-if-->
+</button>
+`;
+
+exports[`vue/UIButton > renders correctly - with listener 1`] = `
+<button
+  class="ui-button"
+  tabindex="0"
+  type="button"
+>
+  <!--v-if-->
+  <!--v-if-->
+  <!--v-if-->
+</button>
+`;

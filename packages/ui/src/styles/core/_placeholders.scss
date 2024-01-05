@@ -1,0 +1,28 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+// Text ellipsis.
+%ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// Disabled element.
+%disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+// Interactive field's label.
+%label {
+  cursor: pointer;
+  font-weight: 700;
+  user-select: none;
+  margin-bottom: 0.5em;
+}

@@ -1,0 +1,69 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/UILink > renders correctly - basic 1`] = `
+<div>
+  <a
+    class="ui-link ui-link--large"
+    href="https://test.com"
+    tabindex="0"
+  >
+    Test
+  </a>
+  <!--&lt;Link&gt;-->
+</div>
+`;
+
+exports[`svelte/UILink > renders correctly - disabled 1`] = `
+<div>
+  <a
+    class="ui-link ui-link--disabled"
+    href="https://test.com"
+    tabindex="-1"
+  >
+    Test
+  </a>
+  <!--&lt;Link&gt;-->
+</div>
+`;
+
+exports[`svelte/UILink > renders correctly - with id 1`] = `
+<div>
+  <a
+    class="ui-link"
+    href="https://test.com"
+    id="test"
+    tabindex="0"
+  >
+    Test
+  </a>
+  <!--&lt;Link&gt;-->
+</div>
+`;
+
+exports[`svelte/UILink > renders correctly - with rel 1`] = `
+<div>
+  <a
+    class="ui-link"
+    href="https://test.com"
+    rel="no referrer"
+    tabindex="0"
+  >
+    Test
+  </a>
+  <!--&lt;Link&gt;-->
+</div>
+`;
+
+exports[`svelte/UILink > renders correctly - with target 1`] = `
+<div>
+  <a
+    class="ui-link"
+    href="https://test.com"
+    tabindex="0"
+    target="_blank"
+  >
+    Test
+  </a>
+  <!--&lt;Link&gt;-->
+</div>
+`;

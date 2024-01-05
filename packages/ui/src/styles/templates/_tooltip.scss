@@ -1,0 +1,119 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.ui-tooltip {
+  position: relative;
+
+  %top {
+    right: 50%;
+    transform: translateX(50%);
+    bottom: calc(100% + var(--gaps-1));
+  }
+
+  %bottom {
+    right: 50%;
+    transform: translateX(50%);
+    top: calc(100% + var(--gaps-1));
+  }
+
+  %right {
+    bottom: 50%;
+    transform: translateY(50%);
+    left: calc(100% + var(--gaps-1));
+  }
+
+  %left {
+    bottom: 50%;
+    transform: translateY(50%);
+    right: calc(100% + var(--gaps-1));
+  }
+
+  &:after,
+  &__description {
+    z-index: 1;
+    display: none;
+    max-width: 100%;
+    width: max-content;
+    position: absolute;
+    pointer-events: none;
+    background: var(--clr-greys-900);
+    padding: var(--gaps-1);
+    content: attr(aria-label);
+    border: 1px solid var(--clr-greys-100);
+  }
+
+  @include modifiers(top, &) {
+    &__description {
+      @extend %top;
+    }
+  }
+
+  @include modifiers(bottom, &) {
+    &__description {
+      @extend %bottom;
+    }
+  }
+
+  @include modifiers(left, &) {
+    &__description {
+      @extend %left;
+    }
+  }
+
+  @include modifiers(right, &) {
+    &__description {
+      @extend %right;
+    }
+  }
+
+  @include modifiers(top) {
+    &:after {
+      @extend %top;
+    }
+  }
+
+  @include modifiers(bottom) {
+    &:after {
+      @extend %bottom;
+    }
+  }
+
+  @include modifiers(left) {
+    &:after {
+      @extend %left;
+    }
+  }
+
+  @include modifiers(right) {
+    &:after {
+      @extend %right;
+    }
+  }
+
+  &:hover,
+  &:focus-within {
+    &:after {
+      display: block;
+    }
+  }
+
+  @include modifiers(described) {
+    &:hover,
+    &:focus-within {
+      &:after {
+        display: none;
+      }
+    }
+  }
+
+  @include modifiers(described, &) {
+    &__description {
+      display: block;
+    }
+  }
+}

@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`react/UIIcon > renders correctly - basic 1`] = `
+<i
+  class="ui-icon ui-icon--star--large"
+/>
+`;
+
+exports[`react/UIIcon > renders correctly - with id 1`] = `
+<i
+  class="ui-icon ui-icon--star"
+  id="test"
+/>
+`;

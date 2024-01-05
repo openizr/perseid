@@ -1,0 +1,54 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+.ui-image {
+  user-select: none;
+  position: relative;
+
+  // Fixes a bug on `border-radius` and `overflow:hidden` that break border radius on hover (Safari).
+  // See https://gist.github.com/ayamflow/b602ab436ac9f05660d9c15190f4fd7b.
+  mask-image: -webkit-radial-gradient(white, black);
+
+  &:not(img) {
+    position: relative;
+    display: block;
+    content: '';
+
+    img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      object-fit: cover;
+      @include extend(h-full w-full);
+    }
+  }
+
+  @include modifiers(square) {
+    &:not(img) {
+      padding-top: 100%;
+    }
+  }
+
+  @include modifiers(landscape) {
+    &:not(img) {
+      padding-top: 66.66%;
+    }
+  }
+
+  @include modifiers(portrait) {
+    &:not(img) {
+      padding-top: 150%;
+    }
+  }
+
+  @include modifiers(panoramic) {
+    &:not(img) {
+      padding-top: 56.25%;
+    }
+  }
+}

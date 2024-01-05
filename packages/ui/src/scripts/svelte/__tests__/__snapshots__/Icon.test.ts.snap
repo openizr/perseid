@@ -1,0 +1,20 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/UIIcon > renders correctly - basic 1`] = `
+<div>
+  <i
+    class="ui-icon ui-icon--star--large"
+  />
+  <!--&lt;Icon&gt;-->
+</div>
+`;
+
+exports[`svelte/UIIcon > renders correctly - with id 1`] = `
+<div>
+  <i
+    class="ui-icon ui-icon--star"
+    id="test"
+  />
+  <!--&lt;Icon&gt;-->
+</div>
+`;

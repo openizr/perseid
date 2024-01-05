@@ -1,0 +1,367 @@
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+@charset "UTF-8";
+@use 'sass:color';
+@import './native';
+@import './mixins';
+@import './variables';
+@import './placeholders';
+
+* {
+  // Number of columns set in a layout scope.
+  --cols: 1;
+
+  // Gap between columns set in a layout scope.
+  --hgap: initial;
+  --vgap: initial;
+
+  // Number of columns spaning set in a layout item scope.
+  --span: 1;
+
+  // Layout properties.
+  --flow: initial;
+  --disp: initial;
+  --just: initial;
+  --items: initial;
+  --self: initial;
+
+  // Flex properties.
+  --wrap: initial;
+  --dir: initial;
+  --flex: none;
+
+  // Text properties.
+  --text: initial;
+
+  // Size properties.
+  --width: initial;
+  --height: initial;
+}
+
+// Built-in classes.
+$classes: (
+  flex: (
+    '--disp',
+    flex
+  ),
+  grid: (
+    '--disp',
+    grid
+  ),
+  none: (
+    '--disp',
+    none
+  ),
+  block: (
+    '--disp',
+    block
+  ),
+  flex-wrap: (
+    '--wrap',
+    wrap
+  ),
+  flex-nowrap: (
+    '--wrap',
+    nowrap
+  ),
+  flex-wrap-rev: (
+    '--wrap',
+    wrap-reverse
+  ),
+  flex-row: (
+    '--dir',
+    row
+  ),
+  flex-col: (
+    '--dir',
+    column
+  ),
+  flex-row-rev: (
+    '--dir',
+    row-reverse
+  ),
+  flex-col-rev: (
+    '--dir',
+    column-reverse
+  ),
+  grid-row: (
+    '--flow',
+    row
+  ),
+  grid-col: (
+    '--flow',
+    column
+  ),
+  grid-dense: (
+    '--flow',
+    dense
+  ),
+  flex-none: (
+    '--flex',
+    none
+  ),
+  flex-auto: (
+    '--flex',
+    1 1 auto
+  ),
+  justify-between: (
+    '--just',
+    space-between
+  ),
+  justify-around: (
+    '--just',
+    space-around
+  ),
+  justify-start: (
+    '--just',
+    flex-start
+  ),
+  justify-end: (
+    '--just',
+    flex-end
+  ),
+  justify-stretch: (
+    '--just',
+    stretch
+  ),
+  justify-center: (
+    '--just',
+    center
+  ),
+  items-center: (
+    '--items',
+    center
+  ),
+  items-start: (
+    '--items',
+    flex-start
+  ),
+  items-end: (
+    '--items',
+    flex-end
+  ),
+  items-stretch: (
+    '--items',
+    stretch
+  ),
+  self-center: (
+    '--self',
+    center
+  ),
+  self-start: (
+    '--self',
+    flex-start
+  ),
+  self-end: (
+    '--self',
+    flex-end
+  ),
+  self-stretch: (
+    '--self',
+    stretch
+  ),
+  text-center: (
+    '--text',
+    center
+  ),
+  text-left: (
+    '--text',
+    left
+  ),
+  text-right: (
+    '--text',
+    right
+  ),
+  text-justify: (
+    '--text',
+    justify
+  ),
+  w-full: (
+    '--width',
+    100%
+  ),
+  h-full: (
+    '--height',
+    100%
+  )
+);
+
+// --cols
+@for $i from 1 to $gridColumnsNumber + 1 {
+  $classes: map-merge(
+    $classes,
+    (
+      'cols-#{$i}': (
+        '--cols',
+        $i
+      )
+    )
+  );
+}
+
+// --span
+@for $i from 1 to $gridColumnsNumber + 1 {
+  $classes: map-merge(
+    $classes,
+    (
+      'col-#{$i}': (
+        '--span',
+        $i
+      )
+    )
+  );
+}
+
+// --vgap, --hgap
+@each $key, $value in map-get($variables, gaps) {
+  $classes: map-merge(
+    $classes,
+    (
+      'vgap-#{$key}': (
+        '--vgap',
+        $value
+      )
+    )
+  );
+  $classes: map-merge(
+    $classes,
+    (
+      'hgap-#{$key}': (
+        '--hgap',
+        $value
+      )
+    )
+  );
+}
+
+// Generating breakpoints-based built-in classes...
+@each $breakpoint, $value in $breakpoints {
+  @include query($breakpoint) {
+    $class-bp: if($breakpoint==xxs, '', #{$breakpoint}#{'\\:'});
+
+    @each $class, $val in $classes {
+      .#{$class-bp}#{$class} {
+        #{nth($val, 1)}: nth($val, 2);
+      }
+    }
+  }
+}
+
+// Actual CSS properties declarations.
+%grid {
+  display: var(--disp);
+  grid-auto-flow: var(--flow);
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+}
+
+[class*='grid'] {
+  @extend %grid;
+}
+
+%grid-flex {
+  row-gap: var(--vgap);
+  column-gap: var(--hgap);
+  align-items: var(--items);
+  justify-content: var(--just);
+}
+
+[class*='grid'],
+[class*='flex'] {
+  @extend %grid-flex;
+}
+
+%none-block {
+  display: var(--disp);
+}
+
+[class*='none'],
+[class*='block'] {
+  @extend %none-block;
+}
+
+%self {
+  align-self: var(--self);
+}
+
+[class*='self'] {
+  @extend %self;
+}
+
+%text {
+  text-align: var(--text);
+}
+
+[class*='text-'] {
+  @extend %text;
+}
+
+%width {
+  width: var(--width);
+}
+
+[class*='w-full'] {
+  @extend %width;
+}
+
+%height {
+  height: var(--height);
+}
+
+[class*='h-full'] {
+  @extend %height;
+}
+
+%flex {
+  display: var(--disp);
+  flex: var(--flex);
+  flex-wrap: var(--wrap);
+  flex-direction: var(--dir);
+}
+
+[class*='flex'] {
+  @extend %flex;
+}
+
+%col {
+  grid-column: span var(--span);
+}
+
+[class*='col-'] {
+  @extend %col;
+}
+
+body {
+  @each $variable, $values in $variables {
+    @each $key, $value in $values {
+      --#{$variable}-#{$key}: #{$value};
+    }
+  }
+
+  &:before {
+    position: fixed;
+    z-index: 9999;
+    content: 'Your browser is outdated and might not be able to display this page.';
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80vw;
+    max-width: 20rem;
+    padding: 1.5em;
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1);
+    background: white;
+  }
+
+  @supports (--css: variables) and (display: grid) {
+    &:before {
+      display: none;
+    }
+  }
+}

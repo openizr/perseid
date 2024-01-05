@@ -1,0 +1,327 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/UITextarea > renders correctly - autocomplete off 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - basic 1`] = `
+<div>
+  <div
+    class="ui-textarea ui-textarea--large"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - disabled 1`] = `
+<div>
+  <div
+    class="ui-textarea ui-textarea--disabled"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        disabled=""
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="-1"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - readonly 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        readonly=""
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with autofocus 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        autofocus=""
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with autoresize 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        rows="2"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with cols and rows 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        cols="10"
+        id="z8a8d7a5zad4"
+        name="test"
+        rows="50"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with helper 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+      />
+    </div>
+     
+    <span
+      class="ui-textarea__helper"
+    >
+      <span
+        class="ui-markdown ui-markdown--emphasis"
+      >
+        Helper
+      </span>
+    </span>
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with id 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+    id="my-id"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with label 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+    <label
+      class="ui-textarea__label"
+      for="z8a8d7a5zad4"
+    >
+      <span
+        class="ui-markdown ui-markdown--emphasis"
+      >
+        Label
+      </span>
+    </label>
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with listeners and debounce 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with placeholder 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        placeholder="test..."
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
+
+exports[`svelte/UITextarea > renders correctly - with value 1`] = `
+<div>
+  <div
+    class="ui-textarea"
+  >
+     
+    <div
+      class="ui-textarea__wrapper"
+    >
+      <textarea
+        autocomplete="off"
+        class="ui-textarea__wrapper__field"
+        id="z8a8d7a5zad4"
+        name="test"
+        tabindex="0"
+      />
+    </div>
+     
+  </div>
+  <!--&lt;Textarea&gt;-->
+</div>
+`;
