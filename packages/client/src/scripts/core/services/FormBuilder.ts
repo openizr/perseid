@@ -38,8 +38,8 @@ import {
   type StringConfiguration,
   type IntegerConfiguration,
 } from '@perseid/form';
-import { type Option } from 'biuty';
 import type Engine from '@perseid/form';
+import { type Option } from '@perseid/ui';
 import Store from 'scripts/core/services/Store';
 
 /**
@@ -793,7 +793,11 @@ export default class FormBuilder<
         },
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: (value: string): [string] => [value.toLowerCase()],
+          },
         },
         'root.0.password': {
           component: 'Textfield',
@@ -840,7 +844,11 @@ export default class FormBuilder<
         },
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: (value: string): [string] => [value.toLowerCase()],
+          },
         },
         'root.0.password': {
           component: 'Textfield',
@@ -903,7 +911,11 @@ export default class FormBuilder<
       fieldProps: {
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: (value: string): [string] => [value.toLowerCase()],
+          },
         },
         'root.0.submit': {
           component: 'Button',
@@ -982,7 +994,11 @@ export default class FormBuilder<
           },
           'root.0.email': {
             component: 'Textfield',
-            componentProps: { maxlength: 50, autofocus: true },
+            componentProps: {
+              maxlength: 50,
+              autofocus: true,
+              transform: (value: string): [string] => [value.toLowerCase()],
+            },
           },
           'root.0.password': {
             component: 'Textfield',
@@ -1043,7 +1059,11 @@ export default class FormBuilder<
         },
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: (value: string): [string] => [value.toLowerCase()],
+          },
         },
         'root.0.submit': {
           component: 'Button',

@@ -12,7 +12,7 @@ import {
   UITextfield,
   generateRandomId,
   type UIOptionsOption,
-} from 'biuty/react';
+} from '@perseid/ui/react';
 import * as React from 'react';
 import type Store from '@perseid/store';
 import { type DefaultDataModel } from '@perseid/core';

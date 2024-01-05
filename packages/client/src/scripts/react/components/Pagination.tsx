@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { UIButton, buildClass } from 'biuty/react';
 import { type DefaultDataModel } from '@perseid/core';
+import { UIButton, buildClass } from '@perseid/ui/react';
 
 /**
  * Pagination buttons props.

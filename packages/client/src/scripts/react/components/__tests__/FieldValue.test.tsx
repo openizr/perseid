@@ -15,8 +15,8 @@ import { type Id, type DefaultDataModel } from '@perseid/core';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/components/FieldValue', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
 
   const components = {};
   const createServices = (): Services => ({

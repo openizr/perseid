@@ -7,7 +7,7 @@
  */
 
 /**
- * `biuty` mock.
+ * `@perseid/ui` mock.
  */
 
 export const test = true;

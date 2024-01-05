@@ -24,7 +24,7 @@ import {
   type CollectionSchema,
   type DataModelMetadata,
 } from '@perseid/core';
-import { generateRandomId } from 'biuty';
+import { generateRandomId } from '@perseid/ui';
 import Model from 'scripts/core/services/Model';
 import BaseStore, { Module } from '@perseid/store';
 import ApiClient from 'scripts/core/services/ApiClient';

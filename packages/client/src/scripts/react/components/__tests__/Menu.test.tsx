@@ -15,8 +15,8 @@ import { type DefaultDataModel } from '@perseid/core';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/components/Menu', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
 
   const components = {};
   const dispatch = vi.fn();

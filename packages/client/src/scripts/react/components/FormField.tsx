@@ -15,7 +15,7 @@ import {
   UITextfield,
   UIFilePicker,
   type UIOptionsOption,
-} from 'biuty/react';
+} from '@perseid/ui/react';
 import * as React from 'react';
 import { type Fields } from '@perseid/form';
 import { type FormFieldProps } from '@perseid/form/react';

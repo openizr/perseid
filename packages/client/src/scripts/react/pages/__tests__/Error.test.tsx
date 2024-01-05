@@ -15,8 +15,8 @@ import ErrorPage from 'scripts/react/pages/Error';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/pages/Error', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
   vi.mock('scripts/react/components/Layout');
 
   const components = {};

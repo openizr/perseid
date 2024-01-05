@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { buildClass } from 'biuty/react';
+import { buildClass } from '@perseid/ui/react';
 import { type DefaultDataModel } from '@perseid/core';
 import { type ModalState } from 'scripts/core/services/Store';
 

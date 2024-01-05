@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { UITitle, UIButton } from 'biuty/react';
+import { UITitle, UIButton } from '@perseid/ui/react';
 import { type DefaultDataModel } from '@perseid/core';
 import DefaultLoader from 'scripts/react/components/Loader';
 import { type AuthState } from 'scripts/core/services/Store';

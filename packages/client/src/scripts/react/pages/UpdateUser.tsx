@@ -7,8 +7,8 @@
  */
 
 import * as React from 'react';
-import { UITitle } from 'biuty/react';
 import Form from '@perseid/form/react';
+import { UITitle } from '@perseid/ui/react';
 import FormField from 'scripts/react/components/FormField';
 import DefaultLoader from 'scripts/react/components/Loader';
 import { type DefaultDataModel } from '@perseid/core';

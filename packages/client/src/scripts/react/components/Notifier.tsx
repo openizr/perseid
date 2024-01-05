@@ -8,7 +8,7 @@
 
 import * as React from 'react';
 import { type DefaultDataModel } from '@perseid/core';
-import { UIP, UIButton, buildClass } from 'biuty/react';
+import { UIP, UIButton, buildClass } from '@perseid/ui/react';
 import { type NotifierState } from 'scripts/core/services/Store';
 
 /**

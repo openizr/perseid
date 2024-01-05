@@ -837,6 +837,7 @@ describe('core/services/FormBuilder', () => {
   test('[getSignUpConfiguration]', () => {
     const configuration = formBuilder.getSignUpConfiguration(vi.fn());
     const { fields } = configuration.configuration;
+    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
     expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.email as StringConfiguration).validation?.('test@test.test', {}, {})).toBeNull();
     expect((fields.password as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
@@ -883,7 +884,11 @@ describe('core/services/FormBuilder', () => {
         },
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: expect.any(Function) as () => void,
+          },
         },
         'root.0.password': {
           component: 'Textfield',
@@ -899,6 +904,7 @@ describe('core/services/FormBuilder', () => {
 
   test('[getSignInConfiguration]', () => {
     const configuration = formBuilder.getSignInConfiguration(vi.fn());
+    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
     expect(configuration).toEqual({
       requestedFields: new Set(),
       configuration: {
@@ -924,7 +930,11 @@ describe('core/services/FormBuilder', () => {
         },
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: expect.any(Function) as () => void,
+          },
         },
         'root.0.password': {
           component: 'Textfield',
@@ -937,6 +947,7 @@ describe('core/services/FormBuilder', () => {
   test('[getUpdateUserConfiguration]', () => {
     const configuration = formBuilder.getUpdateUserConfiguration({} as User, vi.fn(), vi.fn());
     const { fields } = configuration.configuration;
+    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
     expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.email as StringConfiguration).validation?.('test@test.test', {}, {})).toBeNull();
     configuration.configuration.plugins?.[0]({
@@ -970,7 +981,11 @@ describe('core/services/FormBuilder', () => {
       fieldProps: {
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: expect.any(Function) as () => void,
+          },
         },
         'root.0.submit': {
           component: 'Button',
@@ -987,6 +1002,7 @@ describe('core/services/FormBuilder', () => {
   test('[getResetPasswordConfiguration] - null reset token', () => {
     const configuration = formBuilder.getResetPasswordConfiguration(null, vi.fn(), vi.fn());
     const { fields } = configuration.configuration;
+    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
     expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.email as StringConfiguration).validation?.('test@test.test', {}, {})).toBeNull();
     expect(configuration).toEqual({
@@ -1031,7 +1047,11 @@ describe('core/services/FormBuilder', () => {
         },
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: expect.any(Function) as () => void,
+          },
         },
         'root.0.submit': {
           component: 'Button',
@@ -1044,6 +1064,7 @@ describe('core/services/FormBuilder', () => {
   test('[getResetPasswordConfiguration] - non-null reset token', () => {
     const configuration = formBuilder.getResetPasswordConfiguration('resetToken', vi.fn(), vi.fn());
     const { fields } = configuration.configuration;
+    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
     expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.email as StringConfiguration).validation?.('test@test.test', {}, {})).toBeNull();
     expect((fields.password as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
@@ -1092,7 +1113,11 @@ describe('core/services/FormBuilder', () => {
         },
         'root.0.email': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, autofocus: true },
+          componentProps: {
+            maxlength: 50,
+            autofocus: true,
+            transform: expect.any(Function) as () => void,
+          },
         },
         'root.0.password': {
           component: 'Textfield',

@@ -15,8 +15,8 @@ import CreateOrUpdate from 'scripts/react/pages/CreateOrUpdate';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/pages/CreateOrUpdate', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
   vi.mock('@perseid/form/react');
   vi.mock('scripts/react/components/Loader');
   vi.mock('scripts/react/components/FormField');

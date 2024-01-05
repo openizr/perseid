@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { UIButton, UITitle } from 'biuty/react';
+import { UIButton, UITitle } from '@perseid/ui/react';
 import { type DefaultDataModel } from '@perseid/core';
 
 /**

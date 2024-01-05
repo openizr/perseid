@@ -9,7 +9,7 @@
 import * as React from 'react';
 
 /**
- * `biuty/react` mock.
+ * `@perseid/ui/react` mock.
  */
 
 interface ComponentProps {

@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { UIImage } from 'biuty/react';
+import { UIImage } from '@perseid/ui/react';
 import { type Id, isPlainObject, type DefaultDataModel } from '@perseid/core';
 
 /**

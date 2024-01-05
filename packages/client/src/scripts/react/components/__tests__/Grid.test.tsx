@@ -12,7 +12,7 @@ import { render } from '@testing-library/react';
 import Grid from 'scripts/react/components/Grid';
 
 describe('react/components/Grid', () => {
-  vi.mock('biuty/react');
+  vi.mock('@perseid/ui/react');
 
   beforeEach(() => {
     vi.clearAllMocks();

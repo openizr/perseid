@@ -15,8 +15,8 @@ import PageLayout from 'scripts/react/components/PageLayout';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/components/PageLayout', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
   vi.mock('scripts/react/components/ActionsWrapper');
 
   const components = {};

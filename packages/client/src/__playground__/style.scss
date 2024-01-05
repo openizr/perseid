@@ -6,18 +6,14 @@
  *
  */
 
-@import 'biuty/core/index.scss';
-@import 'biuty/templates/index.scss';
+@import '@perseid/ui/core/index.scss';
+@import '@perseid/ui/templates/index.scss';
 
 @import 'styles/pages/index.scss';
 @import 'styles/components/index.scss';
 
 body {
   height: 100vh;
-  // TODO biuty ----------
-  display: block;
-  min-height: unset;
-  // ---------------------
   overflow: hidden; // Prevents reloading page when scrolling down on mobile.
   background: var(--clr-greys-900);
 }
@@ -45,12 +41,6 @@ body {
     background: var(--clr-greys-700);
   }
 }
-
-// TODO biuty ----------
-*:hover {
-  -webkit-tap-highlight-color: transparent;
-}
-// ---------------------
 
 .optional-field {
   @include extend(flex flex-col vgap-4);

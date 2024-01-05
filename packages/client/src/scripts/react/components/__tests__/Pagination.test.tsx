@@ -15,8 +15,8 @@ import Pagination from 'scripts/react/components/Pagination';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/components/Pagination', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
 
   const components = {};
   const createServices = (): Services => ({

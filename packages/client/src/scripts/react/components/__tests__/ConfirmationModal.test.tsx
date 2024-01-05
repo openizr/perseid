@@ -15,8 +15,8 @@ import ConfirmationModal from 'scripts/react/components/ConfirmationModal';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/components/ConfirmationModal', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
 
   const components = {};
   const mutate = vi.fn();

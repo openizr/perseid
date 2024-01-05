@@ -13,7 +13,7 @@ import {
   type DataModelMetadata,
 } from '@perseid/core';
 import * as React from 'react';
-import { buildClass, UITextfield } from 'biuty/react';
+import { buildClass, UITextfield } from '@perseid/ui/react';
 import DefaultLoader from 'scripts/react/components/Loader';
 import { type ListPageData } from 'scripts/core/services/Store';
 import DefaultFieldValue from 'scripts/react/components/FieldValue';

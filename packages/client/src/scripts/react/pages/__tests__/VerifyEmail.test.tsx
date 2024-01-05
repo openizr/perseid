@@ -15,8 +15,8 @@ import VerifyEmail from 'scripts/react/pages/VerifyEmail';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/pages/VerifyEmail', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
   vi.mock('scripts/react/components/Loader');
 
   const components = {};

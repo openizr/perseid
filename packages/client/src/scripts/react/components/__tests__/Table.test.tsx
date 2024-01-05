@@ -12,7 +12,7 @@ import Table from 'scripts/react/components/Table';
 import { fireEvent, queryByAttribute, render } from '@testing-library/react';
 
 describe('react/components/Table', () => {
-  vi.mock('biuty/react');
+  vi.mock('@perseid/ui/react');
 
   beforeEach(() => {
     vi.clearAllMocks();

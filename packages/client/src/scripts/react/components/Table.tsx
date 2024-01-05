@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { buildClass, generateRandomId } from 'biuty/react';
+import { buildClass, generateRandomId } from '@perseid/ui/react';
 
 /**
  * Table column.

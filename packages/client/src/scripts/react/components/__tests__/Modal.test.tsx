@@ -15,7 +15,7 @@ import { type DefaultDataModel } from '@perseid/core';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/components/Modal', () => {
-  vi.mock('biuty/react');
+  vi.mock('@perseid/ui/react');
 
   const mutate = vi.fn();
   const createServices = (modalState: unknown): Services => ({

@@ -18,7 +18,7 @@ import type Store from 'scripts/core/services/Store';
 import LazyOptions from 'scripts/react/components/LazyOptions';
 
 describe('react/components/LazyOptions', () => {
-  vi.mock('biuty/react');
+  vi.mock('@perseid/ui/react');
 
   const labelFn = vi.fn(() => 'LABEL');
 

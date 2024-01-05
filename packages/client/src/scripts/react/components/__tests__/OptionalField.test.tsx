@@ -17,8 +17,8 @@ function SubField(): JSX.Element {
 }
 
 describe('react/components/OptionalField', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
 
   const engine = { userAction: vi.fn() } as unknown as Engine;
 

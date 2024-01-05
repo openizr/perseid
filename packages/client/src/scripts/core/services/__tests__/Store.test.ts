@@ -40,7 +40,7 @@ type TestStore = Store & {
 };
 
 describe('core/services/Store', () => {
-  vi.mock('biuty');
+  vi.mock('@perseid/ui');
   vi.mock('@perseid/core');
   vi.mock('@perseid/form');
   vi.mock('@perseid/store');

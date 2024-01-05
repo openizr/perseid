@@ -7,9 +7,9 @@
  */
 
 import * as React from 'react';
-import { buildClass } from 'biuty/react';
-import DefaultLoader from 'scripts/react/components/Loader';
+import { buildClass } from '@perseid/ui/react';
 import { type DefaultDataModel } from '@perseid/core';
+import DefaultLoader from 'scripts/react/components/Loader';
 import { type ViewPageData } from 'scripts/core/services/Store';
 import DefaultPageLayout from 'scripts/react/components/PageLayout';
 import DefaultFieldValue from 'scripts/react/components/FieldValue';

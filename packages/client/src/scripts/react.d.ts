@@ -15,7 +15,7 @@ declare module '@perseid/client/react' {
     type Id,
     type DefaultDataModel,
   } from '@perseid/core';
-  import { type UIButtonProps } from 'biuty/react';
+  import { type UIButtonProps } from '@perseid/ui/react';
   import { type FormFieldProps, type Fields } from '@perseid/form/react';
 
   export * from '@perseid/client';

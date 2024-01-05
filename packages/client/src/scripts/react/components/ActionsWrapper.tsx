@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { UIButton, buildClass } from 'biuty/react';
+import { UIButton, buildClass } from '@perseid/ui/react';
 import { type AuthState } from 'scripts/core/services/Store';
 import { toSnakeCase, Id, type DefaultDataModel } from '@perseid/core';
 import { type RoutingContext } from '@perseid/store/extensions/router';

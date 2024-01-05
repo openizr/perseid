@@ -7,9 +7,9 @@
  */
 
 import * as React from 'react';
-import DefaultLayout from 'scripts/react/components/Layout';
 import { type DefaultDataModel } from '@perseid/core';
-import { UITitle, UILink, buildClass } from 'biuty/react';
+import DefaultLayout from 'scripts/react/components/Layout';
+import { UITitle, UILink, buildClass } from '@perseid/ui/react';
 
 /**
  * Error page props.

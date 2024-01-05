@@ -15,8 +15,8 @@ import List from 'scripts/react/pages/List';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/pages/List', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
   vi.mock('scripts/react/components/Table');
   vi.mock('scripts/react/components/Loader');
   vi.mock('scripts/react/components/FieldValue');

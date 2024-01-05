@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { UIButton, buildClass } from 'biuty/react';
+import { UIButton, buildClass } from '@perseid/ui/react';
 import { type FormFieldProps } from '@perseid/form/react';
 
 /**

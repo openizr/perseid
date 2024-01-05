@@ -20,8 +20,8 @@ function SubField(): JSX.Element {
 }
 
 describe('scripts/react/components/FormField', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
   vi.mock('scripts/react/components/LazyOptions');
   vi.mock('scripts/react/components/NestedFields');
   vi.mock('scripts/react/components/OptionalField');

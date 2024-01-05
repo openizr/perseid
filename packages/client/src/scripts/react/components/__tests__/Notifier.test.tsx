@@ -15,7 +15,7 @@ import { render, fireEvent, queryByAttribute } from '@testing-library/react';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/components/Notifier', () => {
-  vi.mock('biuty/react');
+  vi.mock('@perseid/ui/react');
 
   const components = {};
   const mutate = vi.fn();

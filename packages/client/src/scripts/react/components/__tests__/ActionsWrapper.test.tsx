@@ -15,8 +15,8 @@ import ActionsWrapper from 'scripts/react/components/ActionsWrapper';
 type Services = CommonProps<DefaultDataModel>['services'];
 
 describe('react/components/ActionsWrapper', () => {
-  vi.mock('biuty/react');
   vi.mock('@perseid/core');
+  vi.mock('@perseid/ui/react');
   vi.mock('scripts/core/services/Store');
 
   const components = {};

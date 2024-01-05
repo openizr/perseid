@@ -9,7 +9,7 @@
 import * as React from 'react';
 import { type Fields } from '@perseid/form';
 import { type FormFieldProps } from '@perseid/form/react';
-import { buildClass, UIButton, UIButtonProps } from 'biuty/react';
+import { buildClass, UIButton, UIButtonProps } from '@perseid/ui/react';
 
 /**
  * Nested fields props.
