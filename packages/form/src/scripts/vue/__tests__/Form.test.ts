@@ -17,6 +17,7 @@ describe('vue/Form', () => {
       getStore: vi.fn(),
     })),
   }));
+  vi.mock('scripts/vue/DefaultLayout.vue');
   vi.mock('@perseid/store/connectors/vue', () => ({
     default: vi.fn(() => (): unknown => {
       const state = {
@@ -42,8 +43,23 @@ describe('vue/Form', () => {
     delete process.env.LOADING;
   });
 
-  test('renders correctly - loading next step', () => {
+  test('renders correctly - loading next step', async () => {
     process.env.LOADING = 'true';
+    const { container, rerender } = render(Form, {
+      props: {
+        configuration,
+        Step: undefined,
+        Field: undefined,
+        Loader: undefined,
+        activeStep: 'start',
+        engineClass: undefined,
+      },
+    });
+    expect(container.firstChild).toMatchSnapshot();
+    await rerender({ activeStep: 'null' });
+  });
+
+  test('renders correctly - with active step', async () => {
     const { container } = render(Form, {
       props: {
         configuration,
@@ -56,23 +72,10 @@ describe('vue/Form', () => {
       },
     });
     expect(container.firstChild).toMatchSnapshot();
-  });
-
-  test('renders correctly - with active step', async () => {
-    const { container } = render(Form, {
-      props: {
-        configuration,
-        activeStep: 'start',
-        Step: undefined,
-        Field: undefined,
-        Layout: undefined,
-        Loader: undefined,
-        engineClass: undefined,
-      },
-    });
-    expect(container.firstChild).toMatchSnapshot();
     const step = container.querySelector('.perseid-form__step');
+    const form = container.querySelector('.perseid-form');
     await fireEvent.focus(step as HTMLElement);
+    await fireEvent.submit(form as HTMLElement);
     expect(container.firstChild).toMatchSnapshot();
   });
 });

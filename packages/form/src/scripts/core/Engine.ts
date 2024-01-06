@@ -458,7 +458,7 @@ export default class Engine {
         // Validation rules...
         const { validation } = configuration;
         const error = (validation !== undefined)
-          ? validation(field.value as never, this.userInputs, this.variables)
+          ? validation(field.value as never, this.userInputs.full, this.variables)
           : null;
         if (error !== null) {
           fieldState = 'error';

@@ -10,10 +10,12 @@
 
 import Engine from 'scripts/core/Engine';
 import { type Configuration } from 'scripts/core';
-import { DefineComponent, ref, watch } from 'vue';
 import connect from '@perseid/store/connectors/vue';
 import { type FormState } from 'scripts/core/state';
 import DefaultLoader from 'scripts/vue/DefaultLoader.vue';
+import {
+  DefineComponent, ref, watch, computed,
+} from 'vue';
 import DefaultField, { FormFieldProps } from 'scripts/vue/DefaultField.vue';
 import DefaultStep, { type FormStepProps } from 'scripts/vue/DefaultStep.vue';
 import DefaultLayout, { type FormLayoutProps } from 'scripts/vue/DefaultLayout.vue';
@@ -55,7 +57,7 @@ function buildClass(baseClass: string, modifiers: string): string {
 }
 
 const props = withDefaults(defineProps<FormProps>(), {
-  activeStep: '',
+  activeStep: undefined,
   engineClass: undefined,
   stepComponent: DefaultStep as unknown as undefined,
   fieldComponent: DefaultField as unknown as undefined,
@@ -68,19 +70,20 @@ const engine = new EngineClass(props.configuration as unknown);
 const useSubscription = connect(engine.getStore());
 const state = useSubscription<FormState>('state');
 
-const currentActiveStep = ref(
-  (props.activeStep as string | undefined)
-  ?? state.value.steps[state.value.steps.length - 1]?.path,
-);
+const currentActiveStep = ref(props.activeStep);
 
-const onFocus = (newActiveStep: string) => (): void => {
+const computedActiveStep = computed(() => (
+  currentActiveStep.value ?? state.value.steps[state.value.steps.length - 1]?.path
+));
+
+const onFocus = (newActiveStep: string) => {
   // Prevents any additional rendering when calling directly `setCurrentActiveStep`.
-  if (newActiveStep !== currentActiveStep.value) {
+  if (newActiveStep !== computedActiveStep.value) {
     currentActiveStep.value = newActiveStep;
   }
 };
 
-const setCurrentActiveStep = (newActiveStep: string) => (): void => {
+const setCurrentActiveStep = (newActiveStep: string) => {
   currentActiveStep.value = newActiveStep;
 };
 
@@ -94,7 +97,7 @@ watch(() => [props.activeStep], () => {
     <component
       :is="layoutComponent"
       :state="state"
-      :active-step="currentActiveStep"
+      :active-step="computedActiveStep"
       :loader-component="loaderComponent"
       :use-subscription="useSubscription"
       :set-active-step="setCurrentActiveStep"
@@ -110,7 +113,7 @@ watch(() => [props.activeStep], () => {
         :class="buildClass('perseid-form__step', [
           step.status,
           step.path.replace(/\./g, '__'),
-          currentActiveStep === step.path ? 'active' : '',
+          computedActiveStep === step.path ? 'active' : '',
         ].join(' '))"
         @focus="onFocus(step.path)"
       >
@@ -120,7 +123,7 @@ watch(() => [props.activeStep], () => {
           :step="step"
           :engine="engine"
           :use-subscription="useSubscription"
-          :active="currentActiveStep === step.path"
+          :active="computedActiveStep === step.path"
         />
       </div>
     </component>
