@@ -28,10 +28,6 @@ describe('vue/DefaultLayout', () => {
           userInputs: { full: {}, partial: {} },
         },
       },
-      slots: {
-        steps: '<div>STEPS</div>',
-        loader: '<div>LOADER</div>',
-      },
     });
     expect(container.firstChild).toMatchSnapshot();
   });

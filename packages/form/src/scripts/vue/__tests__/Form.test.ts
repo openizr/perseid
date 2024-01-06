@@ -7,9 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import { ref } from 'vue';
+import { ref, markRaw } from 'vue';
 import Form from 'scripts/vue/Form.vue';
 import { render, fireEvent } from '@testing-library/vue';
+import DefaultLayout from 'scripts/vue/__mocks__/DefaultLayout.vue';
 
 describe('vue/Form', () => {
   vi.mock('scripts/core/Engine', () => ({
@@ -17,7 +18,6 @@ describe('vue/Form', () => {
       getStore: vi.fn(),
     })),
   }));
-  vi.mock('scripts/vue/DefaultLayout.vue');
   vi.mock('@perseid/store/connectors/vue', () => ({
     default: vi.fn(() => (): unknown => {
       const state = {
@@ -53,6 +53,7 @@ describe('vue/Form', () => {
         Loader: undefined,
         activeStep: 'start',
         engineClass: undefined,
+        layoutComponent: markRaw(DefaultLayout),
       },
     });
     expect(container.firstChild).toMatchSnapshot();

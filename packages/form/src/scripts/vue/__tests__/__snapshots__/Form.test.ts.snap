@@ -33,20 +33,7 @@ exports[`vue/Form > renders correctly - with active step 1`] = `
   id="test"
 >
   <div
-    active-step="end"
-    id="default-layout"
-    loader-component="[object Object]"
-    state="[object Object]"
-    use-subscription="() => {
-      const state = {
-        loading: process.env.LOADING === "true",
-        steps: process.env.LOADING === "true" ? [] : [
-          { path: "start", fields: [] },
-          { path: "end", fields: [] }
-        ]
-      };
-      return ref(state);
-    }"
+    class="perseid-form__steps"
   >
     
     <!--
@@ -88,6 +75,7 @@ exports[`vue/Form > renders correctly - with active step 1`] = `
     </div>
     
     
+    <!--v-if-->
   </div>
 </form>
 `;
@@ -98,20 +86,7 @@ exports[`vue/Form > renders correctly - with active step 2`] = `
   id="test"
 >
   <div
-    active-step="start"
-    id="default-layout"
-    loader-component="[object Object]"
-    state="[object Object]"
-    use-subscription="() => {
-      const state = {
-        loading: process.env.LOADING === "true",
-        steps: process.env.LOADING === "true" ? [] : [
-          { path: "start", fields: [] },
-          { path: "end", fields: [] }
-        ]
-      };
-      return ref(state);
-    }"
+    class="perseid-form__steps"
   >
     
     <!--
@@ -153,6 +128,7 @@ exports[`vue/Form > renders correctly - with active step 2`] = `
     </div>
     
     
+    <!--v-if-->
   </div>
 </form>
 `;
