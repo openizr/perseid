@@ -7,22 +7,21 @@
  */
 
 .ui-button {
-  flex: 1 1 auto;
   max-width: 100%;
   overflow: hidden;
+  font-weight: 600;
   user-select: none;
   font-size: 0.875em;
   transition: all 250ms;
   border-radius: var(--shp-default);
-  padding: var(--gaps-1) var(--gaps-3);
-  border: 1px solid var(--clr-greys-100);
+  padding: var(--gaps-2) var(--gaps-3);
   @include extend(flex items-center hgap-2 justify-center);
 
   &__label {
     max-width: 100%;
+    line-height: 1.5;
     @extend %ellipsis;
-    line-height: 1.5em;
-    text-align: center;
+    @include extend(text-center);
   }
 
   .ui-icon {
@@ -49,5 +48,44 @@
     position: absolute;
     right: var(--gaps-4);
     bottom: var(--gaps-4);
+  }
+
+  @each $color in (primary, secondary, greys) {
+    @include modifiers($color) {
+      color: var(--clr-greys-900);
+      background: var(--clr-#{$color}-500);
+
+      &:hover,
+      &:focus,
+      &:focus-visible {
+        background: var(--clr-#{$color}-600);
+      }
+
+      &:active {
+        background: var(--clr-#{$color}-400);
+      }
+    }
+
+    @include modifiers($color outlined) {
+      color: var(--clr-#{$color}-500);
+      background: var(--clr-greys-900);
+      border: 1px solid var(--clr-#{$color}-500);
+
+      .ui-icon {
+        background: var(--clr-greys-900);
+      }
+
+      &:hover,
+      &:focus,
+      &:focus-visible {
+        color: var(--clr-#{$color}-600);
+        background: var(--clr-#{$color}-900);
+      }
+
+      &:active {
+        color: var(--clr-#{$color}-400);
+        background: var(--clr-#{$color}-800);
+      }
+    }
   }
 }

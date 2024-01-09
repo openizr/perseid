@@ -6,6 +6,15 @@
  *
  */
 
+@keyframes showTextareaHelper {
+  0% {
+    transform: translateY(-2rem);
+  }
+  100% {
+    transform: translateY(-0.25rem);
+  }
+}
+
 .ui-textarea {
   overflow: hidden;
   user-select: none;
@@ -15,18 +24,19 @@
   &__wrapper {
     flex: 1;
     overflow: hidden;
+    margin-bottom: 1.5rem;
     @include extend(flex);
   }
 
   &__wrapper__field,
   &__wrapper__field:focus {
+    border: none;
     user-select: auto;
-    font-size: 0.875em;
+    font-size: 0.875rem;
     @include extend(w-full);
-    transition: border-color 250ms;
+    background: var(--clr-greys-800);
     border-radius: var(--shp-default);
-    padding: var(--gaps-1) var(--gaps-2);
-    border: 1px solid var(--clr-greys-100);
+    padding: var(--gaps-2) var(--gaps-2);
 
     &::placeholder {
       color: var(--clr-greys-100);
@@ -38,7 +48,23 @@
   }
 
   &__helper {
-    @extend %ellipsis;
+    bottom: 0;
+    z-index: -1;
+    position: absolute;
+    font-size: 0.75rem;
+    transition: transform 250ms;
+    transform: translateY(-0.25rem);
+    animation: showTextareaHelper 250ms ease-in-out;
+  }
+
+  &:focus-within & {
+    &__wrapper__field {
+      border-color: var(--clr-greys-100);
+    }
+    &__helper {
+      animation: none;
+      transform: translateY(-2rem);
+    }
   }
 
   @include modifiers(disabled) {

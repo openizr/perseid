@@ -6,28 +6,36 @@
  *
  */
 
-.ui-h1 {
-  font-size: 1.75em;
-}
+.ui-title {
+  font-family: var(--ff-title);
 
-.ui-h2 {
-  font-size: 1.25em;
-}
+  @include modifiers(1) {
+    font-weight: 300;
+    font-size: 2rem;
+    background: var(--clr-primary-500);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 
-.ui-h3 {
-  font-size: 1.1em;
-}
+  @include modifiers(2) {
+    font-size: 1.25rem;
+  }
 
-.ui-h4 {
-  font-size: 1.1em;
-}
+  @include modifiers(3) {
+    font-size: 1.1rem;
+  }
 
-.ui-h5 {
-  font-size: 1.1em;
-}
+  @include modifiers(4) {
+    font-size: 1.1rem;
+  }
 
-.ui-h6 {
-  font-size: 1.1em;
+  @include modifiers(5) {
+    font-size: 1.1rem;
+  }
+
+  @include modifiers(6) {
+    font-size: 1.1rem;
+  }
 }
 
 .ui-p {
@@ -37,8 +45,9 @@
 .ui-link {
   &,
   &:visited {
-    color: initial;
+    font-weight: 300;
     text-decoration: underline;
+    color: var(--clr-secondary-100);
   }
 }
 
@@ -46,4 +55,9 @@
   @include modifiers(strong) {
     font-weight: 900;
   }
+}
+
+body {
+  font-family: var(--ff-default);
+  color: var(--clr-secondary-100);
 }

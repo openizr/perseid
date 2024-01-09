@@ -345,7 +345,7 @@ body {
 
   &:before {
     position: fixed;
-    z-index: 9999;
+    z-index: 1000;
     content: 'Your browser is outdated and might not be able to display this page.';
     bottom: 0;
     left: 50%;

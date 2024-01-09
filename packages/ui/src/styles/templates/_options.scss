@@ -14,78 +14,65 @@
     @extend %label;
   }
 
-  &__wrapper {
-    padding: var(--gaps-1) var(--gaps-3);
-    border-radius: var(--shp-default);
-    border: 1px solid var(--clr-greys-100);
-
-    &__option {
-      display: block;
-      cursor: pointer;
-      @extend %ellipsis;
-    }
-
-    &__button:focus {
-      background: var(--clr-greys-500);
-    }
-  }
-
-  @include modifiers(disabled) {
-    @extend %disabled;
+  @include modifiers(select) {
+    @include extend(flex flex-col vgap-2);
   }
 
   @include modifiers(select, &) {
     &__wrapper {
       position: relative;
-      @include extend(flex hgap-2);
-
-      &:after {
-        content: '>';
-        display: block;
-        transform: rotate(90deg);
-        color: var(--clr-greys-100);
-      }
 
       &__list {
-        left: 0;
         top: 100%;
-        z-index: 999;
+        left: -1px;
+        z-index: 20;
         display: none;
         overflow-y: auto;
-        max-height: 15rem;
+        max-height: 200px;
         position: absolute;
+        list-style: none;
+        width: calc(100% + 2px);
+        box-shadow: var(--shd-1);
         background: var(--clr-greys-900);
-        border-radius: var(--shp-default);
-        padding: var(--gaps-1) var(--gaps-2);
-        border: 1px solid var(--clr-greys-100);
+        border-bottom-left-radius: var(--shp-input);
+        border-bottom-right-radius: var(--shp-input);
 
         &__option {
           cursor: pointer;
+          transition: background 250ms ease-in;
+          padding: var(--gaps-2) var(--gaps-2);
 
           &:hover,
-          &:focus-within {
-            background: var(--clr-greys-700);
+          &:focus {
+            background: var(--clr-greys-800);
           }
 
           @include modifiers(checked) {
-            background: var(--clr-greys-700);
+            background: var(--clr-secondary-900);
+          }
+
+          @include modifiers(disabled) {
+            @extend %disabled;
+            background: var(--clr-greys-900);
           }
         }
 
-        &__header {
-          color: var(--clr-greys-500);
-        }
-
-        &__divider:before {
-          display: block;
-          font-size: 0.75rem;
-          content: '---------------';
-        }
-
         @include modifiers(expanded) {
-          display: block;
+          display: initial;
         }
       }
     }
+  }
+
+  &__wrapper {
+    margin: var(--gaps-1);
+  }
+
+  &__wrapper__option {
+    @include extend(flex hgap-3);
+  }
+
+  @include modifiers(disabled) {
+    @extend %disabled;
   }
 }

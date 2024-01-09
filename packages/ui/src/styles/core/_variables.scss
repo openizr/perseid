@@ -15,7 +15,7 @@ $breakpoints: (
   s: 576px,
   m: 768px,
   l: 992px,
-  xl: 1200px,
+  xl: 1200px
 ) !default;
 
 $variables: (
@@ -27,37 +27,37 @@ $variables: (
     4: 2rem,
     5: 4rem,
     6: 8rem,
-    7: 12rem,
+    7: 12rem
   ),
   shp: (
-    default: 4px,
+    default: 4px
   ),
   shd: (
     1: (
-      1px 1px 6px hsl(0, 0%, 10%),
-      0px 1px 5px 0px hsl(0, 0%, 10%),
-      0px 1px 0px 0px hsl(0, 0%, 10%),
+      1px 1px 6px #0000001a,
+      0px 1px 5px 0px #0000001a,
+      0px 1px 0px 0px #0000001a
     ),
     2: (
-      0px 4px 5px -2px hsl(0, 0%, 10%),
-      0px 7px 10px 1px hsl(0, 0%, 10%),
-      0px 2px 16px 1px hsl(0, 0%, 10%),
+      0px 4px 5px -2px #0000001a,
+      0px 7px 10px 1px #0000001a,
+      0px 2px 16px 1px #0000001a
     ),
     3: (
-      0px 7px 8px -4px hsl(0, 0%, 10%),
-      0px 13px 19px 2px hsl(0, 0%, 10%),
-      0px 5px 24px 4px hsl(0, 0%, 10%),
+      0px 7px 8px -4px #0000001a,
+      0px 13px 19px 2px #0000001a,
+      0px 5px 24px 4px #0000001a
     ),
     4: (
-      0px 9px 12px -6px hsl(0, 0%, 10%),
-      0px 19px 29px 2px hsl(0, 0%, 10%),
-      0px 7px 36px 6px hsl(0, 0%, 10%),
+      0px 9px 12px -6px #0000001a,
+      0px 19px 29px 2px #0000001a,
+      0px 7px 36px 6px #0000001a
     ),
     5: (
-      0px 11px 15px -7px hsl(0, 0%, 10%),
-      0px 24px 38px 3px hsl(0, 0%, 10%),
-      0px 9px 46px 8px hsl(0, 0%, 10%),
-    ),
+      0px 11px 15px -7px #0000001a,
+      0px 24px 38px 3px #0000001a,
+      0px 9px 46px 8px #0000001a
+    )
   ),
   clr: (
     greys-100: hsl(0, 0%, 10%),
@@ -67,10 +67,39 @@ $variables: (
     greys-500: hsl(0, 0%, 40%),
     greys-600: hsl(0, 0%, 60%),
     greys-700: hsl(0, 0%, 80%),
-    greys-800: hsl(0, 0%, 95%),
+    greys-800: hsl(0 0% 93%),
     greys-900: hsl(0, 0%, 99%),
+    primary-100: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
+    primary-200: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
+    primary-300: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
+    primary-400: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
+    primary-500: linear-gradient(45deg, hsl(315, 100%, 54%), hsl(12, 98%, 57%)),
+    primary-600: linear-gradient(45deg, hsl(315, 100%, 60%), hsl(12, 100%, 63%)),
+    primary-700: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
+    primary-800: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
+    primary-900: linear-gradient(45deg, hsl(315, 100%, 90%), hsl(11, 100%, 90%)),
+    secondary-100: hsl(240, 63%, 9%),
+    secondary-200: hsl(240, 64%, 16%),
+    secondary-300: hsl(240, 51%, 21%),
+    secondary-400: hsl(240, 55%, 27%),
+    secondary-500: hsl(240 63% 47%),
+    secondary-600: hsl(240 68% 57%),
+    secondary-700: hsl(240 70% 70%),
+    secondary-800: hsl(240 72% 90%),
+    secondary-900: hsl(240 75% 97%),
+    accent-1-100: hsl(0, 75%, 10%),
+    accent-1-200: hsl(0, 74%, 20%),
+    accent-1-300: hsl(0, 74%, 30%),
+    accent-1-400: hsl(0, 74%, 35%),
+    accent-1-500: hsl(0, 74%, 49%),
+    accent-1-600: hsl(0, 74%, 55%),
+    accent-1-700: hsl(0, 74%, 70%),
+    accent-1-800: hsl(0, 74%, 80%),
+    accent-1-900: hsl(0, 74%, 95%)
   ),
   ff: (
-    default: 'sans-serif',
-  ),
+    title: Roboto,
+    default:
+      '"Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"'
+  )
 ) !default;

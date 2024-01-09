@@ -22,7 +22,8 @@
 // Interactive field's label.
 %label {
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 300;
   user-select: none;
-  margin-bottom: 0.5em;
+  font-size: 0.75rem;
+  margin-bottom: var(--gaps-1);
 }
