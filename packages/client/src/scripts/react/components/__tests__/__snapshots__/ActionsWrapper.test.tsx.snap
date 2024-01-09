@@ -7,7 +7,7 @@ exports[`react/components/ActionsWrapper > renders correctly - user has all perm
   <div
     id="ui-button"
   >
-    {"icon":"more","modifiers":"floating"}
+    {"icon":"more","modifiers":"floating primary"}
   </div>
   <div
     class="actions-wrapper__actions "
@@ -33,7 +33,7 @@ exports[`react/components/ActionsWrapper > renders correctly - user has only upd
   <div
     id="ui-button"
   >
-    {"icon":"more","modifiers":"floating"}
+    {"icon":"more","modifiers":"floating primary"}
   </div>
   <div
     class="actions-wrapper__actions "

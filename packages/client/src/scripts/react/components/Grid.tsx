@@ -25,8 +25,8 @@ const css = `
   width: 100%;
   height: 100%;
   display: none;
+  z-index: 1000;
   position: fixed;
-  z-index: 9999999;
   pointer-events: none;
   padding: 0 var(--gaps-2);
   column-gap: var(--gaps-1);

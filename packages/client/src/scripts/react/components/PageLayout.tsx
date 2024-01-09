@@ -46,7 +46,7 @@ function PageLayout<DataModel extends DefaultDataModel = DefaultDataModel>({
     return (
       <>
         <UIButton
-          modifiers="text"
+          modifiers="secondary"
           onClick={services.store.goBack}
           label={services.i18n.t('NAVIGATION.GO_BACK')}
         />
@@ -80,7 +80,7 @@ function PageLayout<DataModel extends DefaultDataModel = DefaultDataModel>({
   return (
     <>
       <UIButton
-        modifiers="text"
+        modifiers="secondary"
         onClick={services.store.goBack}
         label={services.i18n.t('NAVIGATION.GO_BACK')}
       />

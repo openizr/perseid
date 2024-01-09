@@ -6,11 +6,10 @@
  *
  */
 
-.view-field {
-  &__label {
-    font-weight: 600;
-    &:after {
-      content: ':';
-    }
+.optional-field {
+  @include extend(flex flex-col vgap-4);
+
+  & > .ui-button:first-child {
+    width: fit-content;
   }
 }

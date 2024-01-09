@@ -94,7 +94,7 @@ function ActionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
       {(canUserDeleteResource || canUserUpdateResource) && (
         <UIButton
           icon="more"
-          modifiers="floating"
+          modifiers="floating primary"
           onClick={toggleActions}
           {...moreButtonProps}
         />

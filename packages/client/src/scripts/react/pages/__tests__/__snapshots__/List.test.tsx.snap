@@ -12,6 +12,11 @@ exports[`react/pages/List > renders correctly - loaded page, no results 1`] = `
     </span>
     <div>
       <div
+        id="ui-title"
+      >
+        {"label":"PAGES.TO_SNAKE_CASE_users.LIST.TITLE"}
+      </div>
+      <div
         class="list-page__search"
       >
         <div
@@ -78,6 +83,11 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
       {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
     </span>
     <div>
+      <div
+        id="ui-title"
+      >
+        {"label":"PAGES.TO_SNAKE_CASE_users.LIST.TITLE"}
+      </div>
       <div
         class="list-page__search"
       >
@@ -158,6 +168,11 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
       {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
     </span>
     <div>
+      <div
+        id="ui-title"
+      >
+        {"label":"PAGES.TO_SNAKE_CASE_users.LIST.TITLE"}
+      </div>
       <div
         class="list-page__search"
       >

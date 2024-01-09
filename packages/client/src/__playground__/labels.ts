@@ -1,16 +1,5 @@
 /* c8 ignore start */
 
-/**
- * Copyright (c) Openizr. All Rights Reserved.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- */
-
-/**
- * Default app labels.
- */
 export default {
   FIELD: {
     FALLBACK: {
@@ -124,7 +113,7 @@ export default {
           ERRORS: {
             REQUIRED: 'Champ obligatoire',
             PATTERN_VIOLATION: 'Mot de passe non valide',
-            PASSWORDS_MISMATCH: 'Les mots de passe ne correspondent pas',
+            PASSWORDS_MISMATCH: 'Mots de passe différents',
           },
         },
         PASSWORD_CONFIRMATION: {
@@ -132,7 +121,7 @@ export default {
           ERRORS: {
             REQUIRED: 'Champ obligatoire',
             PATTERN_VIOLATION: 'Mot de passe non valide',
-            PASSWORDS_MISMATCH: 'Les mots de passe ne correspondent pas',
+            PASSWORDS_MISMATCH: 'Mots de passe différents',
           },
         },
         SUBMIT: {
@@ -180,7 +169,7 @@ export default {
           ERRORS: {
             REQUIRED: 'Champ obligatoire',
             PATTERN_VIOLATION: 'Mot de passe non valide',
-            PASSWORDS_MISMATCH: 'Les mots de passe ne correspondent pas',
+            PASSWORDS_MISMATCH: 'Mots de passe différents',
           },
         },
         PASSWORD_CONFIRMATION: {
@@ -188,7 +177,7 @@ export default {
           ERRORS: {
             REQUIRED: 'Champ obligatoire',
             PATTERN_VIOLATION: 'Mot de passe non valide',
-            PASSWORDS_MISMATCH: 'Les mots de passe ne correspondent pas',
+            PASSWORDS_MISMATCH: 'Mots de passe différents',
           },
         },
         SUBMIT: {
@@ -287,6 +276,7 @@ export default {
         },
       },
       LIST: {
+        TITLE: 'Utilisateurs',
         TABLE: {
           LOADING: 'Chargement',
           ACTIONS: 'Actions',
@@ -374,6 +364,7 @@ export default {
         },
       },
       LIST: {
+        TITLE: 'Tests',
         TABLE: {
           LOADING: 'Chargement',
           ACTIONS: 'Actions',

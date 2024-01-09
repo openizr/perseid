@@ -3,9 +3,14 @@
 🌠 Web development, coming from space
 
 This monorepo contains the following packages:
+- [@perseid/dev-kit](https://github.com/openizr/perseid/tree/main/dev-kit)
 - [@perseid/core](https://github.com/openizr/perseid/tree/main/core)
 - [@perseid/jobs](https://github.com/openizr/perseid/tree/main/jobs)
 - [@perseid/server](https://github.com/openizr/perseid/tree/main/server)
+- [@perseid/store](https://github.com/openizr/perseid/tree/main/store)
+- [@perseid/form](https://github.com/openizr/perseid/tree/main/form)
+- [@perseid/ui](https://github.com/openizr/perseid/tree/main/ui)
+- [@perseid/client](https://github.com/openizr/perseid/tree/main/client)
 
 
 ## Table of Contents
@@ -19,6 +24,12 @@ This monorepo contains the following packages:
 
 
 ## Installation
+
+For a development toolchain:
+
+```bash
+yarn add @perseid/dev-kit
+```
 
 For a backend project:
 
@@ -36,6 +47,24 @@ For a job scheduler:
 
 ```bash
 yarn add @perseid/jobs
+```
+
+For a new standalone form:
+
+```bash
+yarn add @perseid/form
+```
+
+For a new standalone store:
+
+```bash
+yarn add @perseid/store
+```
+
+For using SASS library and UI components:
+
+```bash
+yarn add @perseid/ui
 ```
 
 

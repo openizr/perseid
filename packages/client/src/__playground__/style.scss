@@ -1,11 +1,3 @@
-/**
- * Copyright (c) Openizr. All Rights Reserved.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- */
-
 @import '@perseid/ui/core/index.scss';
 @import '@perseid/ui/templates/index.scss';
 
@@ -16,15 +8,38 @@ body {
   height: 100vh;
   overflow: hidden; // Prevents reloading page when scrolling down on mobile.
   background: var(--clr-greys-900);
+
+  ::selection {
+    color: var(--clr-greys-900);
+    -webkit-text-fill-color: initial;
+    background: var(--clr-secondary-500);
+  }
 }
 
 #root {
   @include extend(h-full flex flex-auto);
 }
 
-::selection {
-  color: var(--clr-greys-900);
-  background: var(--clr-greys-500);
+/** Form fields. */
+
+.ui-textfield,
+.ui-textarea {
+  @include modifiers(error, &) {
+    &__helper {
+      color: var(--clr-accent-1-700);
+    }
+  }
+}
+
+/** Scrollbar. */
+
+:root {
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -32,16 +47,21 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  border-radius: 4rem;
   background: var(--clr-greys-800);
+  border-radius: 5px;
+  border-radius: 4rem;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d9d9d9;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #848484;
 }
 
 *:hover {
   ::-webkit-scrollbar-thumb {
     background: var(--clr-greys-700);
   }
-}
-
-.optional-field {
-  @include extend(flex flex-col vgap-4);
 }

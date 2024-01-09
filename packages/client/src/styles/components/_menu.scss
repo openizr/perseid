@@ -10,7 +10,7 @@
   @include extend(l\:flex l\:flex-col);
 
   &__top-bar {
-    z-index: 20;
+    z-index: 30;
     max-width: 100%;
     overflow: hidden;
     box-shadow: var(--shd-1);
@@ -29,6 +29,7 @@
       .ui-icon {
         width: 1.5rem;
         height: 1.5rem;
+        line-height: 1.5rem;
       }
     }
   }

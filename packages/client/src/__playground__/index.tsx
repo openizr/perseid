@@ -1,13 +1,5 @@
 /* c8 ignore start */
 
-/**
- * Copyright (c) Openizr. All Rights Reserved.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- */
-
 import {
   Grid,
   Model,
@@ -197,7 +189,7 @@ function main(): void {
           apiClient,
         }}
         pages={{
-          Home: async () => Promise.resolve({ default: () => <div>OKOK</div> }),
+          Home: async () => Promise.resolve({ default: () => <div /> }),
         }}
         components={{}}
       />

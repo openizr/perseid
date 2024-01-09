@@ -84,10 +84,7 @@ describe('scripts/react/components/FormField', () => {
     const Field = FormField({
       'root.0.field': {
         component: 'Textfield',
-        componentProps: {
-          modifiers: 'test',
-          updateOnBlur: false,
-        },
+        componentProps: { modifiers: 'test' },
       },
     }, context);
     const { container } = render(

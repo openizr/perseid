@@ -22,7 +22,6 @@ import Engine, { type StringConfiguration } from '@perseid/form';
 type TestFormBuilder = FormBuilder & {
   FORMATTERS: FormBuilder['FORMATTERS'];
   filterModel: FormBuilder['filterModel'];
-  passwordConfirmationPlugin: FormBuilder['passwordConfirmationPlugin'];
 };
 
 describe('core/services/FormBuilder', () => {
@@ -657,50 +656,6 @@ describe('core/services/FormBuilder', () => {
     });
   });
 
-  test('[passwordConfirmationPlugin]', async () => {
-    const field = { status: 'initial', error: null as string | null };
-    let callback: (data: unknown, next: () => unknown) => Promise<void> = () => Promise.resolve();
-    const on = vi.fn((_, cb: (data: unknown, next: () => void) => Promise<void>) => {
-      callback = cb;
-    });
-    formBuilder.passwordConfirmationPlugin({
-      on,
-      getSteps: vi.fn(() => [{}]),
-      getField: vi.fn(() => field),
-      getUserInputs: vi.fn(() => ({})),
-    } as unknown as Engine);
-    await callback({}, vi.fn(() => Promise.resolve({ path: 'root.0.passwordConfirmation' })));
-    expect(field.status).toBe('initial');
-    expect(field.error).toBe(null);
-    formBuilder.passwordConfirmationPlugin({
-      on,
-      getSteps: vi.fn(() => [{}]),
-      getField: vi.fn(() => field),
-      getUserInputs: vi.fn(() => ({ password: 'test' })),
-    } as unknown as Engine);
-    await callback({}, vi.fn(() => Promise.resolve({ path: 'root.0.passwordConfirmation' })));
-    expect(field.status).toBe('error');
-    expect(field.error).toBe('PASSWORDS_MISMATCH');
-    formBuilder.passwordConfirmationPlugin({
-      on,
-      getSteps: vi.fn(() => [{}]),
-      getField: vi.fn(() => field),
-      getUserInputs: vi.fn(() => ({ passwordConfirmation: 'test' })),
-    } as unknown as Engine);
-    await callback({}, vi.fn(() => Promise.resolve({ path: 'root.0.password' })));
-    expect(field.status).toBe('error');
-    expect(field.error).toBe('PASSWORDS_MISMATCH');
-    formBuilder.passwordConfirmationPlugin({
-      on,
-      getSteps: vi.fn(() => [{}]),
-      getField: vi.fn(() => field),
-      getUserInputs: vi.fn(() => ({})),
-    } as unknown as Engine);
-    await callback({}, vi.fn(() => Promise.resolve({ path: 'root.0.password' })));
-    expect(field.status).toBe('error');
-    expect(field.error).toBe('PASSWORDS_MISMATCH');
-  });
-
   test('[filterModel] - root path', () => {
     expect(formBuilder.filterModel('users', 'UPDATE', { type: 'null' }, '_', store)).toBeNull();
   });
@@ -843,7 +798,8 @@ describe('core/services/FormBuilder', () => {
     expect((fields.password as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.password as StringConfiguration).validation?.('Hello123!', {}, {})).toBeNull();
     expect((fields.passwordConfirmation as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
-    expect((fields.passwordConfirmation as StringConfiguration).validation?.('Hello123!', {}, {})).toBeNull();
+    expect((fields.passwordConfirmation as StringConfiguration).validation?.('Hello123!', { password: '' }, {})).toBe('PASSWORDS_MISMATCH');
+    expect((fields.passwordConfirmation as StringConfiguration).validation?.('Hello123!', { password: null }, {})).toBeNull();
     expect(configuration).toEqual({
       requestedFields: new Set(),
       configuration: {
@@ -851,6 +807,7 @@ describe('core/services/FormBuilder', () => {
         fields: {
           email: {
             type: 'string',
+            required: true,
             validation: expect.any(Function) as () => void,
           },
           password: {
@@ -875,7 +832,6 @@ describe('core/services/FormBuilder', () => {
           },
         },
         onSubmit: expect.any(Function) as () => void,
-        plugins: [expect.any(Function) as () => void],
       },
       fieldProps: {
         'root.0.submit': {
@@ -938,7 +894,7 @@ describe('core/services/FormBuilder', () => {
         },
         'root.0.password': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, type: 'password', updateOnBlur: false },
+          componentProps: { maxlength: 50, type: 'password' },
         },
       },
     });
@@ -993,7 +949,7 @@ describe('core/services/FormBuilder', () => {
         },
         'root.0.resetPassword': {
           component: 'Button',
-          componentProps: { type: 'submit', modifiers: 'primary' },
+          componentProps: { type: 'submit', modifiers: 'secondary outlined' },
         },
       },
     });
@@ -1070,7 +1026,8 @@ describe('core/services/FormBuilder', () => {
     expect((fields.password as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.password as StringConfiguration).validation?.('Hello123!', {}, {})).toBeNull();
     expect((fields.passwordConfirmation as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
-    expect((fields.passwordConfirmation as StringConfiguration).validation?.('Hello123!', {}, {})).toBeNull();
+    expect((fields.passwordConfirmation as StringConfiguration).validation?.('Hello123!', { password: '' }, {})).toBe('PASSWORDS_MISMATCH');
+    expect((fields.passwordConfirmation as StringConfiguration).validation?.('Hello123!', { password: null }, {})).toBeNull();
     expect(configuration).toEqual({
       requestedFields: new Set(),
       configuration: {
@@ -1104,7 +1061,6 @@ describe('core/services/FormBuilder', () => {
           },
         },
         onSubmit: expect.any(Function) as () => void,
-        plugins: [expect.any(Function) as () => void],
       },
       fieldProps: {
         'root.0.title': {

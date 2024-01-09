@@ -89,12 +89,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           placeholder={labels.placeholder}
           value={(value as string | undefined) ?? undefined}
           readonly={!active || componentProps.readOnly as boolean}
-          onBlur={componentProps.updateOnBlur === false ? undefined : (newValue): void => {
-            if (newValue !== value) {
-              engine.userAction({ type: 'input', path, data: newValue });
-            }
-          }}
-          onChange={componentProps.updateOnBlur !== false ? undefined : (newValue): void => {
+          onChange={(newValue): void => {
             if (newValue !== value) {
               engine.userAction({ type: 'input', path, data: newValue });
             }

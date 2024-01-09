@@ -1340,6 +1340,7 @@ export default class Store<
     });
     this.mutate('page', 'UPDATE', {
       ...options,
+      search: searchBody,
       total: (response as Results<DataModel>).total,
       results: (response as Results<DataModel>).results.map((result) => (
         (result as Resource)._id

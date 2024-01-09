@@ -76,7 +76,7 @@ services:
     container_name: ${PROJECT_NAME}_ui
     env_file:
       - .env
-    command: sh -c "tail -f /dev/null && yarn && yarn run dev"
+    command: sh -c "yarn && yarn run dev"
     volumes:
       - ./packages/ui:/var/www/html
       - ~/.cache/yarn:/home/node/.cache/yarn

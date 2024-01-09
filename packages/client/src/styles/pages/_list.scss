@@ -9,17 +9,11 @@
 .list-page {
   max-width: 100%;
   max-height: 100%;
-  padding: var(--gaps-4) var(--gaps-2);
   @include extend(flex flex-col vgap-4);
 
   &__search {
-    flex: none;
-    max-width: 100%;
-    min-width: 100%;
-    @include extend(flex flex-auto hgap-2 vgap-2 flex-wrap);
-
-    .ui-button:last-of-type {
-      @include extend(s\:flex-none);
+    .search-bar {
+      width: 100%;
     }
   }
 
@@ -45,19 +39,24 @@
     flex-shrink: 1;
     overflow: hidden;
     @include extend(flex flex-col vgap-4 items-center);
+  }
 
-    .table {
-      width: 100%;
+  .ui-title {
+    @include extend(text-center);
+  }
+
+  @include query(s) {
+    .ui-title {
+      text-align: left;
+    }
+
+    &__content {
+      align-items: start;
     }
   }
-}
 
-@include query(l) {
-  .list-page {
+  @include query(l) {
     align-items: start;
-    padding: var(--gaps-4) 0;
-    margin-left: var(--gaps-4);
-    max-width: calc(100% - var(--gaps-4) * 2);
 
     &__search {
       min-width: 45rem;

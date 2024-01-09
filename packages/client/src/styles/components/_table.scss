@@ -17,9 +17,10 @@
 .table {
   max-width: 100%;
   overflow: hidden;
-  border: 1px solid black;
+  min-height: 20rem;
   @include extend(flex flex-auto);
   border-radius: var(--shp-default);
+  border: 1px solid var(--clr-greys-800);
 
   &__headers__column,
   &__values__column__cell,
@@ -39,43 +40,15 @@
     white-space: nowrap;
     border-spacing: 0;
 
-    // FOR STICKY LAST COLUMN
-    // thead,
-    // th:last-child {
-    //   position: sticky;
-    //   top: 0;
-    //   background: white;
-    //   z-index: 1;
-    // }
-
-    // th:last-child,
-    // td:last-child {
-    //   position: sticky;
-    //   right: 0;
-    //   top: 0;
-    //   background: white;
-    //   @include extend(flex);
-    //   div {
-    //     @include extend(flex items-center hgap-2 flex-auto justify-center self-stretch);
-    //   }
-    // }
-
     tr:nth-child(even) {
       td:last-child {
-        background: var(--clr-greys-800);
+        background: var(--clr-secondary-900);
       }
-    }
-
-    th,
-    tr:not(:last-child) td {
-      border-bottom: 1px solid black;
     }
 
     th,
     td {
-      &:not(:first-child) {
-        border-left: 1px solid black;
-      }
+      width: 100%;
     }
 
     td {
@@ -84,19 +57,18 @@
   }
 
   &__headers__column {
-    width: 100%;
     cursor: default;
     position: relative;
-    border-bottom: 1px solid black;
-    background: var(--clr-greys-800);
+    user-select: none;
+    border-bottom: 1px solid var(--clr-greys-800);
 
     @include modifiers(sortable) {
       cursor: pointer;
-      background: white;
+      font-weight: 500;
       &:hover,
       &:focus,
       &:focus-visible {
-        background: var(--clr-greys-700);
+        text-decoration: underline;
       }
     }
 
@@ -122,16 +94,17 @@
 
     tr {
       cursor: pointer;
+      transition: all 250ms;
     }
 
     tr:nth-child(even) {
-      background: var(--clr-greys-800);
+      background: var(--clr-secondary-900);
     }
 
     tr:hover,
     tr:hover td:last-child,
     tr:nth-child(even):hover td:last-child {
-      background-color: var(--clr-greys-700);
+      background: var(--clr-primary-900);
     }
   }
 
@@ -140,7 +113,7 @@
     display: none;
   }
 
-  // Displays or hide loading placeholder depending on the state.
+  // Displays or hides loading placeholder depending on the state.
   @include modifiers(loading) {
     overflow: auto;
     @include extend(flex-col);
@@ -156,7 +129,7 @@
     }
   }
 
-  // Displays or hide no result placeholder depending on the state.
+  // Displays or hides no result placeholder depending on the state.
   @include modifiers(no-result) {
     overflow: auto;
     @include extend(flex-col);

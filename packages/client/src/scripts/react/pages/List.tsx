@@ -13,7 +13,7 @@ import {
   type DataModelMetadata,
 } from '@perseid/core';
 import * as React from 'react';
-import { buildClass, UITextfield } from '@perseid/ui/react';
+import { buildClass, UITextfield, UITitle } from '@perseid/ui/react';
 import DefaultLoader from 'scripts/react/components/Loader';
 import { type ListPageData } from 'scripts/core/services/Store';
 import DefaultFieldValue from 'scripts/react/components/FieldValue';
@@ -88,6 +88,7 @@ function List<DataModel extends DefaultDataModel = DefaultDataModel>({
         collection={collection}
         components={components}
       >
+        <UITitle label={services.i18n.t(`${prefix}.TITLE`)} />
         {(pageData.searchFields.length > 0) && (
           <div className="list-page__search">
             <UITextfield

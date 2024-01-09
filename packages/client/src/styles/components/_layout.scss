@@ -14,5 +14,18 @@
   &__content {
     overflow: auto;
     flex: 1 1; // Makes page content to take full width / height without breaking menu.
+    padding: var(--gaps-4) var(--gaps-2);
+  }
+
+  @include query(m) {
+    &__content {
+      padding: var(--gaps-4) var(--gaps-3);
+    }
+  }
+
+  @include query(l) {
+    &__content {
+      padding: var(--gaps-4);
+    }
   }
 }

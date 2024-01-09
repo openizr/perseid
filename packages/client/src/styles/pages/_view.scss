@@ -29,12 +29,14 @@
       &:empty {
         @include extend(none);
       }
+
+      .field-label {
+        @extend %label;
+      }
     }
   }
 
   @include query(l) {
-    padding-top: var(--gaps-4);
-    margin-left: var(--gaps-4);
-    max-width: calc(1600px - var(--gaps-4) * 2);
+    max-width: 1600px;
   }
 }

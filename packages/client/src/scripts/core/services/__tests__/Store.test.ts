@@ -816,7 +816,11 @@ describe('core/services/Store', () => {
       sortOrder: [],
     });
     expect(store.mutate).toHaveBeenCalledOnce();
-    expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', { total: 1, results: ['123456789012345678901234'] });
+    expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', {
+      total: 1,
+      results: ['123456789012345678901234'],
+      search: { filters: null, query: { on: ['email'], text: 'test ' } },
+    });
     await store.listOrSearch('users', null, {});
     expect(window.history.replaceState).toHaveBeenCalledTimes(2);
     expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/BUILT_QUERYBUILT_QUERY');
@@ -827,7 +831,11 @@ describe('core/services/Store', () => {
       sortOrder: [],
     });
     expect(store.mutate).toHaveBeenCalledTimes(2);
-    expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', { total: 1, results: ['123456789012345678901234'] });
+    expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', {
+      total: 1,
+      search: null,
+      results: ['123456789012345678901234'],
+    });
   });
 
   test('[goToPage]', async () => {

@@ -55,7 +55,7 @@ exports[`react/components/Menu > renders correctly - available routes 1`] = `
     <div
       id="ui-button"
     >
-      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"text accent-3-color"}
+      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"outlined secondary"}
     </div>
   </div>
 </nav>
@@ -116,7 +116,7 @@ exports[`react/components/Menu > renders correctly - available routes 2`] = `
     <div
       id="ui-button"
     >
-      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"text accent-3-color"}
+      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"outlined secondary"}
     </div>
   </div>
 </nav>
@@ -154,7 +154,7 @@ exports[`react/components/Menu > renders correctly - no routes 1`] = `
     <div
       id="ui-button"
     >
-      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"text accent-3-color"}
+      {"icon":"signOut","label":"MENU.SIGN_OUT","modifiers":"outlined secondary"}
     </div>
   </div>
 </nav>

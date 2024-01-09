@@ -25,7 +25,7 @@
   "devDependencies": {
     "@perseid/dev-kit": "^8.0.1",
     "@testing-library/react": "^14.0.0",
-    "@types/react": "^18.2.46",
+    "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",
     "coveralls": "^3.1.1"
   },
@@ -117,9 +117,9 @@
   },
   "dependencies": {
     "@perseid/core": "^1.0.0",
-    "@perseid/form": "^3.0.3",
-    "@perseid/store": "^7.0.1",
-    "@perseid/ui": "^3.0.1",
+    "@perseid/form": "^3.0.4",
+    "@perseid/store": "^7.0.2",
+    "@perseid/ui": "^3.0.2",
     "idb-keyval": "^6.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
@@ -149,7 +149,7 @@
     "test": "node_modules/@perseid/dev-kit/scripts/test",
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
-    "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure",
+    "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure && cp -r src/styles/* dist",
     "pure": "for i in dist/*.js; do sed -i 's/\\([a-z]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
     "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer svelte react react-dom vue",
     "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json"
@@ -170,6 +170,6 @@
   },
   "peerDependencies": {
     "svelte": "^4.2.8",
-    "vue": "^3.4.5"
+    "vue": "^3.4.7"
   }
 }

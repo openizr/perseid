@@ -112,7 +112,7 @@ function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
             <UIButton
               icon="signOut"
               label={t('MENU.SIGN_OUT')}
-              modifiers="text accent-3-color"
+              modifiers="outlined secondary"
               onClick={signOut as () => void}
             />
           )}

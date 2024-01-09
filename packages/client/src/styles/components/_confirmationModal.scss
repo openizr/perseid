@@ -6,18 +6,18 @@
  *
  */
 
-.delete-confirmation {
-  @include extend(flex flex-col self-center);
+.confirmation-modal {
+  @include extend(flex flex-col self-center vgap-3);
 
   &__ctas {
     display: flex;
     flex-wrap: wrap;
-    margin-top: var(--gaps-5);
+    margin-top: var(--gaps-3);
   }
 
   @include query(m) {
     &__ctas {
-      margin-top: var(--gaps-4);
+      margin-top: var(--gaps-3);
     }
   }
 }

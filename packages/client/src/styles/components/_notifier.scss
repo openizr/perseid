@@ -21,7 +21,6 @@
     opacity: 0;
     max-height: 15rem;
     transform: translateX(0);
-    border-bottom: 1px solid black;
     padding: var(--gaps-3) var(--gaps-4);
   }
 
@@ -47,7 +46,6 @@
     opacity: 0;
     max-height: 15rem;
     transform: translateX(0);
-    border: 1px solid black;
     margin-bottom: var(--gaps-2);
     padding: var(--gaps-3) var(--gaps-4);
   }
@@ -101,7 +99,6 @@
     background: #ffffff;
     transform: translateX(0);
 
-    border-bottom: 1px solid black;
     padding: var(--gaps-3) var(--gaps-4);
     animation: showNotification 4.5s forwards ease-in-out;
     @include extend(flex flex-auto items-center hgap-4 w-full);
@@ -135,7 +132,7 @@
     .notification {
       max-width: 350px;
       position: relative;
-      border: 1px solid black;
+      box-shadow: var(--shd-2);
       margin-bottom: var(--gaps-2);
       animation: showNotificationM 4.5s forwards ease-in-out;
     }

@@ -18,7 +18,7 @@
 
   @include modifiers(signOut) {
     &::after {
-      content: '🚪';
+      content: '⬅️';
     }
   }
 

@@ -12,7 +12,7 @@
     @include extend(flex vgap-3 flex-col);
 
     & > .ui-button {
-      flex: none;
+      @include extend(flex-none);
     }
   }
 }
@@ -23,12 +23,12 @@
 .verify-email-page,
 .reset-password-page {
   overflow: overlay;
-  padding: var(--gaps-4) var(--gaps-2);
   min-height: 100%; // Necessary to vertically align content.
   @include extend(w-full flex flex-col items-center justify-center vgap-3);
 
   &__card {
     z-index: 10;
+    min-width: 50%;
     max-width: 100%;
     background: var(--clr-greys-900);
     @include extend(flex flex-col vgap-4);
@@ -39,11 +39,11 @@
 
     // Prevents displaying an empty card while form is loading.
     &:not(:has(#root__0)) {
-      display: none;
+      @include extend(none);
     }
 
     .perseid-form__step {
-      display: none;
+      @include extend(none);
 
       @include modifiers(active) {
         display: block;
@@ -54,7 +54,7 @@
       @include extend(flex flex-col vgap-4);
 
       .ui-link {
-        text-align: left; // TODO
+        @include extend(text-left);
       }
     }
 
@@ -71,7 +71,7 @@
     }
 
     .ui-link {
-      text-align: center; // TODO
+      @include extend(text-center);
     }
   }
 }
@@ -83,10 +83,11 @@
   .verify-email-page,
   .reset-password-page {
     &__card {
+      min-width: auto;
       max-width: 20rem;
       box-shadow: var(--shd-2);
       border-radius: var(--shp-default);
-      padding: var(--gaps-3) var(--gaps-5);
+      padding: var(--gaps-4) var(--gaps-5);
       padding-bottom: var(--gaps-4);
     }
   }

@@ -56,8 +56,8 @@ function OptionalField({
   return (
     <div className={buildClass('optional-field', modifiers)}>
       <UIButton
-        modifiers="text"
         onClick={toggleExpand}
+        modifiers="secondary outlined"
         label={isExpanded ? hideLabel : showLabel}
       />
       {isExpanded && (

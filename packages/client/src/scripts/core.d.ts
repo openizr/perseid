@@ -598,9 +598,6 @@ declare module '@perseid/client' {
     /** List of formatters, used to format a perseid data model into its form equivalent. */
     protected readonly FORMATTERS: Record<FieldSchema<DataModel>['type'], FormFormatter<DataModel>>;
 
-    /** Checks that password and password confirmation match. */
-    protected passwordConfirmationPlugin: FormPlugin;
-
     /**
      * Generates fields tree from `fields`. Used to fetch nested relations fields in formatters.
      *

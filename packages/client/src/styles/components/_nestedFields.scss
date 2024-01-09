@@ -15,25 +15,20 @@
 
   &__field {
     padding: var(--gaps-2) var(--gaps-1);
-    border-top: 1px solid black;
+    border-top: 1px solid var(--clr-greys-800);
     @include extend(flex hgap-2 vgap-2 flex-wrap items-center justify-between);
 
     & > .ui-button {
-      @include extend(flex-none self-end);
+      @include extend(self-start);
     }
 
     & > *:last-child {
-      width: 100%;
+      @include extend(flex-auto);
     }
   }
 
-  &__add {
-    border-top: 1px solid black;
+  & > .ui-button:last-child {
     padding: var(--gaps-3) var(--gaps-1);
-    @include extend(flex flex-auto hgap-2 vgap-2 flex-wrap items-center justify-between);
-
-    & > .ui-textfield {
-      max-width: 100%;
-    }
+    border-top: 1px solid var(--clr-greys-800);
   }
 }

@@ -10,7 +10,7 @@
   &__dimmer,
   &__content {
     opacity: 0;
-    z-index: 30;
+    z-index: 60;
     pointer-events: none;
     transition: opacity 250ms ease-in-out;
   }

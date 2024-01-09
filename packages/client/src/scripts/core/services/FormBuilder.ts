@@ -26,10 +26,7 @@ import {
   type DataModelMetadata,
 } from '@perseid/core';
 import {
-  type Step,
-  type Field,
   type UserInputs,
-  type FormPlugin,
   type DateConfiguration,
   type ArrayConfiguration,
   type FieldConfiguration,
@@ -522,41 +519,6 @@ export default class FormBuilder<
     },
   };
 
-  /** Checks that password and password confirmation match. */
-  protected passwordConfirmationPlugin: FormPlugin = (engine): void => {
-    engine.on('userAction', (userAction, next) => next(userAction).then(async (updatedUserAction) => {
-      await Promise.resolve();
-      const currentStep = engine.getSteps().at(-1) as unknown as Step | null;
-      if (updatedUserAction !== null && currentStep !== null) {
-        const values = engine.getUserInputs<Record<string, string | undefined>>();
-        const passwordField = engine.getField('root.0.password') as unknown as Field;
-        const passwordConfirmationField = engine.getField('root.0.passwordConfirmation') as unknown as Field;
-        if (
-          updatedUserAction.path === 'root.0.passwordConfirmation'
-          || (updatedUserAction.path === 'root.0.password' && (values.passwordConfirmation ?? '') !== '')
-        ) {
-          const fieldToCompare = (updatedUserAction.path === 'root.0.passwordConfirmation')
-            ? 'password'
-            : 'passwordConfirmation';
-          if (!!values[fieldToCompare] && values[fieldToCompare] !== updatedUserAction.data) {
-            currentStep.status = 'error';
-            if (updatedUserAction.path === 'root.0.passwordConfirmation') {
-              passwordConfirmationField.status = 'error';
-              passwordConfirmationField.error = 'PASSWORDS_MISMATCH';
-            } else {
-              passwordField.status = 'error';
-              passwordField.error = 'PASSWORDS_MISMATCH';
-            }
-          } else {
-            passwordField.error = null;
-            passwordConfirmationField.error = null;
-          }
-        }
-      }
-      return updatedUserAction;
-    }));
-  };
-
   /**
    * Generates fields tree from `fields`. Used to fetch nested relations fields in formatters.
    *
@@ -754,23 +716,30 @@ export default class FormBuilder<
         fields: {
           email: {
             type: 'string',
-            validation: (newValue: string): string | null => (
+            required: true,
+            validation: (newValue) => (
               this.EMAIL_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
             ),
           },
           password: {
             type: 'string',
             required: true,
-            validation: (newValue: string): string | null => (
+            validation: (newValue) => (
               this.PASSWORD_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
             ),
           },
           passwordConfirmation: {
             type: 'string',
             required: true,
-            validation: (newValue: string): string | null => (
-              this.PASSWORD_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
-            ),
+            validation: (newValue, inputs): string | null => {
+              if (!this.PASSWORD_REGEXP.test(newValue)) {
+                return 'PATTERN_VIOLATION';
+              }
+              if (inputs.password !== null && inputs.password !== newValue) {
+                return 'PASSWORDS_MISMATCH';
+              }
+              return null;
+            },
           },
           submit: {
             type: 'null',
@@ -784,7 +753,6 @@ export default class FormBuilder<
           },
         },
         onSubmit: signUp,
-        plugins: [this.passwordConfirmationPlugin],
       },
       fieldProps: {
         'root.0.submit': {
@@ -852,7 +820,7 @@ export default class FormBuilder<
         },
         'root.0.password': {
           component: 'Textfield',
-          componentProps: { maxlength: 50, type: 'password', updateOnBlur: false },
+          componentProps: { maxlength: 50, type: 'password' },
         },
       },
     };
@@ -885,7 +853,7 @@ export default class FormBuilder<
           email: {
             type: 'string',
             required: true,
-            validation: (newValue: string): string | null => (
+            validation: (newValue) => (
               this.EMAIL_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
             ),
           },
@@ -923,7 +891,7 @@ export default class FormBuilder<
         },
         'root.0.resetPassword': {
           component: 'Button',
-          componentProps: { type: 'submit', modifiers: 'primary' },
+          componentProps: { type: 'submit', modifiers: 'secondary outlined' },
         },
       },
     };
@@ -955,23 +923,29 @@ export default class FormBuilder<
             email: {
               type: 'string',
               required: true,
-              validation: (newValue: string): string | null => (
+              validation: (newValue) => (
                 this.EMAIL_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
               ),
             },
             password: {
               type: 'string',
               required: true,
-              validation: (newValue: string): string | null => (
+              validation: (newValue) => (
                 this.PASSWORD_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
               ),
             },
             passwordConfirmation: {
               type: 'string',
               required: true,
-              validation: (newValue: string): string | null => (
-                this.PASSWORD_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
-              ),
+              validation: (newValue, inputs): string | null => {
+                if (!this.PASSWORD_REGEXP.test(newValue)) {
+                  return 'PATTERN_VIOLATION';
+                }
+                if (inputs.password !== null && inputs.password !== newValue) {
+                  return 'PASSWORDS_MISMATCH';
+                }
+                return null;
+              },
             },
             submit: {
               type: 'null',
@@ -985,7 +959,6 @@ export default class FormBuilder<
             },
           },
           onSubmit: resetPassword,
-          plugins: [this.passwordConfirmationPlugin],
         },
         fieldProps: {
           'root.0.title': {
@@ -1027,7 +1000,7 @@ export default class FormBuilder<
           email: {
             type: 'string',
             required: true,
-            validation: (newValue: string): string | null => (
+            validation: (newValue) => (
               this.EMAIL_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
             ),
           },

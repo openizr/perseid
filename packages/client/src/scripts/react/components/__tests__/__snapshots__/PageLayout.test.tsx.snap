@@ -4,7 +4,7 @@ exports[`react/components/PageLayout > renders correctly - CREATE/UPDATE page 1`
 <div
   id="ui-button"
 >
-  {"modifiers":"text","label":"NAVIGATION.GO_BACK"}
+  {"modifiers":"secondary","label":"NAVIGATION.GO_BACK"}
 </div>
 `;
 
@@ -18,6 +18,6 @@ exports[`react/components/PageLayout > renders correctly - VIEW page 1`] = `
 <div
   id="ui-button"
 >
-  {"modifiers":"text","label":"NAVIGATION.GO_BACK"}
+  {"modifiers":"secondary","label":"NAVIGATION.GO_BACK"}
 </div>
 `;

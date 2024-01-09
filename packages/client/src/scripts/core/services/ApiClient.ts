@@ -301,7 +301,7 @@ export default class ApiClient<
     if (authenticate && this.endpoints.auth.refreshToken?.route !== undefined) {
       if (
         credentials !== undefined
-        && credentials.expiration < Date.now()
+        // && credentials.expiration < Date.now()
         && request.endpoint !== this.endpoints.auth.refreshToken.route
       ) {
         await this.refreshToken().then((newCredentials) => { credentials = newCredentials; });

@@ -107,7 +107,7 @@ exports[`scripts/react/components/FormField > renders correctly - Textfield, upd
 <div
   id="ui-textfield"
 >
-  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","debounceTimeout":100,"updateOnBlur":false}
+  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","debounceTimeout":100}
   <span
     class="ui-textfield__wrapper__field"
   />
