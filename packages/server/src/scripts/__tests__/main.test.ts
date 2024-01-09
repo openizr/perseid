@@ -6,7 +6,6 @@
  *
  */
 
-import 'scripts/testing';
 import * as exports from 'scripts/main';
 
 describe('main', () => {

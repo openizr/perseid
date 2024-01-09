@@ -112,6 +112,7 @@ describe('services/FastifyController', () => {
     delete process.env.MUTIPARTY_ERROR_TOO_MANY_FIELDS;
     controller = new FastifyController<DataModel>(model, logger, engine, {
       version: '0.0.1',
+      handleCORS: true,
       endpoints: {
         auth: {},
         collections: {},
@@ -1375,7 +1376,10 @@ describe('services/FastifyController', () => {
     const instance = {
       addHook: vi.fn(async (_event, callback: (...args: unknown[]) => Promise<void>) => {
         try {
-          await callback({}, { header: vi.fn() });
+          await callback({ method: 'OPTIONS' }, {
+            header: vi.fn(),
+            status: vi.fn(() => ({ send: vi.fn() })),
+          });
         } catch (e) {
           // No - op.
         }
@@ -1422,8 +1426,9 @@ describe('services/FastifyController', () => {
     expect(server.post).toHaveBeenCalledWith('/auth/verify-email', { handler, schema: {} });
     expect(server.post).toHaveBeenCalledWith('/auth/reset-password', { handler, schema: {} });
     expect(server.post).toHaveBeenCalledWith('/auth/refresh-token', { handler, schema: {} });
-    expect(instance.addHook).toHaveBeenCalledTimes(3);
+    expect(instance.addHook).toHaveBeenCalledTimes(4);
     expect(instance.addHook).toHaveBeenCalledWith('onSend', expect.any(Function));
+    expect(instance.addHook).toHaveBeenCalledWith('onRequest', expect.any(Function));
     expect(instance.addHook).toHaveBeenCalledWith('onTimeout', expect.any(Function));
     expect(instance.addHook).toHaveBeenCalledWith('preSerialization', expect.any(Function));
     expect(instance.setSerializerCompiler).toHaveBeenCalledTimes(1);

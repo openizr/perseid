@@ -1,9 +1,5 @@
 /* c8 ignore start */
 
-/**
- * Live, end-to-end testing environment.
- */
-
 import {
   Model,
   Logger,
@@ -14,9 +10,44 @@ import {
   FastifyController,
   type DefaultDataModel,
 } from 'scripts/main';
+import {
+  type Ids,
+  type Authors,
+  type Version,
+  type Deletion,
+  type Timestamps,
+} from '@perseid/core';
 import fastify, { FastifyBaseLogger } from 'fastify';
 
-const model = new Model<DefaultDataModel>(Model.DEFAULT_MODEL);
+interface DataModel extends DefaultDataModel {
+  tests: Ids & Deletion & Timestamps & Authors & Version & {
+    elements: null | {
+      child: string;
+    }[];
+  };
+}
+
+const model = new Model<DataModel>({
+  ...Model.DEFAULT_MODEL,
+  tests: {
+    version: 1,
+    enableAuthors: true,
+    enableDeletion: false,
+    enableTimestamps: true,
+    fields: {
+      elements: {
+        type: 'array',
+        fields: {
+          type: 'object',
+          required: true,
+          fields: {
+            child: { type: 'string', required: true },
+          },
+        },
+      },
+    },
+  },
+});
 
 const logger = new Logger({ logLevel: 'debug', prettyPrint: true });
 
@@ -26,7 +57,7 @@ const cacheClient = new CacheClient({
   cachePath: '/var/www/html/node_modules/.cache',
 });
 
-const databaseClient = new DatabaseClient<DefaultDataModel>(model, logger, cacheClient, {
+const databaseClient = new DatabaseClient<DataModel>(model, logger, cacheClient, {
   host: 'mongodb',
   port: 27017,
   user: null,
@@ -40,7 +71,7 @@ const databaseClient = new DatabaseClient<DefaultDataModel>(model, logger, cache
   queueLimit: 0,
 });
 
-const engine = new UsersEngine<DefaultDataModel>(
+const engine = new UsersEngine<DataModel>(
   model,
   logger,
   databaseClient,
@@ -58,8 +89,9 @@ const engine = new UsersEngine<DefaultDataModel>(
   },
 );
 
-const controller = new FastifyController<DefaultDataModel>(model, logger, engine, {
+const controller = new FastifyController<DataModel>(model, logger, engine, {
   version: '0.0.1',
+  handleCORS: true,
   endpoints: {
     auth: {
       signUp: { path: '/auth/sign-up' },
@@ -88,6 +120,14 @@ const controller = new FastifyController<DefaultDataModel>(model, logger, engine
         delete: { path: '/users/:id' },
         search: { path: '/users/search' },
       },
+      tests: {
+        list: { path: '/tests' },
+        create: { path: '/tests' },
+        view: { path: '/tests/:id' },
+        update: { path: '/tests/:id' },
+        delete: { path: '/tests/:id' },
+        search: { path: '/tests/search' },
+      },
     },
   },
 });
@@ -102,16 +142,6 @@ async function main(): Promise<void> {
     const app = fastify({
       ignoreTrailingSlash: true,
       logger: logger.child() as FastifyBaseLogger,
-    });
-
-    // Handles CORS.
-    app.addHook('onRequest', async (request, response) => {
-      response.header('Access-Control-Allow-Origin', '*');
-      response.header('Access-Control-Allow-Headers', '*');
-      response.header('Access-Control-Allow-Methods', '*');
-      if (request.method === 'OPTIONS') {
-        await response.status(200).send();
-      }
     });
 
     app.get('/hello', {

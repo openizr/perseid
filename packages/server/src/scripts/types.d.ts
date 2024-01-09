@@ -2051,6 +2051,16 @@ export interface EndpointSettings<DataModel> {
 }
 
 /**
+ * Fastify controller settings.
+ */
+export interface FastifyControllerSettings<
+  DataModel extends DefaultDataModel = DefaultDataModel
+> extends ControllerSettings<DataModel> {
+  /** Whether to automatically handle CORS (usually in development mode). */
+  handleCORS: boolean;
+}
+
+/**
  * API controller, designed for Fastify framework.
  */
 export class FastifyController<
@@ -2077,6 +2087,9 @@ export class FastifyController<
 
   /** Increment used for `multipart/form-data` payloads parsing. */
   protected increment: number;
+
+  /** Whether to automatically handle CORS (usually in development mode). */
+  protected handleCORS: boolean;
 
   /** Built-in API handlers for auth-related endpoints. */
   protected apiHandlers: Record<string, EndpointSettings<DataModel>>;
@@ -2181,7 +2194,7 @@ export class FastifyController<
     model: Model,
     logger: Logger,
     engine: Engine,
-    settings: ControllerSettings<DataModel>,
+    settings: FastifyControllerSettings<DataModel>,
   );
 
   /**

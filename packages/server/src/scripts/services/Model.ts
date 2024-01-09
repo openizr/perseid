@@ -106,7 +106,7 @@ export default class Model<
       enableDeletion: true,
       enableTimestamps: true,
       fields: {
-        name: Model.tinyText({ index: true }), // TODO capitalized
+        name: Model.tinyText({ index: true, pattern: /^[0-9A-Z_]+$/.source }),
         permissions: {
           type: 'array',
           required: true,
@@ -394,7 +394,6 @@ export default class Model<
     if (relations[collection] === undefined) {
       return null;
     }
-    // TODO include collection model...
     const collections = [...this.relationsPerCollection[collection]] as (keyof DataModel)[];
     return collections.reduce((finalSchema, currentCollection) => ({
       ...finalSchema,

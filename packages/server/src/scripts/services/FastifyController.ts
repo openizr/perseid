@@ -189,6 +189,16 @@ export interface EndpointSettings<DataModel> {
 }
 
 /**
+ * Fastify controller settings.
+ */
+export interface FastifyControllerSettings<
+  DataModel extends DefaultDataModel = DefaultDataModel
+> extends ControllerSettings<DataModel> {
+  /** Whether to automatically handle CORS (usually in development mode). */
+  handleCORS: boolean;
+}
+
+/**
  * API controller, designed for Fastify framework.
  */
 export default class FastifyController<
@@ -646,6 +656,9 @@ export default class FastifyController<
       return fieldSchema;
     },
   };
+
+  /** Whether to automatically handle CORS (usually in development mode). */
+  protected handleCORS: boolean;
 
   /** Increment used for `multipart/form-data` payloads parsing. */
   protected increment = 0;
@@ -1141,9 +1154,11 @@ export default class FastifyController<
     model: Model,
     logger: Logger,
     engine: Engine,
-    settings: ControllerSettings<DataModel>,
+    settings: FastifyControllerSettings<DataModel>,
   ) {
-    super(model, logger, engine, settings);
+    const { handleCORS, ...rest } = settings;
+    super(model, logger, engine, rest);
+    this.handleCORS = handleCORS;
     this.auth = this.auth.bind(this);
     this.formatOutput = this.formatOutput.bind(this);
   }
@@ -1408,6 +1423,18 @@ export default class FastifyController<
       });
       done();
     });
+
+    // CORS automatic handling.
+    if (this.handleCORS) {
+      instance.addHook('onRequest', async (request, response) => {
+        response.header('Access-Control-Allow-Origin', '*');
+        response.header('Access-Control-Allow-Headers', '*');
+        response.header('Access-Control-Allow-Methods', '*');
+        if (request.method === 'OPTIONS') {
+          await response.status(200).send();
+        }
+      });
+    }
 
     // Catch-all for unsupported content types. Prevents fastify from throwing HTTP 500 when
     // dealing with unknown payloads. See https://www.fastify.io/docs/latest/ContentTypeParser/.

@@ -1,6 +1,6 @@
 {
   "name": "@perseid/server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",
@@ -90,7 +90,7 @@
     "splitChunks": false,
     "entries": {
       "dist": "./scripts/main.ts",
-      "main": "./scripts/testing.ts"
+      "main": "./__playground__/index.ts"
     },
     "srcPath": "src",
     "distPath": "dist",
