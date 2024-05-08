@@ -120,6 +120,7 @@ function Table({
         <thead className="table__headers">
           <tr>
             {columns.map((column) => {
+              // TODO currentSorting[column.path] may be undefined
               const sortingModifier = sortingModifiers[`${currentSorting[column.path]}`];
               const columnModifiers = `${sortingModifier} ${column.path} ${column.isSortable ? 'sortable' : ''}`;
               const columnClassName = buildClass('table__headers__column', columnModifiers);
