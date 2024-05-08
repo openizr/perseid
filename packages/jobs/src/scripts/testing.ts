@@ -15,7 +15,7 @@ const bucketClient = new BucketClient(logger);
 const databaseClient = new DatabaseClient(logger, new CacheClient({
   cachePath: '/var/www/html/node_modules/.cache',
 }), {
-  host: 'mongaodb',
+  host: 'mongodb',
   port: 27017,
   user: null,
   password: null,

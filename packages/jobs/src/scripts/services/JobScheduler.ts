@@ -275,32 +275,34 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
         if (startedAt.getTime() + (job.maximumExecutionTime * 1000) < now) {
           this.logger.error(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" timed out.`);
           await this.tasksRegistry[String(task._id)].worker.terminate();
-          await this.closeTask(task, 'FAILED');
+          return this.closeTask(task, 'FAILED');
         }
 
         // Task exited with an error...
         if (this.tasksRegistry[String(task._id)]._status === 'FAILED') {
           this.logger.error(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" failed.`);
-          await this.closeTask(task, 'FAILED');
+          return this.closeTask(task, 'FAILED');
         }
 
         // Task canceled itself...
         if (this.tasksRegistry[String(task._id)]._status === 'CANCELED') {
           this.logger.warn(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" canceled itself.`);
-          await this.closeTask(task, 'CANCELED');
+          return this.closeTask(task, 'CANCELED');
         }
 
         // Task successfully ended...
         if (this.tasksRegistry[String(task._id)]._status === 'COMPLETED') {
           this.logger.info(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" successfully ended.`);
-          await this.closeTask(task, 'COMPLETED');
+          return this.closeTask(task, 'COMPLETED');
         }
       }
 
       // Task related job scheduler crashed...
       if ((startedAt.getTime() + ((job.maximumExecutionTime + 60) * 1000)) < now) {
-        await this.closeTask(task, 'FAILED');
+        return this.closeTask(task, 'FAILED');
       }
+
+      return undefined;
     });
   }
 
