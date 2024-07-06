@@ -53,7 +53,7 @@ export default class Model<
         fields: {
           _id: {
             type: 'id',
-            index: true,
+            unique: true,
             required: true,
           },
         },
