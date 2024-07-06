@@ -130,13 +130,6 @@ export type UpdatePayload<T> = {
  * Common properties for all data model fields schemas.
  */
 export interface GenericFieldSchema {
-  /**
-   * Custom type name to assign to that field, in addition to its actual type.
-   * Very useful to customize behaviours. For instance, you might want to display a specific
-   * component for email addresses on front-end, even though their real type is `string`.
-   */
-  customType?: string;
-
   /** Whether field is required. */
   required?: boolean;
 
