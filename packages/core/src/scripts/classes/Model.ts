@@ -61,39 +61,39 @@ export default class Model<
       if (fullCollectionSchema.version !== undefined) {
         fullCollectionSchema.fields._version = {
           type: 'integer',
-          index: true,
+          isIndexed: true,
           isRequired: true,
         };
       }
       if (!fullCollectionSchema.enableDeletion) {
         fullCollectionSchema.fields._isDeleted = {
           type: 'boolean',
-          index: true,
+          isIndexed: true,
           isRequired: true,
         };
       }
       if (fullCollectionSchema.enableAuthors && (fullSchema as { users: unknown; }).users) {
         fullCollectionSchema.fields._createdBy = {
           type: 'id',
-          index: true,
+          isIndexed: true,
           isRequired: collection !== 'users',
           relation: 'users' as keyof DataModel,
         };
         fullCollectionSchema.fields._updatedBy = {
           type: 'id',
-          index: true,
+          isIndexed: true,
           relation: 'users' as keyof DataModel,
         };
       }
       if (fullCollectionSchema.enableTimestamps) {
         fullCollectionSchema.fields._createdAt = {
           type: 'date',
-          index: true,
+          isIndexed: true,
           isRequired: true,
         };
         fullCollectionSchema.fields._updatedAt = {
           type: 'date',
-          index: true,
+          isIndexed: true,
         };
       }
       // To make automatic fields always appear at the top.

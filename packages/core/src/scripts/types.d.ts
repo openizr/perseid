@@ -149,7 +149,7 @@ export interface StringSchema extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /** Specific set of values allowed for that field. */
   enum?: string[];
@@ -186,7 +186,7 @@ export interface NumberSchema extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /** Specific set of values allowed for that field. */
   enum?: number[];
@@ -229,7 +229,7 @@ export interface BooleanSchema extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /** Default value for that field. */
   default?: boolean;
@@ -250,7 +250,7 @@ export interface IdSchema<Types> extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /**
    * Whether field's value should be unique across the whole collection (e.g. an email address).
@@ -281,7 +281,7 @@ export interface DateSchema extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /**
    * Whether field's value should be unique across the whole collection (e.g. an email address).
