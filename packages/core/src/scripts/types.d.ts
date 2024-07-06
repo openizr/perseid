@@ -162,7 +162,7 @@ export interface StringSchema extends GenericFieldSchema {
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  unique?: boolean;
+  isUnique?: boolean;
 
   /** RegExp user inputs must pass for that field. */
   pattern?: string;
@@ -199,7 +199,7 @@ export interface NumberSchema extends GenericFieldSchema {
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  unique?: boolean;
+  isUnique?: boolean;
 
   /** Field minimum value. */
   minimum?: number;
@@ -257,7 +257,7 @@ export interface IdSchema<Types> extends GenericFieldSchema {
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  unique?: boolean;
+  isUnique?: boolean;
 
   /** Default value for that field. */
   default?: Id;
@@ -288,7 +288,7 @@ export interface DateSchema extends GenericFieldSchema {
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  unique?: boolean;
+  isUnique?: boolean;
 
   /** Default value for that field. */
   default?: Date;
