@@ -131,7 +131,7 @@ export type UpdatePayload<T> = {
  */
 export interface GenericFieldSchema {
   /** Whether field is required. */
-  required?: boolean;
+  isRequired?: boolean;
 
   /** Custom error messages for when user inputs do not match data model. */
   errorMessages?: Record<string, string>;

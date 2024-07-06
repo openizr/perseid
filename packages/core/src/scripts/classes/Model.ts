@@ -54,7 +54,7 @@ export default class Model<
           _id: {
             type: 'id',
             unique: true,
-            required: true,
+            isRequired: true,
           },
         },
       };
@@ -62,22 +62,21 @@ export default class Model<
         fullCollectionSchema.fields._version = {
           type: 'integer',
           index: true,
-          required: true,
+          isRequired: true,
         };
       }
       if (!fullCollectionSchema.enableDeletion) {
         fullCollectionSchema.fields._isDeleted = {
           type: 'boolean',
           index: true,
-          required: true,
-          default: false,
+          isRequired: true,
         };
       }
       if (fullCollectionSchema.enableAuthors && (fullSchema as { users: unknown; }).users) {
         fullCollectionSchema.fields._createdBy = {
           type: 'id',
           index: true,
-          required: collection !== 'users',
+          isRequired: collection !== 'users',
           relation: 'users' as keyof DataModel,
         };
         fullCollectionSchema.fields._updatedBy = {
@@ -90,7 +89,7 @@ export default class Model<
         fullCollectionSchema.fields._createdAt = {
           type: 'date',
           index: true,
-          required: true,
+          isRequired: true,
         };
         fullCollectionSchema.fields._updatedAt = {
           type: 'date',
