@@ -6,13 +6,13 @@
  *
  */
 
-/** Collections with an `_id` field. */
+/** Resources with an `_id` field. */
 export interface Ids {
   /** Resource id. */
   _id: Id;
 }
 
-/** Collections with authors-related automatic fields. */
+/** Resources with authors-related automatic fields. */
 export interface Authors {
   /** Resource creation author. */
   _createdBy: Id | User;
@@ -21,7 +21,7 @@ export interface Authors {
   _updatedBy: Id | User | null;
 }
 
-/** Collections with timestamps-related automatic fields. */
+/** Resources with timestamps-related automatic fields. */
 export interface Timestamps {
   /** Resource creation date. */
   _createdAt: Date;
@@ -30,13 +30,13 @@ export interface Timestamps {
   _updatedAt: Date | null;
 }
 
-/** Soft-deletable collections. */
+/** Soft-deletable resources. */
 export interface Deletion {
   /** Whether resource has been deleted. */
   _isDeleted: boolean;
 }
 
-/** Versionnable collections. */
+/** Versionnable resources. */
 export interface Version {
   /** Resource version. */
   _version: number;
@@ -80,16 +80,16 @@ export interface User extends Ids, Version, Timestamps, Deletion {
   /** List of user devices. */
   _devices: {
     /** Device id. */
-    id: string;
+    _id: string;
 
     /** Device user agent. */
-    userAgent: string;
+    _userAgent: string;
 
     /** Refresh token expiration date. */
-    expiration: Date;
+    _expiration: Date;
 
     /** Refresh token to use for that device. */
-    refreshToken: string;
+    _refreshToken: string;
   }[];
 }
 
@@ -99,32 +99,19 @@ export interface User extends Ids, Version, Timestamps, Deletion {
 export interface DefaultDataModel {
   users: User;
   roles: Role;
+  [resource: string]: Ids;
 }
 
 /**
  * Search or list results.
  */
-export interface Results<T> {
+export interface Results<Resource> {
   /** Total number of results that matched query. */
   total: number;
 
   /** Limited list of results that are actually returned. */
-  results: T[];
+  results: Resource[];
 }
-
-/**
- * Resource creation payload (excluding all its automatic fields).
- */
-export type Payload<T> = {
-  [K in keyof T as Exclude<K, `_${string}`>]: Payload<T[K]>;
-};
-
-/**
- * Resource update payload.
- */
-export type UpdatePayload<T> = {
-  [K in keyof T]?: UpdatePayload<T[K]>;
-};
 
 /**
  * Common properties for all data model fields schemas.
@@ -238,7 +225,7 @@ export interface BooleanSchema extends GenericFieldSchema {
 /**
  * Data model id field schema.
  */
-export interface IdSchema<Types> extends GenericFieldSchema {
+export interface IdSchema<DataModel> extends GenericFieldSchema {
   /** Data type. */
   type: 'id';
 
@@ -263,7 +250,7 @@ export interface IdSchema<Types> extends GenericFieldSchema {
   default?: Id;
 
   /** Name of the collection the id refers to. See it as a foreign key. */
-  relation?: keyof Types;
+  relation?: keyof DataModel;
 }
 
 /**
@@ -316,18 +303,18 @@ export interface NullSchema extends GenericFieldSchema {
 /**
  * Data model object field schema.
  */
-export interface ObjectSchema<T> extends GenericFieldSchema {
+export interface ObjectSchema<DataModel> extends GenericFieldSchema {
   /** Data type. */
   type: 'object';
 
   /** Sub-fields data model. */
-  fields: Record<string, FieldSchema<T>>;
+  fields: Record<string, FieldSchema<DataModel>>;
 }
 
 /**
  * Data model array field schema.
  */
-export interface ArraySchema<T> extends GenericFieldSchema {
+export interface ArraySchema<DataModel> extends GenericFieldSchema {
   /** Data type. */
   type: 'array';
 
@@ -338,7 +325,7 @@ export interface ArraySchema<T> extends GenericFieldSchema {
   maxItems?: number;
 
   /** Items data model. */
-  fields: Exclude<FieldSchema<T>, ArraySchema<T>>;
+  fields: Exclude<FieldSchema<DataModel>, ArraySchema<DataModel>>;
 
   /** Whether each array item should be unique. */
   uniqueItems?: boolean;
@@ -347,38 +334,38 @@ export interface ArraySchema<T> extends GenericFieldSchema {
 /**
  * Any Data model field schema.
  */
-export type FieldSchema<Types> = (
+export type FieldSchema<DataModel> = (
   NullSchema |
   DateSchema |
   NumberSchema |
   StringSchema |
   BinarySchema |
   BooleanSchema |
-  IdSchema<Types> |
-  ArraySchema<Types> |
-  ObjectSchema<Types>
+  IdSchema<DataModel> |
+  ArraySchema<DataModel> |
+  ObjectSchema<DataModel>
 );
 
 /**
- * Data model collection schema.
+ * Data model resource schema.
  */
-export interface CollectionSchema<T> {
+export interface ResourceSchema<T> {
   /**
-    * Data model version for this collection. Can be useful for applying different logics depending
-    * on the data model version of a given resource in that collection.
+    * Data model version for this resource. Can be useful for applying different logics depending
+    * on the data model version of a given resource in that resource.
     */
   version?: number;
 
-  /** Whether to generate and manage`_createdBy` and `_updatedBy` fields for that collection. */
+  /** Whether to generate and manage `_createdBy` and `_updatedBy` fields for that resource. */
   enableAuthors?: boolean;
 
-  /** Whether to generate and manage the `_isDeleted` field for that collection. */
+  /** Whether to generate and manage the `_isDeleted` field for that resource. */
   enableDeletion?: boolean;
 
-  /** Whether to generate and manage`_createdAt` and `_updatedAt` fields for that collection. */
+  /** Whether to generate and managen`_createdAt` and `_updatedAt` fields for that resource. */
   enableTimestamps?: boolean;
 
-  /** Collection fields data model. */
+  /** Resource fields data model. */
   fields: Record<string, FieldSchema<T>>;
 }
 
@@ -612,14 +599,14 @@ export abstract class Logger {
 }
 
 /** Data model schema. */
-export type DataModelSchema<DataModel> = Record<keyof DataModel, CollectionSchema<DataModel>>;
+export type DataModelSchema<DataModel> = Record<keyof DataModel, ResourceSchema<DataModel>>;
 
 /** Data model metadata. */
 export interface DataModelMetadata<SchemaType> {
   /** Data model schema. */
   schema: SchemaType;
 
-  /** Canonical (shortest) path to the schema, starting from collection's root. */
+  /** Canonical (shortest) path to the schema, starting from resource root. */
   canonicalPath: string[];
 }
 
@@ -641,11 +628,11 @@ export class Model<
   constructor(schema?: DataModelSchema<DataModel>);
 
   /**
-   * Returns the list of all the collections names in data model.
+   * Returns the list of all the resources names in data model.
    *
-   * @returns Data model collections names.
+   * @returns Data model resources names.
    */
-  public getCollections(): (keyof DataModel)[];
+  public getResources(): (keyof DataModel)[];
 
   /**
    * Returns data model metadata for `path`.
@@ -655,6 +642,56 @@ export class Model<
    * @returns Data model metadata if path exists, `null` otherwise.
    */
   public get<T>(path: T): T extends keyof DataModel
-    ? DataModelMetadata<CollectionSchema<DataModel>>
+    ? DataModelMetadata<ResourceSchema<DataModel>>
     : DataModelMetadata<FieldSchema<DataModel>> | null;
+}
+
+/** HTTP request settings. */
+export interface RequestSettings {
+  /** HTTP method to use. */
+  method: 'GET' | 'PATCH' | 'DELETE' | 'PUT' | 'POST' | 'HEAD';
+
+  /** Request URL. */
+  url: string;
+
+  /** Request body. */
+  body?: string | FormData | Record<string, unknown>;
+
+  /** Request headers. */
+  headers?: Record<string, string>;
+}
+
+/**
+ * Provides a cleaner `fetch` API with a better errors handling.
+ */
+export class HttpClient {
+  /** Maximum request duration (in ms) before generating a timeout. */
+  protected connectTimeout: number;
+
+  /**
+   * Performs a new HTTP request with `settings`.
+   *
+   * @param settings Request settings (URL, method, body, ...).
+   *
+   * @returns Raw HTTP response.
+   *
+   * @throws If request fails.
+   */
+  protected rawRequest(settings: RequestSettings): Promise<Response>;
+
+  /**
+   * Performs a new HTTP request with `settings` and parses the response.
+   *
+   * @param settings Request settings (URL, method, body, ...).
+   *
+   * @returns Parsed HTTP response.
+   */
+  protected request<Response>(settings: RequestSettings): Promise<Response>;
+
+  /**
+   * Class constructor.
+   *
+   * @param connectTimeout Maximum request duration (in ms) before generating a timeout.
+   */
+  public constructor(connectTimeout: number);
 }

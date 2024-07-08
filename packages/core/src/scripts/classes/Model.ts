@@ -9,19 +9,19 @@
 import {
   type FieldSchema,
   type ObjectSchema,
-  type CollectionSchema,
+  type ResourceSchema,
   type DefaultDataModel,
 } from 'scripts/types.d';
 
 /** Data model schema. */
-export type DataModelSchema<DataModel> = Record<keyof DataModel, CollectionSchema<DataModel>>;
+export type DataModelSchema<DataModel> = Record<keyof DataModel, ResourceSchema<DataModel>>;
 
 /** Data model metadata. */
 export interface DataModelMetadata<SchemaType> {
   /** Data model schema. */
   schema: SchemaType;
 
-  /** Canonical (shortest) path to the schema, starting from collection's root. */
+  /** Canonical (shortest) path to the schema, starting from resource root. */
   canonicalPath: string[];
 }
 
@@ -43,13 +43,13 @@ export default class Model<
   constructor(schema?: DataModelSchema<DataModel>) {
     const fullSchema = { ...schema } as DataModelSchema<DataModel>;
 
-    Object.keys(fullSchema).forEach((collectionName) => {
-      const collection = collectionName as keyof DataModel;
-      const fullCollectionSchema: CollectionSchema<DataModel> = {
-        version: fullSchema[collection].version,
-        enableAuthors: fullSchema[collection].enableAuthors ?? false,
-        enableDeletion: fullSchema[collection].enableDeletion ?? true,
-        enableTimestamps: fullSchema[collection].enableTimestamps ?? false,
+    Object.keys(fullSchema).forEach((resourceName) => {
+      const resource = resourceName as keyof DataModel;
+      const resourceSchema: ResourceSchema<DataModel> = {
+        version: fullSchema[resource].version,
+        enableAuthors: fullSchema[resource].enableAuthors ?? false,
+        enableDeletion: fullSchema[resource].enableDeletion ?? true,
+        enableTimestamps: fullSchema[resource].enableTimestamps ?? false,
         fields: {
           _id: {
             type: 'id',
@@ -58,51 +58,51 @@ export default class Model<
           },
         },
       };
-      if (fullCollectionSchema.version !== undefined) {
-        fullCollectionSchema.fields._version = {
+      if (resourceSchema.version !== undefined) {
+        resourceSchema.fields._version = {
           type: 'integer',
           isIndexed: true,
           isRequired: true,
         };
       }
-      if (!fullCollectionSchema.enableDeletion) {
-        fullCollectionSchema.fields._isDeleted = {
+      if (!resourceSchema.enableDeletion) {
+        resourceSchema.fields._isDeleted = {
           type: 'boolean',
           isIndexed: true,
           isRequired: true,
         };
       }
-      if (fullCollectionSchema.enableAuthors && (fullSchema as { users: unknown; }).users) {
-        fullCollectionSchema.fields._createdBy = {
+      if (resourceSchema.enableAuthors && (fullSchema as { users: unknown; }).users) {
+        resourceSchema.fields._createdBy = {
           type: 'id',
           isIndexed: true,
-          isRequired: collection !== 'users',
+          isRequired: resource !== 'users',
           relation: 'users' as keyof DataModel,
         };
-        fullCollectionSchema.fields._updatedBy = {
+        resourceSchema.fields._updatedBy = {
           type: 'id',
           isIndexed: true,
           relation: 'users' as keyof DataModel,
         };
       }
-      if (fullCollectionSchema.enableTimestamps) {
-        fullCollectionSchema.fields._createdAt = {
+      if (resourceSchema.enableTimestamps) {
+        resourceSchema.fields._createdAt = {
           type: 'date',
           isIndexed: true,
           isRequired: true,
         };
-        fullCollectionSchema.fields._updatedAt = {
+        resourceSchema.fields._updatedAt = {
           type: 'date',
           isIndexed: true,
         };
       }
       // To make automatic fields always appear at the top.
-      fullSchema[collection] = {
-        ...fullCollectionSchema,
-        ...fullSchema[collection],
+      fullSchema[resource] = {
+        ...resourceSchema,
+        ...fullSchema[resource],
         fields: {
-          ...fullCollectionSchema.fields,
-          ...fullSchema[collection].fields,
+          ...resourceSchema.fields,
+          ...fullSchema[resource].fields,
         },
       };
     });
@@ -111,11 +111,11 @@ export default class Model<
   }
 
   /**
-   * Returns the list of all the collections names in data model.
+   * Returns the list of all the resources names in data model.
    *
-   * @returns Data model collections names.
+   * @returns Data model resources names.
    */
-  public getCollections(): (keyof DataModel)[] {
+  public getResources(): (keyof DataModel)[] {
     return Object.keys(this.schema) as (keyof DataModel)[];
   }
 
@@ -127,12 +127,12 @@ export default class Model<
    * @returns Data model metadata if path exists, `null` otherwise.
    */
   public get<T>(path: T): T extends keyof DataModel
-    ? DataModelMetadata<CollectionSchema<DataModel>>
+    ? DataModelMetadata<ResourceSchema<DataModel>>
     : DataModelMetadata<FieldSchema<DataModel>> | null {
     const splittedPath = (path as string).split('.');
-    const collection = splittedPath.shift() as keyof DataModel;
-    let currentCanonicalPath = [collection as string];
-    let currentSchema = this.schema[collection] as FieldSchema<DataModel> | undefined;
+    const resource = splittedPath.shift() as keyof DataModel;
+    let currentCanonicalPath = [resource as string];
+    let currentSchema = this.schema[resource] as FieldSchema<DataModel> | undefined;
 
     // Walking through the schema...
     while (splittedPath.length > 0 && currentSchema !== undefined) {
@@ -148,7 +148,7 @@ export default class Model<
         const { relation } = currentSchema;
         currentCanonicalPath = [relation as string];
         const relationSchema = (this.get(relation) as DataModelMetadata<DataModel>).schema;
-        currentSchema = { type: 'object', fields: (relationSchema as CollectionSchema<DataModel>).fields };
+        currentSchema = { type: 'object', fields: (relationSchema as ResourceSchema<DataModel>).fields };
       }
     }
 
@@ -156,7 +156,7 @@ export default class Model<
       schema: currentSchema,
       canonicalPath: currentCanonicalPath,
     }) as T extends keyof DataModel
-      ? DataModelMetadata<CollectionSchema<DataModel>>
+      ? DataModelMetadata<ResourceSchema<DataModel>>
       : DataModelMetadata<FieldSchema<DataModel>> | null;
   }
 }
