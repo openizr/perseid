@@ -15,10 +15,10 @@ export interface Ids {
 /** Resources with authors-related automatic fields. */
 export interface Authors {
   /** Resource creation author. */
-  _createdBy: Id | User;
+  _createdBy: Id | DefaultDataModel['users'];
 
-  /** Resource modification author. */
-  _updatedBy: Id | User | null;
+  /** Resource last modification author. */
+  _updatedBy: Id | DefaultDataModel['users'] | null;
 }
 
 /** Resources with timestamps-related automatic fields. */
@@ -26,7 +26,7 @@ export interface Timestamps {
   /** Resource creation date. */
   _createdAt: Date;
 
-  /** Resource modification date. */
+  /** Resource last modification date. */
   _updatedAt: Date | null;
 }
 
@@ -42,63 +42,61 @@ export interface Version {
   _version: number;
 }
 
-/** Set of permissions, grouped for a specific purpose. */
-export interface Role extends Ids, Version, Timestamps, Authors {
-  /** Role name. */
-  name: string;
-
-  /** List of permissions granted by this role. */
-  permissions: string[];
-}
-
-/** User. */
-export interface User extends Ids, Version, Timestamps, Deletion {
-  /** Resource creation author. */
-  _createdBy?: Id | User | null;
-
-  /** Resource modification author. */
-  _updatedBy: Id | User | null;
-
-  /** User verification date. */
-  _verifiedAt: Date | null;
-
-  /** User permissions. */
-  _permissions: Set<string>;
-
-  /** User email. */
-  email: string;
-
-  /** User password. */
-  password: string;
-
-  /** User roles. */
-  roles: (Id | Role)[];
-
-  /** List of user API keys. */
-  _apiKeys: string[];
-
-  /** List of user devices. */
-  _devices: {
-    /** Device id. */
-    _id: string;
-
-    /** Device user agent. */
-    _userAgent: string;
-
-    /** Refresh token expiration date. */
-    _expiration: Date;
-
-    /** Refresh token to use for that device. */
-    _refreshToken: string;
-  }[];
-}
-
 /**
  * Default perseid data model.
  */
 export interface DefaultDataModel {
-  users: User;
-  roles: Role;
+  /** Set of permissions, grouped for a specific purpose. */
+  roles: Ids & Version & Timestamps & Authors & {
+    /** Role name. */
+    name: string;
+
+    /** List of permissions granted by this role. */
+    permissions: string[];
+  };
+
+  /** User. */
+  users: Ids & Version & Timestamps & Deletion & {
+    /** Resource creation author. */
+    _createdBy?: Id | DefaultDataModel['users'] | null;
+
+    /** Resource last modification author. */
+    _updatedBy: Id | DefaultDataModel['users'] | null;
+
+    /** User verification date. */
+    _verifiedAt: Date | null;
+
+    /** User permissions. */
+    _permissions: Set<string>;
+
+    /** User email. */
+    email: string;
+
+    /** User password. */
+    password: string;
+
+    /** User roles. */
+    roles: (Id | DefaultDataModel['roles'])[];
+
+    /** List of user API keys. */
+    _apiKeys: string[];
+
+    /** List of user devices. */
+    _devices: {
+      /** Device id. */
+      _id: string;
+
+      /** Device user agent. */
+      _userAgent: string;
+
+      /** Refresh token expiration date. */
+      _expiration: Date;
+
+      /** Refresh token to use for that device. */
+      _refreshToken: string;
+    }[];
+  };
+
   [resource: string]: Ids;
 }
 
@@ -141,9 +139,6 @@ export interface StringSchema extends GenericFieldSchema {
   /** Specific set of values allowed for that field. */
   enum?: string[];
 
-  /** Default value for that field. */
-  default?: string;
-
   /**
    * Whether field's value should be unique across the whole collection (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
@@ -152,7 +147,7 @@ export interface StringSchema extends GenericFieldSchema {
   isUnique?: boolean;
 
   /** RegExp user inputs must pass for that field. */
-  pattern?: string;
+  pattern?: RegExp;
 
   /** Field minimum length. */
   minLength?: number;
@@ -177,9 +172,6 @@ export interface NumberSchema extends GenericFieldSchema {
 
   /** Specific set of values allowed for that field. */
   enum?: number[];
-
-  /** Default value for that field. */
-  default?: number;
 
   /**
    * Whether field's value should be unique across the whole collection (e.g. an email address).
@@ -217,9 +209,6 @@ export interface BooleanSchema extends GenericFieldSchema {
    * searching, and filtering in queries.
    */
   isIndexed?: boolean;
-
-  /** Default value for that field. */
-  default?: boolean;
 }
 
 /**
@@ -245,9 +234,6 @@ export interface IdSchema<DataModel> extends GenericFieldSchema {
    * searching, and filtering in queries.
    */
   isUnique?: boolean;
-
-  /** Default value for that field. */
-  default?: Id;
 
   /** Name of the collection the id refers to. See it as a foreign key. */
   relation?: keyof DataModel;
@@ -276,9 +262,6 @@ export interface DateSchema extends GenericFieldSchema {
    * searching, and filtering in queries.
    */
   isUnique?: boolean;
-
-  /** Default value for that field. */
-  default?: Date;
 }
 
 /**
@@ -287,9 +270,6 @@ export interface DateSchema extends GenericFieldSchema {
 export interface BinarySchema extends GenericFieldSchema {
   /** Data type. */
   type: 'binary';
-
-  /** Default value for that field. */
-  default?: ArrayBuffer;
 }
 
 /**
