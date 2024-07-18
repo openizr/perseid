@@ -104,7 +104,7 @@ export default defineConfig(async () => {
       globals: true,
       passWithNoTests: true,
       include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-      cache: { dir: path.join(projectRootPath, 'node_modules/.vitest') },
+      cacheDir: path.join(projectRootPath, 'node_modules/.vitest'),
       coverage: {
         all: true,
         src: srcPath,

@@ -28,6 +28,7 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
+    "verbatimModuleSyntax": true,
     "types": [
       "vitest/globals"
     ]
