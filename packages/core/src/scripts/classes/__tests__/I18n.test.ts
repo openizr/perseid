@@ -8,7 +8,7 @@
 
 import I18n from 'scripts/classes/I18n';
 
-describe('services/I18n', () => {
+describe('classes/I18n', () => {
   const logger = {
     debug: vi.fn(),
     info: vi.fn(),

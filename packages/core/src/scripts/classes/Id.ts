@@ -113,10 +113,10 @@ export default class Id {
    */
   constructor(value?: string) {
     if (typeof window !== 'undefined') {
-      this.value = this.idRegExp.test(`${value}`) ? value as unknown as Buffer : this.generate();
+      this.value = this.idRegExp.test(String(value)) ? value as unknown as Buffer : this.generate();
       this.id = this.value as unknown as string;
     } else {
-      this.value = this.idRegExp.test(`${value}`) ? Buffer.from(String(value), 'hex') : this.generate();
+      this.value = this.idRegExp.test(String(value)) ? Buffer.from(String(value), 'hex') : this.generate();
       this.id = this.value.toString('hex');
     }
   }

@@ -16,8 +16,6 @@ import deepMerge from 'scripts/helpers/deepMerge';
 import toSnakeCase from 'scripts/helpers/toSnakeCase';
 import isPlainObject from 'scripts/helpers/isPlainObject';
 
-/* c8 ignore start */
-
 export {
   Id,
   I18n,

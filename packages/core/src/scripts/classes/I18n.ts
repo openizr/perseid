@@ -80,7 +80,7 @@ export default class I18n {
    * @returns Translated value.
    */
   public numeric(value: number): string {
-    return `${this.specialChar}${value}`;
+    return `${this.specialChar}${String(value)}`;
   }
 
   /**
