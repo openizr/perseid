@@ -13,6 +13,7 @@ import Logger from 'scripts/classes/Logger';
 import forEach from 'scripts/helpers/forEach';
 import deepCopy from 'scripts/helpers/deepCopy';
 import deepMerge from 'scripts/helpers/deepMerge';
+import HttpClient from 'scripts/classes/HttpClient';
 import toSnakeCase from 'scripts/helpers/toSnakeCase';
 import isPlainObject from 'scripts/helpers/isPlainObject';
 
@@ -24,6 +25,7 @@ export {
   forEach,
   deepCopy,
   deepMerge,
+  HttpClient,
   toSnakeCase,
   isPlainObject,
 };

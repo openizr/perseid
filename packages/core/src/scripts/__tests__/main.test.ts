@@ -18,6 +18,7 @@ describe('scripts/main', () => {
       'forEach',
       'deepCopy',
       'deepMerge',
+      'HttpClient',
       'toSnakeCase',
       'isPlainObject',
     ]);

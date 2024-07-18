@@ -96,8 +96,6 @@ export interface DefaultDataModel {
       _refreshToken: string;
     }[];
   };
-
-  [resource: string]: Ids;
 }
 
 /**
@@ -593,9 +591,9 @@ export interface DataModelMetadata<SchemaType> {
 /**
  * Data model.
  */
-export class Model<
+export default class Model<
   /** Data model types definitions. */
-  DataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 > {
   /** Data model schema. */
   protected schema: DataModelSchema<DataModel>;
@@ -608,11 +606,11 @@ export class Model<
   constructor(schema?: DataModelSchema<DataModel>);
 
   /**
-   * Returns the list of all the resources names in data model.
+   * Returns the list of all the resources types in data model.
    *
-   * @returns Data model resources names.
+   * @returns Data model resources types.
    */
-  public getResources(): (keyof DataModel)[];
+  public getResources(): (keyof DataModel & string)[];
 
   /**
    * Returns data model metadata for `path`.
@@ -621,15 +619,17 @@ export class Model<
    *
    * @returns Data model metadata if path exists, `null` otherwise.
    */
-  public get<T>(path: T): T extends keyof DataModel
+  public get<Path extends keyof DataModel | string>(path: Path): (
+    Path extends keyof DataModel
     ? DataModelMetadata<ResourceSchema<DataModel>>
-    : DataModelMetadata<FieldSchema<DataModel>> | null;
+    : DataModelMetadata<FieldSchema<DataModel>> | null
+  );
 }
 
 /** HTTP request settings. */
 export interface RequestSettings {
   /** HTTP method to use. */
-  method: 'GET' | 'PATCH' | 'DELETE' | 'PUT' | 'POST' | 'HEAD';
+  method: 'GET' | 'PATCH' | 'DELETE' | 'PUT' | 'POST' | 'HEAD' | 'OPTIONS';
 
   /** Request URL. */
   url: string;

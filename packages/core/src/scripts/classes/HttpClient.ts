@@ -11,7 +11,7 @@ import isPlainObject from 'scripts/helpers/isPlainObject';
 /** HTTP request settings. */
 export interface RequestSettings {
   /** HTTP method to use. */
-  method: 'GET' | 'PATCH' | 'DELETE' | 'PUT' | 'POST' | 'HEAD';
+  method: 'GET' | 'PATCH' | 'DELETE' | 'PUT' | 'POST' | 'HEAD' | 'OPTIONS';
 
   /** Request URL. */
   url: string;
