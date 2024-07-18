@@ -5,8 +5,8 @@ import schema from 'scripts/lib/baseSchema';
  * `POST /v1/message` endpoint handler.
  */
 export default {
-  handler: (_request, response) => {
-    response.send();
+  handler: async (_request, response) => {
+    await response.send();
   },
   schema: deepMerge(
     schema,

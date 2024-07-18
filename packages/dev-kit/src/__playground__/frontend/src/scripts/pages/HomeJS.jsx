@@ -18,5 +18,4 @@ export default function HomeJS(props) {
 }
 
 HomeJS.propTypes = propTypes;
-HomeJS.defaultProps = {};
 HomeJS.displayName = 'HomeJS';

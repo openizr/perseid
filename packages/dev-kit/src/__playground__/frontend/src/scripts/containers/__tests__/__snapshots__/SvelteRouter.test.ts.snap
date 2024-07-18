@@ -2,41 +2,24 @@
 
 exports[`svelte/Router > renders correctly - loading page 1`] = `
 <div>
-  <div>
-    {"LABEL_TEST":"Test"}
-  </div>
-  <!--&lt;Loader&gt;-->
-  
-  
-  <!--&lt;Router&gt;-->
+  {"LABEL_TEST":"Test"}
 </div>
 `;
 
 exports[`svelte/Router > renders correctly - page found 1`] = `
-<div>
-  <p>
-    <img
-      alt="test"
-      src="/images/test.jpg"
-    />
-     
-    <img
-      alt="test"
-      src="/images/test.svg"
-    />
-     
-    Test
-  </p>
-  <!--&lt;Home&gt;-->
-  
-  
-  <!--&lt;Router&gt;-->
-</div>
+<p>
+  <img
+    alt="test"
+    src="/images/test.jpg"
+  />
+   
+  <img
+    alt="test"
+    src="/images/test.svg"
+  />
+   
+  Test
+</p>
 `;
 
-exports[`svelte/Router > renders correctly - page not found 1`] = `
-<div>
-  
-  <!--&lt;Router&gt;-->
-</div>
-`;
+exports[`svelte/Router > renders correctly - page not found 1`] = ``;

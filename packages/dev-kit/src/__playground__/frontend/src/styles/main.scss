@@ -56,7 +56,7 @@ $breakpoints: (
         $value: $value + 1;
       }
 
-      $str: '#{$str} and (min-width:#{$value})';
+      $str: '#{$str} and (min-width: #{$value})';
     }
   }
 

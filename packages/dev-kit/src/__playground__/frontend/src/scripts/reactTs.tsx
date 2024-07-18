@@ -3,7 +3,7 @@
 import 'styles/main.scss';
 import * as React from 'react';
 import Router from 'scripts/containers/Router';
-import { createRoot, Root } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 
 if (process.env.NODE_ENV === 'production') {
   console.log('PRODUCTION MODE'); // eslint-disable-line no-console

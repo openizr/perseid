@@ -15,7 +15,7 @@ const projectRootPath = path.resolve(__dirname, '../../../');
 
 try {
   require('svelte/compiler');
-  svelteExtends = ['plugin:svelte/recommended']
+  svelteExtends = ['plugin:svelte/recommended'];
   svelteOverrides = [{
     files: ['*.svelte'],
     parser: 'svelte-eslint-parser',
@@ -95,6 +95,8 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'],
       rules: {
+        'react/jsx-uses-react': 'off',
+        'react/react-in-jsx-scope': 'off',
         '@typescript-eslint/explicit-function-return-type': ['warn'],
         '@typescript-eslint/explicit-module-boundary-types': ['warn'],
       },
@@ -102,6 +104,8 @@ module.exports = {
     {
       files: ['*.js', '*.jsx'],
       rules: {
+        'react/jsx-uses-react': 'off',
+        'react/react-in-jsx-scope': 'off',
         '@typescript-eslint/no-unsafe-call': 'off',
         '@typescript-eslint/no-unsafe-return': 'off',
         '@typescript-eslint/no-unsafe-argument': 'off',

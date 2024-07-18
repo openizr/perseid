@@ -2,9 +2,6 @@
 
 exports[`svelte/Loader > renders correctly - basic 1`] = `
 <div>
-  <div>
-    {"LABEL_TEST":"Test"}
-  </div>
-  <!--&lt;Loader&gt;-->
+  {"LABEL_TEST":"Test"}
 </div>
 `;

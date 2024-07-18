@@ -1,7 +1,7 @@
 /* istanbul ignore file */
 
 import 'styles/main.scss';
-import { Component, createApp } from 'vue';
+import { type Component, createApp } from 'vue';
 import AppRouter from 'scripts/containers/AppRouter.vue';
 
 if (process.env.NODE_ENV === 'production') {

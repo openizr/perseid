@@ -31,6 +31,8 @@ vi.mock('scripts/store/routes', () => ({
 }));
 
 describe('react/Router', () => {
+  vi.spyOn(console, 'log').mockImplementation(vi.fn());
+
   beforeEach(() => {
     process.env.LOADING = 'false';
     vi.clearAllMocks();

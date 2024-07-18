@@ -1,5 +1,5 @@
-import store from 'scripts/store';
 import * as React from 'react';
+import store from 'scripts/store';
 import routes from 'scripts/store/routes';
 import useStore from 'diox/connectors/react';
 import Loader from 'scripts/components/Loader';
@@ -38,5 +38,4 @@ export default function Router(props: { locale: unknown; }): JSX.Element {
 }
 
 Router.propTypes = {};
-Router.defaultProps = {};
 Router.displayName = 'Router';

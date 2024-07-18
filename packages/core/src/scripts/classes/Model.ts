@@ -9,19 +9,20 @@
 import {
   type FieldSchema,
   type ObjectSchema,
-  type CollectionSchema,
+  type ResourceSchema,
   type DefaultDataModel,
+  type IdSchema,
 } from 'scripts/types.d';
 
 /** Data model schema. */
-export type DataModelSchema<DataModel> = Record<keyof DataModel, CollectionSchema<DataModel>>;
+export type DataModelSchema<DataModel> = Record<keyof DataModel, ResourceSchema<DataModel>>;
 
 /** Data model metadata. */
 export interface DataModelMetadata<SchemaType> {
   /** Data model schema. */
   schema: SchemaType;
 
-  /** Canonical (shortest) path to the schema, starting from collection's root. */
+  /** Canonical (shortest) path to the schema, starting from resource root. */
   canonicalPath: string[];
 }
 
@@ -30,7 +31,7 @@ export interface DataModelMetadata<SchemaType> {
  */
 export default class Model<
   /** Data model types definitions. */
-  DataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 > {
   /** Data model schema. */
   protected schema: DataModelSchema<DataModel>;
@@ -43,67 +44,67 @@ export default class Model<
   constructor(schema?: DataModelSchema<DataModel>) {
     const fullSchema = { ...schema } as DataModelSchema<DataModel>;
 
-    Object.keys(fullSchema).forEach((collectionName) => {
-      const collection = collectionName as keyof DataModel;
-      const fullCollectionSchema: CollectionSchema<DataModel> = {
-        version: fullSchema[collection].version,
-        enableAuthors: fullSchema[collection].enableAuthors ?? false,
-        enableDeletion: fullSchema[collection].enableDeletion ?? true,
-        enableTimestamps: fullSchema[collection].enableTimestamps ?? false,
+    (Object.keys(fullSchema) as (keyof DataModel & string)[]).forEach((resource) => {
+      const resourceSchema: ResourceSchema<DataModel> = {
+        version: fullSchema[resource].version,
+        enableAuthors: fullSchema[resource].enableAuthors ?? false,
+        enableDeletion: fullSchema[resource].enableDeletion ?? true,
+        enableTimestamps: fullSchema[resource].enableTimestamps ?? false,
         fields: {
           _id: {
             type: 'id',
-            index: true,
-            required: true,
+            isUnique: true,
+            isRequired: true,
           },
         },
       };
-      if (fullCollectionSchema.version !== undefined) {
-        fullCollectionSchema.fields._version = {
+      if (resourceSchema.version !== undefined) {
+        resourceSchema.fields._version = {
           type: 'integer',
-          index: true,
-          required: true,
+          isIndexed: true,
+          isRequired: true,
         };
       }
-      if (!fullCollectionSchema.enableDeletion) {
-        fullCollectionSchema.fields._isDeleted = {
+      if (!resourceSchema.enableDeletion) {
+        resourceSchema.fields._isDeleted = {
           type: 'boolean',
-          index: true,
-          required: true,
-          default: false,
+          isIndexed: true,
+          isRequired: true,
         };
       }
-      if (fullCollectionSchema.enableAuthors && (fullSchema as { users: unknown; }).users) {
-        fullCollectionSchema.fields._createdBy = {
+      if (resourceSchema.enableAuthors) {
+        const _createdBy: IdSchema<DataModel> = {
           type: 'id',
-          index: true,
-          required: collection !== 'users',
-          relation: 'users' as keyof DataModel,
+          isIndexed: true,
+          isRequired: resource !== 'users',
+          relation: 'users',
         };
-        fullCollectionSchema.fields._updatedBy = {
+        const _updatedBy: IdSchema<DataModel> = {
           type: 'id',
-          index: true,
-          relation: 'users' as keyof DataModel,
+          isIndexed: true,
+          relation: 'users',
         };
+        resourceSchema.fields._createdBy = _createdBy;
+        resourceSchema.fields._updatedBy = _updatedBy;
       }
-      if (fullCollectionSchema.enableTimestamps) {
-        fullCollectionSchema.fields._createdAt = {
+      if (resourceSchema.enableTimestamps) {
+        resourceSchema.fields._createdAt = {
           type: 'date',
-          index: true,
-          required: true,
+          isIndexed: true,
+          isRequired: true,
         };
-        fullCollectionSchema.fields._updatedAt = {
+        resourceSchema.fields._updatedAt = {
           type: 'date',
-          index: true,
+          isIndexed: true,
         };
       }
       // To make automatic fields always appear at the top.
-      fullSchema[collection] = {
-        ...fullCollectionSchema,
-        ...fullSchema[collection],
+      fullSchema[resource] = {
+        ...resourceSchema,
+        ...fullSchema[resource],
         fields: {
-          ...fullCollectionSchema.fields,
-          ...fullSchema[collection].fields,
+          ...resourceSchema.fields,
+          ...fullSchema[resource].fields,
         },
       };
     });
@@ -112,12 +113,12 @@ export default class Model<
   }
 
   /**
-   * Returns the list of all the collections names in data model.
+   * Returns the list of all the resources types in data model.
    *
-   * @returns Data model collections names.
+   * @returns Data model resources types.
    */
-  public getCollections(): (keyof DataModel)[] {
-    return Object.keys(this.schema) as (keyof DataModel)[];
+  public getResources(): (keyof DataModel & string)[] {
+    return Object.keys(this.schema) as (keyof DataModel & string)[];
   }
 
   /**
@@ -127,13 +128,15 @@ export default class Model<
    *
    * @returns Data model metadata if path exists, `null` otherwise.
    */
-  public get<T>(path: T): T extends keyof DataModel
-    ? DataModelMetadata<CollectionSchema<DataModel>>
-    : DataModelMetadata<FieldSchema<DataModel>> | null {
+  public get<Path extends keyof DataModel | string>(path: Path): (
+    Path extends keyof DataModel
+    ? DataModelMetadata<ResourceSchema<DataModel>>
+    : DataModelMetadata<FieldSchema<DataModel>> | null
+  ) {
     const splittedPath = (path as string).split('.');
-    const collection = splittedPath.shift() as keyof DataModel;
-    let currentCanonicalPath = [collection as string];
-    let currentSchema = this.schema[collection] as FieldSchema<DataModel> | undefined;
+    const resource = splittedPath.shift() as keyof DataModel;
+    let currentCanonicalPath: string[] = [resource as string];
+    let currentSchema = this.schema[resource] as FieldSchema<DataModel> | undefined;
 
     // Walking through the schema...
     while (splittedPath.length > 0 && currentSchema !== undefined) {
@@ -142,22 +145,22 @@ export default class Model<
       currentSchema = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields?.[subPath];
 
       if (currentSchema?.type === 'array') {
-        currentSchema = { type: 'object', fields: { [subPath]: currentSchema.fields } };
-        splittedPath.splice(0, 0, subPath);
-        currentCanonicalPath.splice(-1, 1);
-      } else if (currentSchema?.type === 'id' && currentSchema.relation !== undefined && splittedPath.length > 0) {
+        currentSchema = currentSchema.fields;
+      }
+
+      if (currentSchema?.type === 'id' && currentSchema.relation !== undefined && splittedPath.length > 0) {
         const { relation } = currentSchema;
         currentCanonicalPath = [relation as string];
-        const relationSchema = (this.get(relation) as DataModelMetadata<DataModel>).schema;
-        currentSchema = { type: 'object', fields: (relationSchema as CollectionSchema<DataModel>).fields };
+        const relationMetadata = this.get(relation) as DataModelMetadata<ResourceSchema<DataModel>>;
+        currentSchema = { type: 'object', fields: relationMetadata.schema.fields };
       }
     }
 
     return (currentSchema === undefined ? null : {
       schema: currentSchema,
       canonicalPath: currentCanonicalPath,
-    }) as T extends keyof DataModel
-      ? DataModelMetadata<CollectionSchema<DataModel>>
+    }) as Path extends keyof DataModel
+      ? DataModelMetadata<ResourceSchema<DataModel>>
       : DataModelMetadata<FieldSchema<DataModel>> | null;
   }
 }

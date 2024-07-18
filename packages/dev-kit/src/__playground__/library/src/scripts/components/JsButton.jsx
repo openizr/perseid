@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { UIP } from 'biuty/react';
 import PropTypes from 'prop-types';
 

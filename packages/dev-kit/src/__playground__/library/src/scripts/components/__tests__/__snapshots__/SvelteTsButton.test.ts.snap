@@ -1,12 +1,9 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`svelte/SvelteTsButton > renders correctly - basic 1`] = `
-<div>
-  <button
-    class="s-8fbtQMBX31Ko"
-  >
-    Hello
-  </button>
-  <!--&lt;SvelteTsButton&gt;-->
-</div>
+<button
+  class="svelte-1s0j9nk"
+>
+  Hello
+</button>
 `;

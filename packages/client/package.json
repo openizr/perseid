@@ -169,7 +169,7 @@
     }
   },
   "peerDependencies": {
-    "svelte": "^4.2.8",
-    "vue": "^3.4.7"
+    "svelte": "^4.2.12",
+    "vue": "^3.4.21"
   }
 }

@@ -24,6 +24,14 @@
         "rules": {
           "@typescript-eslint/no-floating-promises": "off"
         }
+      },
+      {
+        "files": [
+          "*.js"
+        ],
+        "rules": {
+          "@typescript-eslint/use-unknown-in-catch-callback-variable": "off"
+        }
       }
     ]
   },
@@ -33,6 +41,7 @@
       "typescript": "./scripts/typescript.ts",
       "javascript": "./scripts/javascript.js"
     },
+    "banner": "/* TEST */",
     "splitChunks": false,
     "runInDev": true,
     "srcPath": "src",

@@ -1079,6 +1079,7 @@ export default class Store<
 
     const { canonicalPath } = fieldMetadata;
 
+    // TODO put log debug/info to detail what permission is missing
     if (this.user === null) {
       return false;
     }

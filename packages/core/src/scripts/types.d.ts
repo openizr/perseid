@@ -6,139 +6,115 @@
  *
  */
 
-/** Collections with an `_id` field. */
+/** Resources with an `_id` field. */
 export interface Ids {
   /** Resource id. */
   _id: Id;
 }
 
-/** Collections with authors-related automatic fields. */
+/** Resources with authors-related automatic fields. */
 export interface Authors {
   /** Resource creation author. */
-  _createdBy: Id | User;
+  _createdBy: Id | DefaultDataModel['users'];
 
-  /** Resource modification author. */
-  _updatedBy: Id | User | null;
+  /** Resource last modification author. */
+  _updatedBy: Id | DefaultDataModel['users'] | null;
 }
 
-/** Collections with timestamps-related automatic fields. */
+/** Resources with timestamps-related automatic fields. */
 export interface Timestamps {
   /** Resource creation date. */
   _createdAt: Date;
 
-  /** Resource modification date. */
+  /** Resource last modification date. */
   _updatedAt: Date | null;
 }
 
-/** Soft-deletable collections. */
+/** Soft-deletable resources. */
 export interface Deletion {
   /** Whether resource has been deleted. */
   _isDeleted: boolean;
 }
 
-/** Versionnable collections. */
+/** Versionnable resources. */
 export interface Version {
   /** Resource version. */
   _version: number;
-}
-
-/** Set of permissions, grouped for a specific purpose. */
-export interface Role extends Ids, Version, Timestamps, Authors {
-  /** Role name. */
-  name: string;
-
-  /** List of permissions granted by this role. */
-  permissions: string[];
-}
-
-/** User. */
-export interface User extends Ids, Version, Timestamps, Deletion {
-  /** Resource creation author. */
-  _createdBy?: Id | User | null;
-
-  /** Resource modification author. */
-  _updatedBy: Id | User | null;
-
-  /** User verification date. */
-  _verifiedAt: Date | null;
-
-  /** User permissions. */
-  _permissions: Set<string>;
-
-  /** User email. */
-  email: string;
-
-  /** User password. */
-  password: string;
-
-  /** User roles. */
-  roles: (Id | Role)[];
-
-  /** List of user API keys. */
-  _apiKeys: string[];
-
-  /** List of user devices. */
-  _devices: {
-    /** Device id. */
-    id: string;
-
-    /** Device user agent. */
-    userAgent: string;
-
-    /** Refresh token expiration date. */
-    expiration: Date;
-
-    /** Refresh token to use for that device. */
-    refreshToken: string;
-  }[];
 }
 
 /**
  * Default perseid data model.
  */
 export interface DefaultDataModel {
-  users: User;
-  roles: Role;
+  /** Set of permissions, grouped for a specific purpose. */
+  roles: Ids & Version & Timestamps & Authors & {
+    /** Role name. */
+    name: string;
+
+    /** List of permissions granted by this role. */
+    permissions: string[];
+  };
+
+  /** User. */
+  users: Ids & Version & Timestamps & Deletion & {
+    /** Resource creation author. */
+    _createdBy?: Id | DefaultDataModel['users'] | null;
+
+    /** Resource last modification author. */
+    _updatedBy: Id | DefaultDataModel['users'] | null;
+
+    /** User verification date. */
+    _verifiedAt: Date | null;
+
+    /** User permissions. */
+    _permissions: Set<string>;
+
+    /** User email. */
+    email: string;
+
+    /** User password. */
+    password: string;
+
+    /** User roles. */
+    roles: (Id | DefaultDataModel['roles'])[];
+
+    /** List of user API keys. */
+    _apiKeys: string[];
+
+    /** List of user devices. */
+    _devices: {
+      /** Device id. */
+      _id: string;
+
+      /** Device user agent. */
+      _userAgent: string;
+
+      /** Refresh token expiration date. */
+      _expiration: Date;
+
+      /** Refresh token to use for that device. */
+      _refreshToken: string;
+    }[];
+  };
 }
 
 /**
  * Search or list results.
  */
-export interface Results<T> {
+export interface Results<Resource> {
   /** Total number of results that matched query. */
   total: number;
 
   /** Limited list of results that are actually returned. */
-  results: T[];
+  results: Resource[];
 }
-
-/**
- * Resource creation payload (excluding all its automatic fields).
- */
-export type Payload<T> = {
-  [K in keyof T as Exclude<K, `_${string}`>]: Payload<T[K]>;
-};
-
-/**
- * Resource update payload.
- */
-export type UpdatePayload<T> = {
-  [K in keyof T]?: UpdatePayload<T[K]>;
-};
 
 /**
  * Common properties for all data model fields schemas.
  */
 export interface GenericFieldSchema {
-  /**
-   * Custom type name to assign to that field, in addition to its actual type.
-   * Very useful to customize behaviours. For instance, you might want to display a specific
-   * component for email addresses on front-end, even though their real type is `string`.
-   */
-  customType?: string;
-
   /** Whether field is required. */
-  required?: boolean;
+  isRequired?: boolean;
 
   /** Custom error messages for when user inputs do not match data model. */
   errorMessages?: Record<string, string>;
@@ -156,23 +132,20 @@ export interface StringSchema extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /** Specific set of values allowed for that field. */
   enum?: string[];
-
-  /** Default value for that field. */
-  default?: string;
 
   /**
    * Whether field's value should be unique across the whole collection (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  unique?: boolean;
+  isUnique?: boolean;
 
   /** RegExp user inputs must pass for that field. */
-  pattern?: string;
+  pattern?: RegExp;
 
   /** Field minimum length. */
   minLength?: number;
@@ -193,20 +166,17 @@ export interface NumberSchema extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /** Specific set of values allowed for that field. */
   enum?: number[];
-
-  /** Default value for that field. */
-  default?: number;
 
   /**
    * Whether field's value should be unique across the whole collection (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  unique?: boolean;
+  isUnique?: boolean;
 
   /** Field minimum value. */
   minimum?: number;
@@ -236,16 +206,13 @@ export interface BooleanSchema extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
-
-  /** Default value for that field. */
-  default?: boolean;
+  isIndexed?: boolean;
 }
 
 /**
  * Data model id field schema.
  */
-export interface IdSchema<Types> extends GenericFieldSchema {
+export interface IdSchema<DataModel> extends GenericFieldSchema {
   /** Data type. */
   type: 'id';
 
@@ -257,20 +224,17 @@ export interface IdSchema<Types> extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /**
    * Whether field's value should be unique across the whole collection (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  unique?: boolean;
-
-  /** Default value for that field. */
-  default?: Id;
+  isUnique?: boolean;
 
   /** Name of the collection the id refers to. See it as a foreign key. */
-  relation?: keyof Types;
+  relation?: keyof DataModel;
 }
 
 /**
@@ -288,17 +252,14 @@ export interface DateSchema extends GenericFieldSchema {
    * A database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  index?: boolean;
+  isIndexed?: boolean;
 
   /**
    * Whether field's value should be unique across the whole collection (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
-  unique?: boolean;
-
-  /** Default value for that field. */
-  default?: Date;
+  isUnique?: boolean;
 }
 
 /**
@@ -307,9 +268,6 @@ export interface DateSchema extends GenericFieldSchema {
 export interface BinarySchema extends GenericFieldSchema {
   /** Data type. */
   type: 'binary';
-
-  /** Default value for that field. */
-  default?: ArrayBuffer;
 }
 
 /**
@@ -323,18 +281,18 @@ export interface NullSchema extends GenericFieldSchema {
 /**
  * Data model object field schema.
  */
-export interface ObjectSchema<T> extends GenericFieldSchema {
+export interface ObjectSchema<DataModel> extends GenericFieldSchema {
   /** Data type. */
   type: 'object';
 
   /** Sub-fields data model. */
-  fields: Record<string, FieldSchema<T>>;
+  fields: Record<string, FieldSchema<DataModel>>;
 }
 
 /**
  * Data model array field schema.
  */
-export interface ArraySchema<T> extends GenericFieldSchema {
+export interface ArraySchema<DataModel> extends GenericFieldSchema {
   /** Data type. */
   type: 'array';
 
@@ -345,7 +303,7 @@ export interface ArraySchema<T> extends GenericFieldSchema {
   maxItems?: number;
 
   /** Items data model. */
-  fields: Exclude<FieldSchema<T>, ArraySchema<T>>;
+  fields: Exclude<FieldSchema<DataModel>, ArraySchema<DataModel>>;
 
   /** Whether each array item should be unique. */
   uniqueItems?: boolean;
@@ -354,38 +312,38 @@ export interface ArraySchema<T> extends GenericFieldSchema {
 /**
  * Any Data model field schema.
  */
-export type FieldSchema<Types> = (
+export type FieldSchema<DataModel> = (
   NullSchema |
   DateSchema |
   NumberSchema |
   StringSchema |
   BinarySchema |
   BooleanSchema |
-  IdSchema<Types> |
-  ArraySchema<Types> |
-  ObjectSchema<Types>
+  IdSchema<DataModel> |
+  ArraySchema<DataModel> |
+  ObjectSchema<DataModel>
 );
 
 /**
- * Data model collection schema.
+ * Data model resource schema.
  */
-export interface CollectionSchema<T> {
+export interface ResourceSchema<T> {
   /**
-    * Data model version for this collection. Can be useful for applying different logics depending
-    * on the data model version of a given resource in that collection.
+    * Data model version for this resource. Can be useful for applying different logics depending
+    * on the data model version of a given resource in that resource.
     */
   version?: number;
 
-  /** Whether to generate and manage`_createdBy` and `_updatedBy` fields for that collection. */
+  /** Whether to generate and manage `_createdBy` and `_updatedBy` fields for that resource. */
   enableAuthors?: boolean;
 
-  /** Whether to generate and manage the `_isDeleted` field for that collection. */
+  /** Whether to generate and manage the `_isDeleted` field for that resource. */
   enableDeletion?: boolean;
 
-  /** Whether to generate and manage`_createdAt` and `_updatedAt` fields for that collection. */
+  /** Whether to generate and managen`_createdAt` and `_updatedAt` fields for that resource. */
   enableTimestamps?: boolean;
 
-  /** Collection fields data model. */
+  /** Resource fields data model. */
   fields: Record<string, FieldSchema<T>>;
 }
 
@@ -619,23 +577,23 @@ export abstract class Logger {
 }
 
 /** Data model schema. */
-export type DataModelSchema<DataModel> = Record<keyof DataModel, CollectionSchema<DataModel>>;
+export type DataModelSchema<DataModel> = Record<keyof DataModel, ResourceSchema<DataModel>>;
 
 /** Data model metadata. */
 export interface DataModelMetadata<SchemaType> {
   /** Data model schema. */
   schema: SchemaType;
 
-  /** Canonical (shortest) path to the schema, starting from collection's root. */
+  /** Canonical (shortest) path to the schema, starting from resource root. */
   canonicalPath: string[];
 }
 
 /**
  * Data model.
  */
-export class Model<
+export default class Model<
   /** Data model types definitions. */
-  DataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 > {
   /** Data model schema. */
   protected schema: DataModelSchema<DataModel>;
@@ -648,11 +606,11 @@ export class Model<
   constructor(schema?: DataModelSchema<DataModel>);
 
   /**
-   * Returns the list of all the collections names in data model.
+   * Returns the list of all the resources types in data model.
    *
-   * @returns Data model collections names.
+   * @returns Data model resources types.
    */
-  public getCollections(): (keyof DataModel)[];
+  public getResources(): (keyof DataModel & string)[];
 
   /**
    * Returns data model metadata for `path`.
@@ -661,7 +619,59 @@ export class Model<
    *
    * @returns Data model metadata if path exists, `null` otherwise.
    */
-  public get<T>(path: T): T extends keyof DataModel
-    ? DataModelMetadata<CollectionSchema<DataModel>>
-    : DataModelMetadata<FieldSchema<DataModel>> | null;
+  public get<Path extends keyof DataModel | string>(path: Path): (
+    Path extends keyof DataModel
+    ? DataModelMetadata<ResourceSchema<DataModel>>
+    : DataModelMetadata<FieldSchema<DataModel>> | null
+  );
+}
+
+/** HTTP request settings. */
+export interface RequestSettings {
+  /** HTTP method to use. */
+  method: 'GET' | 'PATCH' | 'DELETE' | 'PUT' | 'POST' | 'HEAD' | 'OPTIONS';
+
+  /** Request URL. */
+  url: string;
+
+  /** Request body. */
+  body?: string | FormData | Record<string, unknown>;
+
+  /** Request headers. */
+  headers?: Record<string, string>;
+}
+
+/**
+ * Provides a cleaner `fetch` API with a better errors handling.
+ */
+export class HttpClient {
+  /** Maximum request duration (in ms) before generating a timeout. */
+  protected connectTimeout: number;
+
+  /**
+   * Performs a new HTTP request with `settings`.
+   *
+   * @param settings Request settings (URL, method, body, ...).
+   *
+   * @returns Raw HTTP response.
+   *
+   * @throws If request fails.
+   */
+  protected rawRequest(settings: RequestSettings): Promise<Response>;
+
+  /**
+   * Performs a new HTTP request with `settings` and parses the response.
+   *
+   * @param settings Request settings (URL, method, body, ...).
+   *
+   * @returns Parsed HTTP response.
+   */
+  protected request<Response>(settings: RequestSettings): Promise<Response>;
+
+  /**
+   * Class constructor.
+   *
+   * @param connectTimeout Maximum request duration (in ms) before generating a timeout.
+   */
+  public constructor(connectTimeout: number);
 }

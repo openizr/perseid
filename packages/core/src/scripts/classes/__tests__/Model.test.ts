@@ -8,20 +8,20 @@
 
 import type Id from 'scripts/classes/Id';
 import Model from 'scripts/classes/Model';
+import type { DefaultDataModel, DataModelSchema } from 'scripts/types';
 
-interface DataModel {
+interface DataModel extends DefaultDataModel {
   test: {
     object: {
       relations: Id[];
     };
   };
   test2: { test: string; };
-  users: { email: string; };
 }
 
 type TestModel = Model<DataModel>;
 
-describe('services/Model', () => {
+describe('classes/Model', () => {
   const model = new Model<DataModel>({
     users: {
       fields: {
@@ -55,77 +55,78 @@ describe('services/Model', () => {
         },
       },
     },
-  }) as TestModel;
+  } as unknown as DataModelSchema<DataModel>) as TestModel;
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('[getCollections]', () => {
-    expect(model.getCollections()).toEqual(['users', 'test', 'test2']);
+  test('[getResources]', () => {
+    expect(model.getResources()).toEqual(['users', 'test', 'test2']);
   });
 
-  test('[get] invalid path', () => {
-    expect(model.get('')).toBeNull();
-    expect(model.get('test.object.invalid.test')).toBeNull();
-  });
+  describe('[get]', () => {
+    test('invalid path', () => {
+      expect(model.get('')).toBeNull();
+      expect(model.get('test.object.invalid.test')).toBeNull();
+    });
 
-  test('[get] valid path', () => {
-    expect(model.get('test2')).toEqual({
-      canonicalPath: ['test2'],
-      schema: {
-        version: 1,
-        enableAuthors: true,
-        enableDeletion: false,
-        enableTimestamps: true,
-        fields: {
-          _id: {
-            type: 'id',
-            index: true,
-            required: true,
-          },
-          _version: {
-            type: 'integer',
-            index: true,
-            required: true,
-          },
-          _isDeleted: {
-            type: 'boolean',
-            index: true,
-            required: true,
-            default: false,
-          },
-          _createdBy: {
-            type: 'id',
-            index: true,
-            required: true,
-            relation: 'users',
-          },
-          _updatedBy: {
-            type: 'id',
-            index: true,
-            relation: 'users',
-          },
-          _createdAt: {
-            type: 'date',
-            index: true,
-            required: true,
-          },
-          _updatedAt: {
-            type: 'date',
-            index: true,
-          },
-          test2: {
-            type: 'string',
+    test('valid path', () => {
+      expect(model.get('test2')).toEqual({
+        canonicalPath: ['test2'],
+        schema: {
+          version: 1,
+          enableAuthors: true,
+          enableDeletion: false,
+          enableTimestamps: true,
+          fields: {
+            _id: {
+              type: 'id',
+              isUnique: true,
+              isRequired: true,
+            },
+            _version: {
+              type: 'integer',
+              isIndexed: true,
+              isRequired: true,
+            },
+            _isDeleted: {
+              type: 'boolean',
+              isIndexed: true,
+              isRequired: true,
+            },
+            _createdBy: {
+              type: 'id',
+              isIndexed: true,
+              isRequired: true,
+              relation: 'users',
+            },
+            _updatedBy: {
+              type: 'id',
+              isIndexed: true,
+              relation: 'users',
+            },
+            _createdAt: {
+              type: 'date',
+              isIndexed: true,
+              isRequired: true,
+            },
+            _updatedAt: {
+              type: 'date',
+              isIndexed: true,
+            },
+            test2: {
+              type: 'string',
+            },
           },
         },
-      },
-    });
-    expect(model.get('test.object.relations.test2')).toEqual({
-      canonicalPath: ['test2', 'test2'],
-      schema: {
-        type: 'string',
-      },
+      });
+      expect(model.get('test.object.relations.test2')).toEqual({
+        canonicalPath: ['test2', 'test2'],
+        schema: {
+          type: 'string',
+        },
+      });
     });
   });
 });

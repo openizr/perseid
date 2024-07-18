@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { UIP } from 'biuty/react';
-import PropTypes, { InferProps } from 'prop-types';
+import PropTypes, { type InferProps } from 'prop-types';
 
 const propTypes = {
   label: PropTypes.string.isRequired,
