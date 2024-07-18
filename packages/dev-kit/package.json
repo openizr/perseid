@@ -71,8 +71,8 @@
     "build": "rm -rf dist && mkdir dist && rsync -av src/ dist/ --exclude=__playground__ && cp LICENSE README.md package.json dist/"
   },
   "engines": {
-    "node": ">= 18.0.0",
-    "npm": ">= 8.0.0"
+    "node": ">= 20.0.0",
+    "npm": ">= 9.0.0"
   },
   "browserslist": [
     "defaults"
