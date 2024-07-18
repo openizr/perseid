@@ -11,6 +11,7 @@ import {
   type ObjectSchema,
   type ResourceSchema,
   type DefaultDataModel,
+  type IdSchema,
 } from 'scripts/types.d';
 
 /** Data model schema. */
@@ -30,7 +31,7 @@ export interface DataModelMetadata<SchemaType> {
  */
 export default class Model<
   /** Data model types definitions. */
-  DataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 > {
   /** Data model schema. */
   protected schema: DataModelSchema<DataModel>;
@@ -43,8 +44,7 @@ export default class Model<
   constructor(schema?: DataModelSchema<DataModel>) {
     const fullSchema = { ...schema } as DataModelSchema<DataModel>;
 
-    Object.keys(fullSchema).forEach((resourceName) => {
-      const resource = resourceName as keyof DataModel;
+    (Object.keys(fullSchema) as (keyof DataModel & string)[]).forEach((resource) => {
       const resourceSchema: ResourceSchema<DataModel> = {
         version: fullSchema[resource].version,
         enableAuthors: fullSchema[resource].enableAuthors ?? false,
@@ -72,18 +72,20 @@ export default class Model<
           isRequired: true,
         };
       }
-      if (resourceSchema.enableAuthors && (fullSchema as { users: unknown; }).users) {
-        resourceSchema.fields._createdBy = {
+      if (resourceSchema.enableAuthors) {
+        const _createdBy: IdSchema<DataModel> = {
           type: 'id',
           isIndexed: true,
           isRequired: resource !== 'users',
-          relation: 'users' as keyof DataModel,
+          relation: 'users',
         };
-        resourceSchema.fields._updatedBy = {
+        const _updatedBy: IdSchema<DataModel> = {
           type: 'id',
           isIndexed: true,
-          relation: 'users' as keyof DataModel,
+          relation: 'users',
         };
+        resourceSchema.fields._createdBy = _createdBy;
+        resourceSchema.fields._updatedBy = _updatedBy;
       }
       if (resourceSchema.enableTimestamps) {
         resourceSchema.fields._createdAt = {
@@ -111,12 +113,12 @@ export default class Model<
   }
 
   /**
-   * Returns the list of all the resources names in data model.
+   * Returns the list of all the resources types in data model.
    *
-   * @returns Data model resources names.
+   * @returns Data model resources types.
    */
-  public getResources(): (keyof DataModel)[] {
-    return Object.keys(this.schema) as (keyof DataModel)[];
+  public getResources(): (keyof DataModel & string)[] {
+    return Object.keys(this.schema) as (keyof DataModel & string)[];
   }
 
   /**
@@ -126,12 +128,14 @@ export default class Model<
    *
    * @returns Data model metadata if path exists, `null` otherwise.
    */
-  public get<T>(path: T): T extends keyof DataModel
+  public get<Path extends keyof DataModel | string>(path: Path): (
+    Path extends keyof DataModel
     ? DataModelMetadata<ResourceSchema<DataModel>>
-    : DataModelMetadata<FieldSchema<DataModel>> | null {
+    : DataModelMetadata<FieldSchema<DataModel>> | null
+  ) {
     const splittedPath = (path as string).split('.');
     const resource = splittedPath.shift() as keyof DataModel;
-    let currentCanonicalPath = [resource as string];
+    let currentCanonicalPath: string[] = [resource as string];
     let currentSchema = this.schema[resource] as FieldSchema<DataModel> | undefined;
 
     // Walking through the schema...
@@ -141,21 +145,21 @@ export default class Model<
       currentSchema = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields?.[subPath];
 
       if (currentSchema?.type === 'array') {
-        currentSchema = { type: 'object', fields: { [subPath]: currentSchema.fields } };
-        splittedPath.splice(0, 0, subPath);
-        currentCanonicalPath.splice(-1, 1);
-      } else if (currentSchema?.type === 'id' && currentSchema.relation !== undefined && splittedPath.length > 0) {
+        currentSchema = currentSchema.fields;
+      }
+
+      if (currentSchema?.type === 'id' && currentSchema.relation !== undefined && splittedPath.length > 0) {
         const { relation } = currentSchema;
         currentCanonicalPath = [relation as string];
-        const relationSchema = (this.get(relation) as DataModelMetadata<DataModel>).schema;
-        currentSchema = { type: 'object', fields: (relationSchema as ResourceSchema<DataModel>).fields };
+        const relationMetadata = this.get(relation) as DataModelMetadata<ResourceSchema<DataModel>>;
+        currentSchema = { type: 'object', fields: relationMetadata.schema.fields };
       }
     }
 
     return (currentSchema === undefined ? null : {
       schema: currentSchema,
       canonicalPath: currentCanonicalPath,
-    }) as T extends keyof DataModel
+    }) as Path extends keyof DataModel
       ? DataModelMetadata<ResourceSchema<DataModel>>
       : DataModelMetadata<FieldSchema<DataModel>> | null;
   }
