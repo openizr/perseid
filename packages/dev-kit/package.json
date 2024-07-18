@@ -1,9 +1,9 @@
 {
   "name": "@perseid/dev-kit",
-  "version": "8.0.1",
+  "version": "9.0.0",
   "type": "module",
   "license": "MIT",
-  "description": "Everything you need to develop front-end and back-end JavaScript/TypeScript projects with maximum productivity.",
+  "description": "Everything you need to develop JavaScript/TypeScript projects with maximum productivity.",
   "repository": "https://github.com/openizr/perseid",
   "homepage": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
