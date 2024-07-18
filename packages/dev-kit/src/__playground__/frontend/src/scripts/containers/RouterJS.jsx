@@ -35,5 +35,4 @@ export default function RouterJS(props) {
 }
 
 RouterJS.propTypes = propTypes;
-RouterJS.defaultProps = {};
 RouterJS.displayName = 'RouterJS';

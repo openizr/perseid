@@ -18,11 +18,13 @@ const app = fastify({
 
 // Handles CORS in development mode.
 if (configuration.mode === 'development') {
-  app.addHook('onRequest', async (_, response) => {
+  app.addHook('onRequest', async (request, response) => {
     response.header('Access-Control-Allow-Origin', '*');
     response.header('Access-Control-Allow-Headers', '*');
     response.header('Access-Control-Allow-Methods', '*');
-    await response.status(200).send();
+    if (request.method === 'OPTIONS') {
+      await response.status(200).send();
+    }
   });
 }
 
@@ -32,7 +34,7 @@ app.setValidatorCompiler(({ schema }) => (
 ));
 
 // Adding app routes...
-declareRoutes(app).catch((error) => {
+declareRoutes(app).catch((error: unknown) => {
   app.log.fatal(error);
   process.exit(1);
 });

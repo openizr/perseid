@@ -1,6 +1,6 @@
 import * as React from 'react';
 import Message from 'scripts/components/Message';
-import PropTypes, { InferProps } from 'prop-types';
+import PropTypes, { type InferProps } from 'prop-types';
 
 const propTypes = {
   translate: PropTypes.func.isRequired,
@@ -18,5 +18,4 @@ export default function Home(props: InferProps<typeof propTypes>): JSX.Element {
 }
 
 Home.propTypes = propTypes;
-Home.defaultProps = {};
 Home.displayName = 'Home';

@@ -26,7 +26,6 @@
   Bundle generation (1 per entry)
   HMR support with both JS and CSS
   Serves static assets from public directory
-  Removes all conditional code related to 'process.env.ENV === production'
 
 # Production mode
   ES7+ support

@@ -1,13 +1,10 @@
-import * as React from 'react';
 import testJpg from 'images/test.jpg';
 import testSvg from 'images/test.svg';
-import PropTypes, { InferProps } from 'prop-types';
+import PropTypes, { type InferProps } from 'prop-types';
 
 const propTypes = {
   label: PropTypes.string.isRequired,
 };
-
-const defaultProps = {};
 
 /**
  * Simple message.
@@ -25,5 +22,4 @@ export default function Message(props: InferProps<typeof propTypes>): JSX.Elemen
 }
 
 Message.propTypes = propTypes;
-Message.defaultProps = defaultProps;
 Message.displayName = 'Message';

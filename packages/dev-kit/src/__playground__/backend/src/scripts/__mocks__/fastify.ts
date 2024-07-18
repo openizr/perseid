@@ -5,7 +5,7 @@
 type Callback = (...args: unknown[]) => void;
 
 const addHook = vi.fn((_event, callback: Callback) => {
-  callback(null, {
+  callback({ method: 'OPTIONS' }, {
     header: vi.fn(() => Promise.resolve()),
     status: vi.fn(() => ({
       send: vi.fn(() => Promise.resolve()),
