@@ -8,15 +8,15 @@
 
 import type Id from 'scripts/classes/Id';
 import Model from 'scripts/classes/Model';
+import type { DefaultDataModel, DataModelSchema } from 'scripts/types';
 
-interface DataModel {
+interface DataModel extends DefaultDataModel {
   test: {
     object: {
       relations: Id[];
     };
   };
   test2: { test: string; };
-  users: { email: string; };
 }
 
 type TestModel = Model<DataModel>;
@@ -55,7 +55,7 @@ describe('classes/Model', () => {
         },
       },
     },
-  }) as TestModel;
+  } as unknown as DataModelSchema<DataModel>) as TestModel;
 
   beforeEach(() => {
     vi.clearAllMocks();
