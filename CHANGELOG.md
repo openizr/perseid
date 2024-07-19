@@ -1,3 +1,9 @@
+## @perseid/core:2.0.1(2024-07-19)
+
+### Bugs
+- Fix types definitions
+
+
 ## @perseid/core:2.0.0 (2024-07-18)
 
 ### Breaking changes
@@ -12,7 +18,6 @@
 
 ### Features
 - Add new `HttpClient` generic service
-
 
 ### Improvements
 - Improve types definitions

@@ -591,7 +591,7 @@ export interface DataModelMetadata<SchemaType> {
 /**
  * Data model.
  */
-export default class Model<
+export class Model<
   /** Data model types definitions. */
   DataModel extends DefaultDataModel = DefaultDataModel,
 > {
