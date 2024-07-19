@@ -172,6 +172,7 @@ services:
 
   mysql:
     tty: true
+    attach: false
     image: mysql:latest
     container_name: ${PROJECT_NAME}_mysql
     ports:
@@ -187,6 +188,7 @@ services:
 
   postgresql:
     tty: true
+    attach: false
     image: postgres:latest
     container_name: ${PROJECT_NAME}_postgresql
     environment:
