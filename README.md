@@ -3,14 +3,14 @@
 🌠 Web development, coming from space
 
 This monorepo contains the following packages:
-- [@perseid/dev-kit](https://github.com/openizr/perseid/tree/main/dev-kit)
-- [@perseid/core](https://github.com/openizr/perseid/tree/main/core)
-- [@perseid/jobs](https://github.com/openizr/perseid/tree/main/jobs)
-- [@perseid/server](https://github.com/openizr/perseid/tree/main/server)
-- [@perseid/store](https://github.com/openizr/perseid/tree/main/store)
-- [@perseid/form](https://github.com/openizr/perseid/tree/main/form)
-- [@perseid/ui](https://github.com/openizr/perseid/tree/main/ui)
-- [@perseid/client](https://github.com/openizr/perseid/tree/main/client)
+- [@perseid/dev-kit](https://github.com/openizr/perseid/tree/main/packages/dev-kit)
+- [@perseid/core](https://github.com/openizr/perseid/tree/main/packages/core)
+- [@perseid/jobs](https://github.com/openizr/perseid/tree/main/packages/jobs)
+- [@perseid/server](https://github.com/openizr/perseid/tree/main/packages/server)
+- [@perseid/store](https://github.com/openizr/perseid/tree/main/packages/store)
+- [@perseid/form](https://github.com/openizr/perseid/tree/main/packages/form)
+- [@perseid/ui](https://github.com/openizr/perseid/tree/main/packages/ui)
+- [@perseid/client](https://github.com/openizr/perseid/tree/main/packages/client)
 
 
 ## Table of Contents
