@@ -7,12 +7,23 @@
  */
 
 import { type Stream } from 'stream';
+import { HttpClient } from '@perseid/core';
 import Logger from 'scripts/services/Logger';
 
 /**
- * Handles log files storage on a remote bucket.
+ * Bucket client settings.
  */
-export default class BucketClient {
+export interface BucketClientSettings {
+  /** Maximum request duration (in ms) before generating a timeout. */
+  connectTimeout: number;
+}
+
+/**
+ * Handles log files storage on a remote bucket.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/BucketClient.ts
+ */
+export default class BucketClient extends HttpClient {
   /** Logging system. */
   protected logger: Logger;
 
@@ -20,13 +31,16 @@ export default class BucketClient {
    * Class constructor.
    *
    * @param logger Logging system to use.
+   *
+   * @param settings Email client settings.
    */
-  constructor(logger: Logger) {
+  constructor(logger: Logger, settings: BucketClientSettings) {
+    super(settings.connectTimeout);
     this.logger = logger;
   }
 
   /**
-   * Uploads `body` on the bucket at `path`.
+   * Uploads `body` to the bucket at `path`.
    *
    * @param type Content's MIME type.
    *
