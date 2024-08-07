@@ -2,6 +2,7 @@
 
 ### Breaking changes
 - Major NPM dependencies update
+- Drop support of `node` < `20` and `npm` < `9`
 - `fastify` and `mongodb` are now peer dependencies
 - RBAC is now handled in engine instead of controller
 - Update `EmailClient` to extend `HttpClient`
