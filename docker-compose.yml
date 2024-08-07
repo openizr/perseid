@@ -159,9 +159,9 @@ services:
 
   mongodb:
     tty: true
+    attach: false
     image: mongo:6.0.5
     container_name: ${PROJECT_NAME}_mongodb
-    command: mongod --replSet rs0 --quiet --logpath /dev/null
     ports:
       - "${HOST_IP}:27018:27017"
     profiles:
