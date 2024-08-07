@@ -7,7 +7,7 @@
  */
 
 import Store from 'scripts/core/Store';
-import { readable, Readable } from 'svelte/store';
+import { readable, type Readable } from 'svelte/store';
 
 type TypedReducer = <T>(...newState: unknown[]) => T;
 type PrivateStore = Store & {
