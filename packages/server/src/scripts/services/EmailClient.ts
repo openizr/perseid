@@ -6,12 +6,23 @@
  *
  */
 
+import { HttpClient } from '@perseid/core';
 import Logger from 'scripts/services/Logger';
 
 /**
- * Handles emails sending.
+ * Email client settings.
  */
-export default class EmailClient {
+export interface EmailClientSettings {
+  /** Maximum request duration (in ms) before generating a timeout. */
+  connectTimeout: number;
+}
+
+/**
+ * Handles emails sending.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/EmailClient.ts
+ */
+export default class EmailClient extends HttpClient {
   /** Logging system. */
   protected logger: Logger;
 
@@ -19,8 +30,11 @@ export default class EmailClient {
    * Class constructor.
    *
    * @param logger Logging system to use.
+   *
+   * @param settings Email client settings.
    */
-  constructor(logger: Logger) {
+  constructor(logger: Logger, settings: EmailClientSettings) {
+    super(settings.connectTimeout);
     this.logger = logger;
   }
 

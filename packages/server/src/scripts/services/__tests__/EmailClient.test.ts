@@ -10,6 +10,7 @@ import Logger from 'scripts/services/Logger';
 import EmailClient from 'scripts/services/EmailClient';
 
 describe('services/EmailClient', () => {
+  vi.mock('@perseid/core');
   vi.mock('scripts/services/Logger');
 
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
@@ -17,7 +18,7 @@ describe('services/EmailClient', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    emailClient = new EmailClient(logger);
+    emailClient = new EmailClient(logger, { connectTimeout: 3000 });
   });
 
   test('[sendVerificationEmail]', async () => {
