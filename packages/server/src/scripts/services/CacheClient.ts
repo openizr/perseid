@@ -6,7 +6,9 @@
  *
  */
 
+import { createHash } from 'crypto';
 import { existsSync, promises } from 'fs';
+import { HttpClient } from '@perseid/core';
 
 /**
  * Cache client settings.
@@ -14,12 +16,17 @@ import { existsSync, promises } from 'fs';
 export interface CacheClientSettings {
   /** Path to the cache directory on file system. */
   cachePath: string;
+
+  /** Maximum request duration (in ms) before generating a timeout. */
+  connectTimeout: number;
 }
 
 /**
  * Handles data caching for faster access.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/CacheClient.ts
  */
-export default class CacheClient {
+export default class CacheClient extends HttpClient {
   /** Cache file path. */
   protected cachePath: string;
 
@@ -29,6 +36,7 @@ export default class CacheClient {
    * @param settings Cache client settings.
    */
   constructor(settings: CacheClientSettings) {
+    super(settings.connectTimeout);
     this.cachePath = settings.cachePath;
   }
 
@@ -38,8 +46,9 @@ export default class CacheClient {
    * @param key Key containing cached data.
    */
   public async delete(key: string): Promise<void> {
-    if (existsSync(`${this.cachePath}/${key}`)) {
-      await promises.unlink(`${this.cachePath}/${key}`);
+    const cacheKey = createHash('sha1').update(key).digest('hex');
+    if (existsSync(`${this.cachePath}/${cacheKey}`)) {
+      await promises.unlink(`${this.cachePath}/${cacheKey}`);
     }
   }
 
@@ -51,8 +60,9 @@ export default class CacheClient {
    * @returns Cached data if it exists, `null` otherwise.
    */
   public async get(key: string): Promise<string | null> {
-    if (existsSync(`${this.cachePath}/${key}`)) {
-      const content = await promises.readFile(`${this.cachePath}/${key}`);
+    const cacheKey = createHash('sha1').update(key).digest('hex');
+    if (existsSync(`${this.cachePath}/${cacheKey}`)) {
+      const content = await promises.readFile(`${this.cachePath}/${cacheKey}`);
       const cache = JSON.parse(content.toString()) as { expiration: number; data: string; };
       return (cache.expiration === -1 || Date.now() <= cache.expiration)
         ? cache.data
@@ -71,7 +81,8 @@ export default class CacheClient {
    * @param duration Duration, in seconds, for which to keep data in cache.
    */
   public async set(key: string, data: unknown, duration: number): Promise<void> {
-    return promises.writeFile(`${this.cachePath}/${key}`, JSON.stringify({
+    const cacheKey = createHash('sha1').update(key).digest('hex');
+    return promises.writeFile(`${this.cachePath}/${cacheKey}`, JSON.stringify({
       data,
       expiration: (duration === -1) ? -1 : Date.now() + duration * 1000,
     }));
