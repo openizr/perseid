@@ -1,3 +1,10 @@
+## @perseid/store:8.0.0 (2024-08-07)
+
+### Breaking changes
+- Major NPM dependencies update
+- Drop support of `node` < `20` and `npm` < `9`
+
+
 ## @perseid/server:2.0.0 (2024-08-07)
 
 ### Breaking changes
