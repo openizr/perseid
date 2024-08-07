@@ -1,7 +1,7 @@
 /* c8 ignore start */
 
 import App from '__playground__/App.vue';
-import { Component, createApp } from 'vue';
+import { type Component, createApp } from 'vue';
 
 let app: unknown;
 

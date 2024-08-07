@@ -8,10 +8,10 @@
 
 import {
   ref,
-  Ref,
-  UnwrapRef,
+  type Ref,
   onMounted,
   onUnmounted,
+  type UnwrapRef,
 } from 'vue';
 import Store from 'scripts/core/Store';
 

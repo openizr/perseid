@@ -7,7 +7,7 @@
  * @vitest-environment jsdom
  */
 
-import router, { RoutingContext } from 'scripts/extensions/router';
+import router, { type RoutingContext } from 'scripts/extensions/router';
 
 vi.mock('path-to-regexp');
 

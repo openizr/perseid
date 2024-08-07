@@ -3,7 +3,7 @@
 import * as React from 'react';
 import store from '__playground__/store';
 import connect from 'scripts/connectors/react';
-import { createRoot, Root } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { type RoutingContext } from 'scripts/extensions/router';
 
 let app: Root;
@@ -25,7 +25,7 @@ function Component(): React.JSX.Element {
   }));
   return (
     <section>
-      {<p>{`You are here: ${routingContext.route}`}</p> as unknown as React.ReactNode}
+      {<p>{`You are here: ${String(routingContext.route)}`}</p> as unknown as React.ReactNode}
       {(routingContext.route === '/')
         ? (
           <button type="button" onClick={goToTestPage}>

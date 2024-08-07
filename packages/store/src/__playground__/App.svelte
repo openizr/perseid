@@ -2,11 +2,11 @@
 <script lang="ts">
   import store from '__playground__/store';
   import connect from 'scripts/connectors/svelte';
-  import { RoutingContext } from 'scripts/extensions/router';
+  import { type RoutingContext } from 'scripts/extensions/router';
 
   const useSubscription = connect(store);
   const router = useSubscription('router', (newState: RoutingContext) => ({
-    test: newState.route,
+    test: String(newState.route),
   }));
 
   function goToTestPage(): void {
@@ -18,7 +18,7 @@
 </script>
 
 <section>
-  <p>You are here: {`${$router.test}`}</p>
+  <p>You are here: {$router.test}</p>
   {#if $router.test === '/'}
     <button on:click={goToTestPage}> Go to /test page </button>
   {:else}
