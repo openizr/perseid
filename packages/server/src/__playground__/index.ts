@@ -6,69 +6,45 @@ import {
   CacheClient,
   EmailClient,
   UsersEngine,
-  DatabaseClient,
   FastifyController,
-  type DefaultDataModel,
+  MongoDatabaseClient,
 } from 'scripts/main';
-import {
-  type Ids,
-  type Authors,
-  type Version,
-  type Deletion,
-  type Timestamps,
-} from '@perseid/core';
-import fastify, { FastifyBaseLogger } from 'fastify';
+import { Id, deepMerge, isPlainObject } from '@perseid/core';
+import schema, { type DataModel } from 'scripts/services/__mocks__/schema';
+import fastify, { type FastifyBaseLogger } from 'fastify';
 
-interface DataModel extends DefaultDataModel {
-  tests: Ids & Deletion & Timestamps & Authors & Version & {
-    elements: null | {
-      child: string;
-    }[];
-  };
-}
+const model = new Model<DataModel>(deepMerge(Model.DEFAULT_MODEL, schema));
 
-const model = new Model<DataModel>({
-  ...Model.DEFAULT_MODEL,
-  tests: {
-    version: 1,
-    enableAuthors: true,
-    enableDeletion: false,
-    enableTimestamps: true,
-    fields: {
-      elements: {
-        type: 'array',
-        fields: {
-          type: 'object',
-          required: true,
-          fields: {
-            child: { type: 'string', required: true },
-          },
-        },
-      },
-    },
-  },
-});
+const logger = new Logger({ logLevel: 'info', prettyPrint: true });
 
-const logger = new Logger({ logLevel: 'debug', prettyPrint: true });
-
-const emailClient = new EmailClient(logger);
+const emailClient = new EmailClient(logger, { connectTimeout: 0 });
 
 const cacheClient = new CacheClient({
   cachePath: '/var/www/html/node_modules/.cache',
+  connectTimeout: 0,
 });
 
-const databaseClient = new DatabaseClient<DataModel>(model, logger, cacheClient, {
+const databaseClient = new MongoDatabaseClient<DataModel>(model, logger, cacheClient, {
   host: 'mongodb',
   port: 27017,
   user: null,
   password: null,
   protocol: 'mongodb:',
   database: 'test',
+  // host: 'mysql',
+  // port: 3306,
+  // user: 'root',
+  // password: 'Test123!',
+  // protocol: 'mysql:',
+  // database: 'test',
+  // host: 'postgresql',
+  // port: 5432,
+  // user: 'root',
+  // password: 'Test123!',
+  // protocol: 'pg:',
+  // database: 'test',
   connectTimeout: 2000,
-  cacheDuration: 0,
-  maxPoolSize: 2,
   connectionLimit: 10,
-  queueLimit: 0,
 });
 
 const engine = new UsersEngine<DataModel>(
@@ -78,7 +54,7 @@ const engine = new UsersEngine<DataModel>(
   emailClient,
   cacheClient,
   {
-    baseUrl: `http://localhost:${process.env.FRONTEND_EXAMPLES_PORT}`,
+    baseUrl: `http://localhost:${String(process.env.FRONTEND_EXAMPLES_PORT)}`,
     auth: {
       algorithm: 'RS256',
       clientId: 'example',
@@ -94,6 +70,7 @@ const controller = new FastifyController<DataModel>(model, logger, engine, {
   handleCORS: true,
   endpoints: {
     auth: {
+      viewMe: { path: '/auth/me' },
       signUp: { path: '/auth/sign-up' },
       signIn: { path: '/auth/sign-in' },
       signOut: { path: '/auth/sign-out' },
@@ -103,14 +80,14 @@ const controller = new FastifyController<DataModel>(model, logger, engine, {
       requestPasswordReset: { path: '/auth/reset-password' },
       requestEmailVerification: { path: '/auth/verify-email' },
     },
-    collections: {
+    resources: {
       roles: {
         list: { path: '/roles', maximumDepth: 6 },
         create: { path: '/roles' },
         view: { path: '/roles/:id' },
         update: { path: '/roles/:id' },
-        search: { path: '/roles/:id' },
         delete: { path: '/roles/:id' },
+        search: { path: '/roles/search' },
       },
       users: {
         list: { path: '/users' },
@@ -120,25 +97,88 @@ const controller = new FastifyController<DataModel>(model, logger, engine, {
         delete: { path: '/users/:id' },
         search: { path: '/users/search' },
       },
-      tests: {
-        list: { path: '/tests' },
-        create: { path: '/tests' },
-        view: { path: '/tests/:id' },
-        update: { path: '/tests/:id' },
-        delete: { path: '/tests/:id' },
-        search: { path: '/tests/search' },
-      },
     },
   },
 });
+
+const decoder = new TextDecoder();
+function deepEqual(obj1: unknown, obj2: unknown): boolean {
+  if (obj1 instanceof Id) {
+    return String(obj1) === String(obj2);
+  }
+  if (obj1 instanceof Date) {
+    return obj2 instanceof Date;
+  }
+  if (obj1 instanceof ArrayBuffer) {
+    return obj2 instanceof ArrayBuffer && decoder.decode(obj1) === decoder.decode(obj2);
+  }
+  if (Array.isArray(obj1)) {
+    if (
+      !Array.isArray(obj2)
+      || !obj1.every((value, index) => deepEqual(value, (obj2 as unknown[])[index]))
+    ) {
+      return false;
+    }
+    return true;
+  }
+  if (isPlainObject(obj1)) {
+    if (!isPlainObject(obj2)) {
+      return false;
+    }
+    const keys1 = Object.keys(obj1 as Record<string, unknown>);
+    const keys2 = Object.keys(obj2 as Record<string, unknown>);
+    if (keys1.length !== keys2.length) {
+      return false;
+    }
+    for (let i = 0, { length } = keys1; i < length; i += 1) {
+      const key = keys1[i];
+      if (!deepEqual(
+        (obj1 as Record<string, unknown>)[key],
+        (obj2 as Record<string, unknown>)[key],
+      )) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return (obj1 === obj2);
+}
 
 async function main(): Promise<void> {
   if (process.argv.includes('--reset')) {
     await engine.reset('test@test.test', 'Hello123!');
     process.exit(0);
   } else {
-    await databaseClient.checkIntegrity();
+    // For ExpressJS...
+    // const app = express();
 
+    // app.get('/hello', (_request, response) => {
+    //   response.status(200).send('HELLO WORLD!');
+    // });
+
+    // app.post('/test', controller.createEndpoint({
+    //   handler: async (_request, response) => {
+    //     const a = (await controller.parseFormData(_request, {
+    //       maxFields: 10,
+    //       maxFileSize: 8000000, // 8Mb.
+    //       maxTotalSize: 8000000, // 8Mb.
+    //       allowedMimeTypes: [
+    //         'image/jpeg',
+    //         'image/png',
+    //         'image/webp',
+    //         'image/avif',
+    //         'application/octet-stream',
+    //       ],
+    //     }));
+    //     response.status(200).send('HELLO WORLD!');
+    //   },
+    // }).handler as unknown as () => void);
+
+    // await controller.createEndpoints(app, { prefix: '/perseid' });
+
+    // app.listen(parseInt(String(process.env.BACKEND_EXAMPLES_PORT), 10), '0.0.0.0');
+
+    // For Fastify...
     const app = fastify({
       ignoreTrailingSlash: true,
       logger: logger.child() as FastifyBaseLogger,
@@ -158,10 +198,262 @@ async function main(): Promise<void> {
         process.exit(1);
       }
     });
+
+    const results = await databaseClient.search('users', { filters: { email: 'test@test.test' }, query: null });
+    const context = await engine.generateContext(results.results[0]._id);
+    context.user._verifiedAt = new Date();
+    const { user } = context;
+
+    const newId = new Id('6672a3e15169f0ba5b26d421');
+
+    const newTest1: DataModel['test'] = {
+      _id: newId,
+      _createdBy: user._id,
+      _updatedBy: null,
+      _createdAt: new Date(),
+      _updatedAt: null,
+      _isDeleted: false,
+      _version: 1,
+      indexedString: 'test',
+      objectOne: {
+        boolean: true,
+        objectTwo: {
+          optionalIndexedString: 'test1',
+          optionalNestedArray: [
+            null,
+            {
+              data: {
+                flatArray: ['test2', null, 'test3'],
+                optionalInteger: null,
+                nestedArray: [
+                  { key: 'test4', optionalRelation: new Id('6672a3e15169f0ba5b26d4e2') },
+                  { key: 'test5', optionalRelation: null },
+                  { key: 'test6', optionalRelation: new Id('6672a3e15169f0ba5b26d4e4') },
+                ],
+              },
+            },
+            {
+              data: {
+                flatArray: ['test6', null, 'test7'],
+                optionalInteger: 1,
+                nestedArray: [
+                  { key: 'test8', optionalRelation: new Id('6672a3e15169f0ba5b26d4e3') },
+                ],
+              },
+            },
+            null,
+          ],
+        },
+        optionalRelations: [null],
+      },
+    };
+
+    const newTest2: DataModel['test'] = {
+      _isDeleted: false,
+      _createdBy: user._id,
+      _updatedBy: null,
+      _createdAt: new Date(),
+      _updatedAt: null,
+      _version: 1,
+      _id: new Id('6672a3e15169f0ba5b26d422'),
+      indexedString: 'test2',
+      objectOne: {
+        boolean: true,
+        objectTwo: {
+          optionalIndexedString: null,
+          optionalNestedArray: [null],
+        },
+        optionalRelations: [],
+      },
+    };
+
+    const newOtherTest1: DataModel['otherTest'] = {
+      _id: new Id('6672a3e15169f0ba5b26d4e1'),
+      _createdAt: new Date('2023-01-01'),
+      binary: new ArrayBuffer(0),
+      optionalRelation: null,
+      data: {
+        optionalFlatArray: null,
+        optionalRelation: newTest1._id,
+      },
+    };
+
+    const newOtherTest2: DataModel['otherTest'] = {
+      _id: new Id('6672a3e15169f0ba5b26d4e2'),
+      _createdAt: new Date('2023-01-01'),
+      optionalRelation: null,
+      binary: new ArrayBuffer(0),
+      data: {
+        optionalFlatArray: ['test1', 'test2'],
+        optionalRelation: null,
+      },
+    };
+
+    const newOtherTest3: DataModel['otherTest'] = {
+      _id: new Id('6672a3e15169f0ba5b26d4e3'),
+      _createdAt: new Date('2023-01-01'),
+      optionalRelation: null,
+      binary: new ArrayBuffer(0),
+      data: {
+        optionalFlatArray: ['test4'],
+        optionalRelation: null,
+      },
+    };
+
+    const newOtherTest4: DataModel['otherTest'] = {
+      _id: new Id('6672a3e15169f0ba5b26d4e4'),
+      _createdAt: new Date('2023-01-01'),
+      optionalRelation: null,
+      binary: new ArrayBuffer(0),
+      data: {
+        optionalFlatArray: ['test5'],
+        optionalRelation: null,
+      },
+    };
+
+    await databaseClient.update('otherTest', newOtherTest1._id, { optionalRelation: null, data: { optionalRelation: null } });
+    await databaseClient.update('otherTest', newOtherTest4._id, { optionalRelation: null, data: { optionalRelation: null } });
+    await databaseClient.delete('test', newTest1._id);
+    await databaseClient.delete('test', newTest2._id);
+    await databaseClient.delete('otherTest', newOtherTest1._id);
+    await databaseClient.delete('otherTest', newOtherTest2._id);
+    await databaseClient.delete('otherTest', newOtherTest3._id);
+    await databaseClient.delete('otherTest', newOtherTest4._id);
+
+    await databaseClient.create('otherTest', newOtherTest2);
+    await databaseClient.create('otherTest', newOtherTest3);
+    await databaseClient.create('otherTest', newOtherTest4);
+    await databaseClient.create('test', newTest1);
+    await databaseClient.create('test', newTest2);
+    await databaseClient.create('otherTest', newOtherTest1);
+    await databaseClient.update('otherTest', newOtherTest4._id, { data: { optionalRelation: newId } });
+
+    let result: unknown = await engine.view('test', newTest1._id, {
+      fields: new Set(['*']),
+    }, context);
+    logger.info('VIEW test.* works correctly:');
+    logger.info(deepEqual(result, newTest1));
+
+    result = await engine.view('test', newTest1._id, {
+      fields: new Set([
+        'objectOne.objectTwo.optionalNestedArray.data.nestedArray.key',
+        'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation._id',
+        'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation.data.optionalRelation.indexedString',
+      ]),
+    }, context);
+    logger.info('VIEW test with specific fields works correctly:');
+    logger.info(deepEqual(result, {
+      _id: newId,
+      objectOne: {
+        objectTwo: {
+          optionalNestedArray: [
+            null,
+            {
+              data: {
+                nestedArray: [
+                  {
+                    key: 'test4',
+                    optionalRelation: {
+                      _id: newOtherTest2._id,
+                      data: {
+                        optionalRelation: null,
+                      },
+                    },
+                  },
+                  {
+                    key: 'test5',
+                    optionalRelation: null,
+                  },
+                  {
+                    key: 'test6',
+                    optionalRelation: {
+                      _id: newOtherTest4._id,
+                      data: {
+                        optionalRelation: {
+                          _id: newId,
+                          indexedString: 'test',
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              data: {
+                nestedArray: [
+                  {
+                    key: 'test8',
+                    optionalRelation: {
+                      _id: newOtherTest3._id,
+                      data: {
+                        optionalRelation: null,
+                      },
+                    },
+                  }],
+              },
+            },
+            null,
+          ],
+        },
+      },
+    }));
+    result = await databaseClient.view('users', user._id, {
+      fields: new Set(['roles']),
+    });
+    logger.info('VIEW users with specific fields works correctly:');
+    logger.info(deepEqual(result, { _id: user._id, roles: [(user.roles[0] as DataModel['roles'])._id] }));
+
+    result = await databaseClient.view('users', user._id, {
+      fields: new Set([
+        '_id',
+        '_apiKeys',
+        'email',
+        'roles',
+        'roles._id',
+        '_devices._id',
+        'roles._createdBy',
+        'roles._updatedBy',
+        'roles._updatedBy._id',
+        '_devices._userAgent',
+        '_devices._expiration',
+        '_devices._refreshToken',
+        'roles._createdBy._id',
+        'roles._createdBy.email',
+        'roles._createdBy.roles',
+        'roles._createdBy._apiKeys',
+        'roles._createdBy._devices._id',
+        'roles._createdBy._devices._userAgent',
+        'roles._createdBy._devices._expiration',
+        'roles._createdBy._devices._refreshToken',
+      ]),
+    });
+    logger.info('VIEW users with specific fields works correctly:');
+    logger.info(deepEqual(result, {
+      _id: user._id,
+      _apiKeys: [],
+      email: 'test@test.test',
+      roles: [
+        {
+          _id: (user.roles[0] as DataModel['roles'])._id,
+          _updatedBy: null,
+          _createdBy: {
+            _id: user._id,
+            email: 'test@test.test',
+            roles: [
+              (user.roles[0] as DataModel['roles'])._id,
+            ],
+            _apiKeys: [],
+            _devices: user._devices,
+          },
+        },
+      ],
+      _devices: user._devices,
+    }));
   }
 }
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   logger.fatal(error);
   process.exit(1);
 });

@@ -1,9 +1,8 @@
 {
 	"info": {
-		"_postman_id": "7d594ad7-0377-4af9-8626-f788b8b5c4a9",
+		"_postman_id": "a24a9a3e-f78a-454e-8d9f-2a3a924949b8",
 		"name": "Test API",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "20716386"
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
@@ -105,6 +104,61 @@
 							]
 						},
 						"description": "Signs user in."
+					},
+					"response": []
+				},
+				{
+					"name": "/auth/me",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('USER_ID', jsonData._id);",
+									"    pm.test(\"current values are correct\", () => {",
+									"        pm.expect(jsonData.updatedBy).not.to.eql(null);",
+									"        pm.expect(jsonData.updatedAt).not.to.eql(null);",
+									"        pm.expect(jsonData.createdBy).not.to.eql(null);",
+									"        pm.expect(jsonData.createdAt).not.to.eql(null);",
+									"    });",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{ACCESS_TOKEN}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Device-Id",
+								"value": "{{DEVICE_ID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{API_BASE_URL}}/auth/me",
+							"host": [
+								"{{API_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
 					},
 					"response": []
 				},
@@ -258,13 +312,7 @@
 							"type": "noauth"
 						},
 						"method": "POST",
-						"header": [
-							{
-								"key": "X-Device-Id",
-								"value": "{{DEVICE_ID}}",
-								"type": "text"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"email\": \"{{USER_EMAIL}}\"\n}",
@@ -292,13 +340,7 @@
 					"name": "/auth/reset-password",
 					"request": {
 						"method": "PUT",
-						"header": [
-							{
-								"key": "X-Device-Id",
-								"value": "{{DEVICE_ID}}",
-								"type": "text"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"resetToken\": \"{{RESET_TOKEN}}\",\n    \"password\": \"{{USER_PASSWORD}}\",\n    \"passwordConfirmation\": \"{{USER_PASSWORD}}\"\n}",
@@ -800,46 +842,6 @@
 					"response": []
 				},
 				{
-					"name": "/users/me",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{ACCESS_TOKEN}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "X-Device-Id",
-								"value": "{{DEVICE_ID}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{API_BASE_URL}}/users/me?fields=email,roles.permissions",
-							"host": [
-								"{{API_BASE_URL}}"
-							],
-							"path": [
-								"users",
-								"me"
-							],
-							"query": [
-								{
-									"key": "fields",
-									"value": "email,roles.permissions"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
 					"name": "/users/:id",
 					"event": [
 						{
@@ -899,72 +901,6 @@
 								{
 									"key": "fields",
 									"value": "email"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "/users/me",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 200) {",
-									"    pm.test(\"new values are correct\", () => {",
-									"        var jsonData = pm.response.json();",
-									"        pm.expect(jsonData.updatedBy).not.to.eql(null);",
-									"        pm.expect(jsonData.updatedAt).not.to.eql(null);",
-									"    });",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{ACCESS_TOKEN}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "PUT",
-						"header": [
-							{
-								"key": "X-Device-Id",
-								"value": "{{DEVICE_ID}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"roles\": [\"{{ROLE_ID}}\"]\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{API_BASE_URL}}/users/me?fields=*",
-							"host": [
-								"{{API_BASE_URL}}"
-							],
-							"path": [
-								"users",
-								"me"
-							],
-							"query": [
-								{
-									"key": "fields",
-									"value": "*"
 								}
 							]
 						}
