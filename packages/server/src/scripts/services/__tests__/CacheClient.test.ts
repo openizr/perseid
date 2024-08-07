@@ -9,57 +9,69 @@
 import { promises } from 'fs';
 import CacheClient from 'scripts/services/CacheClient';
 
-vi.mock('fs');
-Date.now = vi.fn(() => 1624108129052);
+describe('services/CacheClient', () => {
+  vi.mock('fs');
+  vi.mock('crypto');
+  vi.mock('@perseid/core');
+  vi.setSystemTime(1624108129052);
 
-describe('lib/CacheClient', () => {
-  const cacheClient = new CacheClient({ cachePath: '/var/www/html/node_modules/.cache' });
+  const cacheClient = new CacheClient({ cachePath: '/.cache', connectTimeout: 3000 });
 
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.FS_ERROR;
+    delete process.env.FS_NO_FILE;
     delete process.env.EXPIRATION;
   });
 
-  test('set - with expiration', async () => {
-    await cacheClient.set('test', JSON.stringify({ data: 'test' }), 3600);
-    expect(promises.writeFile).toHaveBeenCalledTimes(1);
-    expect(promises.writeFile).toHaveBeenCalledWith('/var/www/html/node_modules/.cache/test', '{"data":"{\\"data\\":\\"test\\"}","expiration":1624111729052}');
-  });
+  describe('[set]', () => {
+    test('with expiration', async () => {
+      const path = '/.cache/abcde8997';
+      const stringifiedPayload = '{"data":"{\\"data\\":\\"test\\"}","expiration":1624111729052}';
+      await cacheClient.set('test', JSON.stringify({ data: 'test' }), 3600);
+      expect(promises.writeFile).toHaveBeenCalledOnce();
+      expect(promises.writeFile).toHaveBeenCalledWith(path, stringifiedPayload);
+    });
 
-  test('set - with no expiration', async () => {
-    await cacheClient.set('test', JSON.stringify({ data: 'test' }), -1);
-    expect(promises.writeFile).toHaveBeenCalledTimes(1);
-    expect(promises.writeFile).toHaveBeenCalledWith('/var/www/html/node_modules/.cache/test', '{"data":"{\\"data\\":\\"test\\"}","expiration":-1}');
+    test('with no expiration', async () => {
+      const path = '/.cache/abcde8997';
+      const stringifiedPayload = '{"data":"{\\"data\\":\\"test\\"}","expiration":-1}';
+      await cacheClient.set('test', JSON.stringify({ data: 'test' }), -1);
+      expect(promises.writeFile).toHaveBeenCalledOnce();
+      expect(promises.writeFile).toHaveBeenCalledWith(path, stringifiedPayload);
+    });
   });
 
   test('delete', async () => {
     await cacheClient.delete('test');
-    expect(promises.unlink).toHaveBeenCalledTimes(1);
-    expect(promises.unlink).toHaveBeenCalledWith('/var/www/html/node_modules/.cache/test');
+    expect(promises.unlink).toHaveBeenCalledOnce();
+    expect(promises.unlink).toHaveBeenCalledWith('/.cache/abcde8997');
   });
 
-  test('get - cache does not exist', async () => {
-    await cacheClient.get('notfound');
-    expect(promises.readFile).not.toHaveBeenCalled();
-  });
+  describe('[get]', () => {
+    test('cache does not exist', async () => {
+      process.env.FS_NO_FILE = 'true';
+      await cacheClient.get('notfound');
+      expect(promises.readFile).not.toHaveBeenCalled();
+    });
 
-  test('get - cache exists, fs error', async () => {
-    process.env.FS_ERROR = 'true';
-    await expect(async () => cacheClient.get('test')).rejects.toEqual(new Error('fs_error'));
-    expect(promises.readFile).toHaveBeenCalledTimes(1);
-  });
+    test('cache exists, fs error', async () => {
+      process.env.FS_ERROR = 'true';
+      await expect(async () => cacheClient.get('test')).rejects.toEqual(new Error('fs_error'));
+      expect(promises.readFile).toHaveBeenCalledOnce();
+    });
 
-  test('get - cache exists, no expiration', async () => {
-    process.env.EXPIRATION = '-1';
-    const data = await cacheClient.get('test');
-    expect(promises.readFile).toHaveBeenCalledTimes(1);
-    expect(data).toBe('{"data":"test"}');
-  });
+    test('cache exists, no expiration', async () => {
+      process.env.EXPIRATION = '-1';
+      const data = await cacheClient.get('test');
+      expect(promises.readFile).toHaveBeenCalledOnce();
+      expect(data).toBe('{"data":"test"}');
+    });
 
-  test('get - cache exists, data expired', async () => {
-    const data = await cacheClient.get('test');
-    expect(promises.readFile).toHaveBeenCalledTimes(1);
-    expect(data).toBe(null);
+    test('cache exists, data expired', async () => {
+      const data = await cacheClient.get('test');
+      expect(promises.readFile).toHaveBeenCalledOnce();
+      expect(data).toBe(null);
+    });
   });
 });

@@ -6,215 +6,190 @@
  *
  */
 
-import { Id, type DefaultDataModel, type DataModelSchema } from '@perseid/core';
+import {
+  Id,
+  type Ids,
+  type Authors,
+  type Version,
+  type Deletion,
+  type Timestamps,
+  type DataModelSchema,
+  type DefaultDataModel,
+} from '@perseid/core';
 
 export interface DataModel extends DefaultDataModel {
-  test: {
-    primitiveOne: Id;
-    primitiveTwo: ArrayBuffer;
-    primitiveThree: string;
-    arrayOne: {
-      object: {
-        fieldOne: string;
-        fieldTwo: Id | DataModel['externalRelation'];
-      }
-    }[];
-    arrayTwo: (Id | null | DataModel['externalRelation'])[];
-    arrayThree: (Id | DataModel['externalRelation'])[];
-    arrayFour: string[];
-    arrayFive: ({
-      fieldOne: string;
-    } | null)[];
-    objectOne: Record<string, Id | {
-      test: string;
-    } | DataModel['externalRelation']>;
+  test: Ids & Deletion & Version & Authors & Timestamps & {
+    indexedString: string;
+    objectOne: {
+      boolean: boolean;
+      optionalRelations: (Id | DataModel['otherTest'] | null)[] | null;
+      objectTwo: {
+        optionalIndexedString: string | null;
+        optionalNestedArray: ({
+          data: {
+            optionalInteger: number | null;
+            flatArray: (string | null)[];
+            nestedArray: {
+              optionalRelation: Id | DataModel['otherTest'] | null;
+              key: string;
+            }[];
+          };
+        } | null)[] | null;
+      };
+    };
   };
-  test2: {
-    null: null;
-  };
-  externalRelation: {
-    _id: Id;
-    name: string;
-    relations: (Id | DataModel['otherExternalRelation'])[];
-  };
-  otherExternalRelation: {
-    _id: Id;
-    type: string;
+  otherTest: Ids & {
+    _createdAt: Date;
+    binary: ArrayBuffer;
+    optionalRelation: Id | DataModel['test'] | null;
+    data: {
+      optionalRelation: Id | DataModel['test'] | null;
+      optionalFlatArray: string[] | null;
+    };
   };
 }
 
 export default {
   test: {
-    enableDeletion: true,
+    version: 1,
+    enableDeletion: false,
+    enableAuthors: true,
+    enableTimestamps: true,
     fields: {
-      _id: { type: 'id', index: true },
-      primitiveOne: { type: 'id', unique: true },
-      primitiveTwo: { type: 'binary', default: Buffer.from('testtest') },
-      primitiveThree: { type: 'string' },
-      arrayOne: {
-        type: 'array',
+      _id: {
+        type: 'id',
+        isUnique: true,
+        isRequired: true,
+      },
+      _isDeleted: {
+        type: 'boolean',
+        isIndexed: true,
+        isRequired: true,
+      },
+      indexedString: {
+        type: 'string',
+        isIndexed: true,
+        isRequired: true,
+      },
+      objectOne: {
+        type: 'object',
+        isRequired: true,
+        errorMessages: {
+          type: 'test',
+        },
         fields: {
-          type: 'object',
-          fields: {
-            object: {
-              type: 'object',
-              required: true,
-              fields: {
-                fieldOne: { type: 'string' },
-                fieldTwo: {
-                  type: 'id',
-                  index: true,
-                  relation: 'externalRelation',
+          boolean: {
+            type: 'boolean',
+            isRequired: true,
+          },
+          optionalRelations: {
+            type: 'array',
+            fields: {
+              type: 'id',
+              isIndexed: true,
+              relation: 'otherTest',
+            },
+          },
+          objectTwo: {
+            type: 'object',
+            isRequired: true,
+            fields: {
+              optionalIndexedString: {
+                type: 'string',
+                isUnique: true,
+              },
+              optionalNestedArray: {
+                type: 'array',
+                fields: {
+                  type: 'object',
+                  fields: {
+                    data: {
+                      type: 'object',
+                      isRequired: true,
+                      fields: {
+                        optionalInteger: {
+                          type: 'integer',
+                          isIndexed: true,
+                        },
+                        flatArray: {
+                          type: 'array',
+                          isRequired: true,
+                          fields: {
+                            type: 'string',
+                            isIndexed: true,
+                          },
+                        },
+                        nestedArray: {
+                          type: 'array',
+                          isRequired: true,
+                          fields: {
+                            type: 'object',
+                            isRequired: true,
+                            fields: {
+                              optionalRelation: {
+                                type: 'id',
+                                relation: 'otherTest',
+                              },
+                              key: {
+                                type: 'string',
+                                isRequired: true,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
           },
         },
       },
-      arrayTwo: {
-        type: 'array',
-        fields: {
-          type: 'id',
-          index: true,
-          relation: 'externalRelation',
-        },
-      },
-      arrayThree: {
-        type: 'array',
-        fields: {
-          type: 'id',
-          index: true,
-          relation: 'otherExternalRelation',
-        },
-      },
-      arrayFour: {
-        type: 'array',
-        fields: {
-          type: 'string',
-        },
-      },
-      arrayFive: {
-        type: 'array',
-        fields: {
-          type: 'object',
-          fields: {
-            fieldOne: { type: 'string' },
-          },
-        },
-      },
-      objectOne: {
-        type: 'object',
-        fields: {
-          testOne: {
-            type: 'id',
-            relation: 'externalRelation',
-          },
-        },
-      },
     },
   },
-  test2: {
+  otherTest: {
     enableDeletion: true,
     fields: {
-      float: {
-        enum: [1],
-        maximum: 10,
-        minimum: 0,
-        default: 4,
-        type: 'float',
-        multipleOf: 2,
-        required: true,
-        exclusiveMinimum: 0,
-        exclusiveMaximum: 10,
+      _id: {
+        type: 'id',
+        isUnique: true,
+        isRequired: true,
       },
-      floatTwo: { type: 'float', enum: [2] },
-      integer: {
-        enum: [1],
-        maximum: 10,
-        minimum: 0,
-        default: 4,
-        multipleOf: 2,
-        required: true,
-        type: 'integer',
-        exclusiveMinimum: 0,
-        exclusiveMaximum: 10,
-      },
-      integerTwo: { type: 'integer', enum: [2] },
-      string: {
-        type: 'string',
-        default: '',
-        minLength: 1,
-        maxLength: 10,
-        enum: ['test'],
-        pattern: 'test',
-      },
-      _id: { type: 'id' },
-      null: { type: 'null' },
-      binary: { type: 'binary', required: true },
-      enum: { type: 'string', required: true, enum: ['test'] },
-      booleanTwo: { type: 'boolean' },
-      relation: { type: 'id', relation: 'externalRelation' },
-      boolean: { type: 'boolean', default: false, required: true },
-      date: {
+      _createdAt: {
         type: 'date',
-        required: true,
-        enum: [new Date('2023-01-01')],
-        default: new Date('2023-01-01'),
+        isIndexed: true,
+        isRequired: true,
       },
-      dateTwo: { type: 'date', enum: [new Date('2023-01-01')] },
-      id: {
+      binary: {
+        type: 'binary',
+        isRequired: true,
+      },
+      optionalRelation: {
         type: 'id',
-        required: true,
-        enum: [new Id('6478a6c5392350aaced68cf9')],
-        default: new Id('6478a6c5392350aaced68cf9'),
+        isIndexed: true,
+        relation: 'test',
       },
-      idTwo: {
-        type: 'id',
-        enum: [new Id('6478a6c5392350aaced68cf9')],
-        default: new Id('6478a6c5392350aaced68cf9'),
-      },
-      array: {
-        type: 'array',
-        minItems: 3,
-        maxItems: 10,
-        uniqueItems: true,
-        fields: { type: 'string' },
-      },
-      arrayTwo: {
-        type: 'array',
-        minItems: 1,
-        maxItems: 1,
-        required: true,
-        uniqueItems: true,
-        fields: { type: 'string' },
-      },
-    },
-  },
-  externalRelation: {
-    version: 1,
-    enableAuthors: true,
-    enableDeletion: false,
-    enableTimestamps: true,
-    fields: {
-      _id: { type: 'id', index: true },
-      name: { type: 'string' },
-      _version: { type: 'integer' },
-      _isDeleted: { type: 'boolean' },
-      _updatedBy: { type: 'id' },
-      _createdBy: { type: 'id' },
-      _updatedAt: { type: 'date' },
-      _createdAt: { type: 'date' },
-      relations: {
-        type: 'array',
-        fields: { type: 'id', relation: 'otherExternalRelation' },
+      data: {
+        type: 'object',
+        isRequired: true,
+        fields: {
+          optionalRelation: {
+            type: 'id',
+            isIndexed: true,
+            relation: 'test',
+          },
+          optionalFlatArray: {
+            type: 'array',
+            fields: {
+              type: 'string',
+              isUnique: true,
+              isRequired: true,
+              enum: ['test1', 'test2', 'test3', 'test4', 'test5'],
+            },
+          },
+        },
       },
     },
   },
-  otherExternalRelation: {
-    enableDeletion: true,
-    fields: {
-      _id: { type: 'id', required: true, index: true },
-      type: { type: 'string', errorMessages: { type: 'Error' } },
-    },
-  },
-} as DataModelSchema<unknown>;
+} as unknown as DataModelSchema<DataModel>;

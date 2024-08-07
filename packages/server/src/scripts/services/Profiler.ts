@@ -31,6 +31,8 @@ export interface Measurement {
 
 /**
  * Provides performance measurement tools (execution time, memory, ...).
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/Profiler.ts
  */
 export default class Profiler {
   /** Profiling start timestamp. */
@@ -59,7 +61,11 @@ export default class Profiler {
    * @returns Formatted metrics.
    */
   public static formatMetrics(metrics: Measurement[]): string {
-    const formattedMetrics = metrics.map((measurement) => `Snapshot Name: ${measurement.name}\nMemory used: ${measurement.memory.toFixed(3)} Mb\nElapsed time: ${measurement.elapsedTime} ms\nAverage CPU load: ${((1 - (measurement.cpuAverage.idle / measurement.cpuAverage.total)) * 100).toFixed(2)}%`).join('\n----\n');
+    const formattedMetrics = metrics.map((measurement) => (
+      `Snapshot Name: ${measurement.name}\nMemory used: ${measurement.memory.toFixed(3)} Mb\n`
+      + `Elapsed time: ${String(measurement.elapsedTime)} ms\nAverage CPU load: `
+      + `${((1 - (measurement.cpuAverage.idle / measurement.cpuAverage.total)) * 100).toFixed(2)}%`
+    )).join('\n----\n');
     return `\n\n---------------------------\n\nPERFORMANCE REPORT\n\n---------------------------\n\n${formattedMetrics}`;
   }
 

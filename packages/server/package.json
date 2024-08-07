@@ -1,11 +1,11 @@
 {
   "name": "@perseid/server",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "license": "MIT",
   "type": "module",
   "main": "./main.js",
   "types": "./types.d.ts",
-  "description": "Dynamic, model-based REST APIs generator",
+  "description": "Dynamic, data model-based REST APIs generator",
   "repository": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
   "contributors": [
@@ -23,10 +23,12 @@
     "rest"
   ],
   "devDependencies": {
+    "@perseid/dev-kit": "^9.0.0",
     "@types/bcrypt": "^5.0.0",
+    "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.3",
-    "@types/multiparty": "^0.0.33",
-    "@perseid/dev-kit": "^7.0.0"
+    "@types/multiparty": "^0.0.36",
+    "@types/pg": "^8.11.6"
   },
   "eslintConfig": {
     "extends": [
@@ -71,18 +73,14 @@
     ]
   },
   "dependencies": {
-    "@perseid/core": "^1.0.0",
-    "ajv": "^8.12.0",
+    "@perseid/core": "^2.0.1",
+    "ajv": "^8.17.1",
     "ajv-errors": "^3.0.0",
-    "basx": "^2.0.1",
     "bcrypt": "^5.1.1",
-    "fast-json-stringify": "^5.8.0",
-    "fastify": "^4.23.2",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.1.0",
     "multiparty": "^4.2.3",
-    "pino": "^8.15.1",
-    "pino-pretty": "^10.2.0"
+    "pino": "^9.3.2",
+    "pino-pretty": "^11.2.2"
   },
   "devKitConfig": {
     "target": "node",
@@ -97,8 +95,8 @@
     "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
   },
   "engines": {
-    "node": ">= 18.0.0",
-    "npm": ">= 8.0.0"
+    "node": ">= 20.0.0",
+    "npm": ">= 9.0.0"
   },
   "scripts": {
     "test": "node_modules/@perseid/dev-kit/scripts/test",
@@ -106,6 +104,30 @@
     "build:types": "cp src/scripts/types.d.ts dist && mv dist/dist.js dist/main.js && mv dist/dist.js.map dist/main.js.map",
     "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
-    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache"
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer mysql2 pg mongodb fastify express"
+  },
+  "peerDependencies": {
+    "express": "^4.19.2",
+    "fastify": "^4.28.1",
+    "mongodb": "^6.8.0",
+    "mysql2": "^3.11.0",
+    "pg": "^8.12.0"
+  },
+  "peerDependenciesMeta": {
+    "pg": {
+      "optional": true
+    },
+    "mongodb": {
+      "optional": true
+    },
+    "mysql2": {
+      "optional": true
+    },
+    "fastify": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    }
   }
 }

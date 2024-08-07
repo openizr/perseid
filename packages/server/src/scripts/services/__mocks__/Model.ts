@@ -13,7 +13,7 @@ import schema from 'scripts/services/__mocks__/schema';
 /** `services/Model` mock. */
 
 export default class Model {
-  protected defaultCollection = { fields: {} };
+  protected defaultSchema = { fields: {} };
 
   public static email = vi.fn(() => ({ type: 'string' }));
 
@@ -33,32 +33,39 @@ export default class Model {
 
   public static credentials = vi.fn(() => ({ type: 'string' }));
 
-  public getCollections = vi.fn(() => ['users', 'roles', 'test', 'externalRelation', 'otherExternalRelation']);
+  public getResources = vi.fn(() => ['test', 'otherTest']);
 
   public getPublicSchema = vi.fn((collection) => (collection === 'unknown' ? null : {}));
 
   public get(path: string): DataModelMetadata<Document> | null {
-    const schemas: Record<string, unknown> = {
-      'test2._id': { type: 'id' },
-      'test2.float': { type: 'float' },
-      'test2.array': { type: 'array' },
-      'test2.date': { type: 'date' },
-      'test2.integer': { type: 'integer' },
-      'test2.relation': { type: 'id', relation: 'test2' },
-      'test2.relation._id': { type: 'id' },
-      'test2.object.test': { type: 'string' },
-      'test.objectOne.testTwo.type': { type: 'string' },
-    };
-    if (path === 'test.objectOne.testTwo.type') {
+    if (path === 'otherTest') {
       return {
-        canonicalPath: ['test', 'objectOne', 'testTwo', 'type'],
-        schema: { type: 'string' },
+        canonicalPath: ['otherTest'],
+        schema: schema.otherTest,
       };
     }
-    const subSchema = (schema as Document)[path] as Document | undefined;
+    if (path === 'test') {
+      return {
+        canonicalPath: ['test'],
+        schema: schema.test,
+      };
+    }
+    if (path === 'users') {
+      return {
+        canonicalPath: ['users'],
+        schema: {
+          fields: {
+            _id: { type: 'id' },
+            password: { type: 'string' },
+            _verifiedAt: { type: 'date' },
+            roles: { type: 'array', fields: { type: 'id' } },
+          },
+        },
+      };
+    }
     return (path.split('.').at(-1) === 'invalid') ? null : {
       canonicalPath: [path],
-      schema: subSchema ?? schemas[path] ?? this.defaultCollection,
+      schema: this.defaultSchema,
     };
   }
 }

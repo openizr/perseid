@@ -9,7 +9,7 @@
 import { Id } from '@perseid/core';
 import type Model from 'scripts/services/Model';
 import type Logger from 'scripts/services/Logger';
-import type DatabaseClient from 'scripts/services/DatabaseClient';
+import type DatabaseClient from 'scripts/services/AbstractDatabaseClient';
 
 /**
  * `services/UsersEngine` mock.
@@ -40,6 +40,8 @@ export default class {
 
   public signOut = vi.fn();
 
+  public viewMe = vi.fn();
+
   public verifyEmail = vi.fn();
 
   public refreshToken = vi.fn();
@@ -50,20 +52,24 @@ export default class {
 
   public requestEmailVerification = vi.fn();
 
-  public verifyToken = vi.fn(() => new Id('64723318e84f943f1ad6578b'));
+  public verifyToken = vi.fn(() => new Id('000000000000000000000001'));
 
-  public view = vi.fn(() => {
+  public generateContext = vi.fn(() => {
     if (process.env.UNKNOWN_ERROR === 'true') {
       throw new Error('UNKNOWN');
     }
     return {
-      _devices: [{ id: 'valid' }],
-      roles: [{
-        name: 'TEST',
-        permissions: ['TEST'],
-      }],
+      user: {
+        _devices: [{ _id: 'valid' }],
+        roles: [{
+          name: 'TEST',
+          permissions: ['TEST'],
+        }],
+      },
     };
   });
+
+  public view = vi.fn();
 
   constructor(
     model: Model,

@@ -31,7 +31,10 @@ const createWriteStream = vi.fn(() => ({
   }),
 }));
 
-const existsSync = vi.fn((path) => (path === '/var/www/html/node_modules/.cache/test'));
+const existsSync = vi.fn((path) => (
+  process.env.FS_NO_FILE !== 'true'
+  && path === '/.cache/abcde8997'
+));
 
 const readFile = vi.fn(() => {
   if (process.env.FS_ERROR === 'true') {

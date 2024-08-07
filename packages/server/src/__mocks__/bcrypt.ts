@@ -11,6 +11,6 @@
  */
 
 export default {
-  hash: vi.fn((text) => `HASHED_TEXT_${text}`),
+  hash: vi.fn((text: string) => `HASHED_TEXT_${text}`),
   compare: vi.fn(() => process.env.PASSWORDS_MISMATCH !== 'true'),
 };

@@ -6,7 +6,7 @@
  *
  */
 
-import { type User, type Id } from '@perseid/core';
+import { type Id, type DefaultDataModel } from '@perseid/core';
 
 declare global {
   /**
@@ -32,7 +32,7 @@ declare global {
     text: string;
 
     /** List of fields over which to perform the full-text search. */
-    on: string[];
+    on: Set<string>;
   }
 
   /**
@@ -40,30 +40,18 @@ declare global {
    */
   export interface SearchBody {
     /** Search query. */
-    query?: SearchQuery;
+    query: SearchQuery | null;
 
     /** Search filters. */
-    filters?: SearchFilters;
+    filters: SearchFilters | null;
   }
 
   /**
-   * Command options, controls the way results are shaped.
+   * Command options for view method, controls the way results are shaped.
    */
-  export interface CommandOptions {
-    /** Limits the number of returned results when calling `search` or `list`. Defaults to `20`. */
-    limit?: number;
-
-    /** Results pagination offset to apply when calling `search` or `list`. Defaults to `0`. */
-    offset?: number;
-
-    /** Names of the fields to sort results by. */
-    sortBy?: string[];
-
-    /** Order (asc/desc) of the fields to sort results by. */
-    sortOrder?: (1 | -1)[];
-
-    /** List of fields to return for each resource. Defaults to `[]`. */
-    fields?: string[];
+  export interface ViewCommandOptions {
+    /** List of fields to fetch. Defaults to `new Set<string>()`. */
+    fields?: Set<string>;
 
     /**
      * Maximum allowed level of resources depth. For instance, `1` means you can only fetch fields
@@ -75,11 +63,39 @@ declare global {
   }
 
   /**
+   * Command options for list method, controls the way results are shaped.
+   */
+  export interface ListCommandOptions extends ViewCommandOptions {
+    /** Limits the number of returned results. Defaults to `20`. */
+    limit?: number;
+
+    /** Results pagination offset to apply. Defaults to `0`. */
+    offset?: number;
+
+    /** List of fields to sort results by, along with their sorting order (asc/desc). */
+    sortBy?: Record<string, 1 | -1>;
+  }
+
+  /**
+   * Command options for search method, controls the way results are shaped.
+   */
+  export interface SearchCommandOptions extends ViewCommandOptions {
+    /** Limits the number of returned results. Defaults to `20`. */
+    limit?: number;
+
+    /** Results pagination offset to apply. Defaults to `0`. */
+    offset?: number;
+
+    /** List of fields to sort results by, along with their sorting order (asc/desc). */
+    sortBy?: Record<string, 1 | -1>;
+  }
+
+  /**
    * Command context, provides information about the author of changes.
    */
-  export interface CommandContext {
+  export interface CommandContext<DataModel extends DefaultDataModel> {
     /** User performing the command. */
-    user: User;
+    user: DataModel['users'];
 
     /** Id of the device from which user is performing the command. */
     deviceId?: string;
@@ -87,4 +103,25 @@ declare global {
     /** User agent of the device from which user is performing the command. */
     userAgent?: string;
   }
+
+  /**
+   * Resource creation payload (excluding all its automatic fields).
+   */
+  export type CreatePayload<Resource> = {
+    [K in keyof Resource as Exclude<K, `_${string}`>]: CreatePayload<Resource[K]>;
+  };
+
+  /**
+   * Resource update payload (excluding all its automatic fields).
+   */
+  export type UpdatePayload<Resource> = Partial<{
+    [K in keyof Resource as Exclude<K, `_${string}`>]: UpdatePayload<Resource[K]>;
+  }>;
+
+  /**
+   * Resource creation / update payload.
+   */
+  export type Payload<Resource> = Partial<{
+    [K in keyof Resource]: Payload<Resource[K]>;
+  }>;
 }

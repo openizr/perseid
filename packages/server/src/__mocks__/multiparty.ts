@@ -11,7 +11,7 @@
  */
 
 class Form {
-  on(eventName: string, callback: (...args: Any[]) => void): void {
+  on(eventName: string, callback: (...args: unknown[]) => void): void {
     if (process.env.MUTIPARTY_NO_FIELD === 'true') {
       callback(this);
     } else {
@@ -26,7 +26,7 @@ class Form {
           callback(new Error('other error'));
         } else if (eventName === 'part') {
           callback({
-            on: (partEventName: string, partCallback: (...args: Any[]) => void): void => {
+            on: (partEventName: string, partCallback: (...args: unknown[]) => void): void => {
               if (partEventName === 'data') {
                 partCallback({ length: 100 });
               }

@@ -12,10 +12,11 @@ import BucketClient from 'scripts/services/BucketClient';
 
 describe('services/BucketClient', () => {
   vi.mock('stream');
+  vi.mock('@perseid/core');
   vi.mock('scripts/services/Logger');
 
   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
-  const bucketClient = new BucketClient(logger);
+  const bucketClient = new BucketClient(logger, { connectTimeout: 3000 });
 
   beforeEach(() => {
     vi.clearAllMocks();

@@ -8,51 +8,154 @@
 
 import {
   type Id,
-  type User,
-  type Payload,
   type Results,
+  type HttpClient,
   type FieldSchema,
-  type StringSchema,
   type ObjectSchema,
-  type UpdatePayload,
+  type StringSchema,
   type DataModelSchema,
   type DefaultDataModel,
   type Model as BaseModel,
   type Logger as BaseLogger,
+  type NumberSchema,
 } from '@perseid/core';
-import {
-  type Db,
-  type Document,
-  type MongoClient,
-  type ClientSession,
-} from 'mongodb';
-import {
-  type FastifyError,
-  type FastifyReply,
-  type FastifySchema,
-  type FastifyRequest,
-  type RegisterOptions,
-  type FastifyInstance,
+import type {
+  FastifyError,
+  FastifyReply,
+  FastifyRequest,
+  FastifyInstance,
 } from 'fastify';
+import pg from 'pg';
+import mysql from 'mysql2/promise';
 import { type Stream } from 'stream';
 import { type IncomingMessage } from 'http';
-import { type KeywordDefinition } from 'ajv/dist/types';
+import type { Db, MongoClient } from 'mongodb';
+import type { Ajv, KeywordDefinition } from 'ajv';
+import type { Application, NextFunction, RequestHandler } from 'express';
 import { type DestinationStream, type Logger as PinoLogger } from 'pino';
 
 type Details = Record<string, unknown>;
-
-type BaseDatabaseClient<Types> = DatabaseClient<Types>;
-
-type FieldsTree = Record<string, Set<string>>;
-
-type RelationsPerCollection<Types> = Record<keyof Types, Map<string, string[]>>;
 
 type PinoDestination = DestinationStream & {
   flushSync: () => void;
   on: (event: string, callback: () => void) => void;
 };
 
-export * from '@perseid/core';
+/**
+ * Database search filters.
+ * Each key is a field name, and its related value is the filter value.
+ * For instance, to fetch only resources for which `firstField` is either `'a'`, `'b'` or `'c'`
+ * and `secondField` is `42`, you should write the following:
+ * `{
+ *    firstField: ['a', 'b', 'c'],
+ *    secondField: 42,
+ * }`
+ */
+export type SearchFilters = Record<string, (
+  string | Date | number | boolean | Id | null |
+  (string | Date | Id | number | boolean | null)[]
+)>;
+
+/**
+ * Database search query, used for full-text search.
+ */
+export interface SearchQuery {
+  /** A full-text search will be performed on that text. */
+  text: string;
+
+  /** List of fields over which to perform the full-text search. */
+  on: Set<string>;
+}
+
+/**
+ * Search request body.
+ */
+export interface SearchBody {
+  /** Search query. */
+  query: SearchQuery | null;
+
+  /** Search filters. */
+  filters: SearchFilters | null;
+}
+
+/**
+ * Command options for view method, controls the way results are shaped.
+ */
+export interface ViewCommandOptions {
+  /** List of fields to fetch. Defaults to `new Set<string>()`. */
+  fields?: Set<string>;
+
+  /**
+   * Maximum allowed level of resources depth. For instance, `1` means you can only fetch fields
+   * from the requested resource, `2` means you can also fetch fields from direct sub-resources,
+   * `3` means you can also fetch fields from their own direct sub-resources, and so on.
+   * Defaults to `3`.
+   */
+  maximumDepth?: number;
+}
+
+/**
+ * Command options for list method, controls the way results are shaped.
+ */
+export interface ListCommandOptions extends ViewCommandOptions {
+  /** Limits the number of returned results. Defaults to `20`. */
+  limit?: number;
+
+  /** Results pagination offset to apply. Defaults to `0`. */
+  offset?: number;
+
+  /** List of fields to sort results by, along with their sorting order (asc/desc). */
+  sortBy?: Record<string, 1 | -1>;
+}
+
+/**
+ * Command options for search method, controls the way results are shaped.
+ */
+export interface SearchCommandOptions extends ViewCommandOptions {
+  /** Limits the number of returned results. Defaults to `20`. */
+  limit?: number;
+
+  /** Results pagination offset to apply. Defaults to `0`. */
+  offset?: number;
+
+  /** List of fields to sort results by, along with their sorting order (asc/desc). */
+  sortBy?: Record<string, 1 | -1>;
+}
+
+/**
+ * Command context, provides information about the author of changes.
+ */
+export interface CommandContext<DataModel extends DefaultDataModel> {
+  /** User performing the command. */
+  user: DataModel['users'];
+
+  /** Id of the device from which user is performing the command. */
+  deviceId?: string;
+
+  /** User agent of the device from which user is performing the command. */
+  userAgent?: string;
+}
+
+/**
+ * Resource creation payload (excluding all its automatic fields).
+ */
+export type CreatePayload<Resource> = {
+  [K in keyof Resource as Exclude<K, `_${string}`>]: CreatePayload<Resource[K]>;
+};
+
+/**
+ * Resource update payload (excluding all its automatic fields).
+ */
+export type UpdatePayload<Resource> = Partial<{
+  [K in keyof Resource as Exclude<K, `_${string}`>]: UpdatePayload<Resource[K]>;
+}>;
+
+/**
+ * Resource creation / update payload.
+ */
+export type Payload<Resource> = Partial<{
+  [K in keyof Resource]: Payload<Resource[K]>;
+}>;
 
 /**
  * Engine error.
@@ -77,7 +180,7 @@ export class EngineError extends Error {
 /**
  * Database error.
  */
-export class DatabaseError extends Error {
+export class Database extends Error {
   /** Error code. */
   public code: string;
 
@@ -154,82 +257,119 @@ export class Unauthorized extends HttpError { }
 export class UnprocessableEntity extends HttpError { }
 
 /**
- * Database search filters.
- * Each key is a field name, and its related value is the filter value.
- * For instance, to fetch only resources for which `firstField` is either `'a'`, `'b'` or `'c'`
- * and `secondField` is `42`, you should write the following:
- * `{
- *    firstField: ['a', 'b', 'c'],
- *    secondField: 42,
- * }`
+ * CPU average load.
  */
-export type SearchFilters = Record<string, (
-  string | Date | number | boolean | Id | null |
-  (string | Date | Id | number | boolean | null)[]
-)>;
-
-/**
- * Database search query, used for full-text search.
- */
-export interface SearchQuery {
-  /** A full-text search will be performed on that text. */
-  text: string;
-
-  /** List of fields over which to perform the full-text search. */
-  on: string[];
+export interface CpuLoad {
+  idle: number;
+  total: number;
 }
 
 /**
- * Search request body.
+ * Snapshot metrics.
  */
-export interface SearchBody {
-  /** Search query. */
-  query?: SearchQuery;
-
-  /** Search filters. */
-  filters?: SearchFilters;
+export interface Measurement {
+  name: string;
+  memory: number;
+  elapsedTime: number;
+  cpuAverage: {
+    idle: number;
+    total: number;
+  };
 }
 
 /**
- * Command options, controls the way results are shaped.
+ * Provides performance measurement tools (execution time, memory, ...).
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/Profiler.ts
  */
-export interface CommandOptions {
-  /** Limits the number of returned results when calling `search` or `list`. Defaults to `20`. */
-  limit?: number;
+export class Profiler {
+  /** Profiling start timestamp. */
+  private startTimestamp: number;
 
-  /** Results pagination offset to apply when calling `search` or `list`. Defaults to `0`. */
-  offset?: number;
+  /** Profiling start average CPU load. */
+  private startCpuAverageLoad: CpuLoad;
 
-  /** Names of the fields to sort results by. */
-  sortBy?: string[];
-
-  /** Order (asc/desc) of the fields to sort results by. */
-  sortOrder?: (1 | -1)[];
-
-  /** List of fields to return for each resource. Defaults to `[]`. */
-  fields?: string[];
+  /** List of measurements for current profiling. */
+  private measurements: Measurement[];
 
   /**
-   * Maximum allowed level of resources depth. For instance, `1` means you can only fetch fields
-   * from the requested resource, `2` means you can also fetch fields from direct sub-resources,
-   * `3` means you can also fetch fields from their own direct sub-resources, and so on.
-   * Defaults to `3`.
+   * Class constructor.
    */
-  maximumDepth?: number;
+  public constructor();
+
+  /**
+   * Formats the given profiler metrics into a human-readable string.
+   *
+   * @param metrics Profiler metrics.
+   *
+   * @returns Formatted metrics.
+   */
+  public static formatMetrics(metrics: Measurement[]): string;
+
+  /**
+   * Computes current CPU average load.
+   * See https://gist.github.com/GaetanoPiazzolla/c40e1ebb9f709d091208e89baf9f4e00.
+   *
+   * @returns Current CPU average load.
+   */
+  public static getCpuAverageLoad(): CpuLoad;
+
+  /**
+   * Resets profiling.
+   */
+  public reset(): void;
+
+  /**
+   * Creates a snapshot of current performance metrics under the given name.
+   *
+   * @param name Snapshot name.
+   */
+  public snapshot(name: string): void;
+
+  /**
+   * Returns collected performance metrics for the current profiling session.
+   *
+   * @returns Collected metrics.
+   */
+  public getMetrics(): Measurement[];
 }
 
 /**
- * Command context, provides information about the author of changes.
+ * Bucket client settings.
  */
-export interface CommandContext {
-  /** User performing the command. */
-  user: User;
+export interface BucketClientSettings {
+  /** Maximum request duration (in ms) before generating a timeout. */
+  connectTimeout: number;
+}
 
-  /** Id of the device from which user is performing the command. */
-  deviceId?: string;
+/**
+ * Handles log files storage on a remote bucket.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/BucketClient.ts
+ */
+export class BucketClient extends HttpClient {
+  /** Logging system. */
+  protected logger: Logger;
 
-  /** User agent of the device from which user is performing the command. */
-  userAgent?: string;
+  /**
+   * Class constructor.
+   *
+   * @param logger Logging system to use.
+   *
+   * @param settings Email client settings.
+   */
+  constructor(logger: Logger, settings: BucketClientSettings);
+
+  /**
+   * Uploads `body` on the bucket at `path`.
+   *
+   * @param type Content's MIME type.
+   *
+   * @param path Destination path on the bucket.
+   *
+   * @param body Content to upload.
+   */
+  public upload(_type: string, path: string, body: Stream): Promise<void>;
 }
 
 /**
@@ -248,6 +388,8 @@ export interface LoggerSettings {
 
 /**
  * pino-based logging system.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/Logger.ts
  */
 export class Logger extends BaseLogger {
   /** pino logger instance. */
@@ -332,43 +474,22 @@ export class Logger extends BaseLogger {
 }
 
 /**
- * Handles log files storage on a remote bucket.
- */
-export class BucketClient {
-  /** Logging system. */
-  protected logger: Logger;
-
-  /**
-   * Class constructor.
-   *
-   * @param logger Logging system to use.
-   */
-  constructor(logger: Logger);
-
-  /**
-   * Uploads `body` on the bucket at `path`.
-   *
-   * @param type Content's MIME type.
-   *
-   * @param path Destination path on the bucket.
-   *
-   * @param body Content to upload.
-   */
-  public upload(_type: string, path: string, body: Stream): Promise<void>;
-}
-
-/**
  * Cache client settings.
  */
 export interface CacheClientSettings {
   /** Path to the cache directory on file system. */
   cachePath: string;
+
+  /** Maximum request duration (in ms) before generating a timeout. */
+  connectTimeout: number;
 }
 
 /**
  * Handles data caching for faster access.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/CacheClient.ts
  */
-export class CacheClient {
+export class CacheClient extends HttpClient {
   /** Cache file path. */
   protected cachePath: string;
 
@@ -393,7 +514,7 @@ export class CacheClient {
    *
    * @returns Cached data if it exists, `null` otherwise.
    */
-  public get(key: string): Promise<(string | null)>;
+  public get(key: string): Promise<string | null>;
 
   /**
    * Stores `data` in cache, at `key`.
@@ -407,551 +528,20 @@ export class CacheClient {
   public set(key: string, data: unknown, duration: number): Promise<void>;
 }
 
-/** Mongo index. */
-export interface Index {
-  unique?: boolean;
-  key: Record<string, 1>;
-}
-
-/** Mongo validation schema. */
-export interface MongoValidationSchema {
-  bsonType: ('null' | 'object' | 'string' | 'bool' | 'binData' | 'objectId' | 'date' | 'int' | 'double' | 'array')[];
-  minimum?: number;
-  maximum?: number;
-  pattern?: string;
-  minItems?: number;
-  maxItems?: number;
-  minLength?: number;
-  maxLength?: number;
-  multipleOf?: number;
-  uniqueItems?: boolean;
-  minProperties?: number;
-  maxProperties?: number;
-  exclusiveMinimum?: boolean;
-  exclusiveMaximum?: boolean;
-  required?: string[];
-  additionalProperties?: boolean;
-  enum?: (string | null | number)[];
-  items?: MongoValidationSchema;
-  properties?: Record<string, MongoValidationSchema>;
-  patternProperties?: Record<string, MongoValidationSchema>;
-}
-
-/** Perseid schema to Mongo validation schema formatters. */
-export type MongoFormatters<DataModel> = Record<string, (schema: FieldSchema<DataModel>) => (
-  MongoValidationSchema
-)>;
-
-/** Migration callback. */
-export type MigrationCallback = (session: ClientSession) => Promise<void>;
-
 /**
- * Database client settings.
+ * Email client settings.
  */
-export interface DatabaseClientSettings {
-  protocol: string;
-  host: string;
-  port: number | null;
-  user: string | null
-  password: string | null
-  database: string
-  maxPoolSize: number;
+export interface EmailClientSettings {
+  /** Maximum request duration (in ms) before generating a timeout. */
   connectTimeout: number;
-  connectionLimit: number;
-  queueLimit: number;
-  cacheDuration: number;
-}
-
-/**
- * MongoDB database client.
- */
-export class DatabaseClient<
-  /** Data model types definitions. */
-  DataModel = DefaultDataModel,
-
-  /** Model class types definitions. */
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
-> {
-  /** Default sorting pipeline. */
-  protected readonly DEFAULT_SORTING_PIPELINE: Document[];
-
-  /** Pattern used to split full-text search queries into separate tokens. */
-  protected readonly SPLITTING_TOKENS: RegExp;
-
-  /** Pipeline to use first when fetching results from collections that don't enable deletion. */
-  protected readonly DELETION_FILTER_PIPELINE: Document[];
-
-  /** Used to calculate total number of results for a given query. */
-  protected readonly TOTAL_PIPELINE: Document[];
-
-  /** Default pagination offset value. */
-  protected readonly DEFAULT_OFFSET: number;
-
-  /** Default pagination limit value. */
-  protected readonly DEFAULT_LIMIT: number;
-
-  /** Default maximum level of resources depth. */
-  protected readonly DEFAULT_MAXIMUM_DEPTH: number;
-
-  /** Default query options. */
-  protected readonly DEFAULT_QUERY_OPTIONS: CommandOptions;
-
-  /** List of formatters, used to format a perseid data model into its MongoDB equivalent. */
-  protected readonly FORMATTERS: MongoFormatters<DataModel>;
-
-  /** Logging system. */
-  protected logger: Logger;
-
-  /** Cache client, used for results caching. */
-  protected cache: CacheClient;
-
-  /** Cache duration, in seconds. */
-  protected cacheDuration: number;
-
-  /** MongoDB client instance. */
-  protected client: MongoClient;
-
-  /** MongoDB database instance. */
-  protected database: Db;
-
-  /** Perseid data model to use. */
-  protected model: Model;
-
-  /** Whether MongoDB client is connected to the server. */
-  protected isConnected: boolean;
-
-  /** List of fields in data model representing external relations, per collection. */
-  protected relationsPerCollection: RelationsPerCollection<DataModel>;
-
-  /** List of fields in data model referencing each collection, grouped by this collection. */
-  protected invertedRelationsPerCollection: RelationsPerCollection<DataModel>;
-
-  /**
-   * Formats `input` to match MongoDB data types specifications.
-   *
-   * @param input Input to format.
-   *
-   * @returns MongoDB-formatted input.
-   */
-  protected formatInput<Collection extends keyof DataModel>(
-    input: Partial<DataModel[Collection]>,
-  ): Document;
-
-  /**
-   * Formats `payload` for MongoDB update.
-   *
-   * @param payload Payload to format.
-   *
-   * @returns MongoDB-formatted payload.
-   */
-  protected formatPayload<Collection extends keyof DataModel>(
-    payload: Partial<DataModel[Collection]>,
-  ): Document;
-
-  /**
-   * Formats `output` to match database-independent data types specifications.
-   *
-   * @param output Output to format.
-   *
-   * @param projections List of current output fields to return.
-   *
-   * @returns Formatted output.
-   */
-  protected formatOutput<Collection extends keyof DataModel>(
-    output: Document,
-    projections: Document | 1,
-  ): Partial<DataModel[Collection]>;
-
-  /**
-   * Makes sure that no collection references resource with id `id` from `collection`.
-   *
-   * @param collection Name of the collection the resource belongs to.
-   *
-   * @param id Id of the resource to check for references.
-   *
-   * @throws If any collection still references resource.
-   */
-  protected checkReferencesTo(collection: keyof DataModel, id: Id): Promise<void>;
-
-  /**
-   * Returns all indexed fields for `schema`.
-   *
-   * @param schema Current data model schema for which to get indexes.
-   *
-   * @returns Collection's indexed fields.
-   */
-  protected getCollectionIndexedFields(
-    schema: FieldSchema<DataModel>,
-    path?: string[],
-  ): Index[];
-
-  /**
-   * Scans `schema` to find foreign keys.
-   *
-   * @param schema Data model schema to scan.
-   *
-   * @param relations Map into which list of foreign keys and their related paths will be stored.
-   *
-   * @param path Current path in schema. Used for recursivity, do not use it directly!
-   */
-  protected scanRelationsFrom(
-    schema: FieldSchema<DataModel>,
-    relations: Map<string, string[]>,
-    path?: string[],
-  ): void;
-
-  /**
-   * Creates a Mongo validation schema from `schema`.
-   *
-   * @param schema Model from which to create validation schema.
-   *
-   * @returns Mongo validation schema.
-   */
-  protected createSchema(schema: ObjectSchema<DataModel>): { $jsonSchema: MongoValidationSchema; };
-
-  /**
-   * Generates MongoDB-flavored projections object, from `path`.
-   *
-   * @param path Full path in the data model from which to generate projection.
-   *
-   * @param maximumDepth Maximum allowed level of resources depth.
-   *
-   * @param checkIndexing Whether to check that field is indexed.
-   *
-   * @param splittedPath Remaining path to analyze.
-   *
-   * @param schema Current path data model schema.
-   *
-   * @param projections Current path projections object.
-   *
-   * @param currentDepth Current level of resources depth. Used internally. Defaults to `1`.
-   *
-   * @returns MongoDB projections object.
-   *
-   * @throws If given path is not a valid field in data model.
-   *
-   * @throws If maximum level of resourcess depth has been exceeded.
-   *
-   * @throws If `checkIndexing` is `true` and given path is not an indexed field in data model.
-   */
-  protected projectFromPath(
-    path: string,
-    maximumDepth: number,
-    checkIndexing: boolean,
-    splittedPath: string[],
-    schema?: FieldSchema<DataModel>,
-    projections?: Document,
-    currentDepth?: number,
-  ): Document;
-
-  /**
-   * Generates MongoDB-flavored list of fields to project in results, from `fields`.
-   * The most specific path takes precedence, which means if you have the following classic fields:
-   * `['object.field', 'object']`, the output will be `{ object: { field: 1 } }`.
-   *
-   * @param fields Fields from which to generate projections object.
-   *
-   * @param schema Root collection schema.
-   *
-   * @param maximumDepth Maximum allowed level of resources depth.
-   *
-   * @returns MongoDB projections.
-   */
-  protected generateProjectionsFrom(
-    fields: { classic: string[]; indexed?: string[] },
-    schema: FieldSchema<DataModel>,
-    maximumDepth: number,
-  ): Document;
-
-  /**
-   * Generates MongoDB `$lookup`s pipeline from `projections`.
-   *
-   * @param projections Projections from which to generate pipeline.
-   *
-   * @param schema Current path data model schema.
-   *
-   * @param path Current path in data model. Used for recursivity, do not use it directly!
-   *
-   * @param isFlatArray Whether current path is part of a flat array.
-   * Used for recursivity, do not use it directly!
-   *
-   * @returns Generated `$lookup`s pipeline.
-   */
-  protected generateLookupsPipelineFrom(
-    projections: Document,
-    schema: FieldSchema<DataModel>,
-    path?: string[],
-    isFlatArray?: boolean,
-  ): Document[];
-
-  /**
-   * Generates MongoDB `$sort` pipeline from `sortBy` and `sortOrder`.
-   *
-   * @param sortBy List of fields' paths to sort results by.
-   *
-   * @param sortOrder Sorting orders (asc/desc) for each field path.
-   *
-   * @returns Generated `$sort` pipeline.
-   *
-   * @throws If `sortBy` and `sortOrder` are not the same size.
-   */
-  protected generateSortingPipelineFrom(
-    sortBy: Exclude<CommandOptions['sortBy'], undefined>,
-    sortOrder: Exclude<CommandOptions['sortOrder'], undefined>,
-  ): Document[];
-
-  /**
-   * Generates MongoDB `$skip` and `$limit` pipeline from `offset` and `limit`.
-   *
-   * @param offset Pagination offset.
-   *
-   * @param limit Maximum number of results to fetch.
-   *
-   * @returns Generated pagination pipeline.
-   */
-  protected generatePaginationPipelineFrom(offset?: number, limit?: number): Document[];
-
-  /**
-   * Generates MongoDB search pipeline from `query` and `filters`.
-   *
-   * @param query Search query.
-   *
-   * @param filters Search filters.
-   *
-   * @returns Generated search pipeline.
-   */
-  protected generateSearchPipelineFrom(
-    query: SearchQuery | null,
-    filters: SearchFilters | null,
-  ): Document[];
-
-  /**
-   * Connects database client to the MongoDB server before performing any query, and handles common
-   * MongoDB server errors. You should always use this method to wrap your code.
-   *
-   * @param callback Callback to wrap in the error handler.
-   *
-   * @throws If connection to the server failed.
-   *
-   * @throws Transformed MongoDB error if applicable, original error otherwise.
-   */
-  protected handleError<T>(callback: () => Promise<T>): Promise<T>;
-
-  /**
-   * Class constructor.
-   *
-   * @param model Data model to use.
-   *
-   * @param logger Logging system to use.
-   *
-   * @param cache Cache client instance to use for results caching.
-   *
-   * @param settings Database client settings.
-   */
-  public constructor(
-    model: Model,
-    logger: Logger,
-    cache: CacheClient,
-    settings: DatabaseClientSettings,
-  );
-
-  /**
-   * Exposes `generateProjectionsFrom` method in order to make sure that all `fields` are valid.
-   *
-   * @param collection Root collection from which to check fields.
-   *
-   * @param fields Fields to check.
-   *
-   * @param maximumDepth Maximum allowed level of resources depth. Defaults to `3`.
-   */
-  public checkFields(
-    collection: keyof DataModel,
-    fields: string[],
-    maximumDepth?: number,
-  ): void;
-
-  /**
-   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
-   *
-   * @param foreignIds Foreign ids to check in database.
-   *
-   * @throws If any foreign id does not exist.
-   */
-  public checkForeignIds(
-    foreignIds: Map<string, SearchFilters[]>,
-  ): Promise<void>;
-
-  /**
-   * Inserts `resource` into `collection`.
-   *
-   * @param collection Name of the collection to insert resource into.
-   *
-   * @param resource New resource to insert.
-   */
-  public create<Collection extends keyof DataModel>(
-    collection: Collection,
-    resource: DataModel[Collection],
-  ): Promise<void>;
-
-  /**
-   * Updates resource with id `id` from `collection`.
-   *
-   * @param collection Name of the collection to update resource from.
-   *
-   * @param id Resource id.
-   *
-   * @param payload Updated resource payload.
-   */
-  public update<Collection extends keyof DataModel>(
-    collection: Collection,
-    id: Id,
-    payload: Partial<DataModel[Collection]>,
-  ): Promise<void>;
-
-  /**
-   * Updates resource matching `filters` from `collection`, using a write lock.
-   *
-   * @param collection Name of the collection to update resource from.
-   *
-   * @param filters Filters that resource must match.
-   *
-   * @param payload Updated resource payload.
-   *
-   * @returns `true` if resource was updated, `false` otherwise.
-   */
-  public exclusiveUpdate<Collection extends keyof DataModel>(
-    collection: Collection,
-    filters: SearchFilters,
-    payload: Partial<DataModel[Collection]>,
-  ): Promise<boolean>;
-
-  /**
-   * Fetches resource with id `id` from `collection`.
-   *
-   * @param collection Name of the collection to fetch resource from.
-   *
-   * @param id Id of the resource to fetch.
-   *
-   * @param options Query options. Defaults to `{}`.
-   *
-   * @returns Resource if it exists, `null` otherwise.
-   */
-  public view<Collection extends keyof DataModel>(
-    collection: Collection,
-    id: Id,
-    options?: CommandOptions,
-  ): Promise<DataModel[Collection] | null>;
-
-  /**
-   * Fetches a paginated list of resources from `collection`, that match specific filters/query.
-   *
-   * @param collection Collection to fetch resources from.
-   *
-   * @param body Search/filters body.
-   *
-   * @param options Query options. Defaults to `{}`.
-   *
-   * @returns Paginated list of resources.
-   */
-  public search<Collection extends keyof DataModel>(
-    collection: Collection,
-    body: SearchBody,
-    options?: CommandOptions,
-  ): Promise<Results<DataModel[Collection]>>;
-
-  /**
-   * Fetches a paginated list of resources from `collection`.
-   *
-   * @param collection Name of the collection from which to fetch resources.
-   *
-   * @param options Query options. Defaults to `{}`.
-   *
-   * @returns Paginated list of resources.
-   */
-  public list<Collection extends keyof DataModel>(
-    collection: Collection,
-    options?: CommandOptions,
-  ): Promise<Results<DataModel[Collection]>>;
-
-  /**
-   * Deletes resource with id `id` from `collection`.
-   *
-   * @param collection Name of the collection to delete resource from.
-   *
-   * @param id Resource id.
-   *
-   * @param payload Additional payload to update resource with in case of soft-deletion.
-   * Defaults to `{}`.
-   *
-   * @returns `true` if resource has been successfully deleted, `false` otherwise.
-   */
-  public delete<Collection extends keyof DataModel>(
-    collection: Collection,
-    id: Id,
-    payload?: Partial<DataModel[Collection]>,
-  ): Promise<boolean>;
-
-  /**
-   * Drops entire database`.
-   */
-  public dropDatabase(): Promise<void>;
-
-  /**
-   * Creates database.
-   */
-  public createDatabase(): Promise<void>;
-
-  /**
-   * Creates collection with name `name`.
-   *
-   * @param collection Name of the collection to create.
-   */
-  public resetCollection<Collection extends keyof DataModel>(
-    collection: Collection,
-  ): Promise<void>;
-
-  /**
-   * Performs a validation schema update and a data migration on collection with name `name`.
-   *
-   * @param collection Name of the collection to update.
-   *
-   * @param migration Optional migration to perform. Defaults to an empty Promise.
-   */
-  public updateCollection<Collection extends keyof DataModel>(
-    collection: Collection,
-    migration?: MigrationCallback,
-  ): Promise<void>;
-
-  /**
-   * Drops `collection` from database.
-   *
-   * @param collection Name of the collection to drop from database.
-   */
-  public dropCollection(collection: keyof DataModel): Promise<void>;
-
-  /**
-   * Resets the whole underlying database, re-creating collections, indexes, and such.
-   */
-  public reset(): Promise<void>;
-
-  /**
-   * Performs integrity checks on `collection` if specified, or on the whole database.
-   *
-   * @param collection Name of the collection on which to perform the integrity checks.
-   *
-   * @returns List of found integrity errors, per collection.
-   *
-   * @throws If integrity checks failed.
-   */
-  public checkIntegrity(
-    collection?: keyof DataModel,
-  ): Promise<Record<string, Record<string, Id[]>>>;
 }
 
 /**
  * Handles emails sending.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/EmailClient.ts
  */
-export class EmailClient {
+export class EmailClient extends HttpClient {
   /** Logging system. */
   protected logger: Logger;
 
@@ -959,8 +549,10 @@ export class EmailClient {
    * Class constructor.
    *
    * @param logger Logging system to use.
+   *
+   * @param settings Email client settings.
    */
-  constructor(logger: Logger);
+  constructor(logger: Logger, settings: EmailClientSettings);
 
   /**
    * Sends a verification email to `to`.
@@ -996,16 +588,18 @@ export class EmailClient {
 
 /**
  * Data model.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/Model.ts
  */
 export class Model<
   /** Data model types definitions. */
-  DataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 > extends BaseModel<DataModel> {
   /** Public data model schema, used for data model introspection on front-end. */
   protected publicSchema: DataModelSchema<DataModel>;
 
-  /** List of relations per collection, along with their respective path in the model. */
-  protected relationsPerCollection: { [Collection in keyof DataModel]: Set<string> };
+  /** List of relations per resource, along with their respective path in the model. */
+  protected relationsPerResource: { [Resource in keyof DataModel]: Set<string> };
 
   /** Default data model schema. */
   public static readonly DEFAULT_MODEL: DataModelSchema<DefaultDataModel>;
@@ -1016,32 +610,32 @@ export class Model<
    * @param schema Data model schema from which to generate public schema.
    *
    * @param relations Optional parameter, use it to also extract all relations declared in the
-   * model. If this parameter is passed, a list of all collections referenced directly or indirectly
+   * model. If this parameter is passed, a list of all resources referenced directly or indirectly
    * (i.e. by following subsequent relations) in the model will be generated and stored in that
-   * variable. For instance, if `schema` contains a field that references a collection A, that in
-   * turn references collection B, that eventually references the initial collection, the following
+   * variable. For instance, if `schema` contains a field that references a resource A, that in
+   * turn references resource B, that eventually references the initial resource, the following
    * list will be generated: `["A", "B"]`. Defaults to `new Set()`.
    */
   protected generatePublicSchemaFrom(
     schema: FieldSchema<DataModel>,
-    relations?: Set<string>,
+    relations: Set<string>,
   ): FieldSchema<DataModel>;
 
   /**
    * `email` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
   public static email(overrides?: Partial<StringSchema>): StringSchema;
 
   /**
-   * `tinyText` custom data model schema type generator.
+   * `tinyText` custom data model schema type generator. TODO describe what is a tiny/short/... text
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
@@ -1051,7 +645,7 @@ export class Model<
    * `shortText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
@@ -1061,7 +655,7 @@ export class Model<
    * `mediumText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
@@ -1071,7 +665,7 @@ export class Model<
    * `longText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
@@ -1081,7 +675,7 @@ export class Model<
    * `hugeText` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
@@ -1091,7 +685,7 @@ export class Model<
    * `token` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
@@ -1101,7 +695,7 @@ export class Model<
    * `password` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
@@ -1111,7 +705,7 @@ export class Model<
    * `credentials` custom data model schema type generator.
    *
    * @param overrides Additional parameters to override field with.
-   * Defaults to `{ required: true }`.
+   * Defaults to `{ isRequired: true }`.
    *
    * @returns Generated custom data model schema.
    */
@@ -1127,103 +721,1303 @@ export class Model<
   constructor(schema: DataModelSchema<DataModel>);
 
   /**
-   * Returns public data model schema for `collection`, and all its direct or indirect relations.
+   * Returns public data model schema for `resource`, and all its direct or indirect relations.
    *
-   * @param collection Name of the collection for which to get public data model schema.
+   * @param resource Name of the resource for which to get public data model schema.
    *
-   * @returns Public data model schema for all related collections.
+   * @returns Public data model schema for all related resources if they exist, `null` otherwise.
    */
-  public getPublicSchema(collection: keyof DataModel): DataModelSchema<DataModel>;
+  public getPublicSchema(resource: keyof DataModel): DataModelSchema<DataModel> | null;
 }
 
 /**
- * CPU average load.
+ * Structured payload for database storage.
  */
-export interface CpuLoad {
-  idle: number;
-  total: number;
+export type StructuredPayload = Record<string, Record<string, unknown>[]>;
+
+/** DBMS-specific formatted query. */
+export interface FormattedQuery {
+  /** Name of the structure on which to perform the query. */
+  structure: string;
+
+  /** When performing a join with another structure, name of the local field to use. */
+  localField: string | null;
+
+  /** When performing a join with another structure, name of the foreign field to use. */
+  foreignField: string | null;
+
+  /** List of fields to retrieve from database. */
+  fields: Record<string, string>;
+
+  /** When performing a sort, list of fields to use, along with the sorting order. */
+  sort: Record<string, 1 | -1> | null;
+
+  /** List of sub-joins to perform with this structure. */
+  lookups: Record<string, FormattedQuery>;
+
+  /** When filtering results, list of constraints to use. */
+  match: { query: Record<string, unknown>[]; filters: Record<string, unknown>[]; } | null;
 }
 
 /**
- * Snapshot metrics.
+ * Represents metadata for a specific data model resource. This metadata is used to define and
+ * create database structures.
  */
-export interface Measurement {
-  name: string;
-  memory: number;
-  elapsedTime: number;
-  cpuAverage: {
-    idle: number;
-    total: number;
-  };
+export interface ResourceMetadata {
+  /** Name of the primary structure. */
+  structure: string;
+
+  /** Names of sub-structures associated with the primary structure (e.g. in relational DBMS). */
+  subStructures: string[];
+
+  /**
+   * Each key represents a path within the data model, and corresponding set contains the names of
+   * sub-structures associated with that path. Several sub-structures can be associated to one path,
+   * in the case of nested arrays in a relational DBMS. Used to know which entities need to be
+   * deleted when updating or deleting a resource.
+   */
+  subStructuresPerPath: Record<string, Set<string>>;
+
+  /**
+   * List of fields in the whole data model referencing that resource. Necessary to simulate a
+   * foreign keys system in DBMS that do not support that feature.
+   */
+  invertedRelations: Map<string, string[]>;
+
+  /** List of indexes definitions for the structure. */
+  indexes: { path: string; unique: boolean; }[];
+
+  /**
+   * List of additional constraints definitions for the structure (e.g. foreign keys in relational
+   * DBMS).
+   */
+  constraints: { path: string; relation: string; }[];
+
+  /** List of structure fields definitions. */
+  fields: unknown;
 }
 
 /**
- * Provides performance measurement tools (execution time, memory, ...).
+ * Database client settings.
  */
-export class Profiler {
-  /** Profiling start timestamp. */
-  private startTimestamp: number;
+export interface DatabaseClientSettings {
+  /** Protocol to use for database connection. */
+  protocol: string;
 
-  /** Profiling start average CPU load. */
-  private startCpuAverageLoad: CpuLoad;
+  /** Database hostname. */
+  host: string;
 
-  /** List of measurements for current profiling. */
-  private measurements: Measurement[];
+  /** Database port. */
+  port: number | null;
+
+  /** Username to use to connect to the database. */
+  user: string | null;
+
+  /** Password to use to connect to the database. */
+  password: string | null;
+
+  /** Database name. */
+  database: string;
+
+  /** Maximum number of ms after which to generate a timeout when connecting to the database. */
+  connectTimeout: number;
+
+  /** Maximum number of connections to create at once in the connections pool. */
+  connectionLimit: number;
+}
+
+/**
+ * Abstract database client, to use as a blueprint for DBMS-specific implementations.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/AbstractDatabaseClient.ts
+ */
+export abstract class AbstractDatabaseClient<
+  /** Data model types definitions. */
+  DataModel extends DefaultDataModel = DefaultDataModel,
+
+  /** Model class types definitions. */
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+> {
+  /** Pattern used to split full-text search queries into separate tokens. */
+  protected readonly SPLITTING_TOKENS: RegExp;
+
+  /** Default pagination offset value. */
+  protected readonly DEFAULT_OFFSET: number;
+
+  /** Default pagination limit value. */
+  protected readonly DEFAULT_LIMIT: number;
+
+  /** Default maximum level of resources depth. */
+  protected readonly DEFAULT_MAXIMUM_DEPTH: number;
+
+  /** Default search command options. */
+  protected readonly DEFAULT_SEARCH_COMMAND_OPTIONS: SearchCommandOptions;
+
+  /** Default list command options. */
+  protected readonly DEFAULT_LIST_COMMAND_OPTIONS: ListCommandOptions;
+
+  /** Default view command options. */
+  protected readonly DEFAULT_VIEW_COMMAND_OPTIONS: ViewCommandOptions;
+
+  /** List of payload validators, used to check payloads integrity. */
+  protected readonly VALIDATORS: Record<string, (
+    path: string,
+    payload: unknown,
+    schema: FieldSchema<DataModel>,
+  ) => void>;
+
+  /** Logging system. */
+  protected logger: Logger;
+
+  /** Cache client, used for results caching. */
+  protected cache: CacheClient;
+
+  /** Database to use. */
+  protected database: string;
+
+  /** Perseid data model to use. */
+  protected model: Model;
+
+  /** Whether database client is connected to the server. */
+  protected isConnected: boolean;
+
+  /** Resources metadata, used to generate database structure and handle resources deletion. */
+  protected resourcesMetadata: Record<string, ResourceMetadata>;
+
+  /**
+   * Generates metadata for `resource`, including fields, indexes, and constraints, necessary to
+   * generate the database structure and handle resources deletion.
+   *
+   * @param resource Type of resource for which to generate metadata.
+   *
+   * @returns Resource metadata.
+   */
+  protected abstract generateResourceMetadata<Resource extends keyof DataModel & string>(
+    resource: Resource,
+  ): void;
+
+  /**
+   * Returns DBMS-specific formatted query metadata and projections from `fields`.
+   *
+   * @param resource Type of resource to query.
+   *
+   * @param fields List of fields to fetch from database.
+   *
+   * @param maximumDepth Maximum allowed level of resources depth.
+   *
+   * @param searchBody Optional search body to apply to the request. Defaults to `null`.
+   *
+   * @param sortBy Optional sorting to apply to the request. Defaults to `{}`.
+   *
+   * @returns Formatted query, along with projections.
+   *
+   * @throws If field path does not exist in data model.
+   *
+   * @throws If field path is not a leaf in data model.
+   *
+   * @throws If any field path in search body is not indexed.
+   *
+   * @throws If any field path in sorting is not sortable.
+   *
+   * @throws If maximum level of resources depth is exceeded.
+   */
+  protected abstract parseFields<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    fields: Set<string>,
+    maximumDepth: number,
+    searchBody?: SearchBody | null,
+    sortBy?: Partial<Record<string, 1 | -1>>,
+  ): { projections: unknown; formattedQuery: FormattedQuery; };
+
+  /**
+   * Generates the final DBMS-specific query from `formattedQuery`.
+   *
+   * @param resource Type of resource for which to generate database query.
+   *
+   * @param formattedQuery Formatted query to generate database query from.
+   *
+   * @returns Final DBMS-specific query.
+   */
+  protected abstract generateQuery<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    formattedQuery: FormattedQuery,
+  ): unknown;
+
+  /**
+   * Recursively formats `payload` into a structured format for database storage.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param resourceId Id of the related resource.
+   *
+   * @param payload Payload to format.
+   *
+   * @param mode Whether to structure payload for creation, or just a partial update.
+   *
+   * @returns Structured format for database storage.
+   */
+  protected abstract structurePayload<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    resourceId: Id,
+    payload: Payload<DataModel[Resource]>,
+    mode: 'CREATE' | 'UPDATE',
+  ): StructuredPayload;
+
+  /**
+   * Formats `results` into a database-agnostic structure, containing only requested fields.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param results List of database raw results to format.
+   *
+   * @param fields Fields tree used to format results.
+   *
+   * @param mapping Mapping between DBMS-specific field name and real field path.
+   *
+   * @returns Formatted results.
+   */
+  protected abstract formatResources<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    results: unknown[],
+    fields: unknown,
+    mapping: Map<string, string>
+  ): DataModel[Resource][];
+
+  /**
+   * Connects database client to the database server before performing any query, and handles common
+   * database server errors. You should always use this method to wrap your code.
+   *
+   * @param callback Callback to wrap in the error handler.
+   *
+   * @throws If connection to the server failed.
+   *
+   * @throws Transformed database error if applicable, original error otherwise.
+   */
+  protected abstract handleError<T>(callback: () => Promise<T>): Promise<T>;
 
   /**
    * Class constructor.
+   *
+   * @param model Data model to use.
+   *
+   * @param logger Logging system to use.
+   *
+   * @param cache Cache client instance to use for results caching.
+   *
+   * @param settings Database client settings.
    */
-  public constructor();
+  public constructor(
+    model: Model,
+    logger: Logger,
+    cache: CacheClient,
+    settings: DatabaseClientSettings,
+  );
 
   /**
-   * Formats the given profiler metrics into a human-readable string.
-   *
-   * @param metrics Profiler metrics.
-   *
-   * @returns Formatted metrics.
+   * Drops the entire database.
    */
-  public static formatMetrics(metrics: Measurement[]): string;
+  public abstract dropDatabase(): Promise<void>;
 
   /**
-   * Computes current CPU average load.
-   * See https://gist.github.com/GaetanoPiazzolla/c40e1ebb9f709d091208e89baf9f4e00.
-   *
-   * @returns Current CPU average load.
+   * Creates the database.
    */
-  public static getCpuAverageLoad(): CpuLoad;
+  public abstract createDatabase(): Promise<void>;
 
   /**
-   * Resets profiling.
+   * Creates missing database structures for current data model.
    */
-  public reset(): void;
+  public abstract createMissingStructures(): Promise<void>;
 
   /**
-   * Creates a snapshot of current performance metrics under the given name.
-   *
-   * @param name Snapshot name.
+   * Resets the whole underlying database, re-creating structures, indexes, and such.
    */
-  public snapshot(name: string): void;
+  public abstract reset(): Promise<void>;
 
   /**
-   * Returns collected performance metrics for the current profiling session.
+   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
    *
-   * @returns Collected metrics.
+   * @param foreignIds Foreign ids to check in database.
+   *
+   * @throws If any foreign id does not exist.
    */
-  public getMetrics(): Measurement[];
+  public abstract checkForeignIds<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    foreignIds: Map<string, { resource: keyof DataModel & string; filters: SearchFilters; }>,
+  ): Promise<void>;
+
+  /**
+   * Creates a new resource in database.
+   *
+   * @param resource Type of resource to create.
+   *
+   * @param payload New resource payload.
+   */
+  public abstract create<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    payload: DataModel[Resource],
+  ): Promise<void>;
+
+  /**
+   * Updates resource with id `id` in database.
+   *
+   * @param resource Type of resource to update.
+   *
+   * @param id Resource id.
+   *
+   * @param payload Updated resource payload.
+   *
+   * @returns `true` if resource has been successfully updated, `false` otherwise.
+   */
+  public abstract update<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    payload: Payload<DataModel[Resource]>,
+  ): Promise<boolean>;
+
+  /**
+   * Fetches resource with id `id` from database.
+   *
+   * @param resource Type of resource to fetch.
+   *
+   * @param id Id of the resource to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Resource if it exists, `null` otherwise.
+   */
+  public abstract view<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    options?: ViewCommandOptions,
+  ): Promise<DataModel[Resource] | null>;
+
+  /**
+   * Fetches a paginated list of resources from database, that match specific filters/query.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param body Search/filters body.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  public abstract search<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    body: SearchBody,
+    options?: SearchCommandOptions,
+  ): Promise<Results<DataModel[Resource]>>;
+
+  /**
+   * Fetches a paginated list of resources from database.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  public abstract list<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    options?: ListCommandOptions,
+  ): Promise<Results<DataModel[Resource]>>;
+
+  /**
+   * Deletes resource with id `id` from database.
+   *
+   * @param resource Type of resource to delete.
+   *
+   * @param id Resource id.
+   *
+   * @returns `true` if resource has been successfully deleted, `false` otherwise.
+   */
+  public abstract delete<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+  ): Promise<boolean>;
+}
+
+/** MongoDB validation schema. */
+interface ValidationSchema {
+  bsonType: string[];
+  required?: string[];
+  items?: ValidationSchema;
+  additionalProperties?: boolean;
+  properties?: Record<string, ValidationSchema>;
+}
+
+/**
+ * MongoDB database client.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/MongoDatabaseClient.ts
+ */
+export class MongoDatabaseClient<
+  /** Data model types definitions. */
+  DataModel extends DefaultDataModel = DefaultDataModel,
+
+  /** Model class types definitions. */
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+> extends AbstractDatabaseClient<DataModel, Model> {
+  /** MongoDB client instance. */
+  protected client: MongoClient;
+
+  /** MongoDB database instance. */
+  protected databaseConnection: Db;
+
+  /**
+   * Generates metadata for `resource`, including fields, indexes, and constraints, necessary to
+   * generate the database structure and handle resources deletion.
+   *
+   * @param resource Type of resource for which to generate metadata.
+   */
+  protected generateResourceMetadata<Resource extends keyof DataModel & string>(
+    resource: Resource,
+  ): void;
+
+  /**
+   * Returns DBMS-specific formatted query metadata and projections from `fields`.
+   *
+   * @param resource Type of resource to query.
+   *
+   * @param fields List of fields to fetch from database.
+   *
+   * @param maximumDepth Maximum allowed level of resources depth.
+   *
+   * @param searchBody Optional search body to apply to the request. Defaults to `null`.
+   *
+   * @param sortBy Optional sorting to apply to the request. Defaults to `{}`.
+   *
+   * @returns Formatted query, along with projections.
+   *
+   * @throws If field path does not exist in data model.
+   *
+   * @throws If field path is not a leaf in data model.
+   *
+   * @throws If any field path in search body is not indexed.
+   *
+   * @throws If any field path in sorting is not sortable.
+   *
+   * @throws If maximum level of resources depth is exceeded.
+   */
+  protected parseFields<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    fields: Set<string>,
+    maximumDepth: number,
+    searchBody?: SearchBody | null,
+    sortBy?: Partial<Record<string, 1 | -1>>,
+  ): { projections: unknown; formattedQuery: FormattedQuery; };
+
+  /**
+   * Generates the final DBMS-specific query from `formattedQuery`.
+   *
+   * @param resource Type of resource for which to generate database query.
+   *
+   * @param formattedQuery Formatted query to generate database query from.
+   *
+   * @returns Final DBMS-specific query.
+   */
+  protected generateQuery<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    formattedQuery: FormattedQuery,
+  ): unknown;
+
+  /**
+   * Recursively formats `payload` into a structured format for database storage.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param resourceId Id of the related resource.
+   *
+   * @param payload Payload to format.
+   *
+   * @param mode Whether to structure payload for creation, or just a partial update.
+   *
+   * @returns Structured format for database storage.
+   */
+  protected structurePayload<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    _resourceId: Id,
+    payload: Payload<DataModel[Resource]>,
+    mode: 'CREATE' | 'UPDATE',
+  ): StructuredPayload;
+
+  /**
+   * Formats `results` into a database-agnostic structure, containing only requested fields.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param results List of database raw results to format.
+   *
+   * @param fields Fields tree used to format results.
+   *
+   * @param mapping Mapping between DBMS-specific field name and real field path.
+   *
+   * @returns Formatted results.
+   */
+  protected formatResources<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    results: unknown[],
+    fields: unknown,
+  ): DataModel[Resource][];
+
+  /**
+   * Makes sure that no resource references resource with id `id`.
+   *
+   * @param resource Type of resource to check.
+   *
+   * @param id Id of the resource to check for references.
+   *
+   * @throws If any other resource still references resource.
+   */
+  protected checkReferencesTo<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+  ): Promise<void>;
+
+  /**
+   * Connects database client to the database server before performing any query, and handles common
+   * database server errors. You should always use this method to wrap your code.
+   *
+   * @param callback Callback to wrap in the error handler.
+   *
+   * @throws If connection to the server failed.
+   *
+   * @throws Transformed database error if applicable, original error otherwise.
+   */
+  protected handleError<T>(callback: () => Promise<T>): Promise<T>;
+
+  /**
+   * Class constructor.
+   *
+   * @param model Data model to use.
+   *
+   * @param logger Logging system to use.
+   *
+   * @param cache Cache client instance to use for results caching.
+   *
+   * @param settings Database client settings.
+   */
+  public constructor(
+    model: Model,
+    logger: Logger,
+    cache: CacheClient,
+    settings: DatabaseClientSettings,
+  );
+
+  /**
+   * Drops the entire database.
+   */
+  public dropDatabase(): Promise<void>;
+
+  /**
+   * Creates the database.
+   */
+  public createDatabase(): Promise<void>;
+
+  /**
+   * Creates missing database structures for current data model.
+   */
+  public createMissingStructures(): Promise<void>;
+
+  /**
+   * Resets the whole underlying database, re-creating structures, indexes, and such.
+   */
+  public reset(): Promise<void>;
+
+  /**
+   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
+   *
+   * @param foreignIds Foreign ids to check in database.
+   *
+   * @throws If any foreign id does not exist.
+   */
+  public checkForeignIds<Resource extends keyof DataModel & string>(
+    _resource: Resource,
+    foreignIds: Map<string, { resource: keyof DataModel & string; filters: SearchFilters; }>,
+  ): Promise<void>;
+
+  /**
+   * Creates a new resource in database.
+   *
+   * @param resource Type of resource to create.
+   *
+   * @param payload New resource payload.
+   */
+  public create<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    payload: DataModel[Resource],
+  ): Promise<void>;
+
+  /**
+   * Updates resource with id `id` in database.
+   *
+   * @param resource Type of resource to update.
+   *
+   * @param id Resource id.
+   *
+   * @param payload Updated resource payload.
+   *
+   * @returns `true` if resource has been successfully updated, `false` otherwise.
+   */
+  public update<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    payload: Payload<DataModel[Resource]>,
+  ): Promise<boolean>;
+
+  /**
+   * Fetches resource with id `id` from database.
+   *
+   * @param resource Type of resource to fetch.
+   *
+   * @param id Id of the resource to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Resource if it exists, `null` otherwise.
+   */
+  public view<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    options: ViewCommandOptions,
+  ): Promise<DataModel[Resource] | null>;
+
+  /**
+   * Fetches a paginated list of resources from database, that match specific filters/query.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param body Search/filters body.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  public search<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    body: SearchBody,
+    options: SearchCommandOptions,
+  ): Promise<Results<DataModel[Resource]>>;
+
+  /**
+   * Fetches a paginated list of resources from database.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  public list<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    options: ListCommandOptions,
+  ): Promise<Results<DataModel[Resource]>>;
+
+  /**
+   * Deletes resource with id `id` from database.
+   *
+   * @param resource Type of resource to delete.
+   *
+   * @param id Resource id.
+   *
+   * @returns `true` if resource has been successfully deleted, `false` otherwise.
+   */
+  public delete<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+  ): Promise<boolean>;
+}
+
+/**
+ * MySQL database client.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/MySQLDatabaseClient.ts
+ */
+export class MySQLDatabaseClient<
+  /** Data model types definitions. */
+  DataModel extends DefaultDataModel = DefaultDataModel,
+
+  /** Model class types definitions. */
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+> extends AbstractDatabaseClient<DataModel, Model> {
+  /** Data model types <> SQL types mapping, for tables creation. */
+  protected readonly SQL_TYPES_MAPPING: Record<string, string>;
+
+  /** SQL sorting keywords. */
+  protected readonly SQL_SORT_MAPPING: Record<1 | -1, string>;
+
+  /** MySQL client instance. */
+  protected client: mysql.Pool;
+
+  /** Used to format ArrayBuffers into strings. */
+  protected textDecoder: TextDecoder;
+
+  /** Used to format strings into ArrayBuffers. */
+  protected textEncoder: TextEncoder;
+
+  /**
+   * Generates metadata for `resource`, including fields, indexes, and constraints, necessary to
+   * generate the database structure and handle resources deletion.
+   *
+   * @param resource Type of resource for which to generate metadata.
+   *
+   * @returns Resource metadata.
+   */
+  protected generateResourceMetadata<Resource extends keyof DataModel & string>(
+    resource: Resource,
+  ): void;
+
+  /**
+   * Returns DBMS-specific formatted query metadata and projections from `fields`.
+   *
+   * @param resource Type of resource to query.
+   *
+   * @param fields List of fields to fetch from database.
+   *
+   * @param maximumDepth Maximum allowed level of resources depth.
+   *
+   * @param searchBody Optional search body to apply to the request. Defaults to `null`.
+   *
+   * @param sortBy Optional sorting to apply to the request. Defaults to `{}`.
+   *
+   * @returns Formatted query, along with projections.
+   *
+   * @throws If field path does not exist in data model.
+   *
+   * @throws If field path is not a leaf in data model.
+   *
+   * @throws If any field path in search body is not indexed.
+   *
+   * @throws If any field path in sorting is not sortable.
+   *
+   * @throws If maximum level of resources depth is exceeded.
+   */
+  protected parseFields<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    fields: Set<string>,
+    maximumDepth: number,
+    searchBody?: SearchBody | null,
+    sortBy?: Partial<Record<string, 1 | -1>>,
+  ): { projections: unknown; formattedQuery: FormattedQuery; };
+
+  /**
+   * Generates the final DBMS-specific query from `formattedQuery`.
+   *
+   * @param resource Type of resource for which to generate database query.
+   *
+   * @param formattedQuery Formatted query to generate database query from.
+   *
+   * @param isSearchQuery Whether query is a search query or a simple `SELECT`. Defaults to `false`.
+   *
+   * @param textIndent Current indent. Used to improve SQL statement legibility. Defaults to `""`.
+   *
+   * @returns Final DBMS-specific query.
+   */
+  protected generateQuery<Resource extends keyof DataModel>(
+    resource: Resource,
+    formattedQuery: FormattedQuery,
+    textIndent?: string,
+  ): string;
+
+  /**
+   * Recursively formats `payload` into a structured format for database storage.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param resourceId Id of the related resource.
+   *
+   * @param payload Payload to format.
+   *
+   * @param mode Whether to structure payload for creation, or just a partial update.
+   *
+   * @returns Structured format for database storage.
+   */
+  protected structurePayload<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    resourceId: Id,
+    payload: Payload<DataModel[Resource]>,
+    mode: 'CREATE' | 'UPDATE',
+  ): StructuredPayload;
+
+  /**
+   * Formats `results` into a database-agnostic structure, containing only requested fields.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param results List of database raw results to format.
+   *
+   * @param fields Fields tree used to format results.
+   *
+   * @param mapping Mapping between DBMS-specific field name and real field path.
+   *
+   * @returns Formatted results.
+   */
+  protected formatResources<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    results: unknown[],
+    fields: unknown,
+    mapping: Map<string, string>,
+  ): DataModel[Resource][];
+
+  /**
+   * Connects database client to the database server before performing any query, and handles common
+   * database server errors. You should always use this method to wrap your code.
+   *
+   * @param callback Callback to wrap in the error handler.
+   *
+   * @throws If connection to the server failed.
+   *
+   * @throws Transformed database error if applicable, original error otherwise.
+   */
+  protected handleError<T>(callback: () => Promise<T>): Promise<T>;
+
+  /**
+   * Class constructor.
+   *
+   * @param model Data model to use.
+   *
+   * @param logger Logging system to use.
+   *
+   * @param cache Cache client instance to use for results caching.
+   *
+   * @param settings Database client settings.
+   */
+  public constructor(
+    model: Model,
+    logger: Logger,
+    cache: CacheClient,
+    settings: DatabaseClientSettings,
+  );
+
+  /**
+   * Drops the entire database.
+   */
+  public dropDatabase(): Promise<void>;
+
+  /**
+   * Creates the database.
+   */
+  public createDatabase(): Promise<void>;
+
+  /**
+   * Creates missing database structures for current data model.
+   */
+  public createMissingStructures(): Promise<void>;
+
+  /**
+   * Resets the whole underlying database, re-creating structures, indexes, and such.
+   */
+  public reset(): Promise<void>;
+
+  /**
+   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
+   *
+   * @param foreignIds Foreign ids to check in database.
+   *
+   * @throws If any foreign id does not exist.
+   */
+  public checkForeignIds<Resource extends keyof DataModel & string>(
+    _resource: Resource,
+    foreignIds: Map<string, { resource: keyof DataModel & string; filters: SearchFilters; }>,
+  ): Promise<void>;
+
+  /**
+   * Creates a new resource in database.
+   *
+   * @param resource Type of resource to create.
+   *
+   * @param payload New resource payload.
+   */
+  public create<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    payload: DataModel[Resource],
+  ): Promise<void>;
+
+  /**
+   * Updates resource with id `id` in database.
+   *
+   * @param resource Type of resource to update.
+   *
+   * @param id Resource id.
+   *
+   * @param payload Updated resource payload.
+   *
+   * @returns `true` if resource has been successfully updated, `false` otherwise.
+   */
+  public update<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    payload: Payload<DataModel[Resource]>,
+  ): Promise<boolean>;
+
+  /**
+   * Fetches resource with id `id` from database.
+   *
+   * @param resource Type of resource to fetch.
+   *
+   * @param id Id of the resource to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Resource if it exists, `null` otherwise.
+   */
+  public view<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    options?: ViewCommandOptions,
+  ): Promise<DataModel[Resource] | null>;
+
+  /**
+   * Fetches a paginated list of resources from database, that match specific filters/query.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param body Search/filters body.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  public search<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    body: SearchBody,
+    options?: SearchCommandOptions,
+  ): Promise<Results<DataModel[Resource]>>;
+
+  /**
+   * Fetches a paginated list of resources from database.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  public list<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    options?: ListCommandOptions,
+  ): Promise<Results<DataModel[Resource]>>;
+
+  /**
+   * Deletes resource with id `id` from database.
+   *
+   * @param resource Type of resource to delete.
+   *
+   * @param id Resource id.
+   *
+   * @returns `true` if resource has been successfully deleted, `false` otherwise.
+   */
+  public delete<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+  ): Promise<boolean>;
+}
+
+/**
+ * PostgreSQL database client.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/PostgreSQLDatabaseClient.ts
+ */
+export class PostgreSQLDatabaseClient<
+  /** Data model types definitions. */
+  DataModel extends DefaultDataModel = DefaultDataModel,
+
+  /** Model class types definitions. */
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+> extends AbstractDatabaseClient<DataModel, Model> {
+  /** Data model types <> SQL types mapping, for tables creation. */
+  protected readonly SQL_TYPES_MAPPING: Record<string, string>;
+
+  /** SQL sorting keywords. */
+  protected readonly SQL_SORT_MAPPING: Record<1 | -1, string>;
+
+  /** PostgreSQL client instance. */
+  protected client: pg.Pool;
+
+  /** PostgreSQL database connection settings. Necessary to reset pool after dropping database. */
+  protected databaseSettings: DatabaseClientSettings;
+
+  /** Used to format ArrayBuffers into strings. */
+  protected textDecoder: TextDecoder;
+
+  /** Used to format strings into ArrayBuffers. */
+  protected textEncoder: TextEncoder;
+
+  /**
+   * Generates metadata for `resource`, including fields, indexes, and constraints, necessary to
+   * generate the database structure and handle resources deletion.
+   *
+   * @param resource Type of resource for which to generate metadata.
+   *
+   * @returns Resource metadata.
+   */
+  protected generateResourceMetadata<Resource extends keyof DataModel & string>(
+    resource: Resource,
+  ): void;
+
+  /**
+   * Returns DBMS-specific formatted query metadata and projections from `fields`.
+   *
+   * @param resource Type of resource to query.
+   *
+   * @param fields List of fields to fetch from database.
+   *
+   * @param maximumDepth Maximum allowed level of resources depth.
+   *
+   * @param searchBody Optional search body to apply to the request. Defaults to `null`.
+   *
+   * @param sortBy Optional sorting to apply to the request. Defaults to `{}`.
+   *
+   * @returns Formatted query, along with projections.
+   *
+   * @throws If field path does not exist in data model.
+   *
+   * @throws If field path is not a leaf in data model.
+   *
+   * @throws If any field path in search body is not indexed.
+   *
+   * @throws If any field path in sorting is not sortable.
+   *
+   * @throws If maximum level of resources depth is exceeded.
+   */
+  protected parseFields<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    fields: Set<string>,
+    maximumDepth: number,
+    searchBody?: SearchBody | null,
+    sortBy?: Partial<Record<string, 1 | -1>>,
+  ): { projections: unknown; formattedQuery: FormattedQuery; };
+
+  /**
+   * Generates the final DBMS-specific query from `formattedQuery`.
+   *
+   * @param resource Type of resource for which to generate database query.
+   *
+   * @param formattedQuery Formatted query to generate database query from.
+   *
+   * @param isSearchQuery Whether query is a search query or a simple `SELECT`. Defaults to `false`.
+   *
+   * @param textIndent Current indent. Used to improve SQL statement legibility. Defaults to `""`.
+   *
+   * @param startPlaceholderIndex Current placeholder index. Defaults to `1`.
+   *
+   * @returns Final DBMS-specific query.
+   */
+  protected generateQuery<Resource extends keyof DataModel>(
+    resource: Resource,
+    formattedQuery: FormattedQuery,
+    textIndent?: string,
+    startPlaceholderIndex?: number,
+  ): string;
+
+  /**
+   * Recursively formats `payload` into a structured format for database storage.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param resourceId Id of the related resource.
+   *
+   * @param payload Payload to format.
+   *
+   * @param mode Whether to structure payload for creation, or just a partial update.
+   *
+   * @returns Structured format for database storage.
+   */
+  protected structurePayload<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    resourceId: Id,
+    payload: Payload<DataModel[Resource]>,
+    mode: 'CREATE' | 'UPDATE',
+  ): StructuredPayload;
+
+  /**
+   * Formats `results` into a database-agnostic structure, containing only requested fields.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param results List of database raw results to format.
+   *
+   * @param fields Fields tree used to format results.
+   *
+   * @param mapping Mapping between DBMS-specific field name and real field path.
+   *
+   * @returns Formatted results.
+   */
+  protected formatResources<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    results: unknown[],
+    fields: unknown,
+    mapping: Map<string, string>,
+  ): DataModel[Resource][];
+
+  /**
+   * Connects database client to the database server before performing any query, and handles common
+   * database server errors. You should always use this method to wrap your code.
+   *
+   * @param callback Callback to wrap in the error handler.
+   *
+   * @throws If connection to the server failed.
+   *
+   * @throws Transformed database error if applicable, original error otherwise.
+   */
+  protected handleError<T>(callback: () => Promise<T>): Promise<T>;
+
+  /**
+   * Class constructor.
+   *
+   * @param model Data model to use.
+   *
+   * @param logger Logging system to use.
+   *
+   * @param cache Cache client instance to use for results caching.
+   *
+   * @param settings Database client settings.
+   */
+  public constructor(
+    model: Model,
+    logger: Logger,
+    cache: CacheClient,
+    settings: DatabaseClientSettings,
+  );
+
+  /**
+   * Drops the entire database.
+   */
+  public dropDatabase(): Promise<void>;
+
+  /**
+   * Creates the database.
+   */
+  public createDatabase(): Promise<void>;
+
+  /**
+   * Creates missing database structures for current data model.
+   */
+  public createMissingStructures(): Promise<void>;
+
+  /**
+   * Resets the whole underlying database, re-creating structures, indexes, and such.
+   */
+  public reset(): Promise<void>;
+
+  /**
+   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
+   *
+   * @param foreignIds Foreign ids to check in database.
+   *
+   * @throws If any foreign id does not exist.
+   */
+  public checkForeignIds<Resource extends keyof DataModel & string>(
+    _resource: Resource,
+    foreignIds: Map<string, { resource: keyof DataModel & string; filters: SearchFilters; }>,
+  ): Promise<void>;
+
+  /**
+   * Creates a new resource in database.
+   *
+   * @param resource Type of resource to create.
+   *
+   * @param payload New resource payload.
+   */
+  public create<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    payload: DataModel[Resource],
+  ): Promise<void>;
+
+  /**
+   * Updates resource with id `id` in database.
+   *
+   * @param resource Type of resource to update.
+   *
+   * @param id Resource id.
+   *
+   * @param payload Updated resource payload.
+   *
+   * @returns `true` if resource has been successfully updated, `false` otherwise.
+   */
+  public update<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    payload: Payload<DataModel[Resource]>,
+  ): Promise<boolean>;
+
+  /**
+   * Fetches resource with id `id` from database.
+   *
+   * @param resource Type of resource to fetch.
+   *
+   * @param id Id of the resource to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Resource if it exists, `null` otherwise.
+   */
+  public view<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    options?: ViewCommandOptions,
+  ): Promise<DataModel[Resource] | null>;
+
+  /**
+   * Fetches a paginated list of resources from database, that match specific filters/query.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param body Search/filters body.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  public search<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    body: SearchBody,
+    options?: SearchCommandOptions,
+  ): Promise<Results<DataModel[Resource]>>;
+
+  /**
+   * Fetches a paginated list of resources from database.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  public list<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    options?: ListCommandOptions,
+  ): Promise<Results<DataModel[Resource]>>;
+
+  /**
+   * Deletes resource with id `id` from database.
+   *
+   * @param resource Type of resource to delete.
+   *
+   * @param id Resource id.
+   *
+   * @returns `true` if resource has been successfully deleted, `false` otherwise.
+   */
+  public delete<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+  ): Promise<boolean>;
 }
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/Engine.ts
  */
 export class Engine<
   /** Data model types definitions. */
-  DataModel,
+  DataModel extends DefaultDataModel,
 
   /** Model class types definitions. */
   Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
+  DatabaseClient extends AbstractDatabaseClient<DataModel> = AbstractDatabaseClient<DataModel>,
 > {
   /** Data model. */
   protected model: Model;
@@ -1234,19 +2028,81 @@ export class Engine<
   /** Database client. */
   protected databaseClient: DatabaseClient;
 
-  /** Default update payload, used as a fallback when there is no change to perform on resource. */
-  protected defaultPayload: Partial<Payload<unknown>>;
+  /**
+   * Makes sure that user has all necessary permissions to perform `operation`.
+   *
+   * @param operation Name of the operation to perform.
+   *
+   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
+   *
+   * @param payload Operation payload, if applicable, `null` otherwise.
+   *
+   * @param context Request context.
+   *
+   * @throws If user email address is not yet verified.
+   *
+   * @throws If user is missing any of the required permissions.
+   *
+   * @throws If user account is not verified yet.
+   */
+  protected rbac<Resource extends keyof DataModel & string>(
+    requiredPermissions: Set<string>,
+    existingResource: DataModel[Resource] | null,
+    payload: unknown,
+    context: CommandContext<DataModel>,
+  ): Promise<void>;
+
+  /**
+   * Parses `fields`, making sure they are all valid paths in `resource` data model, transforming
+   * `*` specific statements into the proper list of sub-fields, and checking user permissions for
+   * specific fields.
+   *
+   * @param resource Type of resource for which to parse fields.
+   *
+   * @param fields List of fields to fetch from database.
+   *
+   * @param context Command context.
+   *
+   * @param maximumDepth Maximum allowed level of resources depth. Defaults to `3`.
+   *
+   * @returns List of parsed fields.
+   *
+   * @throws If field path does not exist in data model.
+   *
+   * @throws If maximum level of resources depth is exceeded.
+   *
+   * @throws If user does not have sufficient permissions to access to any of the fields.
+   */
+  protected parseFields<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    fields: Set<string>,
+    maximumDepth?: number,
+  ): {
+    fields: Set<string>;
+    permissions: Set<string>;
+  };
+
+  /**
+   * Returns the list of fields to fetch when retrieving an existing resource for update.
+   *
+   * @param resource Type of resource for which to get existing fields.
+   *
+   * @returns Fields list.
+   */
+  protected getResourceFields<Resource extends keyof DataModel & string>(
+    resource: Resource,
+  ): Set<string>;
 
   /**
    * Returns filters to apply when checking foreign ids referencing other relations.
    *
-   * @param collection Collection for which to return filters.
+   * @param resource Type of resource for which to return filters.
+   *
+   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
    *
    * @param path Path to the relation reference in data model.
    *
    * @param ids List of foreign ids to check.
-   *
-   * @param resource Current resource being updated, if applicable.
    *
    * @param payload Payload for updating or creating resource.
    *
@@ -1254,36 +2110,21 @@ export class Engine<
    *
    * @returns Filters to apply to check foreign ids.
    */
-  protected createRelationFilters<Collection extends keyof DataModel>(
-    collection: Collection,
+  protected getRelationFilters<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    existingResource: DataModel[Resource] | null,
     path: string,
     ids: Id[],
-    payload: UpdatePayload<DataModel[Collection]>,
-    context: CommandContext,
+    payload: UpdatePayload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
   ): SearchFilters;
-
-  /**
-   * Makes sure that foreign ids in `payload` reference existing resources that match specific
-   * conditions.
-   *
-   * @param collection Collection for which to check foreign ids.
-   *
-   * @param payload Payload for updating or creating resource.
-   *
-   * @param context Command context.
-   */
-  protected checkForeignIds<Collection extends keyof DataModel>(
-    collection: Collection,
-    payload: UpdatePayload<DataModel[Collection]>,
-    context: CommandContext,
-  ): Promise<void>;
 
   /**
    * Returns updated `payload` with automatic fields.
    *
-   * @param collection Collection for which to generate automatic fields.
+   * @param resource Type of resource for which to generate automatic fields.
    *
-   * @param resource Current resource being updated, if applicable.
+   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
    *
    * @param payload Payload to update.
    *
@@ -1291,26 +2132,30 @@ export class Engine<
    *
    * @returns Payload with automatic fields.
    */
-  protected withAutomaticFields<Collection extends keyof DataModel>(
-    collection: Collection,
-    payload: Payload<DataModel[Collection]> | UpdatePayload<DataModel[Collection]>,
-    context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
-  ): Promise<DataModel[Collection]>;
+  protected withAutomaticFields<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    existingResource: DataModel[Resource] | null,
+    payload: Payload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]>>;
 
   /**
    * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
    *
-   * @param collection Payload collection.
+   * @param resource Type of resource for which to check and update payload.
+   *
+   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
    *
    * @param payload Payload to validate and update.
    *
    * @param context Command context.
    */
-  protected checkAndUpdatePayload<Collection extends keyof DataModel>(
-    collection: Collection,
-    payload: UpdatePayload<DataModel[Collection]>,
-    context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
-  ): Promise<Partial<DataModel[Collection]>>;
+  protected checkAndUpdatePayload<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    existingResource: DataModel[Resource] | null,
+    payload: Payload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]>>;
 
   /**
    * Class constructor.
@@ -1328,9 +2173,33 @@ export class Engine<
   );
 
   /**
-   * Creates a new resource into `collection`.
+   * Resets the whole system, including database.
+   */
+  public reset(...args: unknown[]): Promise<void>;
+
+  /**
+   * Generates full command context.
    *
-   * @param collection Name of the collection to create resource into.
+   * @param userId Id of the user to populate context with.
+   *
+   * @param deviceId Device id to add to the context.
+   *
+   * @param userAgent User agent to add to the context.
+   *
+   * @returns Generated command context.
+   *
+   * @throws If user does not exist.
+   */
+  public generateContext(
+    userId: Id,
+    deviceId?: string,
+    userAgent?: string,
+  ): Promise<CommandContext<DataModel>>;
+
+  /**
+   * Creates a new resource.
+   *
+   * @param resource Type of resource to create.
    *
    * @param payload New resource payload.
    *
@@ -1340,17 +2209,17 @@ export class Engine<
    *
    * @returns Newly created resource.
    */
-  public create<Collection extends keyof DataModel>(
-    collection: Collection,
-    payload: Payload<DataModel[Collection]>,
-    options: CommandOptions,
-    context: CommandContext,
-  ): Promise<DataModel[Collection]>;
+  public create<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    options: ViewCommandOptions,
+    context: CommandContext<DataModel>,
+  ): Promise<DataModel[Resource]>;
 
   /**
-   * Updates resource with id `id` from `collection`.
+   * Updates resource with id `id`.
    *
-   * @param collection Name of the collection to update resource from.
+   * @param resource Type of resource to update.
    *
    * @param id Resource id.
    *
@@ -1364,85 +2233,91 @@ export class Engine<
    *
    * @throws If resource does not exist or has been deleted.
    */
-  public update<Collection extends keyof DataModel>(
-    collection: Collection,
+  public update<Resource extends keyof DataModel & string>(
+    resource: Resource,
     id: Id,
-    payload: UpdatePayload<DataModel[Collection]>,
-    options: CommandOptions,
-    context: CommandContext,
-  ): Promise<DataModel[Collection]>;
+    payload: UpdatePayload<DataModel[Resource]>,
+    options: ViewCommandOptions,
+    context: CommandContext<DataModel>,
+  ): Promise<DataModel[Resource]>;
 
   /**
-   * Fetches resource with id `id` from `collection`.
+   * Fetches resource with id `id`.
    *
-   * @param collection Name of the collection to fetch resource from.
+   * @param resource Type of resource to fetch.
    *
    * @param id Resource id.
    *
    * @param options Command options.
+   *
+   * @param context Command context.
    *
    * @returns Resource, if it exists.
    *
    * @throws If resource does not exist or has been deleted.
    */
-  public view<Collection extends keyof DataModel>(
-    collection: Collection,
+  public view<Resource extends keyof DataModel & string>(
+    resource: Resource,
     id: Id,
-    options: CommandOptions,
-  ): Promise<DataModel[Collection]>;
+    options: ViewCommandOptions,
+    context: CommandContext<DataModel>,
+  ): Promise<DataModel[Resource]>;
 
   /**
-   * Fetches a paginated list of resources from `collection`.
+   * Fetches a paginated list of resources.
    *
-   * @param collection Name of the collection to fetch resources from.
+   * @param resource Type of resources to fetch.
    *
    * @param options Command options.
    *
+   * @param context Command context.
+   *
    * @returns Paginated list of resources.
    */
-  public list<Collection extends keyof DataModel>(
-    collection: Collection,
-    options: CommandOptions,
-  ): Promise<Results<DataModel[Collection]>>;
+  public list<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    options: ListCommandOptions,
+    context: CommandContext<DataModel>,
+  ): Promise<Results<DataModel[Resource]>>;
 
   /**
-   * Fetches a paginated list of resources from `collection` according to given search options.
+   * Fetches a paginated list of resources matching `searchBody` constraints.
    *
-   * @param collection Name of the collection to fetch resources from.
+   * @param resource Type of resources to fetch.
    *
-   * @param search Search options (filters, text query) to filter resources with.
+   * @param searchBody Search body (filters, text query) to filter resources with.
    *
    * @param options Command options.
    *
+   * @param context Command context.
+   *
    * @returns Paginated list of resources.
    */
-  public search<Collection extends keyof DataModel>(
-    collection: Collection,
-    search: SearchBody,
-    options: CommandOptions,
-  ): Promise<Results<DataModel[Collection]>>;
+  public search<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    searchBody: SearchBody,
+    options: SearchCommandOptions,
+    context: CommandContext<DataModel>,
+  ): Promise<Results<DataModel[Resource]>>;
 
   /**
-   * Deletes resource with id `id` from `collection`.
+   * Deletes resource with id `id`.
    *
-   * @param collection Name of the collection to delete resource from.
+   * @param resource Type of resource to delete.
    *
    * @param id Resource id.
    *
    * @param context Command context.
    *
+   * @param context Command context.
+   *
    * @throws If resource does not exist or has been deleted.
    */
-  public delete<Collection extends keyof DataModel>(
-    collection: Collection,
+  public delete<Resource extends keyof DataModel & string>(
+    resource: Resource,
     id: Id,
-    context: CommandContext,
+    context: CommandContext<DataModel>,
   ): Promise<void>;
-
-  /**
-   * Resets the whole system, including database.
-   */
-  public reset(...args: unknown[]): Promise<void>;
 }
 
 /**
@@ -1493,6 +2368,8 @@ export interface UsersEngineSettings {
 
 /**
  * Perseid engine extended with auth-related methods.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/UsersEngine.ts
  */
 export class UsersEngine<
   /** Data model types definitions. */
@@ -1502,7 +2379,7 @@ export class UsersEngine<
   Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 
   /** Database client types definition. */
-  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
+  DatabaseClient extends AbstractDatabaseClient<DataModel> = AbstractDatabaseClient<DataModel>,
 > extends Engine<DataModel, Model, DatabaseClient> {
   /** Default duration before a refresh token expires. */
   protected readonly REFRESH_TOKEN_DURATION: number; // 30 days.
@@ -1532,19 +2409,42 @@ export class UsersEngine<
   ): Credentials;
 
   /**
+   * Returns updated `payload` with automatic fields.
+   *
+   * @param resource Type of resource for which to generate automatic fields.
+   *
+   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
+   *
+   * @param payload Payload to update.
+   *
+   * @param context Command context.
+   *
+   * @returns Payload with automatic fields.
+   */
+  protected withAutomaticFields<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    existingResource: DataModel[Resource] | null,
+    payload: Payload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]>>;
+
+  /**
    * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
    *
-   * @param collection Payload collection.
+   * @param resource Type of resource for which to check and update payload.
+   *
+   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
    *
    * @param payload Payload to validate and update.
    *
    * @param context Command context.
    */
-  protected checkAndUpdatePayload<Collection extends keyof DataModel>(
-    collection: Collection,
-    payload: UpdatePayload<DataModel[Collection]>,
-    context: CommandContext & { mode: 'CREATE' | 'UPDATE' },
-  ): Promise<Partial<DataModel[Collection]>>;
+  protected checkAndUpdatePayload<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    existingResource: DataModel[Resource] | null,
+    payload: Payload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]>>;
 
   /**
    * Class constructor.
@@ -1571,9 +2471,18 @@ export class UsersEngine<
   );
 
   /**
-   * Creates a new resource into `collection`.
+   * Resets the whole system, including database, and re-creates root role and user.
    *
-   * @param collection Name of the collection to create resource into.
+   * @param rootEmail Email to use for root user.
+   *
+   * @param rootPassword Password to use for root user.
+   */
+  public reset(rootEmail: string, rootPassword: string): Promise<void>;
+
+  /**
+   * Creates a new resource.
+   *
+   * @param resource Type of resource to create.
    *
    * @param payload New resource payload.
    *
@@ -1583,12 +2492,21 @@ export class UsersEngine<
    *
    * @returns Newly created resource.
    */
-  public create<Collection extends keyof DataModel>(
-    collection: Collection,
-    payload: Payload<DataModel[Collection]>,
-    options: CommandOptions,
-    context: CommandContext,
-  ): Promise<DataModel[Collection]>;
+  public create<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    options: ViewCommandOptions,
+    context: CommandContext<DataModel>,
+  ): Promise<DataModel[Resource]>;
+
+  /**
+   * Fetches information about current user.
+   *
+   * @param context Command context.
+   *
+   * @returns User information.
+   */
+  public viewMe(context: CommandContext<DataModel>): Promise<DataModel['users']>;
 
   /**
    * Verifies `accessToken` validity.
@@ -1606,7 +2524,7 @@ export class UsersEngine<
   public verifyToken(
     accessToken: string,
     ignoreExpiration: boolean,
-    context: CommandContext,
+    context: CommandContext<DataModel>,
   ): Promise<Id>;
 
   /**
@@ -1628,7 +2546,7 @@ export class UsersEngine<
     email: DataModel['users']['email'],
     password: DataModel['users']['password'],
     passwordConfirmation: DataModel['users']['password'],
-    context: CommandContext,
+    context: CommandContext<DataModel>,
   ): Promise<Credentials>;
 
   /**
@@ -1649,7 +2567,7 @@ export class UsersEngine<
   public signIn(
     email: string,
     password: string,
-    context: CommandContext,
+    context: Omit<CommandContext<DataModel>, 'user'>,
   ): Promise<Credentials>;
 
   /**
@@ -1659,7 +2577,7 @@ export class UsersEngine<
    *
    * @throws If user email is already verified.
    */
-  public requestEmailVerification(context: CommandContext): Promise<void>;
+  public requestEmailVerification(context: CommandContext<DataModel>): Promise<void>;
 
   /**
    * Verifies email of the connected user.
@@ -1670,7 +2588,10 @@ export class UsersEngine<
    *
    * @throws If verification token is not valid.
    */
-  public verifyEmail(verificationToken: string, context: CommandContext): Promise<void>;
+  public verifyEmail(
+    verificationToken: string,
+    context: CommandContext<DataModel>,
+  ): Promise<void>;
 
   /**
    * Sends a new password reset email to user with email `email`.
@@ -1711,233 +2632,20 @@ export class UsersEngine<
    *
    * @throws If refresh token is invalid.
    */
-  public refreshToken(refreshToken: string, context: CommandContext): Promise<Credentials>;
+  public refreshToken(
+    refreshToken: string,
+    context: CommandContext<DataModel>,
+  ): Promise<Credentials>;
 
   /**
    * Signs connected user out.
    *
    * @param context Command context.
    */
-  public signOut(context: CommandContext): Promise<void>;
-
-  /**
-   * Resets the whole system, including database, and re-creates root role and user.
-   *
-   * @param rootEmail Email to use for root user.
-   *
-   * @param rootPassword Password to use for root user.
-   */
-  public reset(rootEmail: string, rootPassword: string): Promise<void>;
+  public signOut(context: CommandContext<DataModel>): Promise<void>;
 }
 
-/** Built-in endpoint type. */
-export type EndpointType = 'search' | 'view' | 'list' | 'create' | 'update' | 'delete';
-
-/** Built-in endpoints to register for a specific collection. */
-export type CollectionBuiltInEndpoints = Partial<Record<EndpointType, BuiltInEndpoint>>;
-
-/** Build-in endpoint configuration. */
-export interface BuiltInEndpoint {
-  /** API route for this endpoint. */
-  path: string;
-
-  /** Maximum allowed level of resources depth for this endpoint. */
-  maximumDepth?: number;
-}
-
-/** List of all available built-in endpoints. */
-export interface BuiltInEndpoints<DataModel> {
-  auth: {
-    signUp?: BuiltInEndpoint;
-    signIn?: BuiltInEndpoint;
-    signOut?: BuiltInEndpoint;
-    verifyEmail?: BuiltInEndpoint;
-    refreshToken?: BuiltInEndpoint;
-    resetPassword?: BuiltInEndpoint;
-    requestPasswordReset?: BuiltInEndpoint;
-    requestEmailVerification?: BuiltInEndpoint;
-  };
-  collections: Partial<Record<keyof DataModel, CollectionBuiltInEndpoints>>;
-}
-
-/**
- * Controller settings.
- */
-export interface ControllerSettings<DataModel> {
-  /** Release version. Will be sent back along with responses through the "X-Api-Version" header. */
-  version: string;
-
-  /** List of built-in endpoints to register. */
-  endpoints: BuiltInEndpoints<DataModel>;
-}
-
-/**
- * Handles REST API calls.
- */
-export class Controller<
-  /** Data model types definitions. */
-  DataModel extends DefaultDataModel = DefaultDataModel,
-
-  /** Model class types definitions. */
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
-
-  /** Database client types definition. */
-  Engine extends UsersEngine<DataModel> = UsersEngine<DataModel>,
-> {
-  /** Expired token error code. */
-  protected readonly TOKEN_EXPIRED_CODE = 'TOKEN_EXPIRED';
-
-  /** User not verified error code. */
-  protected readonly NOT_VERIFIED_CODE = 'NOT_VERIFIED';
-
-  /** Default value for requested fields. */
-  protected readonly DEFAULT_REQUESTED_FIELDS: string[];
-
-  /** Data model to use. */
-  protected model: Model;
-
-  /** Logging system to use. */
-  protected logger: Logger;
-
-  /** Engine to use. */
-  protected engine: Engine;
-
-  /** Release version. Will be sent back along with responses through the "X-Api-Version" header. */
-  protected version: string;
-
-  /** List of built-in endpoints to register. */
-  protected endpoints: BuiltInEndpoints<DataModel>;
-
-  /** Parses `value` into an integer. */
-  protected parseInt: (value: string) => number;
-
-  /**
-   * Checks if all `requestedFields` are allowed to be fetched.
-   *
-   * @param requestedFields List of requested fields to check.
-   *
-   * @param allowedFields List of allowed fields.
-   *
-   * @returns  `true` if every requested field is present in `allowedFields`, `false` otherwise.
-   */
-  protected isAllowedToFetch(
-    requestedFields: Set<string> | undefined,
-    allowedFields: Set<string>,
-  ): boolean;
-
-  /**
-   * Formats `output` to match fastify data types specifications.
-   *
-   * @param output Output to format.
-   *
-   * @returns Formatted output.
-   */
-  protected formatOutput(output: unknown): unknown;
-
-  /**
-   * Generates the requested fields tree from `fields`.
-   *
-   * @param collection Requested collection.
-   *
-   * @param fields List of requested fields.
-   *
-   * @return Requested fields tree and collections.
-   */
-  protected generateFieldsTreeFrom(
-    collection: keyof DataModel | undefined,
-    fields: string[],
-  ): { requestedFieldsTree: FieldsTree; requestedCollections: Set<string>; };
-
-  /**
-   * Parses `query`. Built-in query params (`fields`, `sortBy`, `sortOrder`, `limit`, `offset`) will
-   * be correctly formatted to match engine / database client specifications. Other (custom) params
-   * will be left as is.
-   *
-   * @param query Request query params.
-   *
-   * @returns Parsed query params.
-   */
-  protected parseQuery(query: Record<string, string | null>): {
-    fields?: string[];
-    sortBy?: string[];
-    sortOrder?: number[];
-    [key: string]: unknown;
-  };
-
-  /**
-   * Parses search `body`.
-   *
-   * @param collection Requested collection.
-   *
-   * @param body Search body to parse.
-   *
-   * @returns Parsed search body.
-   */
-  protected parseSearchBody(
-    collection: keyof DataModel,
-    body: SearchBody,
-  ): SearchBody;
-
-  /**
-   * Catches and handles most common API errors thrown by `callback`.
-   *
-   * @param callback Callback to wrap.
-   *
-   * @returns Wrapped callback.
-   */
-  protected catchErrors<T>(callback: () => Promise<T>): Promise<T>;
-
-  /**
-   * Checks that user has all necessary permissions to perform the given operation.
-   *
-   * @param payload Request payload, if applicable.
-   *
-   * @param options Request options.
-   *
-   * @param context Request context.
-   *
-   * @throws If user email address is not yet verified.
-   *
-   * @throws If user is missing any of the required permissions.
-   */
-  protected rbac(payload: unknown, _options: CommandOptions, context: CommandContext & {
-    id?: Id | 'me';
-    permissions: Set<string>;
-    collection?: keyof DataModel;
-    requestedFieldsTree: FieldsTree;
-    requestedCollections: Set<string>;
-    type?: 'SEARCH' | 'LIST' | 'CREATE' | 'UPDATE' | 'VIEW' | 'DELETE';
-  }): void;
-
-  /**
-   * Class constructor.
-   *
-   * @param model Data model to use.
-   *
-   * @param logger Logging system to use.
-   *
-   * @param engine Engine to use.
-   *
-   * @param settings Controller settings.
-   */
-  public constructor(
-    model: Model,
-    logger: Logger,
-    engine: Engine,
-    settings: ControllerSettings<DataModel>,
-  );
-}
-
-/**
- * API validation schema.
- */
-export interface ModelSchema<DataModel> {
-  body?: FieldSchema<DataModel>;
-  query?: FieldSchema<DataModel>;
-  params?: FieldSchema<DataModel>;
-  headers?: FieldSchema<DataModel>;
-  response?: Record<string, FieldSchema<DataModel>>;
-}
+interface Validate { errors: { keyword: string; }[]; }
 
 /**
  * Uploaded file.
@@ -1966,14 +2674,93 @@ export interface FormDataOptions {
   allowedMimeTypes?: string[];
 }
 
+/** Built-in endpoint type. */
+export type EndpointType = 'search' | 'view' | 'list' | 'create' | 'update' | 'delete';
+
+/** Build-in endpoint configuration. */
+export interface BuiltInEndpoint {
+  /** API route for this endpoint. */
+  path: string;
+
+  /** Maximum allowed level of resources depth for this endpoint. */
+  maximumDepth?: number;
+}
+
 /**
- * Ajv validation error.
+ * Custom endpoint configuration.
  */
-export interface ValidationError {
-  keyword?: string;
-  message?: string;
-  instancePath?: string;
-  params?: Record<string, unknown>;
+export interface CustomEndpoint<DataModel extends DefaultDataModel> {
+  /** Whether to authenticate user for that endpoint. */
+  authenticate?: boolean;
+
+  /**
+   * Whether to ignore access token expiration. Useful for endpoints like refresh token.
+   * Defaults to `false`.
+   */
+  ignoreExpiration?: boolean;
+
+  /**
+   * Request body model schema, for data validation.
+   */
+  body?: {
+    /** Whether to allow partial payloads, or require all fields. */
+    allowPartial?: boolean;
+
+    /** Body fields schemas. */
+    fields: Record<string, FieldSchema<DataModel>>;
+  };
+
+  /**
+   * Request query model schema, for data validation.
+   */
+  query?: {
+    /** Whether to allow partial payloads, or require all fields. */
+    allowPartial?: boolean;
+
+    /** Query fields schemas. */
+    fields: Record<string, FieldSchema<DataModel>>;
+  };
+
+  /**
+   * Request headers model schema, for data validation.
+   */
+  headers?: {
+    /** Whether to allow partial payloads, or require all fields. */
+    allowPartial?: boolean;
+
+    /** Headers fields schemas. */
+    fields: Record<string, FieldSchema<DataModel>>;
+  };
+
+  /**
+   * Request params model schema, for data validation.
+   */
+  params?: {
+    /** Whether to allow partial payloads, or require all fields. */
+    allowPartial?: boolean;
+
+    /** Params fields schemas. */
+    fields: Record<string, FieldSchema<DataModel>>;
+  };
+}
+
+/** Built-in endpoints to register for a specific resource type. */
+export type ResourceBuiltInEndpoints = Partial<Record<EndpointType, BuiltInEndpoint>>;
+
+/** List of all available built-in endpoints. */
+export interface BuiltInEndpoints<DataModel> {
+  auth: {
+    signUp?: BuiltInEndpoint;
+    signIn?: BuiltInEndpoint;
+    viewMe?: BuiltInEndpoint;
+    signOut?: BuiltInEndpoint;
+    verifyEmail?: BuiltInEndpoint;
+    refreshToken?: BuiltInEndpoint;
+    resetPassword?: BuiltInEndpoint;
+    requestPasswordReset?: BuiltInEndpoint;
+    requestEmailVerification?: BuiltInEndpoint;
+  };
+  resources: Partial<Record<keyof DataModel, ResourceBuiltInEndpoints>>;
 }
 
 /**
@@ -2014,56 +2801,25 @@ export interface AjvValidationSchema {
 }
 
 /**
- * Perseid data model to Ajv validation schema formatters.
+ * Controller settings.
  */
-export type AjvFormatters<DataModel> = Record<string, (
-  model: FieldSchema<DataModel>,
-  mode: 'RESPONSE' | 'CREATE' | 'UPDATE'
-) => AjvValidationSchema>;
+export interface ControllerSettings<DataModel> {
+  /** Release version. Will be sent back along with responses through the "X-Api-Version" header. */
+  version: string;
 
-/**
- * Custom endpoint configuration.
- */
-export interface EndpointSettings<DataModel> {
-  /** Whether to authenticate user for that endpoint. */
-  authenticate?: boolean;
+  /** List of built-in endpoints to register. */
+  endpoints: BuiltInEndpoints<DataModel>;
 
-  /** Name of the collection for which to generate the endpoint, if applicable. */
-  collection?: keyof DataModel;
-
-  /** Whether to ignore access token expiration. Useful for endpoints like refresh token. */
-  ignoreExpiration?: boolean;
-
-  /** Additional permissions to check for that endpoint. */
-  additionalPermissions?: string[];
-
-  /** API validation schema for that endpoint. */
-  schema?: ModelSchema<DataModel>;
-
-  /** Endpoint type, if applicable. Use in combination with `collection`. */
-  type?: 'SEARCH' | 'LIST' | 'CREATE' | 'UPDATE' | 'VIEW' | 'DELETE';
-
-  /** Optional transformation function to apply to generated Ajv schema. */
-  schemaTransformer?: (schema: FastifySchema) => FastifySchema;
-
-  /** Actual endpoint handler. */
-  handler: (request: FastifyRequest, response: FastifyReply) => Promise<void>;
-}
-
-/**
- * Fastify controller settings.
- */
-export interface FastifyControllerSettings<
-  DataModel extends DefaultDataModel = DefaultDataModel
-> extends ControllerSettings<DataModel> {
   /** Whether to automatically handle CORS (usually in development mode). */
   handleCORS: boolean;
 }
 
 /**
- * API controller, designed for Fastify framework.
+ * Abstract controller, to use as a blueprint for framework-specific implementations.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/Controller.ts
  */
-export class FastifyController<
+export class Controller<
   /** Data model types definitions. */
   DataModel extends DefaultDataModel = DefaultDataModel,
 
@@ -2072,55 +2828,105 @@ export class FastifyController<
 
   /** Database client types definition. */
   Engine extends UsersEngine<DataModel> = UsersEngine<DataModel>,
-> extends Controller<DataModel, Model, Engine> {
+> {
   /** HTTP 404 error code. */
-  protected readonly NOT_FOUND_CODE = 'NOT_FOUND';
+  protected readonly NOT_FOUND_CODE: string;
 
-  /** Invalid payload error code. */
-  protected readonly INVALID_PAYLOAD_CODE = 'INVALID_PAYLOAD';
+  /** `fields` built-in query param schema. */
+  protected readonly FIELDS_QUERY_PARAM_SCHEMA: StringSchema;
+
+  /** `limit` built-in query param schema. */
+  protected readonly LIMIT_QUERY_PARAM_SCHEMA: NumberSchema;
+
+  /** `offset` built-in query param schema. */
+  protected readonly OFFSET_QUERY_PARAM_SCHEMA: NumberSchema;
+
+  /** `sortBy` built-in query param schema. */
+  protected readonly SORT_BY_QUERY_PARAM_SCHEMA: StringSchema;
+
+  /** `sortOrder` built-in query param schema. */
+  protected readonly SORT_ORDER_QUERY_PARAM_SCHEMA: StringSchema;
 
   /** List of special Ajv keywords, used to format special types on the fly. */
-  protected readonly KEYWORDS: KeywordDefinition[];
+  protected readonly AJV_KEYWORDS: KeywordDefinition[];
 
-  /** List of formatters, used to format a perseid data model into its Ajv equivalent. */
-  protected readonly FORMATTERS: AjvFormatters<DataModel>;
+  /** List of Ajv formatters, used to format a perseid data model into its Ajv equivalent. */
+  protected readonly AJV_FORMATTERS: Record<string, (
+    model: FieldSchema<DataModel>,
+    requireAllFields: boolean,
+  ) => AjvValidationSchema>;
+
+  /** Data model to use. */
+  protected model: Model;
+
+  /** Logging system to use. */
+  protected logger: Logger;
+
+  /** Engine to use. */
+  protected engine: Engine;
+
+  /** Release version. Will be sent back along with responses through the "X-Api-Version" header. */
+  protected version: string;
+
+  /** List of built-in endpoints to register. */
+  protected endpoints: BuiltInEndpoints<DataModel>;
+
+  /** Parses `value` into an integer. */
+  protected parseInt: (value: string) => number;
+
+  /** Used to format ArrayBuffers into strings. */
+  protected textDecoder: TextDecoder;
 
   /** Increment used for `multipart/form-data` payloads parsing. */
   protected increment: number;
 
+  /** Ajv instance for payloads validation. */
+  protected ajv: Ajv;
+
   /** Whether to automatically handle CORS (usually in development mode). */
   protected handleCORS: boolean;
 
-  /** Built-in API handlers for auth-related endpoints. */
-  protected apiHandlers: Record<string, EndpointSettings<DataModel>>;
-
   /**
-   * Creates an Ajv validation schema from `schema`.
-   *
-   * @param schema Schema from which to create validation schema.
-   *
-   * @param mode Which mode (creation / update) is intended for schema generation.
-   *
-   * @param transfomer Optional transformation function to apply to generated Ajv schema.
-   *
-   * @returns Ajv validation schema.
+   * Handles HTTP 404 errors.
    */
-  protected createSchema(
-    schema: ModelSchema<DataModel>,
-    mode: 'CREATE' | 'UPDATE',
-    transformer?: (finalSchema: FastifySchema) => FastifySchema,
-  ): FastifySchema;
+  protected handleNotFound(): void;
 
   /**
    * Formats `error`.
    *
    * @param error Error to format.
    *
-   * @param dataVar Additional info to format error with.
+   * @param payloadType Type of payload that failed validation.
    *
    * @returns Formatted error.
    */
-  protected formatError(error: ValidationError[], dataVar: string): Error;
+  protected formatError(error: unknown, payloadType: string): BadRequest;
+
+  /**
+   * Formats `output` to match fastify data types specifications.
+   *
+   * @param output Output to format.
+   *
+   * @returns Formatted output.
+   */
+  protected formatOutput(output: unknown): unknown;
+
+  /**
+   * Parses `query`. Built-in query params (`fields`, `sortBy`, `sortOrder`, `limit`, `offset`) will
+   * be correctly formatted to match engine / database client specifications. Other (custom) params
+   * will be left as is.
+   *
+   * @param query Request query params.
+   *
+   * @returns Parsed query params.
+   *
+   * @throws If `query.sortBy` and `query.sortOrders` sizes do not match.
+   */
+  protected parseQuery(query: Record<string, string | null>): {
+    fields?: string[];
+    sortBy?: Record<string, 1 | -1>
+    [key: string]: unknown;
+  };
 
   /**
    * Parses `multipart/form-data` payload, and returns its data.
@@ -2141,26 +2947,6 @@ export class FastifyController<
   ): Promise<FormDataFields>;
 
   /**
-   * Handles HTTP 404 errors.
-   */
-  protected handleNotFound(): void;
-
-  /**
-   * Handles thrown errors and formats a clean HTTP response.
-   *
-   * @param error Error thrown by fastify.
-   *
-   * @param request Fastify request.
-   *
-   * @param response Fastify response.
-   */
-  protected handleError(
-    error: FastifyError,
-    request: FastifyRequest,
-    response: FastifyReply,
-  ): Promise<void>
-
-  /**
    * Verifies `accessToken` and `deviceId` to authenticate a user.
    *
    * @param accessToken Access token to verify.
@@ -2177,7 +2963,16 @@ export class FastifyController<
     accessToken: string,
     deviceId: string,
     ignoreExpiration?: boolean,
-  ): Promise<User>;
+  ): Promise<DataModel['users']>;
+
+  /**
+   * Catches and handles most common API errors thrown by `callback`.
+   *
+   * @param callback Callback to wrap.
+   *
+   * @returns Wrapped callback.
+   */
+  protected catchErrors<T>(callback: () => Promise<T>): Promise<T>;
 
   /**
    * Class constructor.
@@ -2194,8 +2989,116 @@ export class FastifyController<
     model: Model,
     logger: Logger,
     engine: Engine,
-    settings: FastifyControllerSettings<DataModel>,
+    settings: ControllerSettings<DataModel>,
   );
+}
+
+/**
+ * Custom endpoint configuration.
+ */
+export interface ExpressCustomEndpoint<
+  DataModel extends DefaultDataModel
+> extends CustomEndpoint<DataModel> {
+  /** Actual endpoint handler. */
+  handler: (request: Request, response: Response) => Promise<void>;
+}
+
+/**
+ * API controller, designed for Express framework.
+ */
+export class ExpressController<
+  /** Data model types definitions. */
+  DataModel extends DefaultDataModel = DefaultDataModel,
+
+  /** Model class types definitions. */
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+
+  /** Database client types definition. */
+  Engine extends UsersEngine<DataModel> = UsersEngine<DataModel>,
+> extends Controller<DataModel, Model, Engine> {
+  /** Built-in API handlers for auth-related endpoints. */
+  protected apiHandlers: Record<string, ExpressCustomEndpoint<DataModel>>;
+
+  /**
+   * Handles thrown errors and formats a clean HTTP response.
+   *
+   * @param error Error thrown by express.
+   *
+   * @param request Express request.
+   *
+   * @param response Express response.
+   */
+  protected handleError(
+    error: unknown,
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ): void;
+
+  /**
+   * Creates a new express endpoint from `settings`.
+   *
+   * @param settings Endpoint configuration.
+   *
+   * @returns Express endpoint to register.
+   */
+  public createEndpoint(settings: ExpressCustomEndpoint<DataModel>): {
+    handler: RequestHandler;
+  };
+
+  /**
+   * Registers hooks, handlers, auth and CRUD-related endpoints to `instance`.
+   *
+   * @param instance Express instance to register endpoints and hooks to.
+   *
+   * @param options Additional options to pass to express `register` function.
+   */
+  public createEndpoints(
+    instance: Application,
+    options?: { prefix?: string; },
+  ): Promise<void>;
+}
+
+/**
+ * Custom endpoint configuration.
+ */
+export interface FastifyCustomEndpoint<
+  DataModel extends DefaultDataModel
+> extends CustomEndpoint<DataModel> {
+  /** Actual endpoint handler. */
+  handler: (request: FastifyRequest, response: FastifyReply) => Promise<void>;
+}
+
+/**
+ * API controller, designed for Fastify framework.
+ */
+export class FastifyController<
+  /** Data model types definitions. */
+  DataModel extends DefaultDataModel = DefaultDataModel,
+
+  /** Model class types definitions. */
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+
+  /** Database client types definition. */
+  Engine extends UsersEngine<DataModel> = UsersEngine<DataModel>,
+> extends Controller<DataModel, Model, Engine> {
+  /** Built-in API handlers for auth-related endpoints. */
+  protected apiHandlers: Record<string, FastifyCustomEndpoint<DataModel>>;
+
+  /**
+   * Handles thrown errors and formats a clean HTTP response.
+   *
+   * @param error Error thrown by fastify.
+   *
+   * @param request Fastify request.
+   *
+   * @param response Fastify response.
+   */
+  protected handleError(
+    error: FastifyError,
+    request: FastifyRequest,
+    response: FastifyReply,
+  ): Promise<void>;
 
   /**
    * Creates a new fastify endpoint from `settings`.
@@ -2204,9 +3107,8 @@ export class FastifyController<
    *
    * @returns Fastify endpoint to register.
    */
-  public createEndpoint(settings: EndpointSettings<DataModel>): {
+  public createEndpoint(settings: FastifyCustomEndpoint<DataModel>): {
     handler: (request: FastifyRequest, response: FastifyReply) => Promise<void>;
-    schema: FastifySchema;
   };
 
   /**
@@ -2218,6 +3120,6 @@ export class FastifyController<
    */
   public createEndpoints(
     instance: FastifyInstance,
-    options?: RegisterOptions
+    options?: { prefix?: string; },
   ): Promise<void>;
 }

@@ -9,13 +9,13 @@
 import { Id } from '@perseid/core';
 
 /**
- * `services/DatabaseClient` mock.
+ * `services/MongoDatabaseClient` mock.
  */
 
 export default class {
-  public create = vi.fn(() => ({ _id: new Id('64723318e84f943f1ad6578b') }));
+  public create = vi.fn(() => ({ _id: new Id('000000000000000000000004') }));
 
-  public update = vi.fn();
+  public update = vi.fn(() => (process.env.NO_RESULT !== 'true'));
 
   public reset = vi.fn();
 
@@ -27,9 +27,15 @@ export default class {
 
   public view = vi.fn(() => ((process.env.NO_RESULT === 'true')
     ? null
-    : ({ _id: new Id('64723318e84f943f1ad6578b') })));
+    : ({
+      _id: new Id('000000000000000000000001'),
+      roles: [{
+        name: 'TEST',
+        permissions: ['TEST'],
+      }],
+    })));
 
-  public delete = vi.fn(() => process.env.NO_RESULT !== 'true');
+  public delete = vi.fn(() => (process.env.NO_RESULT !== 'true'));
 
   public search = vi.fn((collection) => {
     if (process.env.NO_RESULT === 'true') {
@@ -40,9 +46,9 @@ export default class {
         total: 1,
         results: [
           {
-            _id: new Id('64723318e84f943f1ad6578b'),
+            _id: new Id('000000000000000000000001'),
             _devices: [{
-              id: '64723318e84f943f1ad6578c',
+              _id: '000000000000000000000009',
             }],
           },
         ],
@@ -52,9 +58,9 @@ export default class {
       total: 1,
       results: [
         {
-          _id: new Id('64723318e84f943f1ad6578b'),
+          _id: new Id('000000000000000000000001'),
           _devices: [{
-            id: '64723318e84f943f1ad6578c',
+            _id: '000000000000000000000009',
           }],
         },
       ],
@@ -67,9 +73,9 @@ export default class {
         total: 1,
         results: [
           {
-            _id: new Id('64723318e84f943f1ad6578b'),
+            _id: new Id('000000000000000000000001'),
             _devices: [{
-              id: 'test',
+              _id: 'test',
             }],
           },
         ],
@@ -79,9 +85,9 @@ export default class {
       total: 1,
       results: [
         {
-          _id: new Id('64723318e84f943f1ad6578b'),
+          _id: new Id('000000000000000000000001'),
           _devices: [{
-            id: 'test',
+            _id: 'test',
           }],
         },
       ],
