@@ -10,13 +10,21 @@ import Profiler from 'scripts/services/Profiler';
 
 describe('services/Profiler', () => {
   vi.setSystemTime(new Date(2022, 0, 1));
-  vi.spyOn(process, 'memoryUsage').mockImplementation(() => ({
+  const memoryUsage = (): {
+    rss: number;
+    heapUsed: number;
+    external: number;
+    heapTotal: number;
+    arrayBuffers: number;
+  } => ({
     heapUsed: 10 * 1024 * 1024,
     rss: 0,
     external: 0,
     heapTotal: 0,
     arrayBuffers: 0,
-  }));
+  });
+  memoryUsage.rss = vi.fn();
+  vi.spyOn(process, 'memoryUsage').mockImplementation(memoryUsage);
   vi.mock('os', () => ({
     cpus: vi.fn(() => [{
       model: '',

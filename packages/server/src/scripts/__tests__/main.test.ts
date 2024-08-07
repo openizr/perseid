@@ -20,8 +20,11 @@ describe('main', () => {
   vi.mock('scripts/services/UsersEngine');
   vi.mock('scripts/services/EmailClient');
   vi.mock('scripts/services/BucketClient');
-  vi.mock('scripts/services/DatabaseClient');
   vi.mock('scripts/services/FastifyController');
+  vi.mock('scripts/services/ExpressController');
+  vi.mock('scripts/services/MongoDatabaseClient');
+  vi.mock('scripts/services/MySQLDatabaseClient');
+  vi.mock('scripts/services/AbstractDatabaseClient');
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,9 +32,6 @@ describe('main', () => {
 
   test('correctly exports library', () => {
     expect(Object.keys(exports)).toEqual([
-      'Id',
-      'deepMerge',
-      'toSnakeCase',
       'Model',
       'Logger',
       'Engine',
@@ -39,7 +39,6 @@ describe('main', () => {
       'Controller',
       'UsersEngine',
       'BucketClient',
-      'FastifyController',
       'RequestEntityTooLarge',
       'BadRequest',
       'Gone',
@@ -49,12 +48,17 @@ describe('main', () => {
       'NotFound',
       'Forbidden',
       'Unauthorized',
-      'DatabaseClient',
+      'FastifyController',
+      'ExpressController',
+      'AbstractDatabaseClient',
       'EmailClient',
       'CacheClient',
       'NotAcceptable',
       'TooManyRequests',
       'UnprocessableEntity',
+      'MySQLDatabaseClient',
+      'PostgreSQLDatabaseClient',
+      'MongoDatabaseClient',
     ]);
   });
 });

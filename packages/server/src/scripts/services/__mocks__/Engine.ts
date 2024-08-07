@@ -6,11 +6,10 @@
  *
  */
 
-import { type Document } from 'mongodb';
 import type Model from 'scripts/services/Model';
 import type Logger from 'scripts/services/Logger';
-import type DatabaseClient from 'scripts/services/DatabaseClient';
-import { type DefaultDataModel, type User, Id } from '@perseid/core';
+import { type DefaultDataModel, Id } from '@perseid/core';
+import type DatabaseClient from 'scripts/services/AbstractDatabaseClient';
 
 /**
  * `services/Engine` mock.
@@ -27,25 +26,30 @@ export default class {
 
   protected automaticFieldValue = new Date('2023-01-01');
 
+  protected VALIDATORS = {
+    string: vi.fn(() => null),
+  };
+
   protected checkAndUpdatePayload(
-    _collection: string,
-    payload: Document,
-  ): Document {
-    return { _updatedAt: this.automaticFieldValue, ...payload };
+    _resource: string,
+    _existingResource: unknown,
+    payload: unknown,
+  ): unknown {
+    return { _updatedAt: this.automaticFieldValue, ...payload as Record<string, unknown> };
   }
 
-  protected withAutomaticFields(payload: Document): Document {
-    return { ...payload, _updatedAt: this.automaticFieldValue };
+  protected withAutomaticFields(_: unknown, __: unknown, payload: unknown): unknown {
+    return { ...payload as Record<string, unknown>, _updatedAt: this.automaticFieldValue };
   }
 
   protected async create(
-    collection: keyof DefaultDataModel,
-    payload: User,
-  ): Promise<Document> {
-    await this.databaseClient.create(collection, payload);
+    resource: keyof DefaultDataModel,
+    payload: DefaultDataModel['users'],
+  ): Promise<unknown> {
+    await this.databaseClient.create(resource, payload);
     return {
       ...payload,
-      _id: new Id('64723318e84f943f1ad6578b'),
+      _id: new Id('000000000000000000000001'),
       _updatedAt: this.automaticFieldValue,
     };
   }

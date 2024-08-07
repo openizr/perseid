@@ -21,5 +21,5 @@ export default {
   JsonWebTokenError,
   TokenExpiredError,
   sign: vi.fn(() => 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9'),
-  verify: vi.fn(() => ({ sub: '64723318e84f943f1ad6578b_test' })),
+  verify: vi.fn(() => ({ sub: '000000000000000000000001_test' })),
 };

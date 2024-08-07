@@ -10,9 +10,18 @@
  * `@perseid/core` mock.
  */
 
-export const Id = String;
 export const deepMerge = (): unknown => ({});
+export const isPlainObject = (variable: unknown): boolean => variable !== null && typeof variable === 'object';
 export const toSnakeCase = (text: string): string => `SNAKE_CASED_${text}`;
+export const forEach = async (
+  items: unknown[],
+  callback: (item: unknown, index: number) => Promise<void>,
+): Promise<void> => {
+  for (let index = 0; index < items.length; index += 1) {
+    await callback(items[index], index);
+  }
+};
+
 export class Model {
   protected schema: Record<string, unknown>;
 
@@ -32,4 +41,26 @@ export class Model {
       ...{ _version: { type: 'integer' } },
     };
   }
+}
+
+let count = 0;
+export class Id {
+  protected value: string;
+
+  constructor(value?: string) {
+    if (value !== undefined) {
+      this.value = value;
+    } else {
+      count += 1;
+      this.value = String(count).padStart(24, '0');
+    }
+  }
+
+  public toString(): string {
+    return this.value;
+  }
+}
+
+export class HttpClient {
+  protected mock = true;
 }

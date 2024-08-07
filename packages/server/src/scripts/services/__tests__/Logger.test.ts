@@ -48,7 +48,7 @@ describe('services/Logger', () => {
     expect(pino).toHaveBeenCalledWith({ level: 'info', transport: undefined }, destination);
     await logger.waitForReady();
     await logger.close();
-    expect(destination.flushSync).toHaveBeenCalledTimes(1);
+    expect(destination.flushSync).toHaveBeenCalledOnce();
   });
 
   test('[child]', () => {
@@ -61,37 +61,37 @@ describe('services/Logger', () => {
 
   test('[trace]', () => {
     logger.trace('test');
-    expect(logger.logger.debug).toHaveBeenCalledTimes(1);
+    expect(logger.logger.debug).toHaveBeenCalledOnce();
     expect(logger.logger.debug).toHaveBeenCalledWith('test');
   });
 
   test('[debug]', () => {
     logger.debug('test');
-    expect(logger.logger.debug).toHaveBeenCalledTimes(1);
+    expect(logger.logger.debug).toHaveBeenCalledOnce();
     expect(logger.logger.debug).toHaveBeenCalledWith('test');
   });
 
   test('[info]', () => {
     logger.info('test');
-    expect(logger.logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.logger.info).toHaveBeenCalledOnce();
     expect(logger.logger.info).toHaveBeenCalledWith('test');
   });
 
   test('[warn]', () => {
     logger.warn('test');
-    expect(logger.logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.logger.warn).toHaveBeenCalledOnce();
     expect(logger.logger.warn).toHaveBeenCalledWith('test');
   });
 
   test('[error]', () => {
     logger.error('test');
-    expect(logger.logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.logger.error).toHaveBeenCalledOnce();
     expect(logger.logger.error).toHaveBeenCalledWith('test');
   });
 
   test('[fatal]', () => {
     logger.fatal('test');
-    expect(logger.logger.fatal).toHaveBeenCalledTimes(1);
+    expect(logger.logger.fatal).toHaveBeenCalledOnce();
     expect(logger.logger.fatal).toHaveBeenCalledWith('test');
   });
 

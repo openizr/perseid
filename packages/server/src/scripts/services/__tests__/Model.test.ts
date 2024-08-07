@@ -7,17 +7,10 @@
  */
 
 import Model from 'scripts/services/Model';
-import schema from 'scripts/services/__mocks__/schema';
+import schema, { type DataModel } from 'scripts/services/__mocks__/schema';
 
-type TestModel = Model<{
-  test: {
-    test: string;
-  };
-  testTwo: {
-    test: string;
-  };
-}> & {
-  relationsPerCollection: Model['relationsPerCollection'];
+type TestModel = Model<DataModel> & {
+  relationsPerResource: Model['relationsPerResource'];
 };
 
 describe('services/Model', () => {
@@ -28,25 +21,23 @@ describe('services/Model', () => {
   });
 
   test('[constructor]', () => {
-    const otherModel = new Model<unknown>(schema) as unknown as TestModel;
-    expect(otherModel.relationsPerCollection).toEqual({
-      test: new Set(['externalRelation', 'otherExternalRelation']),
-      test2: new Set(['externalRelation', 'otherExternalRelation']),
-      externalRelation: new Set(['otherExternalRelation']),
-      otherExternalRelation: new Set(),
+    const otherModel = new Model<DataModel>(schema) as TestModel;
+    expect(otherModel.relationsPerResource).toEqual({
+      test: new Set(['test', 'otherTest']),
+      otherTest: new Set(['test', 'otherTest']),
     });
   });
 
   test('[email]', () => {
     expect(Model.email()).toEqual({
-      required: true,
+      isRequired: true,
       type: 'string',
-      customType: 'email',
+      maxLength: 320,
       errorMessages: {
         type: 'must be a valid email',
         pattern: 'must be a valid email',
       },
-      pattern: '^(([^<>()[\\]\\\\.,;:\\s@"]+(\\.[^<>()[\\]\\\\.,;:\\s@"]+)*)|(".+"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$',
+      pattern: /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
     });
   });
 
@@ -54,9 +45,8 @@ describe('services/Model', () => {
     expect(Model.tinyText({ minLength: 2 })).toEqual({
       minLength: 2,
       maxLength: 50,
-      required: true,
+      isRequired: true,
       type: 'string',
-      customType: 'tinyText',
     });
   });
 
@@ -64,9 +54,8 @@ describe('services/Model', () => {
     expect(Model.shortText({ minLength: 2 })).toEqual({
       minLength: 2,
       maxLength: 100,
-      required: true,
+      isRequired: true,
       type: 'string',
-      customType: 'shortText',
     });
   });
 
@@ -74,9 +63,8 @@ describe('services/Model', () => {
     expect(Model.mediumText({ minLength: 2 })).toEqual({
       minLength: 2,
       maxLength: 500,
-      required: true,
+      isRequired: true,
       type: 'string',
-      customType: 'mediumText',
     });
   });
 
@@ -84,28 +72,26 @@ describe('services/Model', () => {
     expect(Model.longText({ minLength: 2 })).toEqual({
       minLength: 2,
       maxLength: 2500,
-      required: true,
+      isRequired: true,
       type: 'string',
-      customType: 'longText',
     });
   });
 
   test('[hugeText]', () => {
     expect(Model.hugeText({ minLength: 2 })).toEqual({
       minLength: 2,
-      required: true,
+      isRequired: true,
       type: 'string',
       maxLength: 10000,
-      customType: 'hugeText',
     });
   });
 
   test('[token]', () => {
     expect(Model.token()).toEqual({
-      required: true,
+      isRequired: true,
       type: 'string',
-      customType: 'token',
-      pattern: /^[0-9A-Za-z]{24}$/.source,
+      maxLength: 24,
+      pattern: /^[0-9A-Za-z]{24}$/,
       errorMessages: {
         type: 'must be a valid token',
         pattern: 'must be a valid token',
@@ -115,10 +101,10 @@ describe('services/Model', () => {
 
   test('[password]', () => {
     expect(Model.password()).toEqual({
-      required: true,
+      isRequired: true,
       type: 'string',
-      customType: 'password',
-      pattern: /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,}$/.source,
+      maxLength: 500,
+      pattern: /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,}$/,
       errorMessages: {
         type: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
         pattern: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
@@ -128,25 +114,24 @@ describe('services/Model', () => {
 
   test('[credentials]', () => {
     expect(Model.credentials()).toEqual({
-      required: true,
+      isRequired: true,
       type: 'object',
-      customType: 'credentials',
       fields: {
         deviceId: {
-          required: true,
+          isRequired: true,
           type: 'string',
-          customType: 'token',
-          pattern: /^[0-9A-Za-z]{24}$/.source,
+          maxLength: 24,
+          pattern: /^[0-9A-Za-z]{24}$/,
           errorMessages: {
             type: 'must be a valid token',
             pattern: 'must be a valid token',
           },
         },
         refreshToken: {
-          required: true,
+          isRequired: true,
           type: 'string',
-          customType: 'token',
-          pattern: /^[0-9A-Za-z]{24}$/.source,
+          maxLength: 24,
+          pattern: /^[0-9A-Za-z]{24}$/,
           errorMessages: {
             type: 'must be a valid token',
             pattern: 'must be a valid token',
@@ -160,65 +145,162 @@ describe('services/Model', () => {
           type: 'string',
           minLength: 10,
           maxLength: 500,
-          required: true,
+          isRequired: true,
         },
       },
     });
   });
 
-  test('[getPublicSchema] collection exists', () => {
-    const otherModel = new Model<unknown>(schema) as unknown as TestModel;
-    expect(otherModel.getPublicSchema('externalRelation' as unknown as 'test')).toEqual({
-      externalRelation: {
-        type: 'object',
-        fields: {
-          _createdAt: {
-            type: 'date',
-          },
-          _createdBy: {
-            type: 'id',
-          },
-          _id: {
-            index: true,
-            type: 'id',
-          },
-          _isDeleted: {
-            type: 'boolean',
-          },
-          _updatedAt: {
-            type: 'date',
-          },
-          _updatedBy: {
-            type: 'id',
-          },
-          _version: {
-            type: 'integer',
-          },
-          name: {
-            type: 'string',
-          },
-          relations: {
-            type: 'array',
-            fields: {
+  describe('[getPublicSchema]', () => {
+    test('collection does not exist', () => {
+      const otherModel = new Model<DataModel>(schema) as TestModel;
+      expect(otherModel.getPublicSchema('unknown' as unknown as 'test')).toBeNull();
+    });
+
+    test('collection exists', () => {
+      const otherModel = new Model(schema) as unknown as TestModel;
+      expect(otherModel.getPublicSchema('test')).toEqual({
+        otherTest: {
+          type: 'object',
+          fields: {
+            _id: {
+              isIndexed: true,
+              isRequired: true,
               type: 'id',
-              relation: 'otherExternalRelation',
+            },
+            _createdAt: {
+              isIndexed: true,
+              isRequired: true,
+              type: 'date',
+            },
+            binary: {
+              isIndexed: false,
+              isRequired: true,
+              type: 'binary',
+            },
+            optionalRelation: {
+              type: 'id',
+              isIndexed: true,
+              relation: 'test',
+            },
+            data: {
+              type: 'object',
+              isRequired: true,
+              fields: {
+                optionalFlatArray: {
+                  type: 'array',
+                  fields: {
+                    type: 'string',
+                    isIndexed: true,
+                    isRequired: true,
+                    enum: ['test1', 'test2', 'test3', 'test4', 'test5'],
+                  },
+                },
+                optionalRelation: {
+                  type: 'id',
+                  isIndexed: true,
+                  relation: 'test',
+                },
+              },
             },
           },
         },
-      },
-      otherExternalRelation: {
-        type: 'object',
-        fields: {
-          _id: { type: 'id', index: true, required: true },
-          type: { type: 'string' },
-          _version: { type: 'integer' },
+        test: {
+          type: 'object',
+          fields: {
+            _id: {
+              type: 'id',
+              isIndexed: true,
+              isRequired: true,
+            },
+            _isDeleted: {
+              isIndexed: true,
+              isRequired: true,
+              type: 'boolean',
+            },
+            indexedString: {
+              type: 'string',
+              isIndexed: true,
+              isRequired: true,
+            },
+            objectOne: {
+              type: 'object',
+              isRequired: true,
+              fields: {
+                boolean: {
+                  isIndexed: false,
+                  isRequired: true,
+                  type: 'boolean',
+                },
+                objectTwo: {
+                  type: 'object',
+                  isRequired: true,
+                  fields: {
+                    optionalIndexedString: {
+                      type: 'string',
+                      isIndexed: true,
+                    },
+                    optionalNestedArray: {
+                      type: 'array',
+                      fields: {
+                        type: 'object',
+                        fields: {
+                          data: {
+                            type: 'object',
+                            isRequired: true,
+                            fields: {
+                              flatArray: {
+                                type: 'array',
+                                isRequired: true,
+                                fields: {
+                                  type: 'string',
+                                  isIndexed: true,
+                                },
+                              },
+                              nestedArray: {
+                                fields: {
+                                  fields: {
+                                    key: {
+                                      isIndexed: false,
+                                      isRequired: true,
+                                      type: 'string',
+                                    },
+                                    optionalRelation: {
+                                      isIndexed: false,
+                                      relation: 'otherTest',
+                                      type: 'id',
+                                    },
+                                  },
+                                  isRequired: true,
+                                  type: 'object',
+                                },
+                                isRequired: true,
+                                type: 'array',
+                              },
+                              optionalInteger: {
+                                type: 'integer',
+                                isIndexed: true,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+                optionalRelations: {
+                  type: 'array',
+                  fields: {
+                    type: 'id',
+                    isIndexed: true,
+                    relation: 'otherTest',
+                  },
+                },
+              },
+            },
+          },
         },
-      },
+      });
     });
-  });
-
-  test('[getPublicSchema] collection does not exist', () => {
-    const otherModel = new Model<unknown>(schema) as unknown as TestModel;
-    expect(otherModel.getPublicSchema('unknown' as unknown as 'test')).toBeNull();
   });
 });

@@ -25,14 +25,14 @@ import Unauthorized from 'scripts/errors/Unauthorized';
 import NotAcceptable from 'scripts/errors/NotAcceptable';
 import BucketClient from 'scripts/services/BucketClient';
 import TooManyRequests from 'scripts/errors/TooManyRequests';
-import DatabaseClient from 'scripts/services/DatabaseClient';
 import FastifyController from 'scripts/services/FastifyController';
+import ExpressController from 'scripts/services/ExpressController';
 import UnprocessableEntity from 'scripts/errors/UnprocessableEntity';
+import MySQLDatabaseClient from 'scripts/services/MySQLDatabaseClient';
+import MongoDatabaseClient from 'scripts/services/MongoDatabaseClient';
 import RequestEntityTooLarge from 'scripts/errors/RequestEntityTooLarge';
-
-/* c8 ignore start */
-
-export * from '@perseid/core';
+import AbstractDatabaseClient from 'scripts/services/AbstractDatabaseClient';
+import PostgreSQLDatabaseClient from 'scripts/services/PostgreSQLDatabaseClient';
 
 export { Model };
 export { Logger };
@@ -41,10 +41,11 @@ export { Profiler };
 export { Controller };
 export { UsersEngine };
 export { BucketClient };
-export { FastifyController };
 export { RequestEntityTooLarge };
 export { BadRequest, Gone, Conflict };
 export { EngineError, DatabaseError };
 export { NotFound, Forbidden, Unauthorized };
-export { DatabaseClient, EmailClient, CacheClient };
+export { FastifyController, ExpressController };
+export { AbstractDatabaseClient, EmailClient, CacheClient };
 export { NotAcceptable, TooManyRequests, UnprocessableEntity };
+export { MySQLDatabaseClient, PostgreSQLDatabaseClient, MongoDatabaseClient };

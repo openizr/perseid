@@ -30,6 +30,8 @@ export interface LoggerSettings {
 
 /**
  * pino-based logging system.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/services/Logger.ts
  */
 export default class Logger extends BaseLogger {
   /** pino logger instance. */

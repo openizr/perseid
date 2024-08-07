@@ -6,8 +6,6 @@
  *
  */
 
-import { Document } from 'mongodb';
-
 /**
  * `mongodb` mock.
  */
@@ -15,90 +13,107 @@ import { Document } from 'mongodb';
 export class Binary {
   public buffer = { length: 10 };
 }
-export const ObjectId = String;
+let count = 0;
+export class ObjectId {
+  protected value: string;
 
+  constructor(value?: string) {
+    if (value !== undefined) {
+      this.value = value;
+    } else {
+      count += 1;
+      this.value = String(count).padStart(24, '0');
+    }
+  }
+
+  public toString(): string {
+    return this.value;
+  }
+}
 const methodsPerCollection: Record<string, unknown> = {};
 
 const collection = vi.fn((name: string) => {
   methodsPerCollection[name] ??= {
     dropIndexes: vi.fn(),
+    insertOne: vi.fn(() => {
+      if (process.env.DATABASE_ERROR === 'true') {
+        throw new Error('ERROR');
+      }
+      return { insertedCount: 1 };
+    }),
     createIndexes: vi.fn(),
     find: vi.fn(() => ({
-      toArray: vi.fn(() => [{ _id: new ObjectId('64723318e84f943f1ad6578b') }]),
+      toArray: vi.fn(() => [{ _id: new ObjectId('000000000000000000000001') }]),
     })),
-    deleteOne: vi.fn(() => ((process.env.NO_RESULT === 'true')
-      ? { deletedCount: 0 }
-      : { deletedCount: 1 }
-    )),
-    insertOne: vi.fn(),
-    updateOne: vi.fn(() => ((process.env.NO_RESULT === 'true')
-      ? { matchedCount: 0 }
-      : { matchedCount: 1 }
-    )),
+    deleteOne: vi.fn(() => {
+      if (process.env.DATABASE_ERROR === 'true') {
+        throw new Error('ERROR');
+      }
+      return ((process.env.NO_RESULT === 'true')
+        ? { deletedCount: 0 }
+        : { deletedCount: 1 }
+      );
+    }),
+    updateOne: vi.fn(() => {
+      if (process.env.DATABASE_ERROR === 'true') {
+        throw new Error('ERROR');
+      }
+      return ((process.env.NO_RESULT === 'true')
+        ? { matchedCount: 0 }
+        : { matchedCount: 1 }
+      );
+    }),
     findOneAndUpdate: vi.fn(() => ((process.env.NO_RESULT === 'true')
       ? null
-      : { _id: new ObjectId('64723318e84f943f1ad6578b') }
+      : { _id: new ObjectId('000000000000000000000001') }
     )),
-    aggregate: vi.fn(() => ({
-      toArray: vi.fn(() => {
-        if (name === '_config') {
-          if (process.env.REFERENCES_MODE === 'true') {
-            return (process.env.REFERENCE_EXISTS === 'true')
+    aggregate: vi.fn(() => {
+      if (process.env.DATABASE_ERROR === 'true') {
+        throw new Error('ERROR');
+      }
+      return {
+        toArray: vi.fn(() => {
+          if (name === '_config') {
+            if (process.env.REFERENCES_MODE === 'true') {
+              return (process.env.REFERENCE_EXISTS === 'true')
+                ? [{
+                  _id: new ObjectId('646b9be5e921d0ef42f88888'),
+                  test__data_optionalRelation: [new ObjectId('646b9be5e921d0ef42f88887')],
+                }]
+                : [{
+                  _id: new ObjectId('646b9be5e921d0ef42f88888'),
+                  test__data_optionalRelation: [],
+                }];
+            }
+            return (process.env.MISSING_FOREIGN_IDS === 'true')
               ? [
                 {
-                  _id: new ObjectId('646b9be5e921d0ef42f88888'),
-                  externalRelation: [new ObjectId('646b9be5e921d0ef42f88887')],
+                  _id: new ObjectId('000000000000000000000008'),
+                  optionalRelation: [{ _id: new ObjectId('000000000000000000000001') }],
+                  'data.optionalRelation': [{ _id: new ObjectId('000000000000000000000001') }],
                 },
               ]
               : [
                 {
-                  _id: new ObjectId('646b9be5e921d0ef42f88888'),
-                  externalRelation: [],
+                  _id: new ObjectId('000000000000000000000008'),
+                  optionalRelation: [{ _id: new ObjectId('000000000000000000000002') }],
+                  'data.optionalRelation': [
+                    { _id: new ObjectId('000000000000000000000001') },
+                    { _id: new ObjectId('000000000000000000000002') },
+                  ],
                 },
               ];
           }
-          return (process.env.MISSING_FOREIGN_IDS === 'true')
-            ? [
-              {
-                _id: new ObjectId('646b9be5e921d0ef42f88888'),
-                externalRelation0: [{ _id: new ObjectId('646b9be5e921d0ef42f8a148') }],
-              },
-            ]
-            : [
-              {
-                _id: new ObjectId('646b9be5e921d0ef42f88888'),
-                externalRelation0: [
-                  { _id: ObjectId('646b9be5e921d0ef42f8a147') },
-                  { _id: ObjectId('646b9be5e921d0ef42f8a142') },
-                  { _id: ObjectId('646b9be5e921d0ef42f8a143') },
-                  { _id: ObjectId('646b9be5e921d0ef42f8a141') },
-                  { _id: ObjectId('646b9be5e921d0ef42f8a146') },
-                ],
-              },
-            ];
-        }
-        if (process.env.VIEW_MODE === 'true') {
-          return (process.env.NO_RESULT === 'true')
-            ? []
-            : [{
-              _id: new ObjectId('64723318e84f943f1ad6578b'),
+          return [{
+            total: (process.env.NO_RESULT === 'true') ? [] : [{ total: 1 }],
+            results: (process.env.NO_RESULT === 'true') ? [] : [{
+              _id: new ObjectId('000000000000000000000001'),
               test: 1,
-            }];
-        }
-        if (process.env.INTEGRITY_MODE === 'true') {
-          return process.env.INTEGRITY_CHECKS_FAIL === 'true'
-            ? [{ _id: new ObjectId('64723318e84f943f1ad6578b') }]
-            : [];
-        }
-        return [{
-          total: (process.env.NO_RESULT === 'true') ? [] : [{ total: 1 }],
-          results: (process.env.NO_RESULT === 'true') ? [] : [{
-            _id: new ObjectId('64723318e84f943f1ad6578b'),
-            test: 1,
-          }],
-        }];
-      }),
-    })),
+            }],
+          }];
+        }),
+      };
+    }),
   };
   return methodsPerCollection[name];
 });
@@ -106,13 +121,11 @@ const collection = vi.fn((name: string) => {
 export class MongoServerError {
   public code: number;
 
-  public keyValue: Document;
+  public message: string;
 
-  constructor(code: number) {
+  constructor(description: { message: string; }, code: number) {
     this.code = code;
-    this.keyValue = {
-      _id: 'test',
-    };
+    this.message = description.message;
   }
 }
 
@@ -121,12 +134,15 @@ const command = vi.fn();
 const dropDatabase = vi.fn();
 const dropCollection = vi.fn();
 const createCollection = vi.fn();
-const startSession = vi.fn(() => ({ endSession: vi.fn() }));
-const listCollections = vi.fn(() => ({
-  toArray: vi.fn(() => ((process.env.NO_COLLECTION === 'true') ? [] : ['test'])),
-}));
-
-const db = vi.fn(() => ((process.env.NO_DATABASE === 'true') ? null : ({
+const session = {
+  endSession: vi.fn(),
+  startTransaction: vi.fn(),
+  abortTransaction: vi.fn(),
+  commitTransaction: vi.fn(),
+};
+const startSession = vi.fn(() => session);
+const listCollections = vi.fn(() => ({ toArray: vi.fn(() => ['test']) }));
+const db = vi.fn(() => ({
   connect,
   command,
   collection,
@@ -134,7 +150,7 @@ const db = vi.fn(() => ((process.env.NO_DATABASE === 'true') ? null : ({
   dropCollection,
   listCollections,
   createCollection,
-})));
+}));
 
 export class MongoClient {
   public db = db;
