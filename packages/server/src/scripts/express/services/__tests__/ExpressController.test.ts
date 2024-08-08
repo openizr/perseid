@@ -389,7 +389,7 @@ describe('express/services/ExpressController', () => {
       expect(() => {
         controller.apiHandlers._model.handler({
           query: { resource: 'unknown', id: 'me' },
-        } as unknown as Request, response);
+        } as unknown as Request, response).catch(() => null);
       }).toThrow(new NotFound('NO_RESOURCE', 'Resource type "unknown" does not exist.'));
       await controller.createEndpoints(instance);
     });

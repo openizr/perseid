@@ -32,17 +32,17 @@ class TestDatabaseClient extends AbstractDatabaseClient<DataModel> {
   }
 
   protected parseFields(): { projections: unknown; formattedQuery: FormattedQuery; } {
-    this.mock();
+    this.mock().catch(() => null);
     return { projections: {}, formattedQuery: {} as unknown as FormattedQuery };
   }
 
   protected structurePayload(): StructuredPayload {
-    this.mock();
+    this.mock().catch(() => null);
     return {};
   }
 
   protected formatResources<Resource extends keyof DataModel>(): DataModel[Resource][] {
-    this.mock();
+    this.mock().catch(() => null);
     return [];
   }
 

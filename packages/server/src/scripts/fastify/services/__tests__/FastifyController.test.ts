@@ -369,7 +369,7 @@ describe('fastify/services/FastifyController', () => {
               status: vi.fn(() => ({ send: vi.fn() })),
             });
           } catch (e) {
-            // No - op.
+            vi.fn(() => e);
           }
         }),
         setErrorHandler: vi.fn(),
@@ -423,7 +423,7 @@ describe('fastify/services/FastifyController', () => {
               status: vi.fn(() => ({ send: vi.fn() })),
             });
           } catch (e) {
-            // No - op.
+            vi.fn(() => e);
           }
         }),
         setErrorHandler: vi.fn(),

@@ -1,10 +1,36 @@
 {
   "name": "@perseid/server",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
   "types": "./core.d.ts",
+  "exports": {
+    ".": {
+      "default": "./core.js",
+      "types": "./core.d.ts"
+    },
+    "./mongodb": {
+      "default": "./mongodb.js",
+      "types": "./mongodb.d.ts"
+    },
+    "./mysql": {
+      "default": "./mysql.js",
+      "types": "./mysql.d.ts"
+    },
+    "./postgresql": {
+      "default": "./postgresql.js",
+      "types": "./postgresql.d.ts"
+    },
+    "./express": {
+      "default": "./express.js",
+      "types": "./express.d.ts"
+    },
+    "./fastify": {
+      "default": "./fastify.js",
+      "types": "./fastify.d.ts"
+    }
+  },
   "description": "Dynamic, data model-based REST APIs generator",
   "homepage": "https://github.com/openizr/perseid",
   "repository": "https://github.com/openizr/perseid",
@@ -24,7 +50,7 @@
     "rest"
   ],
   "devDependencies": {
-    "@perseid/dev-kit": "^9.0.0",
+    "@perseid/dev-kit": "^10.0.0",
     "@types/bcrypt": "^5.0.0",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.3",
@@ -78,7 +104,7 @@
           "*.ts"
         ],
         "rules": {
-          "@typescript-eslint/no-floating-promises": "off"
+          "@typescript-eslint/no-unnecessary-type-parameters": "off"
         }
       }
     ]
