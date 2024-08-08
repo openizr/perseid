@@ -1,3 +1,14 @@
+## @perseid/server:2.0.1 (2024-08-08)
+
+### Bugs
+- Fix types definitions
+- Move `FastifyController` service into `@perseid/server/fastify` to respect peer dependencies
+- Move `ExpressController` service into `@perseid/server/express` to respect peer dependencies
+- Move `MySQLDatabaseClient` service into `@perseid/server/mysql` to respect peer dependencies
+- Move `MongoDatabaseClient` service into `@perseid/server/mongodb` to respect peer dependencies
+- Move `PostgreSQLDatabaseClient` service into `@perseid/server/postgresql` to respect peer dependencies
+
+
 ## @perseid/store:8.0.0 (2024-08-07)
 
 ### Breaking changes
