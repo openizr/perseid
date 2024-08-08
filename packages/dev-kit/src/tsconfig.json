@@ -2,7 +2,7 @@
   "compilerOptions": {
     "allowJs": true,
     "alwaysStrict": true,
-    "jsx": "react",
+    "jsx": "react-jsx",
     "newLine": "LF",
     "strict": true,
     "strictNullChecks": true,
