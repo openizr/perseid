@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import v1GetMessage from 'scripts/routes/v1/getMessage';
 import v1PostMessage from 'scripts/routes/v1/postMessage';
 

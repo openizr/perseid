@@ -1,6 +1,6 @@
 import { deepMerge } from 'basx';
 import schema from 'scripts/lib/baseSchema';
-import { FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 
 const routeSchema = deepMerge(
   schema,

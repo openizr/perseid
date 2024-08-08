@@ -20,7 +20,7 @@ describe('generateId', () => {
   test('should generate a unique id - browser environment', () => {
     windowSpy.mockImplementation(() => ({
       crypto: {
-        getRandomValues: <T>(): T => [15616516, 4651848654, 549875987, 87897985] as T,
+        getRandomValues: () => [15616516, 4651848654, 549875987, 87897985],
       } as unknown as Crypto,
     }) as unknown as Window & typeof globalThis);
     expect(generateId().length).toBe(40);

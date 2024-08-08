@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import Message from 'scripts/components/Message';
 import { render } from '@testing-library/react';
 

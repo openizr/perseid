@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 
-import * as React from 'react';
 import store from 'scripts/store/index';
 import Router from 'scripts/containers/Router';
 import { render } from '@testing-library/react';

@@ -8,7 +8,7 @@ import AppRouter from 'scripts/containers/AppRouter.vue';
 
 vi.mock('scripts/store/routes', () => ({
   default: {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+    // eslint-disable-next-line
     '/': (): Any => Promise.resolve((require('scripts/pages/HomePage.vue') as { default: Any }).default),
   },
 }));

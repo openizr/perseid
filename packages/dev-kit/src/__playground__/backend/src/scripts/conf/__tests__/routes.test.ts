@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import declareRoutes from 'scripts/conf/routes';
 import fastify, { register } from 'scripts/__mocks__/fastify';
 

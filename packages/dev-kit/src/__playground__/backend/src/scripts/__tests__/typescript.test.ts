@@ -3,7 +3,7 @@ import fastify, { addHook, listen } from 'scripts/__mocks__/fastify';
 vi.mock('ajv');
 vi.mock('ajv-errors');
 vi.mock('scripts/conf/routes', () => ({ default: (): Promise<void> => Promise.reject(new Error()) }));
-vi.spyOn(process, 'exit').mockImplementation((code: number | undefined) => code as unknown as never);
+vi.spyOn(process, 'exit').mockImplementation((code) => code as unknown as never);
 
 describe('typescript', () => {
   beforeEach(() => {

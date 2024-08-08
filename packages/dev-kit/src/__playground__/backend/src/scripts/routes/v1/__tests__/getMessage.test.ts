@@ -1,5 +1,5 @@
 import getMessage from 'scripts/routes/v1/getMessage';
-import { FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 
 vi.mock('fastify');
 
