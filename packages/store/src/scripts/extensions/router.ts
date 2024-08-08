@@ -64,7 +64,7 @@ function generateContext(routes: string[]): RoutingContext {
     }
   } catch (error) {
     const { warn } = console;
-    warn(`Invalid query string "?${queryString}".`);
+    warn(`Invalid query string "?${queryString}".`, error);
   }
 
   return {

@@ -28,10 +28,10 @@ declare module '@perseid/store' {
     id: string;
 
     /** Store's `mutate` method. */
-    mutate: <T2>(id: string, name: string, data?: T2) => void;
+    mutate: (id: string, name: string, data?: unknown) => void;
 
     /** Store's `dispatch` method. */
-    dispatch: <T, T2>(id: string, name: string, data?: T2) => Promise<T>;
+    dispatch: <T>(id: string, name: string, data?: unknown) => Promise<T>;
 
     /** Store's `register` method. */
     register: <T>(id: string, module: Module<T>) => string;
@@ -82,7 +82,7 @@ declare module '@perseid/store' {
     /** Global modules registry. */
     protected modules: Partial<Record<string, Module & {
       combinedModules: string[];
-      actions: Partial<Record<string, (<T2>(api: ActionApi, data?: T2) => Promise<unknown>)>>;
+      actions: Partial<Record<string, ((api: ActionApi, data?: unknown) => Promise<unknown>)>>;
     }>>;
 
     /**
@@ -194,7 +194,7 @@ declare module '@perseid/store' {
      *
      * @throws If mutation's name does not exist on that module.
      */
-    public mutate<T>(id: string, name: string, data?: T): void;
+    public mutate(id: string, name: string, data?: unknown): void;
 
     /**
      * Dispatches an asynchronous action to module with id `id`.
@@ -209,7 +209,7 @@ declare module '@perseid/store' {
      *
      * @throws If action's name does not exist on that module.
      */
-    public dispatch<T, T2 = unknown>(id: string, name: string, data?: T2): Promise<T>;
+    public dispatch<T>(id: string, name: string, data?: unknown): Promise<T>;
 
     /**
      * Applies the given middleware to the store.
