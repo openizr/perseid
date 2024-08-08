@@ -1379,7 +1379,7 @@ export class MongoDatabaseClient<
   public view<Resource extends keyof DataModel & string>(
     resource: Resource,
     id: Id,
-    options: ViewCommandOptions,
+    options?: ViewCommandOptions,
   ): Promise<DataModel[Resource] | null>;
 
   /**
@@ -1396,7 +1396,7 @@ export class MongoDatabaseClient<
   public search<Resource extends keyof DataModel & string>(
     resource: Resource,
     body: SearchBody,
-    options: SearchCommandOptions,
+    options?: SearchCommandOptions,
   ): Promise<Results<DataModel[Resource]>>;
 
   /**
@@ -1410,7 +1410,7 @@ export class MongoDatabaseClient<
    */
   public list<Resource extends keyof DataModel & string>(
     resource: Resource,
-    options: ListCommandOptions,
+    options?: ListCommandOptions,
   ): Promise<Results<DataModel[Resource]>>;
 
   /**
