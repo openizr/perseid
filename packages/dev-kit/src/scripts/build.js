@@ -114,6 +114,7 @@ async function run() {
         types: packageJson.types,
         bugs: packageJson.bugs,
         author: packageJson.author,
+        exports: packageJson.exports,
         version: packageJson.version,
         engines: packageJson.engines,
         license: packageJson.license,

@@ -111,6 +111,7 @@ async function run() {
               type: packageJson.type,
               bugs: packageJson.bugs,
               author: packageJson.author,
+              exports: packageJson.exports,
               // This trick forces invalidating NPM cache and allows real-time package testing.
               version: [random(), random(), random()].join('.'),
               engines: packageJson.engines,
