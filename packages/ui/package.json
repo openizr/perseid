@@ -1,11 +1,30 @@
 {
   "name": "@perseid/ui",
-  "version": "3.0.2",
+  "version": "4.0.0",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
   "types": "./core.d.ts",
-  "description": "SASS and TypeScript components library, without the superfluous",
+  "exports": {
+    ".": {
+      "default": "./core.js",
+      "types": "./core.d.ts"
+    },
+    "./react": {
+      "default": "./react.js",
+      "types": "./react.d.ts"
+    },
+    "./vue": {
+      "default": "./vue.js",
+      "types": "./vue.d.ts"
+    },
+    "./svelte": {
+      "default": "./svelte.js",
+      "types": "./svelte.d.ts"
+    }
+  },
+  "description": "TypeScript components and SASS library, without the superfluous",
+  "homepage": "https://github.com/openizr/perseid",
   "repository": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
   "contributors": [
@@ -99,10 +118,10 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "svelte": "^4.2.8",
-    "vue": "^3.4.7"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "svelte": "^4.2.18",
+    "vue": "^3.4.37"
   },
   "devKitConfig": {
     "target": "web",
