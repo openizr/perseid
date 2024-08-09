@@ -9,10 +9,16 @@
 declare module '@perseid/server/mysql' {
   import type {
     Logger,
+    Payload,
+    SearchBody,
+    SearchFilters,
     CacheClient,
     FormattedQuery,
     StructuredPayload,
+    ListCommandOptions,
     Model as BaseModel,
+    ViewCommandOptions,
+    SearchCommandOptions,
     DatabaseClientSettings,
     AbstractDatabaseClient,
   } from '@perseid/server';

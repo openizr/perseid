@@ -9,10 +9,16 @@
 declare module '@perseid/server/mongodb' {
   import type {
     Logger,
+    Payload,
+    SearchBody,
     CacheClient,
+    SearchFilters,
     FormattedQuery,
     StructuredPayload,
     Model as BaseModel,
+    ViewCommandOptions,
+    ListCommandOptions,
+    SearchCommandOptions,
     DatabaseClientSettings,
     AbstractDatabaseClient,
   } from '@perseid/server';

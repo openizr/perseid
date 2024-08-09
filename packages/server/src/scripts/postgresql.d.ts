@@ -9,10 +9,16 @@
 declare module '@perseid/server/postgresql' {
   import type {
     Logger,
+    Payload,
+    SearchBody,
     CacheClient,
+    SearchFilters,
     FormattedQuery,
     StructuredPayload,
+    ViewCommandOptions,
+    ListCommandOptions,
     Model as BaseModel,
+    SearchCommandOptions,
     DatabaseClientSettings,
     AbstractDatabaseClient,
   } from '@perseid/server';

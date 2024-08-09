@@ -1,6 +1,6 @@
 {
   "name": "@perseid/server",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
@@ -124,13 +124,13 @@
     "runInDev": true,
     "splitChunks": false,
     "entries": {
-      "core": "./scripts/core/index.ts",
+      "dist": "./scripts/core/index.ts",
+      "core": "./__playground__/index.ts",
       "mysql": "./scripts/mysql/index.ts",
       "fastify": "./scripts/fastify/index.ts",
       "express": "./scripts/express/index.ts",
       "mongodb": "./scripts/mongodb/index.ts",
-      "postgresql": "./scripts/postgresql/index.ts",
-      "main": "./__playground__/index.ts"
+      "postgresql": "./scripts/postgresql/index.ts"
     },
     "srcPath": "src",
     "distPath": "dist",
@@ -145,7 +145,7 @@
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
     "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts",
-    "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && rm dist/main.*",
+    "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv dist/dist.js dist/core.js && mv dist/dist.js.map dist/core.js.map",
     "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer mysql2 pg mongodb fastify express"
   },
   "peerDependencies": {
