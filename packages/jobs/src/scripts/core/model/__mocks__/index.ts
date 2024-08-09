@@ -6,11 +6,6 @@
  *
  */
 
-import JobScheduler from 'scripts/services/JobScheduler';
-import DatabaseClient from 'scripts/services/DatabaseClient';
+/** `scripts/core/model/index` mock. */
 
-/* c8 ignore next */
-export {
-  JobScheduler,
-  DatabaseClient,
-};
+export default {};

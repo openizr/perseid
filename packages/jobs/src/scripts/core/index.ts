@@ -6,6 +6,7 @@
  *
  */
 
-/** `scripts/model/index` mock. */
+import JobScheduler from 'scripts/core/services/JobScheduler';
+import DatabaseClient from 'scripts/core/services/DatabaseClient';
 
-export default {};
+export { JobScheduler, DatabaseClient };

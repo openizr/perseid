@@ -6,14 +6,13 @@
  *
  */
 
-import * as jobs from 'scripts/main';
+import * as exports from 'scripts/core/index';
 
-describe('main', () => {
-  vi.mock('scripts/services/JobScheduler');
-  vi.mock('scripts/services/DatabaseClient');
+describe('core', () => {
+  vi.mock('scripts/core/services/JobScheduler');
 
   test('contains correct exports', () => {
-    expect(Object.keys(jobs)).toEqual([
+    expect(Object.keys(exports)).toEqual([
       'JobScheduler',
       'DatabaseClient',
     ]);

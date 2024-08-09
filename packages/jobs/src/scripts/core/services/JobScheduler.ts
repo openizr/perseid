@@ -11,21 +11,21 @@ import {
   Logger,
   Profiler,
   type Model,
+  type Payload,
   type BucketClient,
   type CommandContext,
-  type CommandOptions,
 } from '@perseid/server';
 import { pino } from 'pino';
-import model from 'scripts/model/index';
-import { Id, Payload, forEach } from '@perseid/core';
+import { Id, forEach } from '@perseid/core';
+import model from 'scripts/core/model/index';
 import { Worker, workerData } from 'worker_threads';
 import { promises as fs, createReadStream } from 'fs';
-import type DatabaseClient from 'scripts/services/DatabaseClient';
+import type DatabaseClient from 'scripts/core/services/DatabaseClient';
 
 type JobWorkerData = {
   id: string | undefined;
   jobId: string | undefined;
-  metaData: string | undefined;
+  metadata: string | undefined;
 } | undefined;
 
 /**
@@ -44,6 +44,8 @@ export interface JobSchedulerSettings {
 
 /**
  * Handles tasks lifecycle.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/jobs/src/scripts/core/services/JobScheduler.ts
  */
 export default class JobScheduler extends Engine<DataModel, Model<DataModel>, DatabaseClient> {
   /** Job scheduler instance unique id. */
@@ -64,8 +66,46 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
   /** Running tasks registry. */
   protected tasksRegistry: Record<string, {
     worker: Worker;
-    _status: Task['_status'];
+    _status: DataModel['tasks']['_status'];
   }>;
+
+  /**
+   * Returns updated `payload` with automatic fields.
+   *
+   * @param resource Type of resource for which to generate automatic fields.
+   *
+   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
+   *
+   * @param payload Payload to update.
+   *
+   * @param context Command context.
+   *
+   * @returns Payload with automatic fields.
+   */
+  protected async withAutomaticFields<Resource extends keyof DataModel>(
+    resource: Resource,
+    existingResource: DataModel[Resource] | null,
+    payload: Payload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]>> {
+    const updatedPayload = await super.withAutomaticFields(
+      resource,
+      existingResource,
+      payload,
+      context,
+    );
+
+    if (resource === 'tasks' && existingResource === null) {
+      const taskPayload = updatedPayload as Payload<DataModel['tasks']>;
+      taskPayload._runBy = null;
+      taskPayload._parent = null;
+      taskPayload._endedAt = null;
+      taskPayload._startedAt = null;
+      taskPayload._status = 'PENDING';
+    }
+
+    return updatedPayload;
+  }
 
   /**
    * Schedules next execution for the given task, if it is periodic.
@@ -74,16 +114,16 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
    *
    * @param taskCompleted Whether task successfully completed.
    */
-  protected async reSchedulePeriodicTask(task: Task, taskCompleted: boolean): Promise<void> {
+  protected async reSchedulePeriodicTask(task: DataModel['tasks'], taskCompleted: boolean): Promise<void> {
     if (task.recurrence === null && task.startAfter === null) {
       this.logger.info(`[JobScheduler][reSchedulePeriodicTask] Task with id "${String(task._id)}" is not periodic, re-scheduling skipped.`);
     } else {
-      const job = task.job as Job;
+      const job = task.job as DataModel['jobs'];
       this.logger.info(`[JobScheduler][reSchedulePeriodicTask] Creating next recurrence for task with id "${String(task._id)}"...`);
 
-      const parsedMetaData = JSON.parse(task.metaData) as { lastCompletedAt: Date; };
+      const parsedMetadata = JSON.parse(task.metadata) as { lastCompletedAt: Date; };
       if (taskCompleted) {
-        parsedMetaData.lastCompletedAt = new Date();
+        parsedMetadata.lastCompletedAt = new Date();
       }
 
       if (task.startAt !== null && task.recurrence !== null) {
@@ -95,7 +135,7 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
         const executionsToSkip = Math.ceil((Date.now() - startAt) / recurrenceInMilliseconds);
         const nextStartAt = new Date(startAt + executionsToSkip * recurrenceInMilliseconds);
 
-        await this.databaseClient.create('tasks', await this.withAutomaticFields('tasks', {
+        await this.databaseClient.create('tasks', await this.withAutomaticFields('tasks', null, {
           _runBy: null,
           _endedAt: null,
           _startedAt: null,
@@ -105,13 +145,14 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
           startAfter: null,
           startAt: nextStartAt,
           recurrence: task.recurrence,
-          metaData: JSON.stringify(parsedMetaData),
-        }, { mode: 'CREATE' } as CommandContext & { mode: 'CREATE' | 'UPDATE'; }));
+          metadata: JSON.stringify(parsedMetadata),
+        }, {} as CommandContext<DataModel>) as DataModel['tasks']);
       } else {
         const childTask = await this.databaseClient.search('tasks', {
+          query: null,
           filters: { _parent: task.startAfter as Id },
         });
-        await this.databaseClient.create('tasks', await this.withAutomaticFields('tasks', {
+        await this.databaseClient.create('tasks', await this.withAutomaticFields('tasks', null, {
           _runBy: null,
           _endedAt: null,
           _startedAt: null,
@@ -121,8 +162,8 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
           startAt: null,
           recurrence: task.recurrence,
           startAfter: childTask.results[0]._id,
-          metaData: JSON.stringify(parsedMetaData),
-        }, { mode: 'CREATE' } as CommandContext & { mode: 'CREATE' | 'UPDATE'; }));
+          metadata: JSON.stringify(parsedMetadata),
+        }, {} as CommandContext<DataModel>) as DataModel['tasks']);
       }
     }
   }
@@ -132,9 +173,9 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
    *
    * @param task Task for which to upload logs file.
    */
-  protected async uploadLogs(task: Task): Promise<void> {
+  protected async uploadLogs(task: DataModel['tasks']): Promise<void> {
     try {
-      const filePath = `${this.logsPath}${String(task._id)}.log`;
+      const filePath = `${this.logsPath}/${String(task._id)}.log`;
       await this.bucketClient.upload('text/x-log', `logs/${String(task._id)}.log`, createReadStream(filePath));
       await fs.unlink(filePath);
     } catch (error) {
@@ -148,39 +189,40 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
    *
    * @param task Task to execute.
    */
-  protected async executeTask(task: Task): Promise<void> {
-    const job = task.job as Job;
+  protected async executeTask(task: DataModel['tasks']): Promise<void> {
+    const key = String(task._id);
+    const job = task.job as DataModel['jobs'];
     this.availableSlots -= job.requiredSlots;
     const splittedPath = job.scriptPath.split(' ');
 
     await new Promise<void>((resolve) => {
       const worker = new Worker(splittedPath[0], {
-        workerData: { id: String(task._id), jobId: splittedPath[1], metaData: task.metaData },
+        workerData: { id: key, jobId: splittedPath[1], metadata: task.metadata },
       });
 
       // Registering the task here prevents "Cannot set properties of undefined (setting '_status')"
       // errors (sometimes worker exists so fast that the registry hasn't been updated yet
       // and thus reference to the task doesn't exist).
-      this.tasksRegistry[String(task._id)] = { worker, _status: 'IN_PROGRESS' };
+      this.tasksRegistry[key] = { worker, _status: 'IN_PROGRESS' };
 
       worker.on('online', () => {
-        this.logger.info(`[JobScheduler][executeTask] Successfully created new thread for task with id "${String(task._id)}".`);
+        this.logger.info(`[JobScheduler][executeTask] Successfully created new thread for task with id "${key}".`);
         resolve();
       });
 
       worker.on('error', (error) => {
         this.logger.error(error);
-        this.tasksRegistry[String(task._id)]._status = 'FAILED';
+        this.tasksRegistry[key]._status = 'FAILED';
       });
 
       worker.on('exit', (code) => {
-        this.logger.info(`[JobScheduler][executeTask] Thread for task with id "${String(task._id)}" exited with code ${code}.`);
+        this.logger.info(`[JobScheduler][executeTask] Thread for task with id "${key}" exited with code ${String(code)}.`);
         if (code === 0) {
-          this.tasksRegistry[String(task._id)]._status = 'COMPLETED';
+          this.tasksRegistry[key]._status = 'COMPLETED';
         } else if (code === 100) {
-          this.tasksRegistry[String(task._id)]._status = 'CANCELED';
+          this.tasksRegistry[key]._status = 'CANCELED';
         } else {
-          this.tasksRegistry[String(task._id)]._status = 'FAILED';
+          this.tasksRegistry[key]._status = 'FAILED';
         }
         resolve();
       });
@@ -194,25 +236,31 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
    *
    * @param status Status to update task with.
    */
-  protected async closeTask(task: Task, status: Task['_status']): Promise<void> {
-    // We use `exclusiveUpdate` here as we want to prevent several job schedulers from
+  protected async closeTask(
+    task: DataModel['tasks'],
+    status: DataModel['tasks']['_status'],
+  ): Promise<void> {
+    // We use `updateMatchingTask` here as we want to prevent several job schedulers from
     // re-scheduling the same periodic task.
-    const taskWasUpdated = await this.databaseClient.exclusiveUpdate('tasks', {
+    const taskWasUpdated = await this.databaseClient.updateMatchingTask({
       _status: 'IN_PROGRESS',
       _id: task._id,
-    }, await this.withAutomaticFields('tasks', {
+    }, await this.withAutomaticFields('tasks', {} as DataModel['tasks'], {
       _status: status,
       _endedAt: new Date(),
-    }, { mode: 'UPDATE' } as CommandContext & { mode: 'CREATE' | 'UPDATE'; }));
+    }, {} as CommandContext<DataModel>));
     if (taskWasUpdated) {
       await this.reSchedulePeriodicTask(task, status === 'COMPLETED');
     }
     if (String(task._runBy) === String(this.instanceId)) {
       await this.uploadLogs(task);
       delete this.tasksRegistry[String(task._id)];
-      this.availableSlots += (task.job as Job).requiredSlots;
+      this.availableSlots += (task.job as DataModel['jobs']).requiredSlots;
     } else if (taskWasUpdated) {
-      this.logger.error(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" timed out more than a minute ago - jobs scheduler with id "${String(task._runBy)}" probably crashed.`);
+      this.logger.error(
+        `[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" timed out more than`
+        + ` a minute ago - jobs scheduler with id "${String(task._runBy)}" probably crashed.`,
+      );
     }
   }
 
@@ -225,24 +273,24 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
 
     await forEach(pendingTasks, async (task) => {
       // Task must be executed...
-      if (task.startAt !== null || (task.startAfter !== null && (task.startAfter as Task)._status === 'COMPLETED')) {
-        if (this.availableSlots < (task.job as Job).requiredSlots) {
+      if (task.startAt !== null || (task.startAfter !== null && (task.startAfter as DataModel['tasks'])._status === 'COMPLETED')) {
+        if (this.availableSlots < (task.job as DataModel['jobs']).requiredSlots) {
           this.logger.info(`[JobScheduler][processPendingTasks] No available slot to run task "${String(task._id)}".`);
           return Promise.resolve();
         }
-        const now = new Date();
-        // We use `exclusiveUpdate` here as we want to prevent several job schedulers from running
-        // the same task.
-        const taskWasAssigned = await this.databaseClient.exclusiveUpdate('tasks', {
+        const fullPayload = await this.withAutomaticFields('tasks', {} as DataModel['tasks'], {
+          _status: 'IN_PROGRESS',
+          _runBy: this.instanceId,
+          _startedAt: new Date(),
+        }, {} as CommandContext<DataModel>);
+
+        // We use `updateMatchingTask` here as we want to prevent several job schedulers from
+        // running the same task.
+        const taskWasAssigned = await this.databaseClient.updateMatchingTask({
           _runBy: null,
           _id: task._id,
           _status: 'PENDING',
-        }, {
-          _startedAt: now,
-          _updatedAt: now,
-          _status: 'IN_PROGRESS',
-          _runBy: this.instanceId,
-        });
+        }, fullPayload);
         if (taskWasAssigned) {
           this.logger.info(`[JobScheduler][processPendingTasks] Executing task with id "${String(task._id)}"...`);
           return this.executeTask(task);
@@ -251,10 +299,15 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
       }
 
       // Task must be canceled...
-      this.logger.warn(`[JobScheduler][processPendingTasks] Canceling task with id "${String(task._id)}" (related task failed or was canceled)...`);
-      return this.databaseClient.update('tasks', task._id, await this.withAutomaticFields('tasks', {
+      const fullPayload = await this.withAutomaticFields('tasks', {} as DataModel['tasks'], {
         _status: 'CANCELED',
-      }, { mode: 'UPDATE' } as CommandContext & { mode: 'CREATE' | 'UPDATE'; }));
+      }, {} as CommandContext<DataModel>);
+      this.logger.warn(
+        `[JobScheduler][processPendingTasks] Canceling task with id "${String(task._id)}" `
+        + '(related task failed or was canceled)...',
+      );
+      await this.databaseClient.update('tasks', task._id, fullPayload);
+      return Promise.resolve();
     });
   }
 
@@ -266,7 +319,7 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
     const runningTasks = await this.databaseClient.getRunningTasks();
 
     await forEach(runningTasks, async (task) => {
-      const job = task.job as Job;
+      const job = task.job as DataModel['jobs'];
       const now = Date.now();
       const startedAt = (task as { _startedAt: Date; })._startedAt;
 
@@ -350,13 +403,16 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
     const jobWorkerData = workerData as JobWorkerData;
     const jobId = jobWorkerData?.jobId ?? process.argv[2];
     const taskId = jobWorkerData?.id ?? process.argv[3];
-    const stringifiedMetaData = jobWorkerData?.metaData ?? process.argv[4] as string | undefined ?? '{}';
-    const metaData = JSON.parse(stringifiedMetaData) as Record<string, unknown>;
+    const stringifiedMetadata = jobWorkerData?.metadata ?? process.argv[4] as string | undefined ?? '{}';
+    const metadata = JSON.parse(stringifiedMetadata) as Record<string, unknown>;
+    metadata.lastCompletedAt = (metadata.lastCompletedAt !== undefined)
+      ? new Date(metadata.lastCompletedAt as string)
+      : null;
     const profiler = new Profiler();
     const logger = new Logger({
       logLevel,
       prettyPrint: false,
-      destination: pino.destination(`${logsPath}${taskId}.log`),
+      destination: pino.destination(`${logsPath}/${taskId}.log`),
     });
     await logger.waitForReady();
     try {
@@ -364,7 +420,7 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
       if (typeof jobs[jobId] !== 'function') {
         throw new Error(`Job with id "${jobId}" does not exist.`);
       }
-      await jobs[jobId](taskId, metaData, logger);
+      await jobs[jobId](new Id(taskId), metadata as JobMetadata, logger);
       logger.info(Profiler.formatMetrics(profiler.getMetrics()));
       await logger.close();
       process.exit(0);
@@ -379,44 +435,9 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
    * Executes job scheduler.
    */
   public async run(): Promise<void> {
-    this.logger.info(`[JobScheduler][run] Executing main thread, ${this.availableSlots} slots available...`);
+    this.logger.info(`[JobScheduler][run] Executing main thread, ${String(this.availableSlots)} slots available...`);
     await this.processPendingTasks();
     await this.processRunningTasks();
     setTimeout(this.run.bind(this) as unknown as () => void, 5000);
-  }
-
-  /**
-   * Creates a new resource into `collection`.
-   *
-   * @param collection Name of the collection to create resource into.
-   *
-   * @param payload New resource payload.
-   *
-   * @param options Command options.
-   *
-   * @param context Command context.
-   *
-   * @returns Newly created resource.
-   */
-  public async create<Collection extends keyof DataModel>(
-    collection: Collection,
-    payload: Payload<DataModel[Collection]>,
-    options: CommandOptions,
-    context: CommandContext,
-  ): Promise<DataModel[Collection]> {
-    if (collection === 'tasks') {
-      const newTask = await this.withAutomaticFields('tasks', {
-        ...payload,
-        _runBy: null,
-        _parent: null,
-        _endedAt: null,
-        _startedAt: null,
-        _status: 'PENDING',
-      }, { mode: 'CREATE' } as CommandContext & { mode: 'CREATE' | 'UPDATE'; });
-      await this.databaseClient.create('tasks', newTask);
-      return this.view(collection, newTask._id, options);
-    }
-
-    return super.create(collection, payload, options, context);
   }
 }

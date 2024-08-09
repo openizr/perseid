@@ -7,28 +7,29 @@
  */
 
 import { Model } from '@perseid/server';
+import type { ResourceSchema } from '@perseid/core';
 
 /**
  * Job scheduler data model.
  */
-export default new Model({
+export default new Model<DataModel>({
   jobs: {
     enableAuthors: false,
     enableTimestamps: true,
     fields: {
       requiredSlots: {
         type: 'integer',
-        required: true,
+        isRequired: true,
         enum: [256, 512, 1024, 2048, 4096],
       },
       maximumExecutionTime: {
         type: 'integer',
-        required: true,
+        isRequired: true,
         exclusiveMinimum: 0,
       },
       scriptPath: {
         type: 'string',
-        required: true,
+        isRequired: true,
       },
     },
   },
@@ -40,13 +41,13 @@ export default new Model({
       _startedAt: { type: 'date' },
       _parent: {
         type: 'id',
-        index: true,
+        isIndexed: true,
         relation: 'tasks',
       },
       _status: {
         type: 'string',
-        index: true,
-        required: true,
+        isIndexed: true,
+        isRequired: true,
         enum: ['PENDING', 'COMPLETED', 'FAILED', 'IN_PROGRESS'],
       },
       _runBy: {
@@ -58,22 +59,22 @@ export default new Model({
       },
       job: {
         type: 'id',
-        index: true,
-        required: true,
+        isIndexed: true,
+        isRequired: true,
         relation: 'jobs',
       },
       recurrence: {
         type: 'integer',
         exclusiveMinimum: 0,
       },
-      metaData: {
+      metadata: {
         type: 'string',
-        required: true,
+        isRequired: true,
       },
       startAt: {
         type: 'date',
-        required: true,
+        isRequired: true,
       },
     },
   },
-});
+} as unknown as Record<keyof DataModel, ResourceSchema<DataModel>>);

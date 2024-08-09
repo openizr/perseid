@@ -6,15 +6,12 @@
  *
  */
 
+import type { AbstractDatabaseClient } from '@perseid/server';
+
 /** `@perseid/server` mock. */
 
 const close = vi.fn();
 const waitForReady = vi.fn();
-const aggregate = vi.fn(() => ({ toArray: vi.fn(() => [{}, {}, {}]) }));
-
-const database = {
-  collection: vi.fn(() => ({ aggregate })),
-};
 
 export class Model { protected mock = vi.fn(); }
 
@@ -33,6 +30,8 @@ export class BucketClient {
 }
 
 export class Logger {
+  public silent = vi.fn();
+
   public debug = vi.fn();
 
   public info = vi.fn();
@@ -48,29 +47,6 @@ export class Logger {
   public close = close;
 }
 
-export class DatabaseClient {
-  protected logger: Logger;
-
-  protected database: unknown;
-
-  protected handleError = vi.fn((callback: () => null) => callback());
-
-  public dropDatabase = vi.fn();
-
-  public createDatabase = vi.fn();
-
-  public resetCollection = vi.fn();
-
-  protected formatOutput = vi.fn(() => ({
-    formatted: true,
-  }));
-
-  constructor(_model: Model, logger: Logger) {
-    this.logger = logger;
-    this.database = database;
-  }
-}
-
 export class Engine {
   protected logger: Logger;
 
@@ -78,12 +54,15 @@ export class Engine {
 
   protected createMock = vi.fn();
 
-  protected withAutomaticFields = vi.fn((_, data) => ({
-    ...data,
-    _updatedAt: new Date('2022-01-01T00:00:00.000Z'),
-  }) as unknown);
+  protected withAutomaticFields(_: unknown, __: unknown, data: Record<string, unknown>): unknown {
+    this.createMock();
+    return ({
+      ...data,
+      updated: true,
+    });
+  }
 
-  constructor(_model: Model, logger: Logger, databaseClient: DatabaseClient) {
+  constructor(_model: Model, logger: Logger, databaseClient: AbstractDatabaseClient) {
     this.logger = logger;
     this.databaseClient = databaseClient;
   }
