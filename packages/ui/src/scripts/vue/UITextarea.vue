@@ -64,10 +64,10 @@ const props = withDefaults(defineProps<{
   onKeyDown: undefined,
 });
 
-const timeout = ref(null);
 const isUserTyping = ref(false);
+const timeout = ref<number | null>(null);
 const randomId = ref(generateRandomId());
-const currentValue = ref(`${props.value}`);
+const currentValue = ref(String(props.value));
 const actualRows = computed(() => ((props.autoresize && props.rows === undefined)
   ? Math.max(1, currentValue.value.split('\n').length)
   : props.rows));
@@ -79,7 +79,7 @@ const className = computed(() => buildClass('ui-textarea', `${props.modifiers}${
 
 const handleChange = (event: InputEvent): void => {
   if (!props.disabled) {
-    clearTimeout(timeout.value);
+    clearTimeout(timeout.value as unknown as number);
     isUserTyping.value = true;
     const newValue = (event.target as HTMLTextAreaElement).value;
     currentValue.value = newValue;
@@ -90,7 +90,7 @@ const handleChange = (event: InputEvent): void => {
       if (props.onChange !== undefined) {
         props.onChange(newValue, event);
       }
-    }, props.debounceTimeout);
+    }, props.debounceTimeout) as unknown as number;
   }
 };
 
@@ -102,7 +102,7 @@ const handleChange = (event: InputEvent): void => {
 watch(() => props.value, () => {
   // Do not update current value immediatly while user is typing something else.
   if (!isUserTyping.value) {
-    currentValue.value = `${props.value}`;
+    currentValue.value = String(props.value);
   }
 });
 </script>
@@ -116,7 +116,7 @@ watch(() => props.value, () => {
       v-if="label !== undefined"
       class="ui-textarea__label"
       :for="randomId"
-      v-html="markdown(props.label)"
+      v-html="markdown(String(props.label))"
     />
     <div class="ui-textarea__wrapper">
       <textarea
@@ -135,7 +135,7 @@ watch(() => props.value, () => {
         :tabindex="disabled ? -1 : 0"
         @blur="onBlur !== undefined && !disabled && onBlur(currentValue, $event)"
         @focus="onFocus !== undefined && !disabled && onFocus(currentValue, $event)"
-        @input="!readonly ? handleChange($event) : undefined"
+        @input="!readonly ? handleChange($event as InputEvent) : undefined"
         @paste="(!readonly && onPaste !== undefined && !disabled)
           ? onPaste(currentValue, $event) : undefined"
         @keydown="(!readonly && !disabled && onKeyDown !== undefined)
@@ -145,7 +145,7 @@ watch(() => props.value, () => {
     <span
       v-if="helper !== undefined"
       class="ui-textarea__helper"
-      v-html="markdown(props.helper)"
+      v-html="markdown(String(props.helper))"
     />
   </div>
 </template>

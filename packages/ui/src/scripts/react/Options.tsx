@@ -44,7 +44,7 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
       return { ...mapping, [option.value]: markdown(option.label) };
     }
     if (option.type === 'header') {
-      return { ...mapping, [`header_${index}`]: markdown(option.label) };
+      return { ...mapping, [`header_${String(index)}`]: markdown(option.label) };
     }
     return mapping;
   }, {}), [options]);
@@ -260,7 +260,7 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
   // Prevents focusing the dropdown at component mount in strict mode.
   React.useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return (): void => { mounted.current = false; };
   }, []);
 
   // -----------------------------------------------------------------------------------------------
@@ -270,7 +270,7 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
   const labelComponent = (label !== undefined) && (
     <label
       className="ui-options__label"
-      htmlFor={select ? randomId : `${randomId}_${Math.max(firstSelectedOption.current, 0)}`}
+      htmlFor={select ? randomId : `${randomId}_${String(Math.max(firstSelectedOption.current, 0))}`}
       dangerouslySetInnerHTML={{ __html: markdown(label) }}
     />
   );
@@ -314,11 +314,11 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
             aria-labelledby={randomId}
             aria-expanded={isDisplayed}
             aria-multiselectable={multiple === true}
-            aria-activedescendant={`${randomId}${(focusedOptionIndex)}`}
+            aria-activedescendant={`${randomId}${String(focusedOptionIndex)}`}
             className={buildClass('ui-options__wrapper__list', isDisplayed ? `${position} expanded` : position)}
           >
             {options.map((option, index) => {
-              const key = `${randomId}${index}`;
+              const key = `${randomId}${String(index)}`;
               const isOption = option.type === 'option';
               const isDisabled = isOption && option.disabled;
               let optionModifiers = `${option.modifiers ?? ''}${(isDisabled) ? ' disabled' : ''}`;
@@ -330,7 +330,7 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
               if (isOption) {
                 html = optionParsedLabels[option.value];
               } else if (option.type === 'header') {
-                html = optionParsedLabels[`header_${index}`];
+                html = optionParsedLabels[`header_${String(index)}`];
               }
               return (
                 <li
@@ -367,7 +367,7 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
       >
         {options.filter((option) => option.type === 'option').map((option, index) => {
           const realOption = option;
-          const optionId = `${randomId}_${index}`;
+          const optionId = `${randomId}_${String(index)}`;
           const isChecked = currentValue.includes(realOption.value);
           let optionModifiers = `${option.modifiers ?? ''}${realOption.disabled ? ' disabled' : ''}`;
           if (isChecked) {

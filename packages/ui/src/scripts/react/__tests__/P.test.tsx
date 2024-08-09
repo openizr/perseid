@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import UIP from 'scripts/react/P';
 import { render } from '@testing-library/react';
 

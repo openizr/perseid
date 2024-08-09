@@ -35,10 +35,10 @@
     }
   ],
   "devDependencies": {
-    "@perseid/dev-kit": "^8.0.1",
-    "@perseid/store": "^7.0.1",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/svelte": "^4.0.5",
+    "@perseid/dev-kit": "^10.0.0",
+    "@perseid/store": "^8.0.1",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/svelte": "^5.2.1",
     "@testing-library/vue": "^8.0.1",
     "@types/react": "^18.0.31",
     "@types/react-dom": "^18.0.11",

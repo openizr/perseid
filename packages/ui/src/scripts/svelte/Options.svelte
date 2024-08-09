@@ -77,7 +77,7 @@ $: optionParsedLabels = options.reduce<Record<string, string>>((mapping, option,
     return { ...mapping, [option.value]: markdown(option.label) };
   }
   if (option.type === 'header') {
-    return { ...mapping, [`header_${index}`]: markdown(option.label) };
+    return { ...mapping, [`header_${String(index)}`]: markdown(option.label) };
   }
   return mapping;
 }, {});
@@ -322,13 +322,13 @@ $: onlyOptions = options.filter((option) => option.type === 'option');
         aria-labelledby={randomId}
         aria-expanded={isDisplayed}
         aria-multiselectable={multiple}
-        aria-activedescendant={`${randomId}${focusedOptionIndex}`}
+        aria-activedescendant={`${randomId}${String(focusedOptionIndex)}`}
         class={buildClass('ui-options__wrapper__list', isDisplayed ? `${position} expanded` : position)}
         on:keydown={handleKeydown}
       >
-        {#each options as option, index (`${randomId}${index}`)}
+        {#each options as option, index (`${randomId}${String(index)}`)}
           <li
-            id={`${randomId}${index}`}
+            id={`${randomId}${String(index)}`}
             tabindex="-1"
             role={option.type === 'option' ? 'option' : undefined}
             aria-selected={option.type === 'option' && currentValue.includes(option.value)}
@@ -341,7 +341,7 @@ $: onlyOptions = options.filter((option) => option.type === 'option');
             on:mousedown={(option.type === 'option' && !option.disabled) ? changeOption(index) : undefined}
             on:focus={(option.type === 'option' && !option.disabled) ? handleFocus(option.value, index) : undefined}
           >
-            {@html option.type === 'divider' ? '' : optionParsedLabels[option.type === 'option' ? option.value : `header_${index}`]}
+            {@html option.type === 'divider' ? '' : optionParsedLabels[option.type === 'option' ? option.value : `header_${String(index)}`]}
           </li>
         {/each}
       </svelte:element>
@@ -355,12 +355,12 @@ $: onlyOptions = options.filter((option) => option.type === 'option');
 {:else}
   <div {id} class={className}>
     {#if label !== undefined}
-      <label for={`${randomId}_${Math.max(firstSelectedOption, 0)}`} class="ui-options__label">
+      <label for={`${randomId}_${String(Math.max(firstSelectedOption, 0))}`} class="ui-options__label">
         {@html markdown(label)}
       </label>
     {/if}
     <div bind:this={wrapperRef} class="ui-options__wrapper">
-      {#each onlyOptions as option, index (`${randomId}${index}`)}
+      {#each onlyOptions as option, index (`${randomId}${String(index)}`)}
         <label
           class={buildClass(
             'ui-options__wrapper__option',
@@ -369,7 +369,7 @@ $: onlyOptions = options.filter((option) => option.type === 'option');
           )}
         >
           <input
-            id={`${randomId}_${index}`}
+            id={`${randomId}_${String(index)}`}
             {name}
             checked={currentValue.includes(option.value)}
             type={multiple ? 'checkbox' : 'radio'}

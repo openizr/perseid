@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import UITextfield from 'scripts/react/Textfield';
 import { render, fireEvent } from '@testing-library/react';
 

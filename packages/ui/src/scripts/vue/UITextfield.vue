@@ -27,7 +27,7 @@ interface AllowedKeys {
 }
 type KeyType = 'default' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey';
 type Transform = (value: string, selectionStart: number) => [string, number?];
-type MouseEventHandler = (event: MouseEvent) => void;
+type MouseEventHandler = (event: Event) => void;
 type FocusEventHandler = (value: string, event: FocusEvent) => void;
 type ChangeEventHandler = (value: string, event: InputEvent) => void;
 type KeyboardEventHandler = (value: string, event: KeyboardEvent) => void;
@@ -103,7 +103,7 @@ const timeout = ref<number | null>(null);
 const randomId = ref(generateRandomId());
 const cursorPosition = ref<number | null>(null);
 const inputRef = ref<HTMLInputElement | null>(null);
-const currentValue = ref(props.transform(`${props.value}`, 0)[0]);
+const currentValue = ref(props.transform(String(props.value), 0)[0]);
 const className = computed(() => buildClass('ui-textfield', `${props.modifiers}${props.disabled ? ' disabled' : ''}`));
 
 // Memoizes global version of allowed keys RegExps (required for filtering out a whole text).
@@ -150,7 +150,7 @@ const handleChange = (event: InputEvent, filter = true): void => {
       if (props.onChange !== undefined) {
         props.onChange(newValue, event);
       }
-    }, props.debounceTimeout);
+    }, props.debounceTimeout) as unknown as number;
   }
 };
 
@@ -211,7 +211,7 @@ const handlePaste = (event: ClipboardEvent): void => {
 watch(() => [props.value, props.transform], () => {
   // Do not update current value immediatly while user is typing something else.
   if (!isUserTyping.value) {
-    const [newValue] = props.transform(`${props.value}`, 0);
+    const [newValue] = props.transform(String(props.value), 0);
     currentValue.value = newValue;
   }
 });
@@ -243,7 +243,7 @@ onUpdated(() => {
         role="button"
         class="ui-textfield__wrapper__icon"
         @click="onIconClick !== undefined && !disabled && onIconClick($event)"
-        @keydown="onIconKeyDown !== undefined && !disabled && onIconKeyDown($event)"
+        @keydown="onIconKeyDown && !disabled && onIconKeyDown($event)"
       >
         <UIIcon :name="icon" />
       </span>
@@ -269,7 +269,7 @@ onUpdated(() => {
         @blur="onBlur !== undefined && !disabled && onBlur(currentValue, $event)"
         @focus="onFocus !== undefined && !disabled && onFocus(currentValue, $event)"
         @paste="(!readonly && !disabled) && handlePaste($event)"
-        @input="(!readonly && !disabled) && handleChange($event)"
+        @input="(!readonly && !disabled) && handleChange($event as InputEvent)"
       >
       <span
         v-if="icon !== undefined && iconPosition === 'right'"
@@ -277,7 +277,7 @@ onUpdated(() => {
         role="button"
         class="ui-textfield__wrapper__icon"
         @click="onIconClick !== undefined && !disabled && onIconClick($event)"
-        @keydown="onIconKeyDown !== undefined && !disabled && onIconKeyDown($event)"
+        @keydown="onIconKeyDown && !disabled && onIconKeyDown($event as KeyboardEvent)"
       >
         <UIIcon :name="icon" />
       </span>

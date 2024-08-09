@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import UITooltip from 'scripts/react/Tooltip';
 import { render, fireEvent } from '@testing-library/react';
 

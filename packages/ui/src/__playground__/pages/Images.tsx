@@ -1,6 +1,5 @@
 /* c8 ignore start */
 
-import * as React from 'react';
 import { UIImage } from 'scripts/react/index';
 
 export default function Images(): JSX.Element {

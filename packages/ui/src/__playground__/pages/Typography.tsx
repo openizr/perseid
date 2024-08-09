@@ -1,6 +1,5 @@
 /* c8 ignore start */
 
-import React from 'react';
 import { UIP, UITitle, UILink } from 'scripts/react/index';
 
 const { log } = console;

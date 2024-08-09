@@ -31,7 +31,7 @@ interface UIOptionsDivider {
 }
 type Option = UIOptionsDivider | UIOptionsOption | UIOptionsHeader;
 type FocusEventHandler = (value: string, event: FocusEvent) => void;
-type ChangeEventHandler = (value: string | string[], event: InputEvent) => void;
+type ChangeEventHandler = (value: string | string[], event: Event) => void;
 
 const toArray = (value: string | string[]): string[] => (Array.isArray(value) ? value : [value]);
 
@@ -86,7 +86,7 @@ const optionParsedLabels = computed(() => props.options.reduce<Record<string, st
       return { ...mapping, [option.value]: markdown(option.label) };
     }
     if (option.type === 'header') {
-      return { ...mapping, [`header_${index}`]: markdown(option.label) };
+      return { ...mapping, [`header_${String(index)}`]: markdown(option.label) };
     }
     return mapping;
   },
@@ -166,7 +166,7 @@ const focusOption = (optionIndex: number): void => {
 };
 
 // Automatically triggered when a `change` event is fired.
-const handleChange = (event: InputEvent): void => {
+const handleChange = (event: Event): void => {
   if (!props.disabled) {
     const selectedIndex = currentValue.value.indexOf((event.target as HTMLInputElement).value);
     let newValue = [(event.target as HTMLInputElement).value];

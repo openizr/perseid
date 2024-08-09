@@ -1,6 +1,6 @@
 /* c8 ignore start */
 
-import { createApp, App } from 'vue';
+import { createApp, type App } from 'vue';
 import AppRouter from '__playground__/pages/AppRouter.vue';
 
 let app: App;

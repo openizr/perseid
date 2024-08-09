@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import UIFilePicker from 'scripts/react/FilePicker';
 import { render, fireEvent } from '@testing-library/react';
 

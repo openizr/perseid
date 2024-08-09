@@ -1,6 +1,5 @@
 /* c8 ignore start */
 
-import * as React from 'react';
 import '__playground__/otherStyle.scss';
 
 /**

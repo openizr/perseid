@@ -104,7 +104,7 @@ const handleFocus = (event: FocusEvent): void => {
 $: {
   // Do not update current value immediatly while user is typing something else.
   if (!isUserTyping) {
-    currentValue = `${value}`;
+    currentValue = String(value);
   }
 }
 $: actualRows = (autoresize && rows === undefined) ? Math.max(1, currentValue.split('\n').length) : rows;
