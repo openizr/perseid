@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import UITextarea from 'scripts/react/Textarea';
 import { render, fireEvent } from '@testing-library/react';
 

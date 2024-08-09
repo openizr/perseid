@@ -15,7 +15,6 @@ import {
 } from 'vue';
 import Store from 'scripts/core/Store';
 
-type TypedReducer = <T>(...newState: unknown[]) => T;
 type PrivateStore = Store & {
   modules: Store['modules'];
   combinedModules: Store['combinedModules'];
@@ -33,10 +32,10 @@ export type UseSubscription = <T>(id: string, reducer?: Reducer<T>) => Ref<Unwra
  */
 export default function connect(store: Store): UseSubscription {
   const privateStore = store as PrivateStore;
-  const defaultReducer: Reducer = (newState) => newState;
+  const defaultReducer = <T>(newState: T): T => newState;
   const getState = (moduleId: string): unknown => (privateStore.modules[moduleId] as Module).state;
 
-  return (id, reducer = defaultReducer as TypedReducer) => {
+  return (id, reducer = defaultReducer) => {
     const combinedModule = privateStore.combinedModules[id];
 
     if (combinedModule !== undefined) {

@@ -68,8 +68,8 @@ $: readonly = (readonly as boolean | undefined) ?? false;
 $: autofocus = (autofocus as boolean | undefined) ?? false;
 $: autocomplete = (autocomplete as 'on' | undefined) ?? 'on';
 $: allowedKeys = (allowedKeys as AllowedKeys | undefined) ?? {};
-$: iconPosition = (iconPosition as 'left' | undefined) ?? 'left';
 $: debounceTimeout = (debounceTimeout as number | undefined) ?? 0;
+$: iconPosition = (iconPosition as 'right' | 'left' | undefined) ?? 'left';
 
 $: tabIndex = disabled ? -1 : 0;
 $: className = buildClass('ui-textfield', `${modifiers}${disabled ? ' disabled' : ''}`);
@@ -91,9 +91,9 @@ $: globalAllowedKeys = keyTypes.reduce<AllowedKeys>((allAllowedKeys, keyType) =>
 // Re-positions cursor at the right place when using transform function.
 const updateCursorPosition = async () => {
   await tick();
-  if (/^(url|text|tel|search|password)$/.test(type) && inputRef !== null) {
-    inputRef.selectionStart = cursorPosition;
-    inputRef.selectionEnd = cursorPosition;
+  if (/^(url|text|tel|search|password)$/.test(type) && inputRef as unknown !== null) {
+    (inputRef as HTMLInputElement).selectionStart = cursorPosition;
+    (inputRef as HTMLInputElement).selectionEnd = cursorPosition;
   }
 };
 

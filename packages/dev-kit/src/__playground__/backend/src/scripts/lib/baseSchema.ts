@@ -1,4 +1,4 @@
-import { FastifySchema } from 'fastify';
+import type { FastifySchema } from 'fastify';
 
 /**
  * Fastify validation and serialization schema used as a basis for every endpoint.

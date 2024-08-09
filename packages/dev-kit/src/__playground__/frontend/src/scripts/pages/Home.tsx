@@ -1,4 +1,3 @@
-import * as React from 'react';
 import Message from 'scripts/components/Message';
 import PropTypes, { type InferProps } from 'prop-types';
 

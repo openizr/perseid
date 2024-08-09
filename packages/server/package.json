@@ -1,10 +1,36 @@
 {
   "name": "@perseid/server",
-  "version": "2.0.0",
+  "version": "2.0.3",
   "license": "MIT",
   "type": "module",
-  "main": "./main.js",
-  "types": "./types.d.ts",
+  "main": "./core.js",
+  "types": "./core.d.ts",
+  "exports": {
+    ".": {
+      "default": "./core.js",
+      "types": "./core.d.ts"
+    },
+    "./mongodb": {
+      "default": "./mongodb.js",
+      "types": "./mongodb.d.ts"
+    },
+    "./mysql": {
+      "default": "./mysql.js",
+      "types": "./mysql.d.ts"
+    },
+    "./postgresql": {
+      "default": "./postgresql.js",
+      "types": "./postgresql.d.ts"
+    },
+    "./express": {
+      "default": "./express.js",
+      "types": "./express.d.ts"
+    },
+    "./fastify": {
+      "default": "./fastify.js",
+      "types": "./fastify.d.ts"
+    }
+  },
   "description": "Dynamic, data model-based REST APIs generator",
   "homepage": "https://github.com/openizr/perseid",
   "repository": "https://github.com/openizr/perseid",
@@ -24,7 +50,7 @@
     "rest"
   ],
   "devDependencies": {
-    "@perseid/dev-kit": "^9.0.0",
+    "@perseid/dev-kit": "^10.0.0",
     "@types/bcrypt": "^5.0.0",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.3",
@@ -59,7 +85,17 @@
         ],
         "rules": {
           "no-shadow": "off",
+          "import/order": "off",
+          "import/named": "off",
+          "import/export": "off",
+          "import/no-cycle": "off",
+          "import/no-duplicates": "off",
           "no-use-before-define": "off",
+          "import/no-unresolved": "off",
+          "import/no-self-import": "off",
+          "@typescript-eslint/no-explicit-any": "off",
+          "import/no-extraneous-dependencies": "off",
+          "import/no-relative-packages": "off",
           "max-classes-per-file": "off"
         }
       },
@@ -68,7 +104,7 @@
           "*.ts"
         ],
         "rules": {
-          "@typescript-eslint/no-floating-promises": "off"
+          "@typescript-eslint/no-unnecessary-type-parameters": "off"
         }
       }
     ]
@@ -88,8 +124,13 @@
     "runInDev": true,
     "splitChunks": false,
     "entries": {
-      "dist": "./scripts/main.ts",
-      "main": "./__playground__/index.ts"
+      "dist": "./scripts/core/index.ts",
+      "core": "./__playground__/index.ts",
+      "mysql": "./scripts/mysql/index.ts",
+      "fastify": "./scripts/fastify/index.ts",
+      "express": "./scripts/express/index.ts",
+      "mongodb": "./scripts/mongodb/index.ts",
+      "postgresql": "./scripts/postgresql/index.ts"
     },
     "srcPath": "src",
     "distPath": "dist",
@@ -102,9 +143,9 @@
   "scripts": {
     "test": "node_modules/@perseid/dev-kit/scripts/test",
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
-    "build:types": "cp src/scripts/types.d.ts dist && mv dist/dist.js dist/main.js && mv dist/dist.js.map dist/main.js.map",
-    "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
+    "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts",
+    "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv dist/dist.js dist/core.js && mv dist/dist.js.map dist/core.js.map",
     "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer mysql2 pg mongodb fastify express"
   },
   "peerDependencies": {

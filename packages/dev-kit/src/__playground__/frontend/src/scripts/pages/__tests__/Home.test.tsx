@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import Home from 'scripts/pages/Home';
 import { render } from '@testing-library/react';
 

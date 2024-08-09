@@ -27,7 +27,7 @@ export default class Store {
   /** Global modules registry. */
   protected modules: Partial<Record<string, Module & {
     combinedModules: string[];
-    actions: Partial<Record<string, (<T2>(api: ActionApi, data?: T2) => Promise<unknown>)>>;
+    actions: Partial<Record<string, ((api: ActionApi, data?: unknown) => Promise<unknown>)>>;
   }>>;
 
   /**
@@ -276,7 +276,7 @@ export default class Store {
    *
    * @throws If mutation's name does not exist on that module.
    */
-  public mutate<T>(id: string, name: string, data?: T): void {
+  public mutate(id: string, name: string, data?: unknown): void {
     const registeredModule = this.modules[id];
     if (registeredModule === undefined) {
       throw new Error(
@@ -341,7 +341,7 @@ export default class Store {
    *
    * @throws If action's name does not exist on that module.
    */
-  public async dispatch<T, T2 = unknown>(id: string, name: string, data?: T2): Promise<T> {
+  public async dispatch<T>(id: string, name: string, data?: unknown): Promise<T> {
     const registeredModule = this.modules[id];
     if (registeredModule === undefined) {
       throw new Error(

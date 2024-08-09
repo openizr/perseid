@@ -1,6 +1,5 @@
 /* c8 ignore start */
 
-import * as React from 'react';
 import { UIButton } from 'scripts/react/index';
 
 const { log } = console;

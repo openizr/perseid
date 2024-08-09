@@ -1,3 +1,73 @@
+## @perseid/ui:4.0.0 (2024-08-09)
+
+### Breaking changes
+- Major NPM dependencies update
+- Drop support of `node` < `20` and `npm` < `9`
+- Replace built-in SASS classes by placeholders, and generate actual CSS classes only when calling the new `init` mixin
+
+### Features
+- Add `exports` configuration in `package.json` to enable support for native sub-modules imports
+
+
+## @perseid/jobs:2.0.0 (2024-08-09)
+
+### Breaking changes
+- Major NPM dependencies update
+- `mongodb` is now a peer dependency
+- Drop support of `node` < `20` and `npm` < `9`
+- Automatically cast `lastCompletedAt` metadata when running a task
+- Refactor `DatabaseClient` into an abstract service to support multiple DBMS
+
+### Features
+- Add new `MongoDatabaseClient` service
+- Add new `MySQLDatabaseClient` service
+- Add new `PostgreSQLDatabaseClient` service
+- Add `exports` configuration in `package.json` to enable support for native sub-modules imports
+
+### Improvements
+- Improve types definitions
+
+
+## @perseid/server:2.0.3 (2024-08-09)
+
+### Bugs
+- Fix types definitions
+
+
+## @perseid/server:2.0.2 (2024-08-08)
+
+### Improvements
+- Add `exports` configuration in `package.json` to enable support for native sub-modules imports
+
+
+## @perseid/store:8.0.1 (2024-08-08)
+
+### Improvements
+- Improve types definitions
+- Add `exports` configuration in `package.json` to enable support for native sub-modules imports
+
+
+## @perseid/dev-kit:10.0.0 (2024-08-08)
+
+### Breaking changes
+- Major NPM dependencies update
+- Change `jsx` configuration value to `react-jsx` in `tsconfig.json`
+
+### Features
+- Add `exports` configuration in `package.json` to enable support for native sub-modules imports
+
+
+## @perseid/server:2.0.1 (2024-08-08)
+
+### Bugs
+- Fix types definitions
+- Move `FastifyController` service into `@perseid/server/fastify` to respect peer dependencies
+- Move `ExpressController` service into `@perseid/server/express` to respect peer dependencies
+- Move `MySQLDatabaseClient` service into `@perseid/server/mysql` to respect peer dependencies
+- Move `MongoDatabaseClient` service into `@perseid/server/mongodb` to respect peer dependencies
+- Move `PostgreSQLDatabaseClient` service into `@perseid/server/postgresql` to respect peer dependencies
+
+
 ## @perseid/store:8.0.0 (2024-08-07)
 
 ### Breaking changes

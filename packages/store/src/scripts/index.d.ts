@@ -39,10 +39,10 @@ interface ActionApi {
   id: string;
 
   /** Store's `mutate` method. */
-  mutate: <T2>(id: string, name: string, data?: T2) => void;
+  mutate: (id: string, name: string, data?: unknown) => void;
 
   /** Store's `dispatch` method. */
-  dispatch: <T, T2>(id: string, name: string, data?: T2) => Promise<T>;
+  dispatch: <T>(id: string, name: string, data?: unknown) => Promise<T>;
 
   /** Store's `register` method. */
   register: <T>(id: string, module: Module<T>) => string;

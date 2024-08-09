@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Router from '__playground__/pages/Router';
-import { createRoot, Root } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 
 let app: Root;
 

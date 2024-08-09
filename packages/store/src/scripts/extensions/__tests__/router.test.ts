@@ -66,7 +66,7 @@ describe('extensions/router', () => {
     const module = router(['/home', '/user/:id']);
     const newState = module.mutations.NAVIGATE?.({ id: 'router', state }, '/user/125?qazdzad&azdzad');
     expect((newState as { query: unknown; }).query).toEqual({});
-    expect(consle.warn).toHaveBeenCalledWith('Invalid query string "?qazdzad&azdzad".');
+    expect(consle.warn).toHaveBeenCalledWith('Invalid query string "?qazdzad&azdzad".', expect.any(Error));
   });
 
   test('[NAVIGATE] same route', () => {

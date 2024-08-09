@@ -3,7 +3,7 @@
   "devDependencies": {
     "@perseid/dev-kit": "file:../../../dist",
     "@testing-library/react": "^16.0.0",
-    "@testing-library/svelte": "^5.2.0",
+    "@testing-library/svelte": "^5.2.1",
     "@testing-library/vue": "^8.1.0",
     "@types/prop-types": "^15.7.12",
     "@types/react": "^18.3.3",
@@ -18,7 +18,7 @@
     "react-dom": "^18.3.1",
     "svelte": "^4.2.18",
     "vite-svg-loader": "^5.1.0",
-    "vue": "^3.4.32"
+    "vue": "^3.4.36"
   },
   "eslintConfig": {
     "extends": [

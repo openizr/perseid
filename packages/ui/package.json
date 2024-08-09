@@ -1,11 +1,30 @@
 {
   "name": "@perseid/ui",
-  "version": "3.0.2",
+  "version": "4.0.0",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
   "types": "./core.d.ts",
-  "description": "SASS and TypeScript components library, without the superfluous",
+  "exports": {
+    ".": {
+      "default": "./core.js",
+      "types": "./core.d.ts"
+    },
+    "./react": {
+      "default": "./react.js",
+      "types": "./react.d.ts"
+    },
+    "./vue": {
+      "default": "./vue.js",
+      "types": "./vue.d.ts"
+    },
+    "./svelte": {
+      "default": "./svelte.js",
+      "types": "./svelte.d.ts"
+    }
+  },
+  "description": "TypeScript components and SASS library, without the superfluous",
+  "homepage": "https://github.com/openizr/perseid",
   "repository": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
   "contributors": [
@@ -16,10 +35,10 @@
     }
   ],
   "devDependencies": {
-    "@perseid/dev-kit": "^8.0.1",
-    "@perseid/store": "^7.0.1",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/svelte": "^4.0.5",
+    "@perseid/dev-kit": "^10.0.0",
+    "@perseid/store": "^8.0.1",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/svelte": "^5.2.1",
     "@testing-library/vue": "^8.0.1",
     "@types/react": "^18.0.31",
     "@types/react-dom": "^18.0.11",
@@ -99,10 +118,10 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "svelte": "^4.2.8",
-    "vue": "^3.4.7"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "svelte": "^4.2.18",
+    "vue": "^3.4.37"
   },
   "devKitConfig": {
     "target": "web",
@@ -124,8 +143,8 @@
     "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
   },
   "engines": {
-    "node": ">= 18.0.0",
-    "npm": ">= 8.0.0"
+    "node": ">= 20.0.0",
+    "npm": ">= 9.0.0"
   },
   "scripts": {
     "test": "node_modules/@perseid/dev-kit/scripts/test",

@@ -6,12 +6,12 @@ import {
   CacheClient,
   EmailClient,
   UsersEngine,
-  FastifyController,
-  MongoDatabaseClient,
-} from 'scripts/main';
-import { Id, deepMerge, isPlainObject } from '@perseid/core';
-import schema, { type DataModel } from 'scripts/services/__mocks__/schema';
+} from 'scripts/core/index';
+import FastifyController from 'scripts/fastify/index';
+import MongoDatabaseClient from 'scripts/mongodb/index';
 import fastify, { type FastifyBaseLogger } from 'fastify';
+import { Id, deepMerge, isPlainObject } from '@perseid/core';
+import schema, { type DataModel } from 'scripts/core/services/__mocks__/schema';
 
 const model = new Model<DataModel>(deepMerge(Model.DEFAULT_MODEL, schema));
 

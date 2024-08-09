@@ -201,7 +201,7 @@ describe('vue/UIOptions', () => {
   });
 
   test('renders correctly - select with default value', () => {
-    const defaultOptions = [{ value: 'test', label: 'Test' }];
+    const defaultOptions: UIOptionsOption[] = [{ type: 'option', value: 'test', label: 'Test' }];
     const { container } = render(UIOptions, {
       props: {
         name: 'test', select: true, options: defaultOptions, value: undefined,

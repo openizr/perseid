@@ -1,9 +1,19 @@
 {
   "name": "library",
-  "main": "./typescript.js",
+  "main": "./main.js",
   "types": "./types.d.ts",
   "license": "MIT",
   "type": "module",
+  "exports": {
+    ".": {
+      "default": "./main.js",
+      "types": "./types.d.ts"
+    },
+    "./react": {
+      "default": "./react.js",
+      "types": "./types.d.ts"
+    }
+  },
   "devDependencies": {
     "@perseid/dev-kit": "file:../../../dist",
     "@testing-library/react": "^16.0.0",
@@ -18,7 +28,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "svelte": "^4.2.18",
-    "vue": "^3.4.32"
+    "vue": "^3.4.36"
   },
   "peerDependenciesMeta": {
     "vue": {

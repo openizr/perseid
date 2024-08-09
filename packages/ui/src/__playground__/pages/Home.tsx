@@ -1,7 +1,5 @@
 /* c8 ignore start */
 
-import * as React from 'react';
-
 export default function Home(): JSX.Element {
   return (
     <div className="vgap-5">

@@ -1,7 +1,6 @@
 /* istanbul ignore file */
 
 import 'styles/main.scss';
-import * as React from 'react';
 import Router from 'scripts/containers/Router';
 import { createRoot, type Root } from 'react-dom/client';
 

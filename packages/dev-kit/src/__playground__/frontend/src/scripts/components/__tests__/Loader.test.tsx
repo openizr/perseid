@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 
-import * as React from 'react';
 import Loader from 'scripts/components/Loader';
 import { render } from '@testing-library/react';
 

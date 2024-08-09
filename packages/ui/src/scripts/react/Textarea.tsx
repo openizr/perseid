@@ -28,7 +28,7 @@ function UITextarea(props: UITextareaProps): JSX.Element {
   const isUserTyping = React.useRef(false);
   const [randomId] = React.useState(generateRandomId);
   const timeout = React.useRef<NodeJS.Timeout | null>(null);
-  const [currentValue, setCurrentValue] = React.useState(`${value}`);
+  const [currentValue, setCurrentValue] = React.useState(String(value));
   const className = buildClass('ui-textarea', `${modifiers}${disabled ? ' disabled' : ''}`);
   rows = (autoresize && rows === undefined) ? Math.max(1, currentValue.split('\n').length) : rows;
 
@@ -85,7 +85,7 @@ function UITextarea(props: UITextareaProps): JSX.Element {
   React.useEffect(() => {
     // Do not update current value immediatly while user is typing something else.
     if (!isUserTyping.current) {
-      setCurrentValue(`${value}`);
+      setCurrentValue(String(value));
     }
   }, [value]);
 

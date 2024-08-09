@@ -66,8 +66,8 @@ const parsers = [
   {
     regexp: /\[([^\]]*)\]\(([^\t\n |]*)(?:\|([^|)]*))?(?:\|([^|)]*))?\)/g,
     template: (...args: (string | undefined)[]): string => {
-      const label = args[1];
-      const link = args[2];
+      const label = args[1] as unknown as string;
+      const link = args[2] as unknown as string;
       const rel = (args[3] !== undefined) ? ` rel="${args[3]}"` : '';
       const target = (args[4] !== undefined) ? ` target="${args[4]}"` : '';
       return `<a class="ui-link" href="${link}"${rel}${target}>${label}</a>`;
@@ -79,7 +79,7 @@ const parsers = [
   {
     regexp: /^(#{1,6})\s+(.*)/gm,
     template: (_match: string, hash: string, content: string): string => {
-      const { length } = hash;
+      const length = String(hash.length);
       return `<h${length} class="ui-title ui-title--${length}">${content}</h${length}>`;
     },
   },

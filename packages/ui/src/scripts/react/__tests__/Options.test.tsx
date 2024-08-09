@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import UIOptions from 'scripts/react/Options';
 import { render, fireEvent, act } from '@testing-library/react';
 

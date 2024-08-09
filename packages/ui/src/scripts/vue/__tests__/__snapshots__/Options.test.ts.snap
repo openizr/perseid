@@ -13,6 +13,7 @@ exports[`vue/UIOptions > correctly handles checkboxes keyboard navigation 1`] = 
       class="ui-options__wrapper__option ui-options__wrapper__option--checked"
     >
       <input
+        checked=""
         class="ui-options__wrapper__option__field"
         id="z8a8d7a5zad4_0"
         name="test"
@@ -388,6 +389,7 @@ exports[`vue/UIOptions > renders correctly - radio  with listeners 1`] = `
       class="ui-options__wrapper__option ui-options__wrapper__option--checked"
     >
       <input
+        checked=""
         class="ui-options__wrapper__option__field"
         id="z8a8d7a5zad4_2"
         name="test"
@@ -895,6 +897,7 @@ exports[`vue/UIOptions > renders correctly - radio with value 1`] = `
       class="ui-options__wrapper__option ui-options__wrapper__option--checked"
     >
       <input
+        checked=""
         class="ui-options__wrapper__option__field"
         id="z8a8d7a5zad4_0"
         name="test"
@@ -1452,10 +1455,13 @@ exports[`vue/UIOptions > renders correctly - select with default value 1`] = `
       
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__undefined"
+        class="ui-options__wrapper__list__option"
         id="z8a8d7a5zad40"
+        role="option"
         tabindex="-1"
-      />
+      >
+        Test
+      </li>
       
     </ul>
   </div>
