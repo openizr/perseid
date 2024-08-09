@@ -1,82 +1,63 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`svelte/UITooltip > renders correctly - basic 1`] = `
-<div>
-  <div
-    aria-label="Test"
-    class="ui-tooltip ui-tooltip--top"
-    role="tooltip"
-  >
-     
-  </div>
-  <!--&lt;Tooltip&gt;-->
+<div
+  aria-label="Test"
+  class="ui-tooltip ui-tooltip--top"
+  role="tooltip"
+>
+   
 </div>
 `;
 
 exports[`svelte/UITooltip > renders correctly - basic 2 1`] = `
-<div>
-  <div
-    aria-label="Test"
-    class="ui-tooltip"
-    role="tooltip"
-  >
-    <button>
-      i
-    </button>
-     
-  </div>
-  <!--&lt;Tooltip&gt;-->
-  <!--&lt;TestTooltip2&gt;-->
+<div
+  aria-label="Test"
+  class="ui-tooltip"
+  role="tooltip"
+>
+  <button>
+    i
+  </button>
+   
 </div>
 `;
 
 exports[`svelte/UITooltip > renders correctly - basic 2 2`] = `
-<div>
-  <div
-    aria-label="Test"
-    class="ui-tooltip"
-    role="tooltip"
-  >
-    <button>
-      i
-    </button>
-     
-  </div>
-  <!--&lt;Tooltip&gt;-->
-  <!--&lt;TestTooltip2&gt;-->
+<div
+  aria-label="Test"
+  class="ui-tooltip"
+  role="tooltip"
+>
+  <button>
+    i
+  </button>
+   
 </div>
 `;
 
 exports[`svelte/UITooltip > renders correctly - with description 1`] = `
-<div>
-  <div
-    aria-label="Test"
-    class="ui-tooltip ui-tooltip--top"
-    role="tooltip"
-  >
-    <button>
-      i
-    </button>
-     
-  </div>
-  <!--&lt;Tooltip&gt;-->
-  <!--&lt;TestTooltip&gt;-->
+<div
+  aria-label="Test"
+  class="ui-tooltip ui-tooltip--top"
+  role="tooltip"
+>
+  <button>
+    i
+  </button>
+   
 </div>
 `;
 
 exports[`svelte/UITooltip > renders correctly - with description 2`] = `
-<div>
-  <div
-    aria-label="Test"
-    class="ui-tooltip ui-tooltip--top"
-    role="tooltip"
-  >
-    <button>
-      i
-    </button>
-     
-  </div>
-  <!--&lt;Tooltip&gt;-->
-  <!--&lt;TestTooltip&gt;-->
+<div
+  aria-label="Test"
+  class="ui-tooltip ui-tooltip--top"
+  role="tooltip"
+>
+  <button>
+    i
+  </button>
+   
 </div>
 `;

@@ -261,10 +261,12 @@ describe('svelte/UIOptions', () => {
     await nextTick();
     component.$set({ options: selectOptions.slice(0, 2) });
     await nextTick();
-    rerender({
-      name: 'test', select: true, options: selectOptions.slice(0, 2), multiple: true,
+    await rerender({
+      name: 'test',
+      select: true,
+      multiple: true,
+      options: selectOptions.slice(0, 2),
     });
-    await nextTick();
     expect(container.firstChild).toMatchSnapshot();
     expect(onFocus).toHaveBeenCalledTimes(5);
   });
@@ -275,25 +277,37 @@ describe('svelte/UIOptions', () => {
         name: 'test', select: true, options: selectOptions, value: ['option3'], multiple: true,
       },
     });
-    rerender({
-      name: 'test', select: true, options: selectOptions, value: ['option1', 'option2'], multiple: true,
+    await rerender({
+      name: 'test',
+      select: true,
+      multiple: true,
+      options: selectOptions,
+      value: ['option1', 'option2'],
     });
-    await nextTick();
     expect(container.firstChild).toMatchSnapshot();
-    rerender({
-      name: 'test', select: true, options: selectOptions, value: [], multiple: true,
+    await rerender({
+      value: [],
+      name: 'test',
+      select: true,
+      multiple: true,
+      options: selectOptions,
     });
-    await nextTick();
     expect(container.firstChild).toMatchSnapshot();
-    rerender({
-      name: 'test', select: true, options: selectOptions, value: ['option1'], multiple: false,
+    await rerender({
+      name: 'test',
+      select: true,
+      multiple: false,
+      value: ['option1'],
+      options: selectOptions,
     });
-    await nextTick();
     expect(container.firstChild).toMatchSnapshot();
-    rerender({
-      name: 'test', select: true, multiple: true, options: selectOptions, value: undefined,
+    await rerender({
+      name: 'test',
+      select: true,
+      multiple: true,
+      options: selectOptions,
+      value: undefined,
     });
-    await nextTick();
     expect(container.firstChild).toMatchSnapshot();
   });
 

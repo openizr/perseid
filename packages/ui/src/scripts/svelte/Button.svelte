@@ -24,7 +24,7 @@ export let onFocus: ((event: FocusEvent) => void) | undefined = undefined;
 // Enforces props default values.
 $: type = (type as 'button' | undefined) ?? 'button';
 $: modifiers = (modifiers as string | undefined) ?? '';
-$: iconPosition = (iconPosition as 'left' | undefined) ?? 'left';
+$: iconPosition = (iconPosition as 'left' | 'right' | undefined) ?? 'left';
 
 $: iconModifier = icon !== undefined && label === undefined ? ' icon' : '';
 $: className = buildClass('ui-button', `${modifiers}${iconModifier}${disabled ? ' disabled' : ''}`);

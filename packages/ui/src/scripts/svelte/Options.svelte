@@ -58,8 +58,8 @@ let isDisplayed = false;
 let focusedOptionIndex = -1;
 let currentValue = toArray(value);
 const randomId = generateRandomId();
-let buttonRef: HTMLElement | null = null;
-let wrapperRef: HTMLElement | null = null;
+let buttonRef: HTMLElement | null;
+let wrapperRef: HTMLElement | null;
 
 // Enforces props default values.
 $: value = (value as string[] | undefined) ?? [];
@@ -288,7 +288,7 @@ const updateSelectFocus = (newMounted: boolean, newIsDisplayed: boolean): void =
   mounted = true;
 };
 $: updateSelectFocus(mounted, isDisplayed);
-$: onlyOptions = options.filter((option) => option.type === 'option') as UIOptionsOption[];
+$: onlyOptions = options.filter((option) => option.type === 'option');
 </script>
 
 {#if select}

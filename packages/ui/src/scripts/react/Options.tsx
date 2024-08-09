@@ -366,7 +366,7 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
         className="ui-options__wrapper"
       >
         {options.filter((option) => option.type === 'option').map((option, index) => {
-          const realOption = option as UIOptionsOption;
+          const realOption = option;
           const optionId = `${randomId}_${index}`;
           const isChecked = currentValue.includes(realOption.value);
           let optionModifiers = `${option.modifiers ?? ''}${realOption.disabled ? ' disabled' : ''}`;

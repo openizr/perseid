@@ -16,6 +16,7 @@ exports[`vue/UITextarea > renders correctly - autocomplete off 1`] = `
       name="test"
       rows="10"
       tabindex="0"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -38,6 +39,7 @@ exports[`vue/UITextarea > renders correctly - basic 1`] = `
       name="test"
       rows="10"
       tabindex="0"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -61,6 +63,7 @@ exports[`vue/UITextarea > renders correctly - disabled 1`] = `
       name="test"
       rows="10"
       tabindex="-1"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -84,6 +87,7 @@ exports[`vue/UITextarea > renders correctly - readonly 1`] = `
       readonly=""
       rows="10"
       tabindex="0"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -107,6 +111,7 @@ exports[`vue/UITextarea > renders correctly - with autofocus 1`] = `
       name="test"
       rows="10"
       tabindex="0"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -129,6 +134,8 @@ exports[`vue/UITextarea > renders correctly - with autoresize 1`] = `
       name="test"
       rows="2"
       tabindex="0"
+      value="new
+value"
     />
   </div>
   <!--v-if-->
@@ -151,6 +158,7 @@ exports[`vue/UITextarea > renders correctly - with cols and rows 1`] = `
       name="test"
       rows="50"
       tabindex="0"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -173,6 +181,7 @@ exports[`vue/UITextarea > renders correctly - with helper 1`] = `
       name="test"
       rows="10"
       tabindex="0"
+      value=""
     />
   </div>
   <span
@@ -204,6 +213,7 @@ exports[`vue/UITextarea > renders correctly - with id 1`] = `
       name="test"
       rows="10"
       tabindex="0"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -235,6 +245,7 @@ exports[`vue/UITextarea > renders correctly - with label 1`] = `
       name="test"
       rows="10"
       tabindex="0"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -257,6 +268,7 @@ exports[`vue/UITextarea > renders correctly - with listeners and debounce 1`] = 
       name="test"
       rows="10"
       tabindex="0"
+      value="new 015 test"
     />
   </div>
   <!--v-if-->
@@ -280,6 +292,7 @@ exports[`vue/UITextarea > renders correctly - with placeholder 1`] = `
       placeholder="test..."
       rows="10"
       tabindex="0"
+      value=""
     />
   </div>
   <!--v-if-->
@@ -302,6 +315,7 @@ exports[`vue/UITextarea > renders correctly - with value 1`] = `
       name="test"
       rows="10"
       tabindex="0"
+      value="my value"
     />
   </div>
   <!--v-if-->

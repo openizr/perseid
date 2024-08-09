@@ -67,7 +67,7 @@ describe('svelte/UIFilePicker', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - with value', () => {
+  test('renders correctly - with value', async () => {
     const { container, rerender } = render(UIFilePicker, {
       props: {
         name: 'test',
@@ -80,7 +80,7 @@ describe('svelte/UIFilePicker', () => {
       },
     });
     expect(container.firstChild).toMatchSnapshot();
-    rerender({ name: 'test', value: [] });
+    await rerender({ name: 'test', value: [] });
   });
 
   test('renders correctly - with listeners', async () => {

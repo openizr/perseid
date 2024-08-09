@@ -143,7 +143,7 @@ describe('svelte/UITextfield', () => {
     expect(onKeyDown).toHaveBeenCalledWith('', expect.any(Object));
     expect(onPaste).toHaveBeenCalledTimes(1);
     expect(onPaste).toHaveBeenCalledWith('AND', expect.any(Object));
-    rerender({
+    await rerender({
       name: 'test',
       size: 10,
       allowedKeys: { default: /z/i },

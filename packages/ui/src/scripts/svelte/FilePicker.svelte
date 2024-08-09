@@ -40,7 +40,7 @@ const randomId = generateRandomId();
 $: value = (value as File[] | undefined) ?? [];
 $: modifiers = (modifiers as string | undefined) ?? '';
 $: multiple = (multiple as boolean | undefined) ?? false;
-$: iconPosition = (iconPosition as 'left' | undefined) ?? 'left';
+$: iconPosition = (iconPosition as 'left' | 'right' | undefined) ?? 'left';
 
 $: tabIndex = disabled ? -1 : 0;
 $: className = buildClass('ui-file-picker', `${modifiers}${multiple ? ' multiple' : ''}${disabled ? ' disabled' : ''}`);
