@@ -74,7 +74,7 @@
       @extend %text;
     }
 
-    @extend .#{$class};
+    @extend %#{$class};
   }
 }
 
@@ -133,5 +133,171 @@
     @media screen and (min-width:#{$firstValue}) {
       @content;
     }
+  }
+}
+
+/**
+ * Generates all the built-in CSS classes and variables. You should call this mixin in your main
+ * style entrypoint, but not in additional files that are dynamically imported, to avoid unecessary
+ * CSS duplication.
+ */
+@mixin init() {
+  * {
+    // Number of columns set in a layout scope.
+    --cols: 1;
+
+    // Gap between columns set in a layout scope.
+    --hgap: initial;
+    --vgap: initial;
+
+    // Number of columns spaning set in a layout item scope.
+    --span: 1;
+
+    // Layout properties.
+    --flow: initial;
+    --disp: initial;
+    --just: initial;
+    --items: initial;
+    --self: initial;
+
+    // Flex properties.
+    --wrap: initial;
+    --dir: initial;
+    --flex: none;
+
+    // Text properties.
+    --text: initial;
+
+    // Size properties.
+    --width: initial;
+    --height: initial;
+  }
+
+  // Generating breakpoints-based built-in classes...
+  @each $breakpoint, $value in $breakpoints {
+    @include query($breakpoint) {
+      $class-bp: if($breakpoint==xxs, '', #{$breakpoint}#{'\\:'});
+
+      @each $class, $val in $classes {
+        .#{$class-bp}#{$class} {
+          @extend %#{$class-bp}#{$class};
+        }
+      }
+    }
+  }
+
+  [class*='grid'] {
+    @extend %grid;
+  }
+
+  [class*='grid'],
+  [class*='flex'] {
+    @extend %grid-flex;
+  }
+
+  [class*='none'],
+  [class*='block'] {
+    @extend %none-block;
+  }
+
+  [class*='self'] {
+    @extend %self;
+  }
+
+  [class*='text-'] {
+    @extend %text;
+  }
+
+  [class*='w-full'] {
+    @extend %width;
+  }
+
+  [class*='h-full'] {
+    @extend %height;
+  }
+
+  [class*='flex'] {
+    @extend %flex;
+  }
+
+  [class*='col-'] {
+    @extend %col;
+  }
+
+  body {
+    @each $variable, $values in $variables {
+      @each $key, $value in $values {
+        --#{$variable}-#{$key}: #{$value};
+      }
+    }
+
+    &:before {
+      position: fixed;
+      z-index: 1000;
+      content: 'Your browser is outdated and might not be able to display this page.';
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80vw;
+      max-width: 20rem;
+      padding: 1.5em;
+      font-weight: bold;
+      text-align: center;
+      box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1);
+      background: white;
+    }
+
+    @supports (--css: variables) and (display: grid) {
+      &:before {
+        display: none;
+      }
+    }
+  }
+
+  // Resets annoying default browsers' CSS properties.
+  * {
+    margin: 0;
+    padding: 0;
+    text-decoration: none;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  input,
+  input:focus {
+    border: none;
+    outline: none;
+  }
+
+  button {
+    border: none;
+    cursor: pointer;
+    background: none;
+
+    &::-moz-focus-inner {
+      padding: 0;
+      border: none;
+    }
+  }
+
+  ul {
+    list-style: none;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  body {
+    word-break: break-word;
+  }
+
+  *:hover {
+    -webkit-tap-highlight-color: transparent;
   }
 }

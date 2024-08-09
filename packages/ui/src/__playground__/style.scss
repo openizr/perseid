@@ -9,46 +9,4 @@
 @import 'styles/core/index.scss';
 @import 'styles/templates/index.scss';
 
-.column {
-  background: #ff0000a5;
-  height: 500px;
-}
-
-.column4 {
-  @include extend(
-    flex vgap-2 hgap-6 flex-auto col-1 xl\:flex-wrap-rev l\:flex-wrap justify-between flex-col-rev
-  );
-}
-
-.column3 {
-  background: #0000ffa5;
-  min-width: 500px;
-
-  &:first-child {
-    background: #00ff00a5;
-  }
-}
-
-.column2 {
-  background: #00ff00a5;
-
-  &.column1 {
-    background: #0000ffa5;
-  }
-}
-
-*:focus {
-  background-color: red;
-}
-
-.ui-button {
-  @include modifiers(test1) {
-    background: blue;
-  }
-  @include modifiers(test2) {
-    background: white;
-  }
-  @include modifiers(test1 test2) {
-    background: red;
-  }
-}
+@include init();
