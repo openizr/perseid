@@ -9,7 +9,7 @@
 import Store from '@perseid/store';
 import state from 'scripts/core/state';
 import userActions from 'scripts/core/userActions';
-import { deepCopy, deepMerge, isPlainObject } from '@perseid/core';
+import { deepCopy, isPlainObject } from '@perseid/core';
 
 /**
  * Form engine.
@@ -920,7 +920,7 @@ export default class Engine {
    * @param variables Form variables to add or override.
    */
   public async setVariables(variables: Record<string, unknown>): Promise<void> {
-    this.variables = deepMerge(this.variables, variables);
+    Object.assign(this.variables, variables);
     await this.processUserInputs();
     this.notifyUI();
   }
