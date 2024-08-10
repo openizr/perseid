@@ -81,10 +81,10 @@ export default class Engine {
       || (type === 'string' && String(firstInput) === String(secondInput))
       || (type === 'float' && Number.isNaN(secondInput) && Number.isNaN(firstInput))
       || (type === 'integer' && Number.isNaN(secondInput) && Number.isNaN(firstInput))
-      || (type === 'date' && (firstInput as Date).getTime() === (secondInput as Date).getTime())
+      || (type === 'date' && (firstInput as Date | null)?.getTime() === (secondInput as Date | null)?.getTime())
       || (type === 'binary' && (
-        (firstInput as File).name === (secondInput as File).name
-        && (firstInput as File).size === (secondInput as File).size
+        (firstInput as File | null)?.name === (secondInput as File | null)?.name
+        && (firstInput as File | null)?.size === (secondInput as File | null)?.size
       ))
     );
   }
