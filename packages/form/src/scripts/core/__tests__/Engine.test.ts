@@ -1173,6 +1173,9 @@ describe('core/Engine', () => {
   });
 
   test('[setVariables]', async () => {
+    const promise = new Promise((resolve) => { setTimeout(resolve, 50); });
+    vi.runAllTimers();
+    await promise;
     vi.spyOn(engine, 'notifyUI').mockImplementation(() => null);
     vi.spyOn(engine, 'processUserInputs').mockImplementation(() => Promise.resolve());
     await engine.setVariables({ newTest: true });

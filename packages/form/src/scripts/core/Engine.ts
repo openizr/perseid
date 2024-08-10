@@ -928,7 +928,9 @@ export default class Engine {
    */
   public async setVariables(variables: Record<string, unknown>): Promise<void> {
     Object.assign(this.variables, variables);
-    await this.processUserInputs();
+    if (this.userInputsQueue.size === 0) {
+      await this.processUserInputs();
+    }
     this.notifyUI();
   }
 
