@@ -187,8 +187,8 @@ export default class Engine {
     const newField: Field = {
       path,
       type,
-      value: null,
       error: null,
+      value: undefined,
       status: 'initial',
       required: required === true,
     };
@@ -230,12 +230,19 @@ export default class Engine {
     newValue: unknown,
     initialValue: Exclude<unknown, undefined>,
     newInputs: { partial?: unknown; full?: unknown } = { full: undefined, partial: undefined },
+    // This field makes sure that all the user action logic gets always executed (toggle,
+    // validation, hooks, ...) when `engine.userAction` is called explicitely, even if new and
+    // existing values are the same, but keeps the "batch" behaviour as is (meaning if useractions
+    // are just subsequent triggers of a batch, then if the values are the same, we don't do
+    // anything).
+    force = false,
   ): Field | null {
     const newUserInputs = newInputs;
     const { type, condition } = configuration;
     const isStageTwo = newValue instanceof Map;
     const discardedFieldValue = this.discardedUserInputs.get(path);
     const { required, defaultValue, submit } = configuration as StringConfiguration;
+
     // We can't use nullish coalescing operator here as we need to keep `null` value.
     let newFieldValue = (isStageTwo ? newValue.get(path) : newValue) as unknown;
     newFieldValue = (newFieldValue !== undefined) ? newFieldValue : field?.value;
@@ -253,7 +260,7 @@ export default class Engine {
     const newField = field ?? this.createField(path, configuration) as unknown as Field;
     const isNewValue = !this.areEqual(newFieldValue, newField.value, type);
     // We either queue new field value or assign it to the field depending on the stage.
-    if ((!isStageTwo || (field === null && submit !== true)) && isNewValue) {
+    if ((!isStageTwo || (field === null && submit !== true)) && ((isNewValue && type !== 'null') || force)) {
       this.userInputsQueue.set(path, { data: newFieldValue, configuration });
       this.discardedUserInputs.delete(path);
     } else if (type !== 'null') {
@@ -292,21 +299,21 @@ export default class Engine {
       const key = isArray ? index : (fieldIds as string[])[index];
       const updatedUserInputs = { full: undefined, partial: undefined };
       const subField = this.toggleField(
-        `${path}.${key as string}`,
+        `${path}.${String(key)}`,
         newField.fields[index],
         isArray ? configuration.fields : configuration.fields[key],
-        isStageTwo ? newValue : (newFieldValue as unknown[])[key as number] ?? null,
+        isStageTwo ? newValue : (newFieldValue as unknown[])[key as number],
         (initialValue as unknown[] | undefined)?.[key as number],
         updatedUserInputs,
       );
       if (subField !== null) {
-        subField.path = `${path}.${key as string}`;
+        subField.path = `${path}.${String(key)}`;
       }
       newField.fields[index] = subField;
       if ((updatedUserInputs.full as unknown) !== undefined) {
         (newUserInputs.full as unknown[])[key as number] = updatedUserInputs.full;
       }
-      if (isArray && (updatedUserInputs.partial as unknown) !== undefined) {
+      if ((isArray || !required) && (updatedUserInputs.partial as unknown) !== undefined) {
         newUserInputs.partial = newUserInputs.full;
       } else if ((updatedUserInputs.partial as unknown) !== undefined) {
         newUserInputs.partial ??= {};
@@ -520,13 +527,13 @@ export default class Engine {
     data: T,
   ): Promise<T | null> {
     try {
-      const hooksChain = this.hooks[eventName].reduce((chain, hook) => (
+      const hooksChain = this.hooks[eventName].reduce<NextHook<HookData>>((chain, hook) => (
         (updatedData): Promise<HookData> => (
-          hook(updatedData, chain as NextHook<HookData>)
+          hook(updatedData, chain)
         )
       ), (updatedData) => Promise.resolve(updatedData));
-      const updatedData = await (hooksChain as NextHook<HookData>)(data);
-      if ((updatedData as unknown) === undefined) {
+      const updatedData = await hooksChain(data) as T | undefined;
+      if (updatedData === undefined) {
         throw new Error(
           `Event "${eventName}": data passed to the next hook is "undefined".`
           + ' This usually means that you did not correctly resolved your hook Promise with'
@@ -534,7 +541,7 @@ export default class Engine {
         );
       }
       this.notifyUI();
-      return updatedData as T;
+      return updatedData;
     } catch (error) {
       // Disabling cache on error prevents the form to be stucked in error step forever.
       // Be careful: first clear cache, then disable it!
@@ -546,7 +553,7 @@ export default class Engine {
       } else {
         throw error;
       }
-      return null as T;
+      return null;
     }
   }
 
@@ -653,7 +660,10 @@ export default class Engine {
       while (splittedPath.length > 0 && initialValue !== null) {
         initialValue = initialValue[String(splittedPath.shift())] as UserInputs | null ?? null;
       }
-      this.toggleField(path, field, fieldConfiguration, userAction.data, initialValue);
+      this.toggleField(path, field, fieldConfiguration, userAction.data, initialValue, {
+        full: undefined,
+        partial: undefined,
+      }, true);
       await this.processUserInputs();
     }
   }

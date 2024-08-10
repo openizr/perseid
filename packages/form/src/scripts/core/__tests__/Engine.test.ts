@@ -154,11 +154,11 @@ describe('core/Engine', () => {
         required: true,
         defaultValue: 'test',
       })).toEqual({
-        value: null,
         error: null,
         type: 'string',
         required: true,
         status: 'initial',
+        value: undefined,
         path: 'root.0.test',
       });
     });
@@ -178,10 +178,10 @@ describe('core/Engine', () => {
         fields: { type: 'string' },
       })).toEqual({
         fields: [],
-        value: null,
         error: null,
         type: 'array',
         required: true,
+        value: undefined,
         status: 'initial',
         path: 'root.0.test',
       });
@@ -195,10 +195,10 @@ describe('core/Engine', () => {
         fields: { key: { type: 'string' } },
       })).toEqual({
         fields: [],
-        value: null,
         error: null,
         type: 'object',
         required: true,
+        value: undefined,
         status: 'initial',
         path: 'root.0.test',
       });
@@ -223,7 +223,7 @@ describe('core/Engine', () => {
           required: true,
           status: 'initial',
           type: 'string',
-          value: null,
+          value: undefined,
         }],
       }],
       variables: {},
@@ -231,7 +231,7 @@ describe('core/Engine', () => {
       userInputs: { full: {}, partial: {} },
     });
     expect(global.clearTimeout).toHaveBeenCalledOnce();
-    expect(engine.store.mutate).toHaveBeenCalledOnce();
+    expect(engine.store.mutate).toHaveBeenCalledTimes(2);
     expect(engine.store.mutate).toHaveBeenCalledWith('state', 'UPDATE', {
       loading: true,
       steps: [{
@@ -243,7 +243,7 @@ describe('core/Engine', () => {
           required: true,
           status: 'initial',
           type: 'string',
-          value: null,
+          value: undefined,
         }],
       }],
       variables: {},
@@ -255,9 +255,9 @@ describe('core/Engine', () => {
     test('primitive - display condition not met', () => {
       const field: Field = {
         error: null,
-        value: null,
         type: 'string',
         required: false,
+        value: undefined,
         status: 'initial',
         path: 'root.0.field1',
       };
@@ -271,9 +271,9 @@ describe('core/Engine', () => {
       const fieldConfiguration: FieldConfiguration = { type: 'string' };
       expect(engine.toggleField('root.0.field1', null, fieldConfiguration, 'test', undefined)).toEqual({
         error: null,
-        value: null,
         type: 'string',
         required: false,
+        value: undefined,
         status: 'initial',
         path: 'root.0.field1',
       });
@@ -286,9 +286,9 @@ describe('core/Engine', () => {
     test('primitive - existing field, new value', () => {
       const field: Field = {
         error: null,
-        value: null,
         type: 'string',
         required: false,
+        value: undefined,
         status: 'initial',
         path: 'root.0.field1',
       };
@@ -297,9 +297,9 @@ describe('core/Engine', () => {
       // First stage.
       expect(engine.toggleField('root.0.field1', field, fieldConfiguration, 'test', 'old')).toEqual({
         error: null,
-        value: null,
         type: 'string',
         required: false,
+        value: undefined,
         status: 'initial',
         path: 'root.0.field1',
       });
@@ -355,9 +355,9 @@ describe('core/Engine', () => {
     test('optional array - new value is `[]`', () => {
       const field: Field = {
         error: null,
-        value: null,
         type: 'array',
         required: false,
+        value: undefined,
         status: 'success',
         path: 'root.0.field1',
         fields: [],
@@ -430,15 +430,23 @@ describe('core/Engine', () => {
         fields: { type: 'string' },
       };
       expect(engine.toggleField('root.0.field1', null, fieldConfiguration, undefined, null)).toEqual({
-        value: null,
         fields: [],
         error: null,
         type: 'array',
+        value: undefined,
         required: false,
         status: 'initial',
         path: 'root.0.field1',
       });
-      expect(engine.userInputsQueue).toEqual(new Map());
+      expect(engine.userInputsQueue).toEqual(new Map([
+        ['root.0.field1', {
+          configuration: {
+            fields: { type: 'string' },
+            type: 'array',
+          },
+          data: null,
+        }],
+      ]));
     });
 
     test('required array - default value', () => {
@@ -488,7 +496,7 @@ describe('core/Engine', () => {
       // First stage.
       expect(engine.toggleField('root.0.field1', field, fieldConfiguration, ['test', null], [])).toEqual({
         error: null,
-        value: [null, null],
+        value: [null],
         type: 'array',
         required: true,
         status: 'success',
@@ -502,8 +510,8 @@ describe('core/Engine', () => {
           path: 'root.0.field1.0',
         }, {
           error: null,
-          value: null,
           type: 'string',
+          value: undefined,
           required: false,
           status: 'initial',
           path: 'root.0.field1.1',
@@ -512,6 +520,7 @@ describe('core/Engine', () => {
       expect(engine.userInputsQueue).toEqual(new Map<string, Data>([
         ['root.0.field1', { data: ['test', null], configuration: fieldConfiguration }],
         ['root.0.field1.0', { data: 'test', configuration: fieldConfiguration.fields }],
+        ['root.0.field1.1', { data: null, configuration: fieldConfiguration.fields }],
       ]));
 
       // Second stage.
@@ -555,24 +564,30 @@ describe('core/Engine', () => {
       };
       expect(engine.toggleField('root.0.field1', null, fieldConfiguration, undefined, undefined)).toEqual({
         error: null,
-        value: { key: null },
+        value: {},
         type: 'object',
         required: true,
         status: 'initial',
         path: 'root.0.field1',
         fields: [{
           error: null,
-          value: null,
           type: 'string',
           required: false,
+          value: undefined,
           status: 'initial',
           path: 'root.0.field1.key',
         }],
       });
-      expect(engine.userInputsQueue).toEqual(new Map([['root.0.field1', {
-        data: {},
-        configuration: fieldConfiguration,
-      }]]));
+      expect(engine.userInputsQueue).toEqual(new Map([
+        ['root.0.field1', {
+          data: {},
+          configuration: fieldConfiguration,
+        }],
+        ['root.0.field1.key', {
+          data: null,
+          configuration: { type: 'string' },
+        }],
+      ]));
     });
 
     test('required object, new value is `null`', () => {
@@ -865,7 +880,7 @@ describe('core/Engine', () => {
         }],
       });
       expect(await engine.triggerHooks('userAction', {})).toBe(null);
-      expect(hook).toHaveBeenCalledOnce();
+      expect(hook).toHaveBeenCalledTimes(2);
       expect(hook).toHaveBeenCalledWith(new Error(
         'Event "userAction": data passed to the next hook is "undefined". This usually means that'
         + ' you did not correctly resolved your hook Promise with proper data.',
@@ -975,31 +990,31 @@ describe('core/Engine', () => {
         (path === 'root.0') ? { fields: ['field'] } : { type: 'string' }
       ));
       await engine.handleUserAction({ path: 'root.0.test', data: 'test', type: 'input' });
-      expect(engine.toggleField).toHaveBeenCalledOnce();
+      expect(engine.toggleField).toHaveBeenCalledTimes(2);
       expect(engine.toggleField).toHaveBeenCalledWith('root.0.test', {
         error: null,
         path: 'root.0.test',
         required: true,
         status: 'initial',
         type: 'string',
-        value: null,
-      }, { type: 'string' }, 'test', null);
+        value: undefined,
+      }, { type: 'string' }, 'test', null, { full: undefined, partial: undefined }, true);
       expect(engine.processUserInputs).toHaveBeenCalledOnce();
     });
   });
 
   describe('[constructor]', () => {
     test('cache is not enabled', () => {
-      expect(engine.userInputs).toEqual({ full: { test: null }, partial: { test: null } });
+      expect(engine.userInputs).toEqual({ full: {}, partial: {} });
       expect(engine.variables).toEqual({});
       expect(engine.steps).toEqual([{
         path: 'root.0',
         status: 'initial',
         fields: [{
-          value: null,
           error: null,
           type: 'string',
           required: true,
+          value: undefined,
           status: 'initial',
           path: 'root.0.test',
         }],
@@ -1027,8 +1042,8 @@ describe('core/Engine', () => {
         path: 'root.0',
         status: 'success',
         fields: [{
-          value: null,
           error: null,
+          value: null,
           type: 'string',
           required: true,
           status: 'success',
@@ -1141,9 +1156,9 @@ describe('core/Engine', () => {
       status: 'initial',
       fields: [{
         error: null,
-        value: null,
         type: 'string',
         required: true,
+        value: undefined,
         status: 'initial',
         path: 'root.0.test',
       }],
