@@ -530,7 +530,10 @@ describe('core/Engine', () => {
         ['root.0.field1.1', null],
       ]);
       engine.userInputsQueue = new Map();
-      expect(engine.toggleField('root.0.field1', field, fieldConfiguration, map, undefined)).toEqual({
+      expect(engine.toggleField('root.0.field1', field, fieldConfiguration, map, undefined, {
+        full: undefined,
+        partial: undefined,
+      }, true)).toEqual({
         error: null,
         value: ['test', null],
         type: 'array',

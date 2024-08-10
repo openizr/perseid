@@ -303,7 +303,7 @@ export default class Engine {
         newField.fields[index],
         isArray ? configuration.fields : configuration.fields[key],
         isStageTwo ? newValue : (newFieldValue as unknown[])[key as number],
-        (initialValue as unknown[] | undefined)?.[key as number],
+        isArray && force ? undefined : (initialValue as unknown[] | undefined)?.[key as number],
         updatedUserInputs,
       );
       if (subField !== null) {
