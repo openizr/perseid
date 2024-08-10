@@ -1,10 +1,9 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`svelte/DefaultField > renders correctly - binary field 1`] = `
-<div>
-  <pre>
-      
-    {
+<pre>
+    
+  {
   "path": "root.0.test",
   "type": "binary",
   "status": "initial",
@@ -16,18 +15,15 @@ exports[`svelte/DefaultField > renders correctly - binary field 1`] = `
   "engine": "&lt;Engine&gt;",
   "useSubscription": "&lt;Function&gt;"
 }
-    
+  
 
-  </pre>
-  <!--&lt;DefaultField&gt;-->
-</div>
+</pre>
 `;
 
 exports[`svelte/DefaultField > renders correctly - non-binary field 1`] = `
-<div>
-  <pre>
-      
-    {
+<pre>
+    
+  {
   "path": "root.0.test",
   "type": "string",
   "status": "initial",
@@ -39,9 +35,7 @@ exports[`svelte/DefaultField > renders correctly - non-binary field 1`] = `
   "engine": "&lt;Engine&gt;",
   "useSubscription": "&lt;Function&gt;"
 }
-    
+  
 
-  </pre>
-  <!--&lt;DefaultField&gt;-->
-</div>
+</pre>
 `;

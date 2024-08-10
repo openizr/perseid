@@ -1,103 +1,87 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`svelte/Form > renders correctly - loading next step 1`] = `
-<div>
-  <form
-    class="perseid-form"
-    id="test"
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div
+    class="perseid-form__steps"
   >
-    <div
-      class="perseid-form__steps"
-    >
-      
-       
-    </div>
-    <!--&lt;DefaultLayout&gt;-->
-  </form>
-  <!--&lt;Form&gt;-->
-</div>
+    
+     
+  </div>
+</form>
 `;
 
 exports[`svelte/Form > renders correctly - with active step 1`] = `
-<div>
-  <form
-    class="perseid-form"
-    id="test"
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div
+    class="perseid-form__steps"
   >
     <div
-      class="perseid-form__steps"
+      class="perseid-form__step perseid-form__step--start--active"
+      id="start"
     >
       <div
-        class="perseid-form__step perseid-form__step--start--active"
-        id="start"
+        id="step"
       >
-        <div
-          id="step"
-        >
-          {"Field":"function","engine":"object","step":{"path":"start","fields":[]},"active":true,"useSubscription":"function"}
-        </div>
-        <!--&lt;Step&gt;-->
-         
+        {"Field":"function","engine":"object","step":{"path":"start","fields":[]},"active":true,"useSubscription":"function"}
       </div>
-      <div
-        class="perseid-form__step perseid-form__step--end"
-        id="end"
-      >
-        <div
-          id="step"
-        >
-          {"Field":"function","engine":"object","step":{"path":"end","fields":[]},"active":false,"useSubscription":"function"}
-        </div>
-        <!--&lt;Step&gt;-->
-         
-      </div>
-      
        
     </div>
-    <!--&lt;DefaultLayout&gt;-->
-  </form>
-  <!--&lt;Form&gt;-->
-</div>
+    <div
+      class="perseid-form__step perseid-form__step--end"
+      id="end"
+    >
+      <div
+        id="step"
+      >
+        {"Field":"function","engine":"object","step":{"path":"end","fields":[]},"active":false,"useSubscription":"function"}
+      </div>
+       
+    </div>
+    
+     
+  </div>
+</form>
 `;
 
 exports[`svelte/Form > renders correctly - with active step 2`] = `
-<div>
-  <form
-    class="perseid-form"
-    id="test"
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div
+    class="perseid-form__steps"
   >
     <div
-      class="perseid-form__steps"
+      class="perseid-form__step perseid-form__step--start--active"
+      id="start"
     >
       <div
-        class="perseid-form__step perseid-form__step--start--active"
-        id="start"
+        id="step"
       >
-        <div
-          id="step"
-        >
-          {"Field":"function","engine":"object","step":{"path":"start","fields":[]},"active":true,"useSubscription":"function"}
-        </div>
-        <!--&lt;Step&gt;-->
-         
+        {"Field":"function","engine":"object","step":{"path":"start","fields":[]},"active":true,"useSubscription":"function"}
       </div>
-      <div
-        class="perseid-form__step perseid-form__step--end"
-        id="end"
-      >
-        <div
-          id="step"
-        >
-          {"Field":"function","engine":"object","step":{"path":"end","fields":[]},"active":false,"useSubscription":"function"}
-        </div>
-        <!--&lt;Step&gt;-->
-         
-      </div>
-      
        
     </div>
-    <!--&lt;DefaultLayout&gt;-->
-  </form>
-  <!--&lt;Form&gt;-->
-</div>
+    <div
+      class="perseid-form__step perseid-form__step--end"
+      id="end"
+    >
+      <div
+        id="step"
+      >
+        {"Field":"function","engine":"object","step":{"path":"end","fields":[]},"active":false,"useSubscription":"function"}
+      </div>
+       
+    </div>
+    
+     
+  </div>
+</form>
 `;

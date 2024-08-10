@@ -18,7 +18,7 @@ exports[`vue/Form > renders correctly - loading next step 1`] = `
           { path: "end", fields: [] }
         ]
       };
-      return ref(state);
+      return __vi_import_0__.ref(state);
     }"
   >
     

@@ -1,7 +1,3 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`svelte/DefaultLoader > renders correctly 1`] = `
-<div>
-  <!--&lt;DefaultLoader&gt;-->
-</div>
-`;
+exports[`svelte/DefaultLoader > renders correctly 1`] = `null`;

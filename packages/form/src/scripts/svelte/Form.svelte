@@ -56,7 +56,7 @@
   function buildClass(baseClass: string, modifiers: string): string {
     const chainedModifiers = [...new Set(modifiers.split(' '))].map((modifier) => (
       (modifier === '') ? '' : `--${modifier}`)).join('');
-    return `${baseClass}${` ${baseClass}${chainedModifiers}`}`;
+    return `${baseClass} ${baseClass}${chainedModifiers}`;
   }
 
   export let activeStep: FormProps['activeStep'];

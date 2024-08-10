@@ -52,7 +52,7 @@
     Key is composed of both step and field ids, in order to ensure each field is correctly reset
     when user changes his journey in previous steps.
   -->
-  {#each step.fields as field (`${field?.path}`)}
+  {#each step.fields as field (String(field?.path))}
     {#if field !== null}
       <svelte:component
         this={Field}

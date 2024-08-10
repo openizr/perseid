@@ -75,9 +75,9 @@
     active,
     required,
     value: (type === 'binary') ? '<Binary>' : value,
-    Field: `<${typeof Field !== 'string' && 'Component'}>`,
-    engine: `<${typeof engine !== 'string' && 'Engine'}>`,
-    useSubscription: `<${typeof useSubscription !== 'string' && 'Function'}>`,
+    Field: `<${String(typeof Field !== 'string' && 'Component')}>`,
+    engine: `<${String(typeof engine !== 'string' && 'Engine')}>`,
+    useSubscription: `<${String(typeof useSubscription !== 'string' && 'Function')}>`,
     fields,
   }, null, 2)}
 </pre>
