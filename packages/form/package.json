@@ -81,7 +81,8 @@
           "import/no-relative-packages": "off",
           "import/no-named-as-default-member": "off",
           "import/no-extraneous-dependencies": "off",
-          "@typescript-eslint/no-explicit-any": "off"
+          "@typescript-eslint/no-explicit-any": "off",
+          "@typescript-eslint/no-unnecessary-type-parameters": "off"
         }
       },
       {
@@ -90,6 +91,7 @@
         ],
         "rules": {
           "class-methods-use-this": "off",
+          "@typescript-eslint/no-unnecessary-type-parameters": "off",
           "@typescript-eslint/no-dynamic-delete": "off",
           "@typescript-eslint/no-floating-promises": "off"
         }

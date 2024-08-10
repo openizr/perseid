@@ -336,7 +336,7 @@ export default class Engine {
   protected toggleFields(step: Step | null, newFieldValues: Map<string, unknown>): void {
     if (step !== null) {
       const { path, fields } = step;
-      const { fields: fieldIds } = this.configuration.steps[path.split('.')[0]];
+      const { fields: fieldIds } = this.getConfiguration<StepConfiguration>(path);
       for (let index = 0, { length } = fieldIds; index < length; index += 1) {
         const newUserInputs = { full: undefined, partial: undefined };
         const fieldId = fieldIds[index];
@@ -489,8 +489,7 @@ export default class Engine {
       let allFieldsSucceeded = true;
       // We reset current step status to not stay in error state forever.
       this.currentStep.status = 'progress';
-      const currentStepId = this.currentStep.path.split('.')[0];
-      const { fields: fieldIds } = this.configuration.steps[currentStepId];
+      const { fields: fieldIds } = this.getConfiguration<StepConfiguration>(this.currentStep.path);
       for (let index = 0, { length } = fieldIds; index < length; index += 1) {
         const fieldState = this.validateField(
           this.currentStep.fields[index],
@@ -595,10 +594,10 @@ export default class Engine {
     // Triggering post-user action hooks...
     await Promise.all(updatedUserActions.map((action) => this.triggerHooks('afterUserAction', action)));
 
-    if ((this.currentStep as unknown as Step).status === 'success' && shouldSubmit as boolean) {
+    const currentStep = this.currentStep as unknown as Step;
+    if (currentStep.status === 'success' && shouldSubmit as boolean) {
       const { submitPartialUpdates } = this.configuration;
-      const currentStepId = (this.currentStep as unknown as Step).path.split('.')[0];
-      const { nextStep, submit } = this.configuration.steps[currentStepId];
+      const { nextStep, submit } = this.getConfiguration<StepConfiguration>(currentStep.path);
       const userInputsType = (submitPartialUpdates !== false) ? 'partial' : 'full';
       let finalUserInputs: UserInputs | null = this.userInputs[userInputsType];
 
@@ -641,9 +640,9 @@ export default class Engine {
       }
 
       const field = this.getField(path);
-      const fieldConfiguration = this.getConfiguration(path) as FieldConfiguration | null;
+      const fieldConfiguration = this.getConfiguration<FieldConfiguration>(path);
 
-      if (field === null || fieldConfiguration === null) {
+      if (field === null) {
         throw new Error(`Field with path "${path}" does not exist.`);
       }
 
@@ -749,19 +748,13 @@ export default class Engine {
   public async createStep(stepId: string | null): Promise<void> {
     if (stepId !== null) {
       const path = `${stepId}.${String(this.steps.length)}`;
-      if (this.configuration.steps[stepId] === undefined) {
-        throw new Error(`Could not find configuration for step with id "${stepId}".`);
-      }
-      const fields = this.configuration.steps[stepId].fields.map((fieldId) => {
+      const stepConfiguration = this.getConfiguration<StepConfiguration>(path);
+      const fields = stepConfiguration.fields.map((fieldId) => {
+        const fieldPath = `${path}.${fieldId}`;
         const value = this.userInputs.full[fieldId];
         const initialValue = this.initialValues[fieldId];
-        const configuration = this.configuration.fields[fieldId];
-
-        if ((configuration as unknown) === undefined) {
-          throw new Error(`Could not find configuration for field with id "${fieldId}" in step "${stepId}".`);
-        }
-
-        return this.toggleField(`${path}.${fieldId}`, null, configuration, value, initialValue);
+        const fieldConfiguration = this.getConfiguration<FieldConfiguration>(fieldPath);
+        return this.toggleField(fieldPath, null, fieldConfiguration, value, initialValue);
       });
       const updatedNextStep = await this.triggerHooks('step', { path, status: 'initial', fields });
 
@@ -838,24 +831,28 @@ export default class Engine {
    * @returns Current user inputs.
    */
   public getUserInputs<T>(partial = false): T {
-    const userInputs: T = this.userInputs[partial ? 'partial' : 'full'] as T;
-    return userInputs;
+    return this.userInputs[partial ? 'partial' : 'full'] as T;
   }
 
   /**
-   * Returns field or step configuration for `path`. If no path is provided, the global form
-   * configuration is returned instead.
+   * Returns configuration for `path`. If no path is provided, the global form configuration is
+   * returned instead.
    *
    * @param path Field or step path to get configuration for.
    *
-   * @returns Field or step configuration.
+   * @returns Requested configuration.
    *
    * @throws If configuration does not exist for `path`.
    */
-  public getConfiguration(path?: string): SubConfiguration {
-    let subConfiguration: SubConfiguration | undefined = this.configuration;
+  public getConfiguration(): Configuration;
+
+  public getConfiguration<T extends SubConfiguration>(path?: string): T;
+
+  public getConfiguration<T extends SubConfiguration>(path?: string): T {
+    const configuration = this.configuration as unknown as T;
+    let subConfiguration: SubConfiguration | undefined = configuration;
     if (path === undefined) {
-      return subConfiguration;
+      return configuration;
     }
     const splittedPath = path.split('.');
     subConfiguration = this.configuration.steps[splittedPath.shift() as unknown as string];
@@ -873,7 +870,7 @@ export default class Engine {
     if (subConfiguration === undefined) {
       throw new Error(`Could not find configuration for path "${path}".`);
     }
-    return subConfiguration;
+    return subConfiguration as T;
   }
 
   /**
@@ -910,8 +907,7 @@ export default class Engine {
    * @returns Form variables.
    */
   public getVariables<T>(): T {
-    const variables: T = this.variables as T;
-    return variables;
+    return this.variables as T;
   }
 
   /**

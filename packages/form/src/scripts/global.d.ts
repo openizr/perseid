@@ -14,8 +14,8 @@ declare global {
   type NextHook<T> = (data: T) => Promise<T>;
   type Hook<T> = (data: T, next: NextHook<T>) => Promise<T>;
   type FieldConfigurations = Record<string, FieldConfiguration>;
+  type SubConfiguration = FieldConfiguration | StepConfiguration;
   type HookData = UserInputs | Error | Step | UserAction | boolean | null;
-  type SubConfiguration = Configuration | FieldConfiguration | StepConfiguration | null;
 
   /**
    * Form cache client.
@@ -315,6 +315,6 @@ declare global {
     fields: Record<string, FieldConfiguration>;
 
     /** Form steps configurations. */
-    steps: Record<string, StepConfiguration>;
+    steps: Partial<Record<string, StepConfiguration>>;
   }
 }
