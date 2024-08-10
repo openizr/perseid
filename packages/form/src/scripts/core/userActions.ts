@@ -6,7 +6,7 @@
  *
  */
 
-import { Module } from '@perseid/store';
+import { type Module } from '@perseid/store';
 
 /**
  * Handles all user actions in form.

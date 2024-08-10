@@ -6,7 +6,7 @@
  *
  */
 
-import { Module } from '@perseid/store';
+import { type Module } from '@perseid/store';
 
 /**
  * Form state data.

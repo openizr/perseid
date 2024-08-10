@@ -9,6 +9,7 @@
 import Engine from 'scripts/core/Engine';
 
 type TestEngine = Engine & {
+  cache: Engine['cache'];
   store: Engine['store'];
   steps: Engine['steps'];
   coerce: Engine['coerce'];
@@ -825,17 +826,26 @@ describe('core/Engine', () => {
 
   describe('[triggerHooks]', () => {
     test('error', async () => {
+      let isCacheEnabled = false;
       try {
         await createEngine({
           ...configuration,
+          cache,
+          restartOnReload: true,
           plugins: [(api: Engine): void => {
-            api.on('userAction', (data, next) => (data !== null
+            api.on('userAction', (data, next) => (data?.path === 'test'
               ? next(undefined as unknown as UserAction)
               : next(data)));
           }],
         });
-        await engine.triggerHooks('userAction', {});
+        vi.spyOn(engine, 'clearCache').mockImplementation(() => {
+          isCacheEnabled = (engine.cache !== null);
+          return Promise.resolve();
+        });
+        await engine.triggerHooks('userAction', { path: 'test' });
       } catch (error) {
+        expect(engine.cache).toBe(null);
+        expect(isCacheEnabled).toBe(true);
         expect(error).toEqual(new Error(
           'Event "userAction": data passed to the next hook is "undefined". This usually means that'
           + ' you did not correctly resolved your hook Promise with proper data.',
@@ -866,6 +876,8 @@ describe('core/Engine', () => {
   test('[processUserInputs]', async () => {
     await createEngine({
       ...configuration,
+      cache,
+      restartOnReload: true,
       steps: { ...configuration.steps, root: { fields: ['test', 'conditional', 'submit'], submit: true } },
       plugins: [(api: Engine): void => {
         api.on('userAction', async (data) => {
@@ -875,8 +887,12 @@ describe('core/Engine', () => {
       }],
       fields: { ...configuration.fields, conditional: { type: 'string', defaultValue: 'test', condition: (values) => values.test === null } },
     });
+    let isCacheEnabled = false;
+    vi.spyOn(engine, 'clearCache').mockImplementation(() => {
+      isCacheEnabled = (engine.cache !== null);
+      return Promise.resolve();
+    });
     vi.spyOn(engine, 'createStep').mockImplementation(() => Promise.resolve());
-    vi.spyOn(engine, 'clearCache').mockImplementation(() => Promise.resolve());
     vi.spyOn(engine, 'triggerHooks').mockImplementation((event: unknown, data: unknown) => {
       if (event === 'submit') {
         return Promise.resolve(data as HookData);
@@ -906,6 +922,8 @@ describe('core/Engine', () => {
       }],
     ]);
     await engine.processUserInputs();
+    expect(engine.cache).toBe(null);
+    expect(isCacheEnabled).toBe(true);
     expect(engine.validateFields).toHaveBeenCalledTimes(2);
     expect(engine.validateFields).toHaveBeenCalledWith(['root.0.submit', 'root.0.conditional'], false);
     expect(engine.triggerHooks).toHaveBeenCalledTimes(9);
@@ -913,7 +931,7 @@ describe('core/Engine', () => {
     expect(engine.createStep).toHaveBeenCalledWith(null);
     expect(engine.clearCache).toHaveBeenCalledOnce();
     expect(configuration.onSubmit).toHaveBeenCalledOnce();
-    expect(configuration.onSubmit).toHaveBeenCalledWith({ conditional: 'test', test: null }, {});
+    expect(configuration.onSubmit).toHaveBeenCalledWith({ conditional: 'test', test: null }, { var1: 'test1', var2: 'test2' });
 
     // Covers functionnal next step.
     await createEngine({

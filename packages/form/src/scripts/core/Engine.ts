@@ -537,8 +537,9 @@ export default class Engine {
       return updatedData as T;
     } catch (error) {
       // Disabling cache on error prevents the form to be stucked in error step forever.
-      this.cache = null;
+      // Be careful: first clear cache, then disable it!
       await this.clearCache();
+      this.cache = null;
       // This safety mechanism prevents infinite loops when throwing errors from "error" hooks.
       if (eventName !== 'error' && this.hooks.error.length > 0) {
         await this.triggerHooks('error', error as Error);
@@ -605,8 +606,9 @@ export default class Engine {
       if (submit) {
         finalUserInputs = await this.triggerHooks('submit', finalUserInputs);
         if (finalUserInputs !== null && this.configuration.clearCacheOnSubmit !== false) {
-          this.cache = null;
+          // Be careful: first clear cache, then disable it!
           this.clearCache();
+          this.cache = null;
           await this.configuration.onSubmit?.(finalUserInputs, this.variables);
         }
       }
@@ -711,7 +713,6 @@ export default class Engine {
         this.discardedUserInputs = cachedData.discardedUserInputs;
         if (this.configuration.restartOnReload !== true) {
           this.steps = cachedData.steps;
-          this.userInputs = cachedData.userInputs;
           this.currentStep = this.steps[this.steps.length - 1];
         }
       }
