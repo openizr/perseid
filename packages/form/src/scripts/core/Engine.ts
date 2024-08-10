@@ -71,13 +71,13 @@ export default class Engine {
    *
    * @returns `true` if `firstInput` and `secondInput` are equal, `false` otherwise.
    */
-  protected areEqual<T1, T2>(
-    firstInput: T1,
-    secondInput: T2,
+  protected areEqual(
+    firstInput: unknown,
+    secondInput: unknown,
     type: FieldConfiguration['type'],
   ): boolean {
     return (
-      (firstInput as unknown) === secondInput
+      firstInput === secondInput
       || (type === 'string' && String(firstInput) === String(secondInput))
       || (type === 'float' && Number.isNaN(secondInput) && Number.isNaN(firstInput))
       || (type === 'integer' && Number.isNaN(secondInput) && Number.isNaN(firstInput))
@@ -292,7 +292,7 @@ export default class Engine {
       const key = isArray ? index : (fieldIds as string[])[index];
       const updatedUserInputs = { full: undefined, partial: undefined };
       const subField = this.toggleField(
-        `${path}.${key}`,
+        `${path}.${key as string}`,
         newField.fields[index],
         isArray ? configuration.fields : configuration.fields[key],
         isStageTwo ? newValue : (newFieldValue as unknown[])[key as number] ?? null,
@@ -300,7 +300,7 @@ export default class Engine {
         updatedUserInputs,
       );
       if (subField !== null) {
-        subField.path = `${path}.${key}`;
+        subField.path = `${path}.${key as string}`;
       }
       newField.fields[index] = subField;
       if ((updatedUserInputs.full as unknown) !== undefined) {
@@ -521,8 +521,10 @@ export default class Engine {
     data: T,
   ): Promise<T | null> {
     try {
-      const hooksChain = this.hooks[eventName].reduce((chain, hook) => (updatedData) => (
-        hook(updatedData, chain as NextHook<HookData>)
+      const hooksChain = this.hooks[eventName].reduce((chain, hook) => (
+        (updatedData): Promise<HookData> => (
+          hook(updatedData, chain as NextHook<HookData>)
+        )
       ), (updatedData) => Promise.resolve(updatedData));
       const updatedData = await (hooksChain as NextHook<HookData>)(data);
       if ((updatedData as unknown) === undefined) {
@@ -735,7 +737,7 @@ export default class Engine {
     return (
       input === null
       || input === undefined
-      || (type === 'string' && `${input}`.trim() === '')
+      || (type === 'string' && String(input).trim() === '')
     );
   }
 
@@ -746,7 +748,10 @@ export default class Engine {
    */
   public async createStep(stepId: string | null): Promise<void> {
     if (stepId !== null) {
-      const path = `${stepId}.${this.steps.length}`;
+      const path = `${stepId}.${String(this.steps.length)}`;
+      if (this.configuration.steps[stepId] === undefined) {
+        throw new Error(`Could not find configuration for step with id "${stepId}".`);
+      }
       const fields = this.configuration.steps[stepId].fields.map((fieldId) => {
         const value = this.userInputs.full[fieldId];
         const initialValue = this.initialValues[fieldId];
@@ -833,26 +838,29 @@ export default class Engine {
    * @returns Current user inputs.
    */
   public getUserInputs<T>(partial = false): T {
-    return this.userInputs[partial ? 'partial' : 'full'] as T;
+    const userInputs: T = this.userInputs[partial ? 'partial' : 'full'] as T;
+    return userInputs;
   }
 
   /**
-   * Returns field/step configuration for `path`. If no path is provided, the global form
+   * Returns field or step configuration for `path`. If no path is provided, the global form
    * configuration is returned instead.
    *
-   * @param path Field/step path to get configuration for.
+   * @param path Field or step path to get configuration for.
    *
-   * @returns Path configuration.
+   * @returns Field or step configuration.
+   *
+   * @throws If configuration does not exist for `path`.
    */
   public getConfiguration(path?: string): SubConfiguration {
-    let subConfiguration = this.configuration as SubConfiguration | null;
+    let subConfiguration: SubConfiguration | undefined = this.configuration;
     if (path === undefined) {
       return subConfiguration;
     }
     const splittedPath = path.split('.');
     subConfiguration = this.configuration.steps[splittedPath.shift() as unknown as string];
     splittedPath.shift();
-    while ((subConfiguration as unknown) !== undefined && splittedPath.length > 0) {
+    while (subConfiguration !== undefined && splittedPath.length > 0) {
       const subPath = String(splittedPath.shift());
       if ((subConfiguration as FieldConfiguration).type === 'array') {
         subConfiguration = (subConfiguration as ArrayConfiguration).fields;
@@ -862,7 +870,10 @@ export default class Engine {
         subConfiguration = this.configuration.fields[subPath];
       }
     }
-    return (subConfiguration as SubConfiguration) ?? null;
+    if (subConfiguration === undefined) {
+      throw new Error(`Could not find configuration for path "${path}".`);
+    }
+    return subConfiguration;
   }
 
   /**
@@ -874,11 +885,11 @@ export default class Engine {
    */
   public getField(path: string): Field | null {
     const splitted = path.split('.');
-    let subPath = `${splitted.shift()}.${splitted[0]}`;
+    let subPath = `${String(splitted.shift())}.${splitted[0]}`;
     let field = this.steps[+(splitted.shift() as unknown as string)] as Field | null | undefined;
     const findField = (currentField: Field | null): boolean => currentField?.path === subPath;
     while (splitted.length > 0 && field !== undefined && field !== null) {
-      subPath += `.${splitted.shift()}`;
+      subPath += `.${String(splitted.shift())}`;
       field = (field.fields as unknown as Field[]).find(findField);
     }
     return field ?? null;
@@ -899,7 +910,8 @@ export default class Engine {
    * @returns Form variables.
    */
   public getVariables<T>(): T {
-    return this.variables as T;
+    const variables: T = this.variables as T;
+    return variables;
   }
 
   /**
@@ -907,7 +919,7 @@ export default class Engine {
    *
    * @param variables Form variables to add or override.
    */
-  public async setVariables<T>(variables: T): Promise<void> {
+  public async setVariables(variables: Record<string, unknown>): Promise<void> {
     this.variables = deepMerge(this.variables, variables);
     await this.processUserInputs();
     this.notifyUI();
