@@ -8,10 +8,11 @@
  *
  */
 
-import { type Field } from 'scripts/core';
 import { type DefineComponent } from 'vue';
 import type Engine from 'scripts/core/Engine';
 import { type UseSubscription } from '@perseid/store/connectors/vue';
+
+type Field = Record<string, unknown>;
 
 /**
  * Form field props.

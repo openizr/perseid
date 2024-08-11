@@ -9,11 +9,16 @@
  */
 
 import { computed } from 'vue';
-import { type Step } from 'scripts/core';
 import { type DefineComponent } from 'vue';
 import type Engine from 'scripts/core/Engine';
 import { type UseSubscription } from '@perseid/store/connectors/vue';
 import DefaultField, { type FormFieldProps } from 'scripts/vue/DefaultField.vue';
+
+interface Step {
+  path: string;
+  status: string;
+  fields: (Record<string, unknown> | null)[];
+}
 
 /**
  * Form step props.
@@ -65,10 +70,11 @@ const className = computed(() => {
     -->
       <component
         :is="field"
-        v-for="currentField of props.step.fields.filter((f: Field) => f !== null)"
+        v-for="currentField of props.step.fields.filter((f) => f !== null)"
         :key="currentField.path"
         name="currentField"
         :engine="props.engine"
+        :is-active="isActive"
         :path="currentField.path"
         :type="currentField.type"
         :error="currentField.error"
@@ -76,7 +82,7 @@ const className = computed(() => {
         :status="currentField.status"
         :fields="currentField.fields"
         :active-step="props.activeStep"
-        :required="currentField.required"
+        :is-required="currentField.isRequired"
         :set-active-step="props.setActiveStep"
         :use-subscription="props.useSubscription"
       />

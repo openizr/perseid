@@ -1,19 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`svelte/Form > renders correctly - loading next step 1`] = `
-<form
-  class="perseid-form"
-  id="test"
->
-  <div
-    class="perseid-form__steps"
-  >
-    
-     
-  </div>
-</form>
-`;
-
 exports[`svelte/Form > renders correctly - with active step 1`] = `
 <form
   class="perseid-form"
@@ -22,28 +8,20 @@ exports[`svelte/Form > renders correctly - with active step 1`] = `
   <div
     class="perseid-form__steps"
   >
+    
     <div
-      class="perseid-form__step perseid-form__step--start--active"
-      id="start"
+      id="step"
     >
-      <div
-        id="step"
-      >
-        {"Field":"function","engine":"object","step":{"path":"start","fields":[]},"active":true,"useSubscription":"function"}
-      </div>
-       
+      {"Field":"function","engine":"object","step":{"path":"start","fields":[]},"activeStep":"start","onFocus":"function","setActiveStep":"function","useSubscription":"function"}
     </div>
+    
+    
     <div
-      class="perseid-form__step perseid-form__step--end"
-      id="end"
+      id="step"
     >
-      <div
-        id="step"
-      >
-        {"Field":"function","engine":"object","step":{"path":"end","fields":[]},"active":false,"useSubscription":"function"}
-      </div>
-       
+      {"Field":"function","engine":"object","step":{"path":"end","fields":[]},"activeStep":"start","onFocus":"function","setActiveStep":"function","useSubscription":"function"}
     </div>
+    
     
      
   </div>
@@ -58,28 +36,54 @@ exports[`svelte/Form > renders correctly - with active step 2`] = `
   <div
     class="perseid-form__steps"
   >
+    
     <div
-      class="perseid-form__step perseid-form__step--start--active"
+      id="step"
+    >
+      {"Field":"function","engine":"object","step":{"path":"start","fields":[]},"activeStep":"start","onFocus":"function","setActiveStep":"function","useSubscription":"function"}
+    </div>
+    
+    
+    <div
+      id="step"
+    >
+      {"Field":"function","engine":"object","step":{"path":"end","fields":[]},"activeStep":"start","onFocus":"function","setActiveStep":"function","useSubscription":"function"}
+    </div>
+    
+    
+     
+  </div>
+</form>
+`;
+
+exports[`svelte/Form > renders correctly 1`] = `
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div
+    class="perseid-form__steps"
+  >
+    
+    <div
+      class="perseid-form__step perseid-form__step----start"
       id="start"
     >
       <div
-        id="step"
-      >
-        {"Field":"function","engine":"object","step":{"path":"start","fields":[]},"active":true,"useSubscription":"function"}
-      </div>
-       
+        class="perseid-form__step__fields"
+      />
     </div>
+    
+    
     <div
-      class="perseid-form__step perseid-form__step--end"
+      class="perseid-form__step perseid-form__step----end--active"
       id="end"
     >
       <div
-        id="step"
-      >
-        {"Field":"function","engine":"object","step":{"path":"end","fields":[]},"active":false,"useSubscription":"function"}
-      </div>
-       
+        class="perseid-form__step__fields"
+      />
     </div>
+    
     
      
   </div>

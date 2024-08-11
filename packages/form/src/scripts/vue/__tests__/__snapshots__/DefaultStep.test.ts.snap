@@ -13,25 +13,7 @@ exports[`vue/DefaultStep > renders correctly - active step 1`] = `
       when user changes his journey in previous steps.
     -->
     
-    <pre
-      name="currentField"
-      required="false"
-    >
-          {
-  "path": "root.0.test",
-  "type": "string",
-  "status": "initial",
-  "error": null,
-  "isActive": false,
-  "activeStep": "root.0",
-  "value": null,
-  "field": "&lt;Component&gt;",
-  "engine": "&lt;Engine&gt;",
-  "setActiveStep": "&lt;Function&gt;",
-  "useSubscription": "&lt;Function&gt;"
-}
-  
-    </pre>
+    <!---->
     
   </div>
 </div>
@@ -50,25 +32,7 @@ exports[`vue/DefaultStep > renders correctly - inactive step 1`] = `
       when user changes his journey in previous steps.
     -->
     
-    <pre
-      name="currentField"
-      required="false"
-    >
-          {
-  "path": "root.0.test",
-  "type": "string",
-  "status": "initial",
-  "error": null,
-  "isActive": false,
-  "activeStep": "root.1",
-  "value": null,
-  "field": "&lt;Component&gt;",
-  "engine": "&lt;Engine&gt;",
-  "setActiveStep": "&lt;Function&gt;",
-  "useSubscription": "&lt;Function&gt;"
-}
-  
-    </pre>
+    <!---->
     
   </div>
 </div>

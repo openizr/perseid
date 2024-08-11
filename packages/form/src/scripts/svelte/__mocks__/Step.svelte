@@ -16,14 +16,18 @@
   export let step: FormStepProps['step'];
   export let Field: FormStepProps['Field'];
   export let engine: FormStepProps['engine'];
-  export let active: FormStepProps['active'];
+  export let onFocus: FormStepProps['onFocus'];
+  export let activeStep: FormStepProps['activeStep'];
+  export let setActiveStep: FormStepProps['setActiveStep'];
   export let useSubscription: FormStepProps['useSubscription'];
 
   const json = JSON.stringify({
     Field: typeof Field,
     engine: typeof engine,
     step: step as unknown,
-    active: active as unknown,
+    activeStep: activeStep as unknown,
+    onFocus: typeof onFocus,
+    setActiveStep: typeof setActiveStep,
     useSubscription: typeof useSubscription,
   });
 </script>

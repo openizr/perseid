@@ -1,9 +1,9 @@
 <!-- Svelte form. -->
 
 <script lang="ts" context="module">
-  import { SvelteComponent } from 'svelte';
   import Engine from 'scripts/core/Engine';
   import { type FormState } from 'scripts/core/state';
+  import { SvelteComponent, onMount, onDestroy } from 'svelte';
   import { type FormStepProps } from 'scripts/svelte/DefaultStep.svelte';
   import { type FormFieldProps } from 'scripts/svelte/DefaultField.svelte';
   import { type FormLayoutProps } from 'scripts/svelte/DefaultLayout.svelte';
@@ -49,14 +49,15 @@
   import DefaultLoader from 'scripts/svelte/DefaultLoader.svelte';
   import DefaultLayout from 'scripts/svelte/DefaultLayout.svelte';
 
+  let key = 0;
+
   function onSubmit(event: Event): void {
     event.preventDefault();
   }
 
-  function buildClass(baseClass: string, modifiers: string): string {
-    const chainedModifiers = [...new Set(modifiers.split(' '))].map((modifier) => (
-      (modifier === '') ? '' : `--${modifier}`)).join('');
-    return `${baseClass} ${baseClass}${chainedModifiers}`;
+  function generateId(): string {
+    key += 1;
+    return `_${String(key)}`;
   }
 
   export let activeStep: FormProps['activeStep'];
@@ -67,20 +68,31 @@
   export let Layout: FormProps['Layout'] | null = null;
   export let engineClass: FormProps['engineClass'] | null = null;
 
+  let isWindowFocused = true;
   let currentActiveStep: string;
   let ActualLoader: typeof SvelteComponent;
   let FieldComponent: typeof SvelteComponent;
-
-  const onFocus = (newActiveStep: string) => (): void => {
-    // Prevents any additional rendering when calling directly `setCurrentActiveStep`.
-    if (newActiveStep !== currentActiveStep) {
-      currentActiveStep = newActiveStep;
-    }
-  };
+  const keys: Partial<Record<string, string>> = {};
+  const handleBlur = (): void => { isWindowFocused = false; };
 
   const setCurrentActiveStep = (newActiveStep: string) => (): void => {
     currentActiveStep = newActiveStep;
   };
+
+  const setActiveStep = (newActiveStep: string | undefined) => {
+    // Prevents any additional rendering compared to calling directly `setCurrentActiveStep`.
+    if (newActiveStep !== currentActiveStep && newActiveStep !== undefined) {
+      // Forces step component to re-mount in order to reset scroll.
+      keys[newActiveStep] = generateId();
+      setCurrentActiveStep(newActiveStep);
+    }
+  };
+
+  const handleFocus = (newActiveStep: string) => (): void => {
+    if (isWindowFocused) { setActiveStep(newActiveStep); }
+    isWindowFocused = true;
+  };
+
 
   // Enforces props default values.
   $: Step = Step ?? DefaultStep;
@@ -93,11 +105,26 @@
   const EngineClass = (engineClass as typeof Engine | null) ?? Engine;
   const engine = new EngineClass(configuration);
   const useSubscription = connect(engine.getStore());
-  const state = useSubscription<FormState>('state');
-  const lastStepPath = $state.steps[$state.steps.length - 1]?.path;
+  const state = useSubscription('state', (newState: FormState) => {
+    newState.steps.forEach((step) => { keys[step.path] ??= generateId(); });
+    return newState;
+  });
+  const lastStep = $state.steps[$state.steps.length - 1];
 
-  // Updates current step whenever `activeStep` prop or steps change.
-  $: currentActiveStep = activeStep ?? lastStepPath;
+  // Updates current step whenever `activeStep` prop or last step change.
+  // Be careful: last step path may not change although `lastStep` has (e.g. because it has been
+  // re-created or updated), so we need to react to this value instead.
+  $: currentActiveStep = activeStep ?? lastStep.path;
+
+  // When focus gets out of and in back to the current window, the `focus` event gets triggered once
+  // again on the step, which leads to unwanted visual effects when displaying only current active
+  // step (the last focused step is displayed back). This mechanism prevents that from happening.
+  onMount(() => {
+    window.addEventListener('blur', handleBlur);
+  });
+  onDestroy(() => {
+    window.removeEventListener('blur', handleBlur);
+  });
 </script>
 
 <form id={configuration.id} class="perseid-form" on:submit={onSubmit}>
@@ -105,29 +132,21 @@
     this={Layout}
     state={$state}
     Loader={ActualLoader}
+    setActiveStep={setActiveStep}
     activeStep={currentActiveStep}
     useSubscription={useSubscription}
-    setActiveStep={setCurrentActiveStep}
-  >
+    >
     {#each $state.steps as step (step.path)}
-      <!--
-        Specifying the active step prevent browsers auto-fill system from changing fields
-        located in other steps, resetting previous steps and breaking overall UX.
-      -->
-      <div
-        on:focus={onFocus(step.path)}
-        id={step.path.replace(/\./g, '__')}
-        class={buildClass('perseid-form__step', [step.status, step.path.replace(/\./g, '__'), currentActiveStep === step.path ? 'active' : ''].join(' '))}
-      >
-        <svelte:component
-          step={step}
-          this={Step}
-          engine={engine}
-          Field={FieldComponent}
-          useSubscription={useSubscription}
-          active={currentActiveStep === step.path}
-        />
-      </div>
+    <svelte:component
+      step={step}
+      this={Step}
+      engine={engine}
+      onFocus={handleFocus}
+      Field={FieldComponent}
+      setActiveStep={setActiveStep}
+      activeStep={currentActiveStep}
+      useSubscription={useSubscription}
+      />
     {/each}
   </svelte:component>
 </form>

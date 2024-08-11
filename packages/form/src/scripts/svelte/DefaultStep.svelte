@@ -81,7 +81,7 @@
           fields={field.fields}
           Field={FieldComponent}
           activeStep={activeStep}
-          required={field.required}
+          isRequired={field.required}
           setActiveStep={setActiveStep}
           useSubscription={useSubscription}
         />

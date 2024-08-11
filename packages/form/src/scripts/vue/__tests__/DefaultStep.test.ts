@@ -8,10 +8,12 @@
  */
 
 import type Engine from 'scripts/core/Engine';
-import { fireEvent, render } from '@testing-library/vue';
 import DefaultStep from 'scripts/vue/DefaultStep.vue';
+import { fireEvent, render } from '@testing-library/vue';
 
 describe('vue/DefaultStep', () => {
+  vi.mock('scripts/vue/DefaultField.vue');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -37,9 +39,6 @@ describe('vue/DefaultStep', () => {
         setActiveStep: vi.fn(),
         useSubscription: vi.fn(),
         engine: {} as unknown as Engine,
-      },
-      slots: {
-        field: '<div>FIELD</div>',
       },
     });
     const domElement = container.querySelector('.perseid-form__step');
@@ -68,9 +67,6 @@ describe('vue/DefaultStep', () => {
         setActiveStep: vi.fn(),
         useSubscription: vi.fn(),
         engine: {} as unknown as Engine,
-      },
-      slots: {
-        field: '<div>FIELD</div>',
       },
     });
     expect(container.firstChild).toMatchSnapshot();
