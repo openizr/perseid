@@ -145,9 +145,6 @@ declare module '@perseid/form' {
     /** Whether to submit current step when user changes this field. Defaults to `false`. */
     submit?: boolean;
 
-    /** Field default value. Defaults to `null`. */
-    defaultValue?: unknown;
-
     /** Condition on which field will actually be created and displayed. Defaults to `() => true` */
     condition?: (inputs: UserInputs, variables: Variables) => boolean;
   }
@@ -155,7 +152,7 @@ declare module '@perseid/form' {
   /**
    * Null field configuration.
    */
-  export interface NullConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'required'> {
+  export interface NullConfiguration extends Omit<GenericConfiguration, 'required'> {
     /** Field type. */
     type: 'null';
   }
@@ -229,7 +226,7 @@ declare module '@perseid/form' {
   /**
    * Array field configuration.
    */
-  export interface ArrayConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'submit'> {
+  export interface ArrayConfiguration extends Omit<GenericConfiguration, 'submit'> {
     /** Field type. */
     type: 'array';
 
@@ -247,7 +244,7 @@ declare module '@perseid/form' {
   /**
    * Object field configuration.
    */
-  export interface ObjectConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'submit'> {
+  export interface ObjectConfiguration extends Omit<GenericConfiguration, 'submit'> {
     /** Field type. */
     type: 'object';
 

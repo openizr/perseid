@@ -152,7 +152,6 @@ describe('core/Engine', () => {
       expect(engine.createField('root.0.test', {
         type: 'string',
         required: true,
-        defaultValue: 'test',
       })).toEqual({
         error: null,
         type: 'string',
@@ -903,7 +902,7 @@ describe('core/Engine', () => {
           return (data?.path === 'root.0.test') ? null : data;
         });
       }],
-      fields: { ...configuration.fields, conditional: { type: 'string', defaultValue: 'test', condition: (values) => values.test === null } },
+      fields: { ...configuration.fields, conditional: { type: 'string', condition: (values) => values.test === null } },
     });
     let isCacheEnabled = false;
     vi.spyOn(engine, 'clearCache').mockImplementation(() => {
@@ -924,7 +923,7 @@ describe('core/Engine', () => {
         return Promise.resolve({ path: 'root.0.submit', data: input, submit: true });
       }
       if (path === 'root.0.conditional') {
-        return Promise.resolve({ path: 'root.0.conditional', data: input });
+        return Promise.resolve({ path: 'root.0.conditional', data: 'test' });
       }
       return Promise.resolve({ fields: ['field'], path: 'root.0' });
     });

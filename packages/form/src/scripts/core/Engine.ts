@@ -241,7 +241,7 @@ export default class Engine {
     const { type, condition } = configuration;
     const isStageTwo = newValue instanceof Map;
     const discardedFieldValue = this.discardedUserInputs.get(path);
-    const { required, defaultValue, submit } = configuration as StringConfiguration;
+    const { required, submit } = configuration as StringConfiguration;
 
     // We can't use nullish coalescing operator here as we need to keep `null` value.
     let newFieldValue = (isStageTwo ? newValue.get(path) : newValue) as unknown;
@@ -250,7 +250,7 @@ export default class Engine {
     newFieldValue = (newFieldValue !== undefined) ? newFieldValue : initialValue;
     newFieldValue = (type === 'array' && required) ? newFieldValue ?? [] : newFieldValue;
     newFieldValue = (type === 'object' && required) ? newFieldValue ?? {} : newFieldValue;
-    newFieldValue = (newFieldValue !== undefined) ? newFieldValue : defaultValue ?? null;
+    newFieldValue ??= null;
 
     if (condition !== undefined && !condition(this.userInputs.full, this.variables)) {
       this.discardedUserInputs.set(path, newFieldValue ?? null);

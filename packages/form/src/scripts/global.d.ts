@@ -14,8 +14,8 @@ declare global {
   type NextHook<T> = (data: T) => Promise<T>;
   type Hook<T> = (data: T, next: NextHook<T>) => Promise<T>;
   type FieldConfigurations = Record<string, FieldConfiguration>;
-  type SubConfiguration = FieldConfiguration | StepConfiguration;
   type HookData = UserInputs | Error | Step | UserAction | boolean | null;
+  type SubConfiguration = FieldConfiguration | StepConfiguration;
 
   /**
    * Form cache client.
@@ -128,9 +128,6 @@ declare global {
     /** Whether to submit current step when user changes this field. Defaults to `false`. */
     submit?: boolean;
 
-    /** Field default value. Defaults to `null`. */
-    defaultValue?: unknown;
-
     /** Condition on which field will actually be created and displayed. Defaults to `() => true` */
     condition?: (inputs: UserInputs, variables: Variables) => boolean;
   }
@@ -138,7 +135,7 @@ declare global {
   /**
    * Null field configuration.
    */
-  interface NullConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'required'> {
+  interface NullConfiguration extends Omit<GenericConfiguration, 'required'> {
     /** Field type. */
     type: 'null';
   }
@@ -212,7 +209,7 @@ declare global {
   /**
    * Array field configuration.
    */
-  interface ArrayConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'submit'> {
+  interface ArrayConfiguration extends Omit<GenericConfiguration, 'submit'> {
     /** Field type. */
     type: 'array';
 
@@ -230,7 +227,7 @@ declare global {
   /**
    * Object field configuration.
    */
-  interface ObjectConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'submit'> {
+  interface ObjectConfiguration extends Omit<GenericConfiguration, 'submit'> {
     /** Field type. */
     type: 'object';
 
