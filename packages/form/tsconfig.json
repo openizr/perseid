@@ -2,6 +2,10 @@
   "extends": "./node_modules/@perseid/dev-kit/tsconfig.json",
   "compilerOptions": {
     "baseUrl": "src",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": [
+      "svelte",
+      "vitest/globals"
+    ]
   }
 }

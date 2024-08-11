@@ -2,8 +2,8 @@
 
 import Form from 'scripts/vue/Form.vue';
 import Engine from 'scripts/core/Engine';
-import { Component, createApp } from 'vue';
 import Step from 'scripts/vue/DefaultStep.vue';
+import { type Component, createApp } from 'vue';
 
 let app: unknown;
 const { log } = console;

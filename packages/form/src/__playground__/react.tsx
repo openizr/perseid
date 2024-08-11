@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Form from 'scripts/react/Form';
-import { createRoot, Root } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 
 let app: Root;
 const { log } = console;
@@ -15,7 +15,7 @@ function main(): void {
         configuration={{
           root: 'root',
           fields: {
-            test: { type: 'string', required: true },
+            test: { type: 'string', required: true, condition: (_, vars) => vars.test === undefined },
           },
           steps: {
             root: {
@@ -24,7 +24,7 @@ function main(): void {
           },
           plugins: [
             (engine): void => {
-              engine.on('userAction', (data, next) => {
+              engine.on('userAction', async (data, next) => {
                 log(data);
                 return next(data);
               });
