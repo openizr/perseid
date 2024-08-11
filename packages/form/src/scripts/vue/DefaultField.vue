@@ -21,7 +21,10 @@ export interface FormFieldProps<T extends Engine = Engine> {
   engine: T;
 
   /** Whether field belongs to current active step. */
-  active: boolean;
+  isActive: boolean;
+
+  /** Path of the currently active step. */
+  activeStep?: string;
 
   /** Field type. */
   type: Field['type'];
@@ -42,18 +45,22 @@ export interface FormFieldProps<T extends Engine = Engine> {
   fields?: Field['fields'];
 
   /** Whether field is required. */
-  required: Field['required'];
+  isRequired: Field['required'];
 
   /** Field component to use for rendering. */
-  fieldComponent?: DefineComponent;
+  field?: DefineComponent;
+
+  /** Changes current active step. */
+  setActiveStep: (stepPath: string) => void;
 
   /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
   useSubscription: UseSubscription;
 }
 
 const props = withDefaults(defineProps<FormFieldProps>(), {
+  field: this,
   fields: undefined,
-  fieldComponent: this,
+  activeStep: undefined,
 });
 </script>
 
@@ -64,11 +71,13 @@ const props = withDefaults(defineProps<FormFieldProps>(), {
       type: props.type,
       status: props.status,
       error: props.error,
-      active: props.active,
-      required: props.required,
+      isActive: props.isActive,
+      isRequired: props.isRequired,
+      activeStep: props.activeStep,
       value: (props.type === 'binary') ? '<Binary>' : props.value,
-      field: `<${typeof props.fieldComponent !== 'string' && 'Component'}>`,
+      field: `<${typeof props.field !== 'string' && 'Component'}>`,
       engine: `<${typeof props.engine !== 'string' && 'Engine'}>`,
+      setActiveStep: `<${typeof props.setActiveStep !== 'string' && 'Function'}>`,
       useSubscription: `<${typeof props.useSubscription !== 'string' && 'Function'}>`,
       fields: props.fields,
     }, null, 2) }}

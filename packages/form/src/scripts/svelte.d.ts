@@ -26,7 +26,10 @@ declare module '@perseid/form/svelte' {
     engine: T;
 
     /** Whether field belongs to current active step. */
-    active: boolean;
+    isActive: boolean;
+
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Field type. */
     type: Field['type'];
@@ -47,10 +50,13 @@ declare module '@perseid/form/svelte' {
     fields?: Field['fields'];
 
     /** Whether field is required. */
-    required: Field['required'];
+    isRequired: Field['required'];
 
     /** Field component to use for rendering. */
     Field: SvelteComponent<FormFieldProps>;
+
+    /** Changes current active step. */
+    setActiveStep: (stepPath: string) => void;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;

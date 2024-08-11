@@ -8,11 +8,13 @@ exports[`svelte/DefaultField > renders correctly - binary field 1`] = `
   "type": "binary",
   "status": "initial",
   "error": null,
-  "active": false,
-  "required": true,
+  "isActive": false,
+  "activeStep": "root.0",
+  "isRequired": true,
   "value": "&lt;Binary&gt;",
   "Field": "&lt;Component&gt;",
   "engine": "&lt;Engine&gt;",
+  "setActiveStep": "&lt;Function&gt;",
   "useSubscription": "&lt;Function&gt;"
 }
   
@@ -28,11 +30,13 @@ exports[`svelte/DefaultField > renders correctly - non-binary field 1`] = `
   "type": "string",
   "status": "initial",
   "error": null,
-  "active": false,
-  "required": true,
+  "isActive": false,
+  "activeStep": "root.0",
+  "isRequired": true,
   "value": null,
   "Field": "&lt;Component&gt;",
   "engine": "&lt;Engine&gt;",
+  "setActiveStep": "&lt;Function&gt;",
   "useSubscription": "&lt;Function&gt;"
 }
   

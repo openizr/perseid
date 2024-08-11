@@ -13,7 +13,10 @@
     engine: T;
 
     /** Whether field belongs to current active step. */
-    active: boolean;
+    isActive: boolean;
+
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Field type. */
     type: Field['type'];
@@ -34,10 +37,13 @@
     fields?: Field['fields'];
 
     /** Whether field is required. */
-    required: Field['required'];
+    isRequired: Field['required'];
 
     /** Field component to use for rendering. */
     Field: SvelteComponent<FormFieldProps>;
+
+    /** Changes current active step. */
+    setActiveStep: (stepPath: string) => void;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;
@@ -53,16 +59,18 @@
    *
    */
 
-  export let engine: FormFieldProps['engine'];
-  export let active: FormFieldProps['active'];
   export let type: FormFieldProps['type'];
   export let path: FormFieldProps['path'];
+  export let Field: FormFieldProps['Field'];
   export let value: FormFieldProps['value'];
   export let error: FormFieldProps['error'];
+  export let engine: FormFieldProps['engine'];
   export let fields: FormFieldProps['fields'];
   export let status: FormFieldProps['status'];
-  export let required: FormFieldProps['required'];
-  export let Field: FormFieldProps['Field'];
+  export let isActive: FormFieldProps['isActive'];
+  export let activeStep: FormFieldProps['activeStep'];
+  export let isRequired: FormFieldProps['isRequired'];
+  export let setActiveStep: FormFieldProps['setActiveStep'];
   export let useSubscription: FormFieldProps['useSubscription'];
 </script>
 
@@ -72,11 +80,13 @@
     type,
     status,
     error,
-    active,
-    required,
+    isActive,
+    activeStep,
+    isRequired,
     value: (type === 'binary') ? '<Binary>' : value,
     Field: `<${String(typeof Field !== 'string' && 'Component')}>`,
     engine: `<${String(typeof engine !== 'string' && 'Engine')}>`,
+    setActiveStep: `<${String(typeof setActiveStep !== 'string' && 'Function')}>`,
     useSubscription: `<${String(typeof useSubscription !== 'string' && 'Function')}>`,
     fields,
   }, null, 2)}
