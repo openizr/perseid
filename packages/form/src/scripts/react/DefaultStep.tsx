@@ -21,11 +21,17 @@ export interface FormStepProps<T extends Engine = Engine> {
   /** Form step to render. */
   step: Step;
 
-  /** Whether step is currently active. */
-  active: boolean;
+  /** Path of the currently active step. */
+  activeStep?: string;
 
   /** Field component to use for rendering. */
   Field: React.FC<FormFieldProps>;
+
+  /** `focus` event handler. */
+  onFocus: (path: string) => () => void;
+
+  /** Changes current active step. */
+  setActiveStep: (stepPath: string) => void;
 
   /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
   useSubscription: UseSubscription;
@@ -37,32 +43,44 @@ export interface FormStepProps<T extends Engine = Engine> {
 export default function DefaultStep({
   step,
   Field,
-  active,
   engine,
+  onFocus,
+  activeStep,
+  setActiveStep,
   useSubscription,
 }: FormStepProps): JSX.Element {
+  const isActive = activeStep === step.path;
+  const cssPath = step.path.replace(/\./g, '__');
+  const modifiers = [step.status, cssPath].concat(isActive ? ['active'] : []);
+  const className = `perseid-form__step perseid-form__step--${[...new Set(modifiers)].join('--')}`;
   return (
-    <div className="perseid-form__step__fields">
-      {/* Key is composed of both step and field ids, in order to ensure each field is correctly
+    // Specifying the active step prevent browsers auto-fill system from changing fields
+    // located in other steps, resetting previous steps and breaking overall UX.
+    <div id={cssPath} className={className} onFocus={onFocus(step.path)}>
+      <div className="perseid-form__step__fields">
+        {/* Key is composed of both step and field ids, in order to ensure each field is correctly
          reset when user changes his journey in previous steps. */}
-      {step.fields.map((field) => (
-        (field !== null) && (
-          <Field
-            Field={Field}
-            active={active}
-            engine={engine}
-            key={field.path}
-            path={field.path}
-            type={field.type}
-            error={field.error}
-            value={field.value}
-            status={field.status}
-            fields={field.fields}
-            required={field.required}
-            useSubscription={useSubscription}
-          /> as unknown as React.ReactNode
-        )
-      ))}
+        {step.fields.map((field) => (
+          (field !== null) && (
+            <Field
+              Field={Field}
+              engine={engine}
+              key={field.path}
+              path={field.path}
+              type={field.type}
+              error={field.error}
+              isActive={isActive}
+              value={field.value}
+              status={field.status}
+              fields={field.fields}
+              activeStep={activeStep}
+              isRequired={field.required}
+              setActiveStep={setActiveStep}
+              useSubscription={useSubscription}
+            /> as unknown as React.ReactNode
+          )
+        ))}
+      </div>
     </div>
   );
 }

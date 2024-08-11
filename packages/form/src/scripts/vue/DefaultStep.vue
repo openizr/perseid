@@ -8,6 +8,7 @@
  *
  */
 
+import { computed } from 'vue';
 import { type Step } from 'scripts/core';
 import { type DefineComponent } from 'vue';
 import type Engine from 'scripts/core/Engine';
@@ -24,42 +25,61 @@ export interface FormStepProps<T extends Engine = Engine> {
   /** Form step to render. */
   step: Step;
 
-  /** Whether step is currently active. */
-  active: boolean;
+  /** Path of the currently active step. */
+  activeStep?: string;
 
   /** Field component to use for rendering. */
-  fieldComponent?: DefineComponent<FormFieldProps>;
+  field?: DefineComponent<FormFieldProps>;
+
+  /** `focus` event handler. */
+  onFocus: (path: string) => () => void;
+
+  /** Changes current active step. */
+  setActiveStep: (stepPath: string) => void;
 
   /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
   useSubscription: UseSubscription;
 }
 
 const props = withDefaults(defineProps<FormStepProps>(), {
-  fieldComponent: DefaultField as unknown as undefined,
+  activeStep: undefined,
+  field: DefaultField as unknown as undefined,
+});
+
+// Specifying the active step prevent browsers auto-fill system from changing fields
+// located in other steps, resetting previous steps and breaking overall UX.
+const isActive = computed(() => props.activeStep === props.step.path);
+const cssPath = computed(() => props.step.path.replace(/\./g, '__'));
+const className = computed(() => {
+  const modifiers = [props.step.status, cssPath].concat(isActive.value ? ['active'] : []);
+  return `perseid-form__step perseid-form__step--${[...new Set(modifiers)].join('--')}`;
 });
 </script>
 
 <template>
-  <div class="perseid-form__step__fields">
-    <!--
+  <div :id="cssPath" :class="className" @focus="onFocus(step.path)">
+    <div class="perseid-form__step__fields">
+      <!--
       Key is composed of both step and field ids, in order to ensure each field is correctly reset
       when user changes his journey in previous steps.
     -->
-    <component
-      :is="fieldComponent"
-      v-for="field of props.step.fields.filter((field: Field) => field !== null)"
-      :key="field.path"
-      name="field"
-      :path="field.path"
-      :type="field.type"
-      :error="field.error"
-      :value="field.value"
-      :status="field.status"
-      :fields="field.fields"
-      :active="props.active"
-      :engine="props.engine"
-      :required="field.required"
-      :use-subscription="props.useSubscription"
-    />
+      <component
+        :is="field"
+        v-for="currentField of props.step.fields.filter((f: Field) => f !== null)"
+        :key="currentField.path"
+        name="currentField"
+        :engine="props.engine"
+        :path="currentField.path"
+        :type="currentField.type"
+        :error="currentField.error"
+        :value="currentField.value"
+        :status="currentField.status"
+        :fields="currentField.fields"
+        :active-step="props.activeStep"
+        :required="currentField.required"
+        :set-active-step="props.setActiveStep"
+        :use-subscription="props.useSubscription"
+      />
+    </div>
   </div>
 </template>

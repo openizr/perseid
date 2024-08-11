@@ -72,14 +72,14 @@ declare module '@perseid/form/vue' {
     /** Form state. */
     state: FormState;
 
-    /** Current active form step. */
-    activeStep: string;
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;
 
     /** Changes current active step. */
-    setActiveStep: (stepId: string) => void;
+    setActiveStep: (stepPath: string) => void;
   }
 
   /**
@@ -92,11 +92,17 @@ declare module '@perseid/form/vue' {
     /** Form step to render. */
     step: Step;
 
-    /** Whether step is currently active. */
-    active: boolean;
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Field component to use for rendering. */
     field?: DefineComponent<FormFieldProps>;
+
+    /** `focus` event handler. */
+    onFocus: (path: string) => () => void;
+
+    /** Changes current active step. */
+    setActiveStep: (stepPath: string) => void;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;

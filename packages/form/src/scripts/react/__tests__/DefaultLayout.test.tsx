@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import { type FormState } from 'scripts/core/state';
 import DefaultLayout from 'scripts/react/DefaultLayout';

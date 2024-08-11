@@ -23,17 +23,18 @@ export interface FormLayoutProps {
   /** Form state. */
   state: FormState;
 
-  /** Current active form step. */
-  activeStep: string;
+  /** Path of the currently active step. */
+  activeStep?: string;
 
   /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
   useSubscription: UseSubscription;
 
   /** Changes current active step. */
-  setActiveStep: (stepId: string) => void;
+  setActiveStep: (stepPath: string) => void;
 }
 
 const props = withDefaults(defineProps<FormLayoutProps>(), {
+  activeStep: undefined,
   loaderComponent: DefaultLoader as unknown as undefined,
 });
 </script>

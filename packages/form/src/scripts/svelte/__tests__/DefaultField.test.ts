@@ -7,8 +7,8 @@
  * @vitest-environment jsdom
  */
 
-import type Engine from 'scripts/core/Engine';
 import type { SvelteComponent } from 'svelte';
+import type Engine from 'scripts/core/Engine';
 import { render } from '@testing-library/svelte';
 import DefaultField from 'scripts/svelte/DefaultField.svelte';
 

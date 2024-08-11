@@ -18,7 +18,7 @@ describe('svelte/DefaultStep', () => {
     vi.clearAllMocks();
   });
 
-  test('renders correctly', () => {
+  test('renders correctly - active step', () => {
     const step: Step = {
       path: 'root.0',
       status: 'initial',
@@ -34,7 +34,36 @@ describe('svelte/DefaultStep', () => {
     const { container } = render(DefaultStep, {
       props: {
         step,
-        active: false,
+        onFocus: vi.fn(),
+        activeStep: 'root.0',
+        setActiveStep: vi.fn(),
+        useSubscription: vi.fn(),
+        engine: {} as unknown as Engine,
+        Field: DefaultField as unknown as typeof SvelteComponent,
+      },
+    });
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  test('renders correctly - inactive step', () => {
+    const step: Step = {
+      path: 'root.0',
+      status: 'initial',
+      fields: [{
+        path: 'root.0.test',
+        status: 'initial',
+        error: null,
+        value: null,
+        required: false,
+        type: 'string',
+      }],
+    };
+    const { container } = render(DefaultStep, {
+      props: {
+        step,
+        onFocus: vi.fn(),
+        activeStep: 'root.1',
+        setActiveStep: vi.fn(),
         useSubscription: vi.fn(),
         engine: {} as unknown as Engine,
         Field: DefaultField as unknown as typeof SvelteComponent,

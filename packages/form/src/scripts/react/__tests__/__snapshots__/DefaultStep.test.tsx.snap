@@ -1,11 +1,31 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`react/DefaultStep > renders correctly 1`] = `
+exports[`react/DefaultStep > renders correctly - active step 1`] = `
 <div
-  class="perseid-form__step__fields"
+  class="perseid-form__step perseid-form__step--initial--root__0--active"
+  id="root__0"
 >
-  <div>
-    {"active":false,"engine":{},"path":"root.0.test","type":"string","error":null,"value":null,"status":"initial","required":false}
+  <div
+    class="perseid-form__step__fields"
+  >
+    <div>
+      {"engine":{},"path":"root.0.test","type":"string","error":null,"isActive":true,"value":null,"status":"initial","activeStep":"root.0","isRequired":false}
+    </div>
+  </div>
+</div>
+`;
+
+exports[`react/DefaultStep > renders correctly - inactive step 1`] = `
+<div
+  class="perseid-form__step perseid-form__step--initial--root__0"
+  id="root__0"
+>
+  <div
+    class="perseid-form__step__fields"
+  >
+    <div>
+      {"engine":{},"path":"root.0.test","type":"string","error":null,"isActive":false,"value":null,"status":"initial","activeStep":"root.1","isRequired":false}
+    </div>
   </div>
 </div>
 `;

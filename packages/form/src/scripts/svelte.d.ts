@@ -72,14 +72,14 @@ declare module '@perseid/form/svelte' {
     /** Loader component to use when loading a new step. */
     Loader: typeof SvelteComponent;
 
-    /** Current active form step. */
-    activeStep: string;
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;
 
     /** Changes current active step. */
-    setActiveStep: (stepId: string) => void;
+    setActiveStep: (stepPath: string) => void;
   }
 
   /**
@@ -92,11 +92,17 @@ declare module '@perseid/form/svelte' {
     /** Form step to render. */
     step: Step;
 
-    /** Whether step is currently active. */
-    active: boolean;
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Field component to use for rendering. */
     Field: typeof SvelteComponent<FormFieldProps>;
+
+    /** `focus` event handler. */
+    onFocus: (path: string) => () => void;
+
+    /** Changes current active step. */
+    setActiveStep: (stepPath: string) => void;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;

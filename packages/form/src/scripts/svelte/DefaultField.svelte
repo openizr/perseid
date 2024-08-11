@@ -1,8 +1,8 @@
 <!-- Default form field. -->
 
 <script lang="ts" context="module">
-  import type Engine from 'scripts/core/Engine';
   import { type SvelteComponent } from 'svelte';
+  import type Engine from 'scripts/core/Engine';
   import { type UseSubscription } from '@perseid/store/connectors/svelte';
 
   /**

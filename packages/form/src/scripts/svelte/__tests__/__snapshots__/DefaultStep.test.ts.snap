@@ -1,28 +1,67 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`svelte/DefaultStep > renders correctly 1`] = `
+exports[`svelte/DefaultStep > renders correctly - active step 1`] = `
 <div
-  class="perseid-form__step__fields"
+  class="perseid-form__step perseid-form__step--initial--root__0--active"
+  id="root__0"
 >
-  
-  <pre>
-      
-    {
+  <div
+    class="perseid-form__step__fields"
+  >
+    
+    <pre>
+        
+      {
   "path": "root.0.test",
   "type": "string",
   "status": "initial",
   "error": null,
-  "active": false,
-  "required": false,
+  "isActive": true,
+  "activeStep": "root.0",
   "value": null,
   "Field": "&lt;Component&gt;",
   "engine": "&lt;Engine&gt;",
+  "setActiveStep": "&lt;Function&gt;",
   "useSubscription": "&lt;Function&gt;"
 }
-    
+      
 
-  </pre>
-  
-  
+    </pre>
+    
+    
+  </div>
+</div>
+`;
+
+exports[`svelte/DefaultStep > renders correctly - inactive step 1`] = `
+<div
+  class="perseid-form__step perseid-form__step--initial--root__0"
+  id="root__0"
+>
+  <div
+    class="perseid-form__step__fields"
+  >
+    
+    <pre>
+        
+      {
+  "path": "root.0.test",
+  "type": "string",
+  "status": "initial",
+  "error": null,
+  "isActive": false,
+  "activeStep": "root.1",
+  "value": null,
+  "Field": "&lt;Component&gt;",
+  "engine": "&lt;Engine&gt;",
+  "setActiveStep": "&lt;Function&gt;",
+  "useSubscription": "&lt;Function&gt;"
+}
+      
+
+    </pre>
+    
+    
+  </div>
 </div>
 `;
