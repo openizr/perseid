@@ -1,3 +1,34 @@
+## @perseid/form:4.0.0 (2024-08-11)
+
+### Breaking changes
+- Major NPM dependencies update
+- Drop support of `node` < `20` and `npm` < `9`
+- Remove `defaultValue` field configuration
+- Step component now always re-mounts when it gets active
+- Prevent glitch issues when focusing in/out of the window
+- Move all step-related HTML into the `DefaultStep` component
+- Rename `DefaultField` `active` prop into `isActive`
+- Rename `DefaultField` `required` prop into `isRequired`
+- Throw errors when trying to get configurations for invalid paths
+- Replace deep merge by shallow merge in `Engine.setVariables` method
+- Add new `activeStep`, `setActiveStep` props to the `DefaultField` component
+- Add new `onFocus`, `activeStep` and `setActiveStep` props to the `DefaultStep` component
+
+### Features
+- Add `exports` configuration in `package.json` to enable support for native sub-modules imports
+
+### Bugs
+- Force inputs processing on user actions
+- Force whole optional objects submission on change
+- Fix cache clearing on hook error and form submission
+- Fix `Engine.areEqual` method with `date` or `binary` data types
+- Prevent infinite loops when calling `Engine.setVariables` method in hooks
+- Prevent arrays from being filled with initial values when user adds a new item
+
+### Improvements
+- Improve `Engine` code consistency
+
+
 ## @perseid/ui:4.0.0 (2024-08-09)
 
 ### Breaking changes
