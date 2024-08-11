@@ -1,47 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`react/Form > renders correctly - loading next step 1`] = `
-<form
-  class="perseid-form"
-  id="test"
->
-  <div>
-    <div
-      class="perseid-form__step perseid-form__step--initial--root__0--active"
-      id="root__0"
-    >
-      <div
-        id="step"
-      >
-        {"step":{"path":"root.0","status":"initial","fields":[{}]},"Field":{"compare":null},"engine":{},"active":true}
-      </div>
-    </div>
-    {"state":{"steps":[{"path":"root.0","status":"initial","fields":[{}]}]},"activeStep":"root.0"}
-  </div>
-</form>
-`;
-
-exports[`react/Form > renders correctly - loading next step 2`] = `
-<form
-  class="perseid-form"
-  id="test"
->
-  <div>
-    <div
-      class="perseid-form__step perseid-form__step--initial--root__0--active"
-      id="root__0"
-    >
-      <div
-        id="step"
-      >
-        {"step":{"path":"root.0","status":"initial","fields":[{}]},"Field":{"compare":null},"engine":{},"active":true}
-      </div>
-    </div>
-    {"state":{"steps":[{"path":"root.0","status":"initial","fields":[{}]}]},"activeStep":"root.0"}
-  </div>
-</form>
-`;
-
 exports[`react/Form > renders correctly - with active step 1`] = `
 <form
   class="perseid-form"
@@ -49,14 +7,9 @@ exports[`react/Form > renders correctly - with active step 1`] = `
 >
   <div>
     <div
-      class="perseid-form__step perseid-form__step--initial--root__0"
-      id="root__0"
+      id="step"
     >
-      <div
-        id="step"
-      >
-        {"step":{"path":"root.0","status":"initial","fields":[{}]},"Field":{"compare":null},"engine":{},"active":false}
-      </div>
+      {"step":{"path":"root.0","status":"initial","fields":[{}]},"Field":{"compare":null},"engine":{},"activeStep":"second.0"}
     </div>
     {"state":{"steps":[{"path":"root.0","status":"initial","fields":[{}]}]},"activeStep":"second.0"}
   </div>
@@ -70,14 +23,25 @@ exports[`react/Form > renders correctly - with active step 2`] = `
 >
   <div>
     <div
-      class="perseid-form__step perseid-form__step--initial--root__0--active"
-      id="root__0"
+      id="step"
     >
-      <div
-        id="step"
-      >
-        {"step":{"path":"root.0","status":"initial","fields":[{}]},"Field":{"compare":null},"engine":{},"active":true}
-      </div>
+      {"step":{"path":"root.0","status":"initial","fields":[{}]},"Field":{"compare":null},"engine":{},"activeStep":"root.0"}
+    </div>
+    {"state":{"steps":[{"path":"root.0","status":"initial","fields":[{}]}]},"activeStep":"root.0"}
+  </div>
+</form>
+`;
+
+exports[`react/Form > renders correctly 1`] = `
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div>
+    <div
+      id="step"
+    >
+      {"step":{"path":"root.0","status":"initial","fields":[{}]},"Field":{"compare":null},"engine":{},"activeStep":"root.0"}
     </div>
     {"state":{"steps":[{"path":"root.0","status":"initial","fields":[{}]}]},"activeStep":"root.0"}
   </div>

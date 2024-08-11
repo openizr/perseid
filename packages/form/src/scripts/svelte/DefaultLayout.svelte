@@ -15,14 +15,14 @@
     /** Loader component to use when loading a new step. */
     Loader: typeof SvelteComponent;
 
-    /** Current active form step. */
-    activeStep: string;
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;
 
     /** Changes current active step. */
-    setActiveStep: (stepId: string) => void;
+    setActiveStep: (stepPath: string) => void;
   }
 </script>
 

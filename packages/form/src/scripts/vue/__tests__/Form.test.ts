@@ -9,8 +9,8 @@
 
 import { ref, markRaw } from 'vue';
 import Form from 'scripts/vue/Form.vue';
-import { render, fireEvent } from '@testing-library/vue';
-import DefaultLayout from 'scripts/vue/__mocks__/DefaultLayout.vue';
+import DefaultStep from 'scripts/vue/__mocks__/DefaultStep.vue';
+import { render, fireEvent, createEvent } from '@testing-library/vue';
 
 describe('vue/Form', () => {
   vi.mock('scripts/core/Engine', () => ({
@@ -19,7 +19,7 @@ describe('vue/Form', () => {
     })),
   }));
   vi.mock('@perseid/store/connectors/vue', () => ({
-    default: vi.fn(() => (): unknown => {
+    default: vi.fn(() => (_: string, callback: (data: unknown) => unknown): unknown => {
       const state = {
         loading: process.env.LOADING === 'true',
         steps: process.env.LOADING === 'true' ? [] : [
@@ -27,11 +27,11 @@ describe('vue/Form', () => {
           { path: 'end', fields: [] },
         ],
       };
-      return ref(state);
+      return ref(callback(state));
     }),
   }));
 
-  const configuration: Configuration = {
+  const configuration = {
     id: 'test',
     root: 'start',
     fields: { test: { type: 'string' } },
@@ -40,43 +40,49 @@ describe('vue/Form', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.LOADING;
   });
 
-  test('renders correctly - loading next step', async () => {
-    process.env.LOADING = 'true';
+  test('renders correctly', async () => {
+    vi.spyOn(window, 'addEventListener').mockImplementation((event, callback) => {
+      if (event === 'blur') { (callback as () => void)(); }
+    });
     const { container, rerender } = render(Form, {
       props: {
         configuration,
-        Step: undefined,
-        Field: undefined,
-        Loader: undefined,
         activeStep: 'start',
         engineClass: undefined,
-        layoutComponent: markRaw(DefaultLayout),
       },
     });
     expect(container.firstChild).toMatchSnapshot();
-    await rerender({ activeStep: 'null' });
+    await rerender({ activeStep: undefined });
+    expect(window.addEventListener).toHaveBeenCalledOnce();
+    expect(window.addEventListener).toHaveBeenCalledWith('blur', expect.any(Function));
   });
 
-  test('renders correctly - with active step', async () => {
+  test('renders correctly - with active step', () => {
     const { container } = render(Form, {
       props: {
         configuration,
-        Step: undefined,
-        Field: undefined,
-        Layout: undefined,
-        Loader: undefined,
+        activeStep: undefined,
+        engineClass: undefined,
+        stepComponent: markRaw(DefaultStep),
+      },
+    });
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  test('prevents native form submission', async () => {
+    const { container } = render(Form, {
+      props: {
+        configuration,
         activeStep: undefined,
         engineClass: undefined,
       },
     });
-    expect(container.firstChild).toMatchSnapshot();
-    const step = container.querySelector('.perseid-form__step');
-    const form = container.querySelector('.perseid-form');
-    await fireEvent.focus(step as HTMLElement);
-    await fireEvent.submit(form as HTMLElement);
-    expect(container.firstChild).toMatchSnapshot();
+    const form = container.getElementsByTagName('form')[0];
+    const event = createEvent.submit(form);
+    event.preventDefault = vi.fn();
+    await fireEvent(form, event);
+    expect(event.preventDefault).toHaveBeenCalled();
   });
 });

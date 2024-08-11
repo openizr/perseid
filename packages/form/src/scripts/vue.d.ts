@@ -26,7 +26,10 @@ declare module '@perseid/form/vue' {
     engine: T;
 
     /** Whether field belongs to current active step. */
-    active: boolean;
+    isActive: boolean;
+
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Field type. */
     type: Field['type'];
@@ -47,10 +50,13 @@ declare module '@perseid/form/vue' {
     fields?: Field['fields'];
 
     /** Whether field is required. */
-    required: Field['required'];
+    isRequired: Field['required'];
 
     /** Field component to use for rendering. */
-    fieldComponent?: DefineComponent;
+    field?: DefineComponent;
+
+    /** Changes current active step. */
+    setActiveStep: (stepPath: string) => void;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;
@@ -66,14 +72,14 @@ declare module '@perseid/form/vue' {
     /** Form state. */
     state: FormState;
 
-    /** Current active form step. */
-    activeStep: string;
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;
 
     /** Changes current active step. */
-    setActiveStep: (stepId: string) => void;
+    setActiveStep: (stepPath: string) => void;
   }
 
   /**
@@ -86,11 +92,17 @@ declare module '@perseid/form/vue' {
     /** Form step to render. */
     step: Step;
 
-    /** Whether step is currently active. */
-    active: boolean;
+    /** Path of the currently active step. */
+    activeStep?: string;
 
     /** Field component to use for rendering. */
-    fieldComponent?: DefineComponent<FormFieldProps>;
+    field?: DefineComponent<FormFieldProps>;
+
+    /** `focus` event handler. */
+    onFocus: (path: string) => () => void;
+
+    /** Changes current active step. */
+    setActiveStep: (stepPath: string) => void;
 
     /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
     useSubscription: UseSubscription;
@@ -116,7 +128,7 @@ declare module '@perseid/form/vue' {
     stepComponent?: DefineComponent<FormStepProps>;
 
     /** Default Field component to use. */
-    fieldComponent?: DefineComponent<FormFieldProps>;
+    field?: DefineComponent<FormFieldProps>;
 
     /** Default Loader component to use. */
     loaderComponent?: DefineComponent;

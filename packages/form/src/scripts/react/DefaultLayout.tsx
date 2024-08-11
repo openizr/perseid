@@ -20,8 +20,8 @@ export interface FormLayoutProps {
   /** Form state. */
   state: FormState;
 
-  /** Current active form step. */
-  activeStep: string;
+  /** Path of the currently active step. */
+  activeStep?: string;
 
   /** All rendered form steps. */
   steps: JSX.Element[];
@@ -30,7 +30,7 @@ export interface FormLayoutProps {
   useSubscription: UseSubscription;
 
   /** Changes current active step. */
-  setActiveStep: (stepId: string) => void;
+  setActiveStep: (stepPath: string) => void;
 }
 
 /**

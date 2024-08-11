@@ -18,7 +18,10 @@ export interface FormFieldProps<T extends Engine = Engine> {
   engine: T;
 
   /** Whether field belongs to current active step. */
-  active: boolean;
+  isActive: boolean;
+
+  /** Path of the currently active step. */
+  activeStep?: string;
 
   /** Field type. */
   type: Field['type'];
@@ -39,10 +42,13 @@ export interface FormFieldProps<T extends Engine = Engine> {
   fields?: Field['fields'];
 
   /** Whether field is required. */
-  required: Field['required'];
+  isRequired: Field['required'];
 
   /** Field component to use for rendering. */
   Field: React.FC<FormFieldProps>;
+
+  /** Changes current active step. */
+  setActiveStep: (stepPath: string) => void;
 
   /** Store `useSubscription` function, you can use it to directly subscribe to form state. */
   useSubscription: UseSubscription;
@@ -52,10 +58,11 @@ export interface FormFieldProps<T extends Engine = Engine> {
  * Default form field.
  */
 function DefaultField(props: FormFieldProps): JSX.Element {
-  const { fields, Field } = props;
+  const { setActiveStep } = props;
   const { path, type, error } = props;
   const { engine, status, value } = props;
-  const { active, required, useSubscription } = props;
+  const { fields, activeStep, Field } = props;
+  const { isActive, isRequired, useSubscription } = props;
   return (
     <pre>
       {JSON.stringify({
@@ -63,12 +70,14 @@ function DefaultField(props: FormFieldProps): JSX.Element {
         type,
         status,
         error,
-        active,
-        required,
+        isActive,
+        isRequired,
+        activeStep,
         value: (type === 'binary') ? '<Binary>' : value,
-        Field: `<${typeof Field !== 'string' && 'Component'}>`,
-        engine: `<${typeof engine !== 'string' && 'Engine'}>`,
-        useSubscription: `<${typeof useSubscription !== 'string' && 'Function'}>`,
+        Field: `<${String(typeof Field !== 'string' && 'Component')}>`,
+        engine: `<${String(typeof engine !== 'string' && 'Engine')}>`,
+        setActiveStep: `<${String(typeof setActiveStep !== 'string' && 'Function')}>`,
+        useSubscription: `<${String(typeof useSubscription !== 'string' && 'Function')}>`,
         fields,
       }, null, 2)}
     </pre>

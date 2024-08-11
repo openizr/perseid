@@ -6,12 +6,6 @@
  *
  */
 
-declare module '*.svelte' {
-  import { SvelteComponent } from 'svelte';
-
-  export default SvelteComponent;
-}
-
 declare module '*.vue' {
   import Vue from 'vue';
 

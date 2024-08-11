@@ -7,7 +7,7 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
+import * as React from 'react';
 import Form from 'scripts/react/Form';
 import type Engine from 'scripts/core/Engine';
 import { type FormLayoutProps } from 'scripts/react/DefaultLayout';
@@ -18,6 +18,9 @@ function Loader(): null {
 }
 
 function Step(props: unknown): JSX.Element {
+  React.useEffect(() => {
+    (props as { onFocus: () => () => void; }).onFocus()();
+  }, [props]);
   return <div id="step">{JSON.stringify(props)}</div>;
 }
 
@@ -33,7 +36,7 @@ function Layout({ steps, ...props }: FormLayoutProps): JSX.Element {
 describe('react/Form', () => {
   vi.mock('scripts/core/Engine', () => ({ default: vi.fn() }));
   vi.mock('@perseid/store/connectors/react', () => ({
-    default: vi.fn(() => (): unknown => ({
+    default: vi.fn(() => (_: string, callback: (data: unknown) => unknown): unknown => callback({
       steps: [{
         path: 'root.0',
         status: 'initial',
@@ -56,12 +59,13 @@ describe('react/Form', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.LOADING;
   });
 
-  test('renders correctly - loading next step', () => {
-    process.env.LOADING = 'true';
-    const { container, rerender } = render(
+  test('renders correctly', () => {
+    vi.spyOn(window, 'addEventListener').mockImplementation((event, callback) => {
+      if (event === 'blur') { (callback as () => void)(); }
+    });
+    const { container } = render(
       <Form
         Step={Step}
         Loader={Loader}
@@ -71,30 +75,12 @@ describe('react/Form', () => {
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
-    // Covers React.memo checks.
-    rerender(
-      <Form
-        Step={Step}
-        Loader={Loader}
-        Layout={Layout}
-        configuration={configuration}
-        engineClass={CustomEngine as unknown as typeof Engine}
-      />,
-    );
-    rerender(
-      <Form
-        Step={Step}
-        Loader={Loader}
-        Layout={Layout}
-        configuration={configuration}
-        engineClass={CustomEngine as unknown as typeof Engine}
-      />,
-    );
-    expect(container.firstChild).toMatchSnapshot();
+    expect(window.addEventListener).toHaveBeenCalledOnce();
+    expect(window.addEventListener).toHaveBeenCalledWith('blur', expect.any(Function));
   });
 
   test('renders correctly - with active step', () => {
-    const { container } = render(
+    const { container, rerender } = render(
       <Form
         Step={Step}
         Loader={Loader}
@@ -105,8 +91,15 @@ describe('react/Form', () => {
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
-    const step = container.querySelector('#step');
-    fireEvent.focus(step as HTMLElement);
+    rerender(
+      <Form
+        Step={Step}
+        Loader={Loader}
+        Layout={Layout}
+        configuration={configuration}
+        engineClass={CustomEngine as unknown as typeof Engine}
+      />,
+    );
     expect(container.firstChild).toMatchSnapshot();
   });
 

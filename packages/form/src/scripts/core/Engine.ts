@@ -9,7 +9,7 @@
 import Store from '@perseid/store';
 import state from 'scripts/core/state';
 import userActions from 'scripts/core/userActions';
-import { deepCopy, deepMerge, isPlainObject } from '@perseid/core';
+import { deepCopy, isPlainObject } from '@perseid/core';
 
 /**
  * Form engine.
@@ -71,20 +71,20 @@ export default class Engine {
    *
    * @returns `true` if `firstInput` and `secondInput` are equal, `false` otherwise.
    */
-  protected areEqual<T1, T2>(
-    firstInput: T1,
-    secondInput: T2,
+  protected areEqual(
+    firstInput: unknown,
+    secondInput: unknown,
     type: FieldConfiguration['type'],
   ): boolean {
     return (
-      (firstInput as unknown) === secondInput
+      firstInput === secondInput
       || (type === 'string' && String(firstInput) === String(secondInput))
       || (type === 'float' && Number.isNaN(secondInput) && Number.isNaN(firstInput))
       || (type === 'integer' && Number.isNaN(secondInput) && Number.isNaN(firstInput))
-      || (type === 'date' && (firstInput as Date).getTime() === (secondInput as Date).getTime())
+      || (type === 'date' && (firstInput as Date | null)?.getTime() === (secondInput as Date | null)?.getTime())
       || (type === 'binary' && (
-        (firstInput as File).name === (secondInput as File).name
-        && (firstInput as File).size === (secondInput as File).size
+        (firstInput as File | null)?.name === (secondInput as File | null)?.name
+        && (firstInput as File | null)?.size === (secondInput as File | null)?.size
       ))
     );
   }
@@ -187,8 +187,8 @@ export default class Engine {
     const newField: Field = {
       path,
       type,
-      value: null,
       error: null,
+      value: undefined,
       status: 'initial',
       required: required === true,
     };
@@ -230,12 +230,19 @@ export default class Engine {
     newValue: unknown,
     initialValue: Exclude<unknown, undefined>,
     newInputs: { partial?: unknown; full?: unknown } = { full: undefined, partial: undefined },
+    // This field makes sure that all the user action logic gets always executed (toggle,
+    // validation, hooks, ...) when `engine.userAction` is called explicitely, even if new and
+    // existing values are the same, but keeps the "batch" behaviour as is (meaning if useractions
+    // are just subsequent triggers of a batch, then if the values are the same, we don't do
+    // anything).
+    force = false,
   ): Field | null {
     const newUserInputs = newInputs;
     const { type, condition } = configuration;
     const isStageTwo = newValue instanceof Map;
     const discardedFieldValue = this.discardedUserInputs.get(path);
-    const { required, defaultValue, submit } = configuration as StringConfiguration;
+    const { required, submit } = configuration as StringConfiguration;
+
     // We can't use nullish coalescing operator here as we need to keep `null` value.
     let newFieldValue = (isStageTwo ? newValue.get(path) : newValue) as unknown;
     newFieldValue = (newFieldValue !== undefined) ? newFieldValue : field?.value;
@@ -243,7 +250,7 @@ export default class Engine {
     newFieldValue = (newFieldValue !== undefined) ? newFieldValue : initialValue;
     newFieldValue = (type === 'array' && required) ? newFieldValue ?? [] : newFieldValue;
     newFieldValue = (type === 'object' && required) ? newFieldValue ?? {} : newFieldValue;
-    newFieldValue = (newFieldValue !== undefined) ? newFieldValue : defaultValue ?? null;
+    newFieldValue ??= null;
 
     if (condition !== undefined && !condition(this.userInputs.full, this.variables)) {
       this.discardedUserInputs.set(path, newFieldValue ?? null);
@@ -253,7 +260,7 @@ export default class Engine {
     const newField = field ?? this.createField(path, configuration) as unknown as Field;
     const isNewValue = !this.areEqual(newFieldValue, newField.value, type);
     // We either queue new field value or assign it to the field depending on the stage.
-    if ((!isStageTwo || (field === null && submit !== true)) && isNewValue) {
+    if ((!isStageTwo || (field === null && submit !== true)) && ((isNewValue && type !== 'null') || force)) {
       this.userInputsQueue.set(path, { data: newFieldValue, configuration });
       this.discardedUserInputs.delete(path);
     } else if (type !== 'null') {
@@ -292,21 +299,21 @@ export default class Engine {
       const key = isArray ? index : (fieldIds as string[])[index];
       const updatedUserInputs = { full: undefined, partial: undefined };
       const subField = this.toggleField(
-        `${path}.${key}`,
+        `${path}.${String(key)}`,
         newField.fields[index],
         isArray ? configuration.fields : configuration.fields[key],
-        isStageTwo ? newValue : (newFieldValue as unknown[])[key as number] ?? null,
-        (initialValue as unknown[] | undefined)?.[key as number],
+        isStageTwo ? newValue : (newFieldValue as unknown[])[key as number],
+        isArray && force ? undefined : (initialValue as unknown[] | undefined)?.[key as number],
         updatedUserInputs,
       );
       if (subField !== null) {
-        subField.path = `${path}.${key}`;
+        subField.path = `${path}.${String(key)}`;
       }
       newField.fields[index] = subField;
       if ((updatedUserInputs.full as unknown) !== undefined) {
         (newUserInputs.full as unknown[])[key as number] = updatedUserInputs.full;
       }
-      if (isArray && (updatedUserInputs.partial as unknown) !== undefined) {
+      if ((isArray || !required) && (updatedUserInputs.partial as unknown) !== undefined) {
         newUserInputs.partial = newUserInputs.full;
       } else if ((updatedUserInputs.partial as unknown) !== undefined) {
         newUserInputs.partial ??= {};
@@ -336,7 +343,7 @@ export default class Engine {
   protected toggleFields(step: Step | null, newFieldValues: Map<string, unknown>): void {
     if (step !== null) {
       const { path, fields } = step;
-      const { fields: fieldIds } = this.configuration.steps[path.split('.')[0]];
+      const { fields: fieldIds } = this.getConfiguration<StepConfiguration>(path);
       for (let index = 0, { length } = fieldIds; index < length; index += 1) {
         const newUserInputs = { full: undefined, partial: undefined };
         const fieldId = fieldIds[index];
@@ -489,8 +496,7 @@ export default class Engine {
       let allFieldsSucceeded = true;
       // We reset current step status to not stay in error state forever.
       this.currentStep.status = 'progress';
-      const currentStepId = this.currentStep.path.split('.')[0];
-      const { fields: fieldIds } = this.configuration.steps[currentStepId];
+      const { fields: fieldIds } = this.getConfiguration<StepConfiguration>(this.currentStep.path);
       for (let index = 0, { length } = fieldIds; index < length; index += 1) {
         const fieldState = this.validateField(
           this.currentStep.fields[index],
@@ -521,11 +527,13 @@ export default class Engine {
     data: T,
   ): Promise<T | null> {
     try {
-      const hooksChain = this.hooks[eventName].reduce((chain, hook) => (updatedData) => (
-        hook(updatedData, chain as NextHook<HookData>)
+      const hooksChain = this.hooks[eventName].reduce<NextHook<HookData>>((chain, hook) => (
+        (updatedData): Promise<HookData> => (
+          hook(updatedData, chain)
+        )
       ), (updatedData) => Promise.resolve(updatedData));
-      const updatedData = await (hooksChain as NextHook<HookData>)(data);
-      if ((updatedData as unknown) === undefined) {
+      const updatedData = await hooksChain(data) as T | undefined;
+      if (updatedData === undefined) {
         throw new Error(
           `Event "${eventName}": data passed to the next hook is "undefined".`
           + ' This usually means that you did not correctly resolved your hook Promise with'
@@ -533,18 +541,19 @@ export default class Engine {
         );
       }
       this.notifyUI();
-      return updatedData as T;
+      return updatedData;
     } catch (error) {
       // Disabling cache on error prevents the form to be stucked in error step forever.
-      this.cache = null;
+      // Be careful: first clear cache, then disable it!
       await this.clearCache();
+      this.cache = null;
       // This safety mechanism prevents infinite loops when throwing errors from "error" hooks.
       if (eventName !== 'error' && this.hooks.error.length > 0) {
         await this.triggerHooks('error', error as Error);
       } else {
         throw error;
       }
-      return null as T;
+      return null;
     }
   }
 
@@ -593,10 +602,10 @@ export default class Engine {
     // Triggering post-user action hooks...
     await Promise.all(updatedUserActions.map((action) => this.triggerHooks('afterUserAction', action)));
 
-    if ((this.currentStep as unknown as Step).status === 'success' && shouldSubmit as boolean) {
+    const currentStep = this.currentStep as unknown as Step;
+    if (currentStep.status === 'success' && shouldSubmit as boolean) {
       const { submitPartialUpdates } = this.configuration;
-      const currentStepId = (this.currentStep as unknown as Step).path.split('.')[0];
-      const { nextStep, submit } = this.configuration.steps[currentStepId];
+      const { nextStep, submit } = this.getConfiguration<StepConfiguration>(currentStep.path);
       const userInputsType = (submitPartialUpdates !== false) ? 'partial' : 'full';
       let finalUserInputs: UserInputs | null = this.userInputs[userInputsType];
 
@@ -604,8 +613,9 @@ export default class Engine {
       if (submit) {
         finalUserInputs = await this.triggerHooks('submit', finalUserInputs);
         if (finalUserInputs !== null && this.configuration.clearCacheOnSubmit !== false) {
-          this.cache = null;
+          // Be careful: first clear cache, then disable it!
           this.clearCache();
+          this.cache = null;
           await this.configuration.onSubmit?.(finalUserInputs, this.variables);
         }
       }
@@ -639,9 +649,9 @@ export default class Engine {
       }
 
       const field = this.getField(path);
-      const fieldConfiguration = this.getConfiguration(path) as FieldConfiguration | null;
+      const fieldConfiguration = this.getConfiguration<FieldConfiguration>(path);
 
-      if (field === null || fieldConfiguration === null) {
+      if (field === null) {
         throw new Error(`Field with path "${path}" does not exist.`);
       }
 
@@ -650,7 +660,10 @@ export default class Engine {
       while (splittedPath.length > 0 && initialValue !== null) {
         initialValue = initialValue[String(splittedPath.shift())] as UserInputs | null ?? null;
       }
-      this.toggleField(path, field, fieldConfiguration, userAction.data, initialValue);
+      this.toggleField(path, field, fieldConfiguration, userAction.data, initialValue, {
+        full: undefined,
+        partial: undefined,
+      }, true);
       await this.processUserInputs();
     }
   }
@@ -710,7 +723,6 @@ export default class Engine {
         this.discardedUserInputs = cachedData.discardedUserInputs;
         if (this.configuration.restartOnReload !== true) {
           this.steps = cachedData.steps;
-          this.userInputs = cachedData.userInputs;
           this.currentStep = this.steps[this.steps.length - 1];
         }
       }
@@ -735,7 +747,7 @@ export default class Engine {
     return (
       input === null
       || input === undefined
-      || (type === 'string' && `${input}`.trim() === '')
+      || (type === 'string' && String(input).trim() === '')
     );
   }
 
@@ -746,17 +758,14 @@ export default class Engine {
    */
   public async createStep(stepId: string | null): Promise<void> {
     if (stepId !== null) {
-      const path = `${stepId}.${this.steps.length}`;
-      const fields = this.configuration.steps[stepId].fields.map((fieldId) => {
+      const path = `${stepId}.${String(this.steps.length)}`;
+      const stepConfiguration = this.getConfiguration<StepConfiguration>(path);
+      const fields = stepConfiguration.fields.map((fieldId) => {
+        const fieldPath = `${path}.${fieldId}`;
         const value = this.userInputs.full[fieldId];
         const initialValue = this.initialValues[fieldId];
-        const configuration = this.configuration.fields[fieldId];
-
-        if ((configuration as unknown) === undefined) {
-          throw new Error(`Could not find configuration for field with id "${fieldId}" in step "${stepId}".`);
-        }
-
-        return this.toggleField(`${path}.${fieldId}`, null, configuration, value, initialValue);
+        const fieldConfiguration = this.getConfiguration<FieldConfiguration>(fieldPath);
+        return this.toggleField(fieldPath, null, fieldConfiguration, value, initialValue);
       });
       const updatedNextStep = await this.triggerHooks('step', { path, status: 'initial', fields });
 
@@ -837,22 +846,29 @@ export default class Engine {
   }
 
   /**
-   * Returns field/step configuration for `path`. If no path is provided, the global form
-   * configuration is returned instead.
+   * Returns configuration for `path`. If no path is provided, the global form configuration is
+   * returned instead.
    *
-   * @param path Field/step path to get configuration for.
+   * @param path Field or step path to get configuration for.
    *
-   * @returns Path configuration.
+   * @returns Requested configuration.
+   *
+   * @throws If configuration does not exist for `path`.
    */
-  public getConfiguration(path?: string): SubConfiguration {
-    let subConfiguration = this.configuration as SubConfiguration | null;
+  public getConfiguration(): Configuration;
+
+  public getConfiguration<T extends SubConfiguration>(path?: string): T;
+
+  public getConfiguration<T extends SubConfiguration>(path?: string): T {
+    const configuration = this.configuration as unknown as T;
+    let subConfiguration: SubConfiguration | undefined = configuration;
     if (path === undefined) {
-      return subConfiguration;
+      return configuration;
     }
     const splittedPath = path.split('.');
     subConfiguration = this.configuration.steps[splittedPath.shift() as unknown as string];
     splittedPath.shift();
-    while ((subConfiguration as unknown) !== undefined && splittedPath.length > 0) {
+    while (subConfiguration !== undefined && splittedPath.length > 0) {
       const subPath = String(splittedPath.shift());
       if ((subConfiguration as FieldConfiguration).type === 'array') {
         subConfiguration = (subConfiguration as ArrayConfiguration).fields;
@@ -862,7 +878,10 @@ export default class Engine {
         subConfiguration = this.configuration.fields[subPath];
       }
     }
-    return (subConfiguration as SubConfiguration) ?? null;
+    if (subConfiguration === undefined) {
+      throw new Error(`Could not find configuration for path "${path}".`);
+    }
+    return subConfiguration as T;
   }
 
   /**
@@ -874,11 +893,11 @@ export default class Engine {
    */
   public getField(path: string): Field | null {
     const splitted = path.split('.');
-    let subPath = `${splitted.shift()}.${splitted[0]}`;
+    let subPath = `${String(splitted.shift())}.${splitted[0]}`;
     let field = this.steps[+(splitted.shift() as unknown as string)] as Field | null | undefined;
     const findField = (currentField: Field | null): boolean => currentField?.path === subPath;
     while (splitted.length > 0 && field !== undefined && field !== null) {
-      subPath += `.${splitted.shift()}`;
+      subPath += `.${String(splitted.shift())}`;
       field = (field.fields as unknown as Field[]).find(findField);
     }
     return field ?? null;
@@ -907,9 +926,11 @@ export default class Engine {
    *
    * @param variables Form variables to add or override.
    */
-  public async setVariables<T>(variables: T): Promise<void> {
-    this.variables = deepMerge(this.variables, variables);
-    await this.processUserInputs();
+  public async setVariables(variables: Record<string, unknown>): Promise<void> {
+    Object.assign(this.variables, variables);
+    if (this.userInputsQueue.size === 0) {
+      await this.processUserInputs();
+    }
     this.notifyUI();
   }
 

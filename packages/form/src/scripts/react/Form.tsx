@@ -41,14 +41,15 @@ export interface FormProps {
   Loader?: React.FC;
 }
 
+let key = 0;
+
 function onSubmit(event: React.FormEvent): void {
   event.preventDefault();
 }
 
-function buildClass(baseClass: string, modifiers: string): string {
-  const chainedModifiers = [...new Set(modifiers.split(' '))].map((modifier) => (
-    (modifier === '') ? '' : `--${modifier}`)).join('');
-  return `${baseClass}${` ${baseClass}${chainedModifiers}`}`;
+function generateId(): string {
+  key += 1;
+  return `_${String(key)}`;
 }
 
 /**
@@ -63,51 +64,68 @@ function Form({
   Layout = DefaultLayout as unknown as React.FC,
   engineClass: EngineClass = Engine,
 }: FormProps): JSX.Element {
+  const isWindowFocused = React.useRef(false);
+  const keys = React.useRef<Partial<Record<string, string>>>({});
   const [engine] = React.useState(() => new EngineClass(configuration));
   const [useSubscription] = React.useState(() => connect(engine.getStore()));
-  const state = useSubscription<FormState>('state');
-  const lastStepPath = state.steps[state.steps.length - 1]?.path;
-  const [currentActiveStep, setCurrentActiveStep] = React.useState(activeStep ?? lastStepPath);
-  const onFocus = React.useCallback((newActiveStep: string) => (): void => {
-    // Prevents any additional rendering when calling directly `setCurrentActiveStep`.
-    if (newActiveStep !== currentActiveStep) {
+  const state = useSubscription('state', (newState: FormState) => {
+    newState.steps.forEach((step) => { keys.current[step.path] ??= generateId(); });
+    return newState;
+  });
+  const lastStep = state.steps.at(-1);
+  const [currentActiveStep, setCurrentActiveStep] = React.useState(activeStep ?? lastStep?.path);
+
+  const setActiveStep = React.useCallback((newActiveStep: string | undefined) => {
+    // Prevents any additional rendering compared to calling directly `setCurrentActiveStep`.
+    if (newActiveStep !== currentActiveStep && newActiveStep !== undefined) {
+      // Forces step component to re-mount in order to reset scroll.
+      keys.current[newActiveStep] = generateId();
       setCurrentActiveStep(newActiveStep);
     }
   }, [currentActiveStep]);
 
-  // Updates current step whenever `activeStep` prop or steps change.
+  const handleFocus = React.useCallback((newActiveStep: string) => (): void => {
+    if (isWindowFocused.current) { setActiveStep(newActiveStep); }
+    isWindowFocused.current = true;
+  }, [setActiveStep]);
+
+  // Updates current step whenever `activeStep` prop or last step change.
+  // Be careful: last step path may not change although `lastStep` has (e.g. because it has been
+  // re-created or updated), so we need to react to this value instead.
   React.useEffect(() => {
-    setCurrentActiveStep(activeStep ?? lastStepPath);
-  }, [activeStep, lastStepPath]);
+    setActiveStep(activeStep ?? lastStep?.path);
+  }, [setActiveStep, activeStep, lastStep]);
+
+  // When focus gets out of and in back to the current window, the `focus` event gets triggered once
+  // again on the step, which leads to unwanted visual effects when displaying only current active
+  // step (the last focused step is displayed back). This mechanism prevents that from happening.
+  React.useEffect(() => {
+    const handleBlur = (): void => { isWindowFocused.current = false; };
+    window.addEventListener('blur', handleBlur);
+    return (): void => { window.removeEventListener('blur', handleBlur); };
+  }, []);
 
   return (
     <form id={configuration.id} className="perseid-form" onSubmit={onSubmit}>
-      {<Layout
+      <Layout
         state={state}
         Loader={Loader}
+        setActiveStep={setActiveStep}
         activeStep={currentActiveStep}
         useSubscription={useSubscription}
-        setActiveStep={setCurrentActiveStep}
-        steps={state.steps.map((step) => {
-          const active = currentActiveStep === step.path;
-          const cssPath = step.path.replace(/\./g, '__');
-          const modifiers = [step.status, cssPath, active ? 'active' : ''];
-          const className = buildClass('perseid-form__step', modifiers.join(' '));
-          return (
-            // Specifying the active step prevent browsers auto-fill system from changing fields
-            // located in other steps, resetting previous steps and breaking overall UX.
-            <div key={cssPath} id={cssPath} className={className} onFocus={onFocus(step.path)}>
-              {<Step
-                step={step}
-                Field={Field}
-                engine={engine}
-                active={active}
-                useSubscription={useSubscription}
-              /> as unknown as React.ReactNode}
-            </div>
-          );
-        })}
-      /> as unknown as React.ReactNode}
+        steps={state.steps.map((step) => (
+          <Step
+            step={step}
+            Field={Field}
+            engine={engine}
+            onFocus={handleFocus}
+            key={keys.current[step.path]}
+            setActiveStep={setActiveStep}
+            activeStep={currentActiveStep}
+            useSubscription={useSubscription}
+          />
+        ))}
+      />
     </form>
   );
 }

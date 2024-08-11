@@ -7,8 +7,8 @@
  * @vitest-environment jsdom
  */
 
-import type Engine from 'scripts/core/Engine';
 import type { SvelteComponent } from 'svelte';
+import type Engine from 'scripts/core/Engine';
 import { render } from '@testing-library/svelte';
 import DefaultField from 'scripts/svelte/DefaultField.svelte';
 
@@ -22,12 +22,14 @@ describe('svelte/DefaultField', () => {
       props: {
         error: null,
         value: null,
-        active: false,
-        required: true,
+        isActive: false,
+        isRequired: true,
         type: 'string',
         status: 'initial',
         fields: undefined,
         path: 'root.0.test',
+        activeStep: 'root.0',
+        setActiveStep: vi.fn(),
         useSubscription: vi.fn(),
         engine: {} as unknown as Engine,
         Field: {} as unknown as SvelteComponent,
@@ -41,12 +43,14 @@ describe('svelte/DefaultField', () => {
       props: {
         error: null,
         value: null,
-        active: false,
-        required: true,
+        isActive: false,
+        isRequired: true,
         type: 'binary',
         status: 'initial',
         fields: undefined,
         path: 'root.0.test',
+        activeStep: 'root.0',
+        setActiveStep: vi.fn(),
         useSubscription: vi.fn(),
         engine: {} as unknown as Engine,
         Field: {} as unknown as SvelteComponent,

@@ -14,8 +14,8 @@ declare module '@perseid/form' {
   type NextHook<T> = (data: T) => Promise<T>;
   type Hook<T> = (data: T, next: NextHook<T>) => Promise<T>;
   type FieldConfigurations = Record<string, FieldConfiguration>;
+  type SubConfiguration = FieldConfiguration | StepConfiguration;
   type HookData = UserInputs | Error | Step | UserAction | boolean | null;
-  type SubConfiguration = Configuration | FieldConfiguration | StepConfiguration | null;
 
   /**
    * Form state data.
@@ -145,9 +145,6 @@ declare module '@perseid/form' {
     /** Whether to submit current step when user changes this field. Defaults to `false`. */
     submit?: boolean;
 
-    /** Field default value. Defaults to `null`. */
-    defaultValue?: unknown;
-
     /** Condition on which field will actually be created and displayed. Defaults to `() => true` */
     condition?: (inputs: UserInputs, variables: Variables) => boolean;
   }
@@ -155,7 +152,7 @@ declare module '@perseid/form' {
   /**
    * Null field configuration.
    */
-  export interface NullConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'required'> {
+  export interface NullConfiguration extends Omit<GenericConfiguration, 'required'> {
     /** Field type. */
     type: 'null';
   }
@@ -229,7 +226,7 @@ declare module '@perseid/form' {
   /**
    * Array field configuration.
    */
-  export interface ArrayConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'submit'> {
+  export interface ArrayConfiguration extends Omit<GenericConfiguration, 'submit'> {
     /** Field type. */
     type: 'array';
 
@@ -247,7 +244,7 @@ declare module '@perseid/form' {
   /**
    * Object field configuration.
    */
-  export interface ObjectConfiguration extends Omit<GenericConfiguration, 'defaultValue' | 'submit'> {
+  export interface ObjectConfiguration extends Omit<GenericConfiguration, 'submit'> {
     /** Field type. */
     type: 'object';
 
@@ -332,7 +329,7 @@ declare module '@perseid/form' {
     fields: Record<string, FieldConfiguration>;
 
     /** Form steps configurations. */
-    steps: Record<string, StepConfiguration>;
+    steps: Partial<Record<string, StepConfiguration>>;
   }
 
   /**
@@ -395,9 +392,9 @@ declare module '@perseid/form' {
      *
      * @returns `true` if `firstInput` and `secondInput` are equal, `false` otherwise.
      */
-    protected areEqual<T1, T2>(
-      firstInput: T1,
-      secondInput: T2,
+    protected areEqual(
+      firstInput: unknown,
+      secondInput: unknown,
       type: FieldConfiguration['type'],
     ): boolean;
 
@@ -619,14 +616,18 @@ declare module '@perseid/form' {
     public getUserInputs<T>(partial?: boolean): T;
 
     /**
-     * Returns field/step configuration for `path`. If no path is provided, the global form
-     * configuration is returned instead.
+     * Returns configuration for `path`. If no path is provided, the global form configuration is
+     * returned instead.
      *
-     * @param path Field/step path to get configuration for.
+     * @param path Field or step path to get configuration for.
      *
-     * @returns Path configuration.
+     * @returns Requested configuration.
+     *
+     * @throws If configuration does not exist for `path`.
      */
-    public getConfiguration(path?: string): SubConfiguration;
+    public getConfiguration(): Configuration;
+
+    public getConfiguration<T extends SubConfiguration>(path?: string): T;
 
     /**
      * Returns the generated field at `path`.
@@ -656,7 +657,7 @@ declare module '@perseid/form' {
      *
      * @param variables Form variables to add or override.
      */
-    public setVariables<T>(variables: T): Promise<void>;
+    public setVariables(variables: Record<string, unknown>): Promise<void>;
 
     /**
      * Clears current form cache.

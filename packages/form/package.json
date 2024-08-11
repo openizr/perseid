@@ -1,11 +1,30 @@
 {
   "name": "@perseid/form",
-  "version": "3.0.4",
+  "version": "4.0.0",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
   "types": "./core.d.ts",
+  "exports": {
+    ".": {
+      "default": "./core.js",
+      "types": "./core.d.ts"
+    },
+    "./react": {
+      "default": "./react.js",
+      "types": "./react.d.ts"
+    },
+    "./vue": {
+      "default": "./vue.js",
+      "types": "./vue.d.ts"
+    },
+    "./svelte": {
+      "default": "./svelte.js",
+      "types": "./svelte.d.ts"
+    }
+  },
   "description": "Build complex, dynamic forms or inputs-based UIs in seconds",
+  "homepage": "https://github.com/openizr/perseid",
   "repository": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
   "contributors": [
@@ -29,12 +48,12 @@
     "svelte"
   ],
   "devDependencies": {
-    "@perseid/dev-kit": "^8.0.0",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/svelte": "^4.0.5",
-    "@testing-library/vue": "^8.0.1",
-    "@types/react": "^18.2.47",
-    "@types/react-dom": "^18.2.18",
+    "@perseid/dev-kit": "^10.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/svelte": "^5.2.1",
+    "@testing-library/vue": "^8.1.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "coveralls": "^3.1.1"
   },
   "eslintConfig": {
@@ -62,7 +81,8 @@
           "import/no-relative-packages": "off",
           "import/no-named-as-default-member": "off",
           "import/no-extraneous-dependencies": "off",
-          "@typescript-eslint/no-explicit-any": "off"
+          "@typescript-eslint/no-explicit-any": "off",
+          "@typescript-eslint/no-unnecessary-type-parameters": "off"
         }
       },
       {
@@ -71,6 +91,7 @@
         ],
         "rules": {
           "class-methods-use-this": "off",
+          "@typescript-eslint/no-unnecessary-type-parameters": "off",
           "@typescript-eslint/no-dynamic-delete": "off",
           "@typescript-eslint/no-floating-promises": "off"
         }
@@ -112,12 +133,12 @@
     ]
   },
   "dependencies": {
-    "@perseid/core": "^1.0.0",
-    "@perseid/store": "^7.0.2"
+    "@perseid/core": "^2.0.1",
+    "@perseid/store": "^8.0.1"
   },
   "engines": {
-    "node": ">= 18.0.0",
-    "npm": ">= 8.0.0"
+    "node": ">= 20.0.0",
+    "npm": ">= 9.0.0"
   },
   "devKitConfig": {
     "target": "web",
@@ -149,10 +170,10 @@
     "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json"
   },
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "svelte": "^4.2.8",
-    "vue": "^3.4.5"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "svelte": "^4.2.18",
+    "vue": "^3.4.37"
   },
   "peerDependenciesMeta": {
     "react": {

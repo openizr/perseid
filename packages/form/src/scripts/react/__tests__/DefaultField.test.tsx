@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import type Engine from 'scripts/core/Engine';
 import { render } from '@testing-library/react';
 import DefaultField from 'scripts/react/DefaultField';
@@ -24,14 +23,15 @@ describe('react/DefaultField', () => {
   test('renders correctly - non-binary field', () => {
     const { container } = render(
       <DefaultField
-        required
+        isRequired
         error={null}
         value={null}
         type="string"
         Field={Field}
-        active={false}
+        isActive={false}
         status="initial"
         path="root.0.test"
+        setActiveStep={vi.fn()}
         useSubscription={vi.fn()}
         engine={{} as unknown as Engine}
       />,
@@ -42,14 +42,15 @@ describe('react/DefaultField', () => {
   test('renders correctly - binary field', () => {
     const { container } = render(
       <DefaultField
-        required
+        isRequired
         error={null}
         value={null}
         type="binary"
         Field={Field}
-        active={false}
+        isActive={false}
         status="initial"
         path="root.0.test"
+        setActiveStep={vi.fn()}
         useSubscription={vi.fn()}
         engine={{} as unknown as Engine}
       />,
