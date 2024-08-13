@@ -1,10 +1,20 @@
 {
   "name": "@perseid/client",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "license": "MIT",
   "type": "module",
-  "main": "./main.js",
+  "main": "./core.js",
   "types": "./core.d.ts",
+  "exports": {
+    ".": {
+      "default": "./core.js",
+      "types": "./core.d.ts"
+    },
+    "./react": {
+      "default": "./react.js",
+      "types": "./react.d.ts"
+    }
+  },
   "description": "Dynamic, model-based UIs generator",
   "repository": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
@@ -23,10 +33,10 @@
     "react"
   ],
   "devDependencies": {
-    "@perseid/dev-kit": "^8.0.1",
-    "@testing-library/react": "^14.0.0",
-    "@types/react": "^18.2.47",
-    "@types/react-dom": "^18.2.18",
+    "@perseid/dev-kit": "^10.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "coveralls": "^3.1.1"
   },
   "eslintConfig": {
@@ -116,13 +126,11 @@
     ]
   },
   "dependencies": {
-    "@perseid/core": "^1.0.0",
-    "@perseid/form": "^3.0.4",
-    "@perseid/store": "^7.0.2",
-    "@perseid/ui": "^3.0.2",
-    "idb-keyval": "^6.2.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "@perseid/core": "^2.0.1",
+    "@perseid/form": "^4.0.0",
+    "@perseid/store": "^8.0.1",
+    "@perseid/ui": "^4.0.0",
+    "idb-keyval": "^6.2.0"
   },
   "devKitConfig": {
     "target": "web",
@@ -132,7 +140,7 @@
     },
     "html": "./__playground__/index.html",
     "entries": {
-      "main": "./scripts/core/index.ts",
+      "core": "./scripts/core/index.ts",
       "react": "./scripts/react/index.ts"
     },
     "runInDev": true,
@@ -142,8 +150,8 @@
     "banner": "/*!\n * Copyright (c) Openizr. All Rights Reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n */"
   },
   "engines": {
-    "node": ">= 18.0.0",
-    "npm": ">= 8.0.0"
+    "node": ">= 20.0.0",
+    "npm": ">= 9.0.0"
   },
   "scripts": {
     "test": "node_modules/@perseid/dev-kit/scripts/test",
@@ -151,7 +159,7 @@
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
     "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure && cp -r src/styles/* dist",
     "pure": "for i in dist/*.js; do sed -i 's/\\([a-z]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
-    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer svelte react react-dom vue",
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer react react-dom",
     "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json"
   },
   "peerDependenciesMeta": {
@@ -160,16 +168,10 @@
     },
     "react-dom": {
       "optional": true
-    },
-    "svelte": {
-      "optional": true
-    },
-    "vue": {
-      "optional": true
     }
   },
   "peerDependencies": {
-    "svelte": "^4.2.12",
-    "vue": "^3.4.21"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

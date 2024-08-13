@@ -1,6 +1,6 @@
 {
   "name": "@perseid/ui",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
@@ -21,6 +21,12 @@
     "./svelte": {
       "default": "./svelte.js",
       "types": "./svelte.d.ts"
+    },
+    "./core/*.scss": {
+      "default": "./core/*.scss"
+    },
+    "./templates/*.scss": {
+      "default": "./templates/*.scss"
     }
   },
   "description": "TypeScript components and SASS library, without the superfluous",
@@ -153,7 +159,7 @@
     "dev:sass": "sass -w src/styles/index.scss:dist/css/index.css",
     "build:sass": "cp -r src/styles/* dist && rm dist/index.scss",
     "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure",
-    "pure": "for i in dist/*.js; do sed -i 's/\\([a-z]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
+    "pure": "for i in dist/*.js; do sed -i 's/\\([a-zA-Z_]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
     "postinstall": "rm -f node_modules/.eslintcache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer svelte react react-dom vue",
     "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json && yarn run build:sass"
   },
