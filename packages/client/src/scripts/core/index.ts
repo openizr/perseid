@@ -8,9 +8,10 @@
 
 import Model from 'scripts/core/services/Model';
 import Store from 'scripts/core/services/Store';
+import HttpError from 'scripts/core/errors/Http';
 import Logger from 'scripts/core/services/Logger';
 import ApiClient from 'scripts/core/services/ApiClient';
 import FormBuilder from 'scripts/core/services/FormBuilder';
 
-export { ApiClient, FormBuilder };
 export { Logger, Model, Store };
+export { HttpError, ApiClient, FormBuilder };
