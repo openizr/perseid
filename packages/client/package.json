@@ -129,7 +129,7 @@
     "@perseid/core": "^2.0.1",
     "@perseid/form": "^4.0.0",
     "@perseid/store": "^8.0.1",
-    "@perseid/ui": "^4.0.0",
+    "@perseid/ui": "^4.0.1",
     "idb-keyval": "^6.2.0"
   },
   "devKitConfig": {

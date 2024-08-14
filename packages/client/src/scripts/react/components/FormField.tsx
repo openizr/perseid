@@ -40,10 +40,10 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
     error,
     value,
     engine,
-    active,
     status,
     fields,
-    required,
+    isActive,
+    isRequired,
     _canonicalPath,
     useSubscription,
     ...rest
@@ -52,7 +52,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
     const fieldConfiguration = fieldProps[_canonicalPath ?? path];
     const { options, placeholder, ...componentProps } = fieldConfiguration?.componentProps ?? {};
     let modifiers = (fieldConfiguration?.componentProps?.modifiers as string | undefined) ?? '';
-    modifiers = `${status} ${required ? 'required' : ''} ${modifiers}`;
+    modifiers = `${status} ${isRequired ? 'required' : ''} ${modifiers}`;
 
     const labels = React.useMemo(() => {
       const fieldPath = toSnakeCase((_canonicalPath ?? path).replace('root.0.', '').replace(/\$n/g, 'fields'));
@@ -88,7 +88,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           helper={labels.helper}
           placeholder={labels.placeholder}
           value={(value as string | undefined) ?? undefined}
-          readonly={!active || componentProps.readOnly as boolean}
+          readonly={!isActive || componentProps.readOnly as boolean}
           onChange={(newValue): void => {
             if (newValue !== value) {
               engine.userAction({ type: 'input', path, data: newValue });
@@ -109,7 +109,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           helper={labels.helper}
           placeholder={labels.placeholder}
           value={(value as string | undefined) ?? undefined}
-          readonly={!active || componentProps.readOnly as boolean}
+          readonly={!isActive || componentProps.readOnly as boolean}
           onChange={(newValue): void => {
             engine.userAction({ type: 'input', path, data: newValue });
           }}
@@ -127,7 +127,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           label={labels.label}
           helper={labels.helper}
           placeholder={labels.placeholder}
-          readonly={!active || componentProps.readOnly as boolean}
+          readonly={!isActive || componentProps.readOnly as boolean}
           value={value instanceof Date ? (value).toISOString() : undefined}
           onChange={(newValue): void => {
             engine.userAction({
@@ -183,7 +183,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
     }
 
     if (fieldConfiguration?.component === 'Array' || fieldConfiguration?.component === 'Object') {
-      if (!required) {
+      if (!isRequired) {
         const collection = toSnakeCase((_canonicalPath ?? path).replace('root.0.', '').replace(/\$n/g, 'fields'));
         return (
           <OptionalField
@@ -194,9 +194,9 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
             value={value}
             fields={fields}
             engine={engine}
-            active={active}
             status={status}
-            required={required}
+            isActive={isActive}
+            isRequired={isRequired}
             useSubscription={useSubscription}
             modifiers={fieldConfiguration.component.toLowerCase()}
             showLabel={services.i18n.t(`${prefix}.FIELDS.${collection}.SHOW.LABEL`)}
@@ -212,11 +212,11 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           error={error}
           engine={engine}
           status={status}
-          active={active}
-          required={required}
+          isActive={isActive}
           label={labels.label}
           modifiers={modifiers}
           helper={labels.helper}
+          isRequired={isRequired}
           value={value as unknown[]}
           useSubscription={useSubscription}
           fields={fields as unknown as Fields}

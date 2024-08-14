@@ -69,7 +69,7 @@ function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
     store.getCollectionRoutes().forEach((collectionRoute) => {
       const isCurrentRoute = route === collectionRoute.route;
       const itemModifiers = buildClass('menu__panel__items__item', isCurrentRoute ? 'active' : '');
-      if (user._permissions.has(`${toSnakeCase(collectionRoute.collection)}_LIST`)) {
+      if (user._permissions.has(`LIST_${toSnakeCase(collectionRoute.collection)}`)) {
         menuItems.push(
           <li className={itemModifiers} tabIndex={-1} role="menuitem" key={collectionRoute.collection}>
             <UILink

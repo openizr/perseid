@@ -26,11 +26,11 @@ import {
 } from '@perseid/core';
 import { generateRandomId } from '@perseid/ui';
 import Model from 'scripts/core/services/Model';
-import BaseStore, { Module } from '@perseid/store';
 import ApiClient from 'scripts/core/services/ApiClient';
+import BaseStore, { type Module } from '@perseid/store';
 import FormBuilder from 'scripts/core/services/FormBuilder';
 import { type UserInputs, type FormPlugin } from '@perseid/form';
-import router, { RoutingContext } from '@perseid/store/extensions/router';
+import router, { type RoutingContext } from '@perseid/store/extensions/router';
 
 interface NotificationData {
   message: string;
@@ -404,8 +404,7 @@ export default class Store<
         mutate(id, 'UPDATE_STATUS', 'PENDING');
         await this.catchErrors((async (): Promise<void> => {
           await this.updateModel('users');
-          const options = { fields: ['email', '_verifiedAt', 'roles.*'] };
-          await this.apiClient.view('users', 'me', options).then((user: User) => {
+          await this.apiClient.viewMe().then((user: User) => {
             mutate('registry', 'REFRESH', { users: { [String(user._id)]: user } });
             this.user = {
               ...user,
@@ -564,7 +563,7 @@ export default class Store<
         if (redirect) {
           this.redirectToSignInPage(`${window.location.pathname}${window.location.search}`);
         }
-      } else if (status === 403 && body?.error.code === 'NOT_VERIFIED') {
+      } else if (status === 403 && body?.error.code === 'USER_NOT_VERIFIED') {
         if (this.pageRoutes.auth.verifyEmail === undefined) {
           this.mutate('error', 'SET', { status: 403 });
         } else if (this.currentRoute !== this.pageRoutes.auth.verifyEmail) {
@@ -1084,15 +1083,15 @@ export default class Store<
       return false;
     }
 
-    if (!this.user._permissions.has(`${toSnakeCase(canonicalPath[0])}_VIEW`)) {
+    if (!this.user._permissions.has(`VIEW_${toSnakeCase(canonicalPath[0])}`)) {
       return false;
     }
 
-    if (!this.user._permissions.has(`${toSnakeCase(String(collection))}_${accessType}`)) {
+    if (!this.user._permissions.has(`${accessType}_${toSnakeCase(String(collection))}`)) {
       return false;
     }
 
-    if (collection === 'users' && !this.user._permissions.has('USERS_AUTH_DETAILS_VIEW') && (
+    if (collection === 'users' && !this.user._permissions.has('VIEW_USERS_AUTH_DETAILS') && (
       canonicalPath[1] === '_devices'
       || canonicalPath[1] === '_apiKeys'
       || canonicalPath[1] === '_verifiedAt'
@@ -1107,7 +1106,7 @@ export default class Store<
     if (
       collection === 'users'
       && canonicalPath[1] === 'roles'
-      && !this.user._permissions.has('USERS_ROLES_VIEW')
+      && !this.user._permissions.has('VIEW_USERS_ROLES')
     ) {
       return false;
     }

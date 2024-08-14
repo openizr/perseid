@@ -608,10 +608,10 @@
   dependencies:
     path-to-regexp "^7.1.0"
 
-"@perseid/ui@^4.0.0":
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/@perseid/ui/-/ui-4.0.0.tgz#3c7acd56fd5245ebaa98f933dfc550173b17c74a"
-  integrity sha512-/qWXdOH15UGoOw4I5t53jnejBLhXUKSP9muXuo0xEkejql16RyBu/eS2/v0P+nWNMMHb9pfDBsReiCpDb7iY/g==
+"@perseid/ui@^4.0.1":
+  version "4.0.1"
+  resolved "https://registry.yarnpkg.com/@perseid/ui/-/ui-4.0.1.tgz#3816e2917bb6edc562875c99f858c6a0eacfa5f7"
+  integrity sha512-P1ne7s5yabkG31USdSrOfSGe2Cb1Yc4rOvP5jM/JUSXFVo3QlAC/ybPNATysxex2zWcMWXOIEdYGtrGnZ8wiRw==
 
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"

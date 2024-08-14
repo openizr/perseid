@@ -7,8 +7,8 @@
  */
 
 import * as React from 'react';
-import { AuthState } from 'scripts/core/services/Store';
 import { type DefaultDataModel } from '@perseid/core';
+import { type AuthState } from 'scripts/core/services/Store';
 
 /**
  * Permissions wrapper props.

@@ -9,7 +9,7 @@
 import * as React from 'react';
 import { type Fields } from '@perseid/form';
 import { type FormFieldProps } from '@perseid/form/react';
-import { buildClass, UIButton, UIButtonProps } from '@perseid/ui/react';
+import { buildClass, UIButton, type UIButtonProps } from '@perseid/ui/react';
 
 /**
  * Nested fields props.
@@ -66,9 +66,11 @@ function NestedFields({
   helper,
   engine,
   fields,
-  active,
+  isActive,
   modifiers,
+  activeStep,
   minItems = 0,
+  setActiveStep,
   _canonicalPath,
   addButtonProps,
   useSubscription,
@@ -83,7 +85,7 @@ function NestedFields({
     engine.userAction({ path, type: 'input', data: newValue });
   }, [engine, path, value]);
 
-  const removeItem = React.useCallback((index: number) => () => {
+  const removeItem = React.useCallback((index: number) => (): void => {
     setCurrentFields((previousState) => (
       previousState.slice(0, index).concat(previousState.slice(index + 1))
     ));
@@ -130,10 +132,13 @@ function NestedFields({
           <Field
             {...field}
             Field={Field}
-            active={active}
             engine={engine}
+            isActive={isActive}
+            activeStep={activeStep}
+            isRequired={field.required}
+            setActiveStep={setActiveStep}
             useSubscription={useSubscription}
-            _canonicalPath={`${_canonicalPath}.${type === 'array' ? '$n' : field.path.split('.').at(-1)}`}
+            _canonicalPath={`${String(_canonicalPath)}.${String(type === 'array' ? '$n' : field.path.split('.').at(-1))}`}
           />
         </div>
       )))}
