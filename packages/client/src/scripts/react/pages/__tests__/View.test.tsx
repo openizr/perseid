@@ -56,7 +56,7 @@ describe('react/pages/View', () => {
         components={components}
         services={createServices({
           fields: ['field1', 'field2'],
-          id: '123456789012345678901234',
+          id: '000000000000000000000011',
           loading: false,
         }, {
           field1: 'Value 1',

@@ -19,6 +19,7 @@ export default class Model {
         schema: {
           fields: {
             _id: { type: 'id' },
+            roles: { type: 'array', fields: { type: 'id' } },
           },
         },
       };

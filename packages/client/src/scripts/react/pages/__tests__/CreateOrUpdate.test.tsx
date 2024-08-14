@@ -51,7 +51,7 @@ describe('react/pages/CreateOrUpdate', () => {
         collection="users"
         components={components}
         services={createServices({
-          id: '123456789012345678901234',
+          id: '000000000000000000000011',
           configuration: { root: 'root', fields: {}, steps: {} },
           fieldProps: { 'root.0.test': { component: 'Test', componentProps: { modifiers: 'primary' } } },
         })}

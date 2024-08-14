@@ -12,6 +12,5 @@ import Logger from 'scripts/core/services/Logger';
 import ApiClient from 'scripts/core/services/ApiClient';
 import FormBuilder from 'scripts/core/services/FormBuilder';
 
-// Services.
 export { ApiClient, FormBuilder };
 export { Logger, Model, Store };

@@ -76,7 +76,7 @@ describe('core/services/ApiClient', () => {
     expect(await apiClient.formatInput('test', false)).toBe('test');
     expect(await apiClient.formatInput(new Uint8Array(), false)).toBe('');
     expect(await apiClient.formatInput(['test'], false)).toEqual(['test']);
-    expect(await apiClient.formatInput(new Id(), false)).toEqual('123456789012345678901234');
+    expect(await apiClient.formatInput(new Id(), false)).toEqual('000000000000000000000001');
     expect(await apiClient.formatInput(new Date('2023/01/01'), false)).toBe('2023-01-01T00:00:00.000Z');
     expect(await apiClient.formatInput({ key: { subKey: 'test' } })).toEqual('{"key":{"subKey":"test"}}');
     expect(await apiClient.formatInput(new File([], 'test.png'), false)).toBe('data:application/octet-stream;base64,');
@@ -94,18 +94,18 @@ describe('core/services/ApiClient', () => {
     expect(apiClient.formatOutput(null, { type: 'string' })).toBeNull();
     expect(apiClient.formatOutput('test', { type: 'string' })).toBe('test');
     expect(apiClient.formatOutput('', { type: 'binary' })).toEqual((new TextEncoder()).encode());
-    expect(apiClient.formatOutput('123456789012345678901234', { type: 'id' })).toBeInstanceOf(Id);
+    expect(apiClient.formatOutput('000000000000000000000001', { type: 'id' })).toBeInstanceOf(Id);
     expect(apiClient.formatOutput(['test'], { type: 'array', fields: { type: 'string' } })).toEqual(['test']);
     expect(apiClient.formatOutput('2023-01-01T00:00:00.000Z', { type: 'date' })).toEqual(new Date('2023/01/01'));
     expect(apiClient.formatOutput({ key: 'test' }, { type: 'object', fields: { key: { type: 'string' } } })).toEqual({ key: 'test' });
-    expect(apiClient.formatOutput({ _id: '123456789012345678901234' }, { type: 'id', relation: 'users' })).toEqual({ _id: expect.any(Id) as Id });
+    expect(apiClient.formatOutput({ _id: '000000000000000000000001' }, { type: 'id', relation: 'users' })).toEqual({ _id: expect.any(Id) as Id });
   });
 
   test('[refreshToken]', async () => {
     vi.setSystemTime(new Date('2023/01/01'));
     vi.spyOn(apiClient, 'request').mockImplementation(vi.fn(() => Promise.resolve({
       expiresIn: 1200,
-      deviceId: '123456789012345678901234',
+      deviceId: '000000000000000000000001',
       refreshToken: '17ccb9807475814d733812b9',
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
     })));
@@ -121,7 +121,7 @@ describe('core/services/ApiClient', () => {
     expect(idb.set).toHaveBeenCalledOnce();
     expect(idb.set).toHaveBeenCalledWith('credentials', {
       expiration: 1672532400000,
-      deviceId: '123456789012345678901234',
+      deviceId: '000000000000000000000001',
       refreshToken: '17ccb9807475814d733812b9',
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
     });
@@ -138,7 +138,7 @@ describe('core/services/ApiClient', () => {
     vi.spyOn(apiClient, 'refreshToken').mockImplementation(() => Promise.resolve({
       expiresIn: 1200,
       expiration: 1672532400000,
-      deviceId: '123456789012345678901234',
+      deviceId: '000000000000000000000001',
       refreshToken: '17ccb9807475814d733812b9',
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
     }));
@@ -159,7 +159,7 @@ describe('core/services/ApiClient', () => {
       headers: {
         Authorization: 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
         'Content-Type': 'application/json',
-        'X-Device-Id': '123456789012345678901234',
+        'X-Device-Id': '000000000000000000000001',
       },
     });
   });
@@ -259,7 +259,7 @@ describe('core/services/ApiClient', () => {
     expect(apiClient.request).toHaveBeenCalledOnce();
     expect(apiClient.request).toHaveBeenCalledWith({
       method: 'GET',
-      endpoint: '/_model?collection=users',
+      endpoint: '/_model?resource=users',
     });
     expect(model.update).toHaveBeenCalledOnce();
   });
@@ -279,7 +279,7 @@ describe('core/services/ApiClient', () => {
     vi.spyOn(apiClient, 'formatInput').mockImplementation(() => Promise.resolve(''));
     vi.spyOn(apiClient, 'request').mockImplementation(() => Promise.resolve({
       expiresIn: 1200,
-      deviceId: '123456789012345678901234',
+      deviceId: '000000000000000000000001',
       refreshToken: '17ccb9807475814d733812b9',
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
     }));
@@ -293,7 +293,7 @@ describe('core/services/ApiClient', () => {
     expect(idb.set).toHaveBeenCalledOnce();
     expect(idb.set).toHaveBeenCalledWith('credentials', {
       expiration: 1672532400000,
-      deviceId: '123456789012345678901234',
+      deviceId: '000000000000000000000001',
       refreshToken: '17ccb9807475814d733812b9',
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
     });
@@ -304,7 +304,7 @@ describe('core/services/ApiClient', () => {
     vi.spyOn(apiClient, 'formatInput').mockImplementation(() => Promise.resolve(''));
     vi.spyOn(apiClient, 'request').mockImplementation(() => Promise.resolve({
       expiresIn: 1200,
-      deviceId: '123456789012345678901234',
+      deviceId: '000000000000000000000001',
       refreshToken: '17ccb9807475814d733812b9',
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
     }));
@@ -318,7 +318,7 @@ describe('core/services/ApiClient', () => {
     expect(idb.set).toHaveBeenCalledOnce();
     expect(idb.set).toHaveBeenCalledWith('credentials', {
       expiration: 1672532400000,
-      deviceId: '123456789012345678901234',
+      deviceId: '000000000000000000000001',
       refreshToken: '17ccb9807475814d733812b9',
       accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
     });
@@ -396,11 +396,11 @@ describe('core/services/ApiClient', () => {
 
   test('[delete]', async () => {
     vi.spyOn(apiClient, 'request').mockImplementation(() => Promise.resolve());
-    await apiClient.delete('users', new Id('123456789012345678901234'));
+    await apiClient.delete('users', new Id('000000000000000000000001'));
     expect(apiClient.request).toHaveBeenCalledOnce();
     expect(apiClient.request).toHaveBeenCalledWith({
       method: 'DELETE',
-      endpoint: '/users/123456789012345678901234',
+      endpoint: '/users/000000000000000000000001',
     });
   });
 

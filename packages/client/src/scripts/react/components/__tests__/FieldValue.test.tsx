@@ -63,7 +63,7 @@ describe('react/components/FieldValue', () => {
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -79,7 +79,7 @@ describe('react/components/FieldValue', () => {
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -95,7 +95,7 @@ describe('react/components/FieldValue', () => {
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -111,7 +111,7 @@ describe('react/components/FieldValue', () => {
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -127,7 +127,7 @@ describe('react/components/FieldValue', () => {
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -143,7 +143,7 @@ describe('react/components/FieldValue', () => {
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -159,7 +159,7 @@ describe('react/components/FieldValue', () => {
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

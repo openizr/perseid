@@ -37,7 +37,7 @@ describe('react/components/ActionsWrapper', () => {
       navigate,
       delete: deleteAction,
       useSubscription: vi.fn((subscription) => ((subscription === 'router')
-        ? { params: { id: '123456789012345678901234' } }
+        ? { params: { id: '000000000000000000000011' } }
         : permissions)),
       getFallbackPageRoute: vi.fn(() => '/fallback-route'),
       getRoute: vi.fn((route: string) => collectionRoutes[route]),

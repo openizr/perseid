@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import type Engine from '@perseid/form';
 import { render } from '@testing-library/react';
 import { type DefaultDataModel } from '@perseid/core';
@@ -51,11 +50,12 @@ describe('scripts/react/components/FormField', () => {
         type="null"
         value={null}
         error="TEST"
-        active={false}
-        required={false}
+        isActive={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -70,11 +70,12 @@ describe('scripts/react/components/FormField', () => {
         type="null"
         error={null}
         value={null}
-        active={false}
-        required={false}
+        isActive={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -89,8 +90,8 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         value={null}
@@ -98,7 +99,8 @@ describe('scripts/react/components/FormField', () => {
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -115,8 +117,8 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         value={null}
@@ -124,7 +126,8 @@ describe('scripts/react/components/FormField', () => {
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -141,16 +144,17 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
+        isActive
         engine={engine}
         path="root.0.field"
         type="null"
         error={null}
         value={null}
-        required={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -165,15 +169,16 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         status="initial"
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
         value={new Date('2023/01/01')}
       />,
     );
@@ -189,8 +194,8 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         value={null}
@@ -198,7 +203,8 @@ describe('scripts/react/components/FormField', () => {
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -213,8 +219,8 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         value={null}
@@ -222,7 +228,8 @@ describe('scripts/react/components/FormField', () => {
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -237,8 +244,8 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         value={null}
@@ -246,7 +253,8 @@ describe('scripts/react/components/FormField', () => {
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -261,8 +269,8 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         value={null}
@@ -270,13 +278,14 @@ describe('scripts/react/components/FormField', () => {
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - Object, required', () => {
+  test('renders correctly - Object, isRequired', () => {
     const Field = FormField({
       'root.0.field': {
         component: 'Object',
@@ -285,8 +294,8 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         value={null}
@@ -294,7 +303,8 @@ describe('scripts/react/components/FormField', () => {
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -309,16 +319,17 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
+        isActive
         type="null"
         error={null}
         value={null}
         status="initial"
         engine={engine}
         Field={SubField}
-        required={false}
+        isRequired={false}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -333,8 +344,8 @@ describe('scripts/react/components/FormField', () => {
     }, context);
     const { container } = render(
       <Field
-        active
-        required
+        isActive
+        isRequired
         type="null"
         error={null}
         value={null}
@@ -342,7 +353,8 @@ describe('scripts/react/components/FormField', () => {
         engine={engine}
         Field={SubField}
         path="root.0.field"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

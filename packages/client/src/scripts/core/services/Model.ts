@@ -13,7 +13,7 @@ import { deepMerge, type DefaultDataModel, Model as BaseModel } from '@perseid/c
  */
 export default class Model<
   /** Data model types definitions. */
-  DataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 > extends BaseModel<DataModel> {
   /**
    * Updates data model with `schemaFragment`.

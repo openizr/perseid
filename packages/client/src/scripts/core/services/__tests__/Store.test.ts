@@ -161,7 +161,7 @@ describe('core/services/Store', () => {
     await store.authModule.actions?.updateUser?.(actionApi, {});
     expect(apiClient.update).toHaveBeenCalledOnce();
     await store.authModule.actions?.getUser?.(actionApi, {});
-    expect(apiClient.view).toHaveBeenCalledOnce();
+    expect(apiClient.viewMe).toHaveBeenCalledOnce();
   });
 
   test('[notifierModule]', () => {
@@ -253,14 +253,14 @@ describe('core/services/Store', () => {
     let promise = (): Promise<void> => Promise.reject({ status: 401 });
     await store.catchErrors(promise(), true);
     expect(store.mutate).toHaveBeenCalledWith('auth', 'SIGN_OUT');
-    promise = (): Promise<void> => Promise.reject({ status: 403, body: { error: { code: 'NOT_VERIFIED' } } });
+    promise = (): Promise<void> => Promise.reject({ status: 403, body: { error: { code: 'USER_NOT_VERIFIED' } } });
     await store.catchErrors(promise(), true);
     expect(store.mutate).toHaveBeenCalledWith('error', 'SET', { status: 403 });
     store = new Store(model, logger, apiClient, formBuilder, {
       fallbackPageRoute: '/',
       pages: { auth: { verifyEmail: { route: '/verify-email' } }, collections: {} },
     }) as TestStore;
-    promise = (): Promise<void> => Promise.reject({ status: 403, body: { error: { code: 'NOT_VERIFIED' } } });
+    promise = (): Promise<void> => Promise.reject({ status: 403, body: { error: { code: 'USER_NOT_VERIFIED' } } });
     await store.catchErrors(promise(), true);
     expect(store.mutate).toHaveBeenCalledWith('router', 'NAVIGATE', '/verify-email');
     promise = (): Promise<void> => Promise.reject({ status: 404 });
@@ -290,14 +290,14 @@ describe('core/services/Store', () => {
       type: 'object',
       fields: { key: { type: 'string' } },
     }, {})).toEqual({ key: 'test' });
-    expect(store.formatOutput('123456789012345678901234' as unknown as User, {
+    expect(store.formatOutput('000000000000000000000001' as unknown as User, {
       type: 'id',
       relation: 'users',
-    }, {})).toEqual('123456789012345678901234');
-    expect(store.formatOutput({ _id: '123456789012345678901234' } as unknown as User, {
+    }, {})).toEqual('000000000000000000000001');
+    expect(store.formatOutput({ _id: '000000000000000000000001' } as unknown as User, {
       type: 'id',
       relation: 'users',
-    }, {})).toEqual('123456789012345678901234');
+    }, {})).toEqual('000000000000000000000001');
   });
 
   test('[getPageData] - unexisting page', async () => {
@@ -377,7 +377,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/users/me',
         route: '/users/:id',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ])).toBeNull();
@@ -387,7 +387,7 @@ describe('core/services/Store', () => {
 
   test('[getPageData] - view page', async () => {
     vi.spyOn(store, 'view').mockImplementation(() => Promise.resolve({
-      _id: '123456789012345678901234',
+      _id: '000000000000000000000001',
     } as unknown as User));
     vi.spyOn(store, 'canAccessField').mockImplementation(() => true);
     expect(await store.getPageData([
@@ -397,7 +397,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/users/me',
         route: '/users/:id',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ])).toEqual({ fields: ['_id'], id: expect.any(Id) as Id, loading: false });
@@ -413,13 +413,13 @@ describe('core/services/Store', () => {
     vi.spyOn(store, 'list').mockImplementation(() => Promise.resolve({
       total: 1,
       results: [{
-        _id: '123456789012345678901234',
+        _id: '000000000000000000000001',
       } as unknown as User],
     }));
     vi.spyOn(store, 'search').mockImplementation(() => Promise.resolve({
       total: 1,
       results: [{
-        _id: '123456789012345678901234',
+        _id: '000000000000000000000001',
       } as unknown as User],
     }));
     vi.spyOn(store, 'canAccessField').mockImplementation(() => true);
@@ -443,7 +443,7 @@ describe('core/services/Store', () => {
       fields: ['_id'],
       collection: 'users',
       searchFields: ['email'],
-      results: ['123456789012345678901234'],
+      results: ['000000000000000000000001'],
     });
     expect(store.mutate).toHaveBeenCalledOnce();
     expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', {
@@ -478,7 +478,7 @@ describe('core/services/Store', () => {
       fields: ['_id'],
       searchFields: [],
       collection: 'users',
-      results: ['123456789012345678901234'],
+      results: ['000000000000000000000001'],
       search: { query: { on: [], text: 'test' }, filters: null },
     });
     expect(store.mutate).toHaveBeenCalledTimes(2);
@@ -498,10 +498,10 @@ describe('core/services/Store', () => {
 
   test('[getPageData] - create/update page', async () => {
     vi.spyOn(store, 'create').mockImplementation(() => Promise.resolve({
-      _id: '123456789012345678901234',
+      _id: '000000000000000000000001',
     } as unknown as User));
     vi.spyOn(store, 'update').mockImplementation(() => Promise.resolve({
-      _id: '123456789012345678901234',
+      _id: '000000000000000000000001',
     } as unknown as User));
     vi.spyOn(store, 'canAccessField').mockImplementation(() => true);
     vi.spyOn(store, 'normalizeResources').mockImplementation(() => [
@@ -514,7 +514,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/users/:id/edit',
         route: '/users/:id/edit',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ]);
@@ -571,12 +571,16 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/users/:id/edit',
         route: '/users/:id/edit',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ])).toBeNull();
-    expect(store.mutate).toHaveBeenCalledTimes(2);
+    expect(store.mutate).toHaveBeenCalledTimes(5);
+    expect(store.mutate).toHaveBeenCalledWith('error', 'RESET');
+    expect(store.mutate).toHaveBeenCalledWith('router', 'NAVIGATE', '/');
     expect(store.mutate).toHaveBeenCalledWith('error', 'SET', { status: 403 });
+    expect(store.mutate).toHaveBeenCalledWith('notifier', 'PUSH', { message: 'NOTIFICATIONS.CREATED_RESOURCE' });
+    expect(store.mutate).toHaveBeenCalledWith('notifier', 'PUSH', { message: 'NOTIFICATIONS.UPDATED_RESOURCE' });
   });
 
   test('[getPageData] - user update page', async () => {
@@ -617,7 +621,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/reset-password',
         route: '/reset-password',
-        query: { resetToken: '123456789012345678901234' },
+        query: { resetToken: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'ERROR' } as AuthState,
     ]);
@@ -689,7 +693,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/test',
         route: '/test',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ])).toBeNull();
@@ -723,9 +727,9 @@ describe('core/services/Store', () => {
   test('[canAccessField] - non-null user', () => {
     store.user = { _permissions: new Set() } as unknown as User;
     expect(store.canAccessField('users', '_id', 'CREATE')).toBe(false);
-    store.user = { _permissions: new Set(['TO_SNAKE_CASE_users_VIEW']) } as unknown as User;
+    store.user = { _permissions: new Set(['VIEW_TO_SNAKE_CASE_users']) } as unknown as User;
     expect(store.canAccessField('users', '_id', 'CREATE')).toBe(false);
-    store.user = { _permissions: new Set(['TO_SNAKE_CASE_users_VIEW', 'TO_SNAKE_CASE_users_CREATE']) } as unknown as User;
+    store.user = { _permissions: new Set(['VIEW_TO_SNAKE_CASE_users', 'CREATE_TO_SNAKE_CASE_users']) } as unknown as User;
     expect(store.canAccessField('users', '_verifiedAt', 'CREATE')).toBe(false);
     expect(store.canAccessField('users', 'password', 'VIEW')).toBe(false);
     expect(store.canAccessField('users', 'roles', 'VIEW')).toBe(false);
@@ -737,12 +741,12 @@ describe('core/services/Store', () => {
       canonicalPath: [],
       schema: { type: 'id', relation: 'users' } as unknown as IdSchema<DefaultDataModel>,
     }));
-    const id = '123456789012345678901234' as unknown as Id;
+    const id = '000000000000000000000001' as unknown as Id;
     const relationId = new Id();
     const registry = {
       users: {
-        '123456789012345678901234': {
-          _id: '123456789012345678901234',
+        '000000000000000000000001': {
+          _id: '000000000000000000000001',
           array: [{ key: 'test' }],
           test: 1,
           relation: relationId,
@@ -750,7 +754,7 @@ describe('core/services/Store', () => {
       },
     };
     expect(store.getValue('users', id, '_id', registry, '')).toBeNull();
-    expect(store.getValue('users', id, '_id', registry)).toEqual('123456789012345678901234');
+    expect(store.getValue('users', id, '_id', registry)).toEqual('000000000000000000000001');
     expect(store.getValue('users', id, 'test', registry, 'field', [], 1)).toEqual(1);
     expect(store.getValue('users', id, 'test', registry, 'field', [], undefined)).toBeNull();
     expect(store.getValue('users', id, 'test', registry, 'field', [], [{ key: 'test' }])).toEqual([null]);
@@ -758,7 +762,7 @@ describe('core/services/Store', () => {
   });
 
   test('[view]', async () => {
-    expect(await store.view('users', new Id(), {})).toEqual({ _id: '123456789012345678901234' });
+    expect(await store.view('users', new Id(), {})).toEqual({ _id: '000000000000000000000001' });
   });
 
   test('[delete]', async () => {
@@ -770,24 +774,27 @@ describe('core/services/Store', () => {
   });
 
   test('[update]', async () => {
-    expect(await store.update('users', new Id(), {})).toEqual({ _id: '123456789012345678901234' });
+    expect(await store.update('users', new Id(), {})).toEqual({
+      _id: '000000000000000000000001',
+      roles: [{ permissions: [] }],
+    });
   });
 
   test('[create]', async () => {
-    expect(await store.create('users', {})).toEqual({ _id: '123456789012345678901234' });
+    expect(await store.create('users', {})).toEqual({ _id: '000000000000000000000001' });
   });
 
   test('[search]', async () => {
     expect(await store.search('users', { query: null, filters: null })).toEqual({
       total: 1,
-      results: [{ _id: '123456789012345678901234' }],
+      results: [{ _id: '000000000000000000000001' }],
     });
   });
 
   test('[list]', async () => {
     expect(await store.list('users', {})).toEqual({
       total: 1,
-      results: [{ _id: '123456789012345678901234' }],
+      results: [{ _id: '000000000000000000000001' }],
     });
   });
 
@@ -797,13 +804,13 @@ describe('core/services/Store', () => {
     vi.spyOn(store, 'list').mockImplementation(() => Promise.resolve({
       total: 1,
       results: [{
-        _id: '123456789012345678901234',
+        _id: '000000000000000000000001',
       } as unknown as User],
     }));
     vi.spyOn(store, 'search').mockImplementation(() => Promise.resolve({
       total: 1,
       results: [{
-        _id: '123456789012345678901234',
+        _id: '000000000000000000000001',
       } as unknown as User],
     }));
     await store.listOrSearch('users', { filters: null, query: { on: ['email'], text: 'test ' } }, {});
@@ -818,7 +825,7 @@ describe('core/services/Store', () => {
     expect(store.mutate).toHaveBeenCalledOnce();
     expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', {
       total: 1,
-      results: ['123456789012345678901234'],
+      results: ['000000000000000000000001'],
       search: { filters: null, query: { on: ['email'], text: 'test ' } },
     });
     await store.listOrSearch('users', null, {});
@@ -834,7 +841,7 @@ describe('core/services/Store', () => {
     expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', {
       total: 1,
       search: null,
-      results: ['123456789012345678901234'],
+      results: ['000000000000000000000001'],
     });
   });
 

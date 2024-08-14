@@ -53,7 +53,7 @@ describe('react/pages/VerifyEmail', () => {
     const { container } = render(
       <VerifyEmail
         components={components}
-        services={createServices(null, '123456789012345678901234')}
+        services={createServices(null, '000000000000000000000011')}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

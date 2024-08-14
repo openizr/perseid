@@ -41,7 +41,7 @@ describe('core/services/FormBuilder', () => {
       return true;
     }),
     getValue: vi.fn((_, __, key) => (key === '_id' ? null : 'test')),
-    list: vi.fn(() => ({ results: [{ _id: '123456789012345678901234' }] })),
+    list: vi.fn(() => ({ results: [{ _id: '000000000000000000000001' }] })),
   } as unknown as Store;
 
   beforeEach(() => {
@@ -60,7 +60,7 @@ describe('core/services/FormBuilder', () => {
   test('[FORMATTERS] - id, no enumeration, no relation', () => {
     const configuration = formBuilder.FORMATTERS.id({ type: 'id' }, 'root.0.field', {}, store);
     expect((configuration.configuration as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
-    expect((configuration.configuration as StringConfiguration).validation?.('123456789012345678901234', {}, {})).toBeNull();
+    expect((configuration.configuration as StringConfiguration).validation?.('000000000000000000000001', {}, {})).toBeNull();
     expect(configuration).toEqual({
       configuration: {
         type: 'string',
@@ -76,7 +76,7 @@ describe('core/services/FormBuilder', () => {
   });
 
   test('[FORMATTERS] - id, enumeration, no relation', () => {
-    const id = new Id('123456789012345678901234');
+    const id = new Id('000000000000000000000001');
     expect(formBuilder.FORMATTERS.id({
       type: 'id',
       required: true,
@@ -98,8 +98,8 @@ describe('core/services/FormBuilder', () => {
               label: 'PLACEHOLDER',
             }, {
               type: 'option',
-              value: '123456789012345678901234',
-              label: '123456789012345678901234',
+              value: '000000000000000000000001',
+              label: '000000000000000000000001',
             }],
           },
         },
@@ -123,8 +123,8 @@ describe('core/services/FormBuilder', () => {
               label: 'PLACEHOLDER',
             }, {
               type: 'option',
-              value: '123456789012345678901234',
-              label: '123456789012345678901234',
+              value: '000000000000000000000001',
+              label: '000000000000000000000001',
             }],
           },
         },
@@ -152,7 +152,7 @@ describe('core/services/FormBuilder', () => {
     expect(await (componentProps.loadResults as (resource: unknown) => Promise<unknown[]>)('')).toEqual([{
       label: '',
       type: 'option',
-      value: '123456789012345678901234',
+      value: '000000000000000000000001',
     }]);
     expect(await (componentProps.loadResults as (resource: unknown) => Promise<unknown[]>)('test')).toEqual([]);
     configuration = formBuilder.FORMATTERS.id({ type: 'id', relation: 'users' }, 'root.0.field', { email: 'email' }, store);
@@ -762,6 +762,17 @@ describe('core/services/FormBuilder', () => {
     expect(configuration).toEqual({
       configuration: {
         fields: {
+          roles: {
+            fields: {
+              type: 'string',
+              required: undefined,
+              defaultValue: undefined,
+              validation: expect.any(Function) as () => void,
+            },
+            type: 'array',
+            required: undefined,
+            validation: expect.any(Function) as () => void,
+          },
           submit: {
             submit: true,
             type: 'null',
@@ -770,13 +781,24 @@ describe('core/services/FormBuilder', () => {
         root: 'root',
         steps: {
           root: {
-            fields: ['submit'],
+            fields: ['roles', 'submit'],
             submit: true,
           },
         },
         submitPartialUpdates: true,
       },
       fieldProps: {
+        'root.0.roles': {
+          component: 'Array',
+          componentProps: {
+            maxItems: undefined,
+            minItems: undefined,
+          },
+        },
+        'root.0.roles.$n': {
+          component: 'Textfield',
+          componentProps: {},
+        },
         'root.0.submit': {
           component: 'Button',
           componentProps: {
@@ -785,7 +807,7 @@ describe('core/services/FormBuilder', () => {
           },
         },
       },
-      requestedFields: new Set(),
+      requestedFields: new Set(['roles']),
     });
   });
 

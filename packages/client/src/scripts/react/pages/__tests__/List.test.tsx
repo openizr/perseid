@@ -76,10 +76,10 @@ describe('react/pages/List', () => {
           loading: false,
           searchFields: ['searchField'],
           fields: ['sortableField', 'nonSortableField'],
-          results: ['123456789012345678901234', '123456789012345678901235'],
+          results: ['000000000000000000000011', '123456789012345678901235'],
         }, {
           users: {
-            '123456789012345678901234': { sortableField: 'Value 1', nonSortableField: 'Value 2' },
+            '000000000000000000000011': { sortableField: 'Value 1', nonSortableField: 'Value 2' },
           },
         }, '/view/:id')}
       />,
@@ -95,7 +95,7 @@ describe('react/pages/List', () => {
       sorting: { field1: 1 },
       searchFields: ['searchField'],
       fields: ['sortableField', 'nonSortableField'],
-      results: ['123456789012345678901234', '123456789012345678901235'],
+      results: ['000000000000000000000011', '123456789012345678901235'],
     });
     expect(listOrSearch).toHaveBeenCalledWith('users', searchBody, {
       page: 1,
@@ -106,7 +106,7 @@ describe('react/pages/List', () => {
       loading: false,
       searchFields: ['searchField'],
       fields: ['sortableField', 'nonSortableField'],
-      results: ['123456789012345678901234', '123456789012345678901235'],
+      results: ['000000000000000000000011', '123456789012345678901235'],
     });
     expect(goToPage).toHaveBeenCalledTimes(1);
     expect(goToPage).toHaveBeenCalledWith({
@@ -118,7 +118,7 @@ describe('react/pages/List', () => {
       loading: false,
       searchFields: ['searchField'],
       fields: ['sortableField', 'nonSortableField'],
-      results: ['123456789012345678901234', '123456789012345678901235'],
+      results: ['000000000000000000000011', '123456789012345678901235'],
     });
   });
 
@@ -136,10 +136,10 @@ describe('react/pages/List', () => {
           loading: false,
           searchFields: ['searchField'],
           fields: ['sortableField', 'nonSortableField'],
-          results: ['123456789012345678901234', '123456789012345678901235'],
+          results: ['000000000000000000000011', '123456789012345678901235'],
         }, {
           users: {
-            '123456789012345678901234': { sortableField: 'Value 1', nonSortableField: 'Value 2' },
+            '000000000000000000000011': { sortableField: 'Value 1', nonSortableField: 'Value 2' },
           },
         }, null)}
       />,
