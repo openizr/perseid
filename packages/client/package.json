@@ -61,15 +61,6 @@
       },
       {
         "files": [
-          "src/scripts/core/services/__tests__/**/*.ts"
-        ],
-        "rules": {
-          "prefer-promise-reject-errors": "off",
-          "@typescript-eslint/unbound-method": "off"
-        }
-      },
-      {
-        "files": [
           "src/scripts/react/components/FormField.tsx",
           "src/scripts/react/components/NestedFields.tsx",
           "src/scripts/react/components/OptionalField.tsx"
@@ -77,6 +68,15 @@
         "rules": {
           "react/no-danger": "off",
           "react/jsx-props-no-spreading": "off"
+        }
+      },
+      {
+        "files": [
+          "*.test.ts",
+          "*.test.tsx"
+        ],
+        "rules": {
+          "@typescript-eslint/unbound-method": "off"
         }
       },
       {

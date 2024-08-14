@@ -34,6 +34,10 @@ describe('scripts/react/components/FormField', () => {
     } as unknown as Services,
   };
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test('renders correctly - unknown', () => {
     const Field = FormField({
       'root.0.field': {
@@ -258,6 +262,8 @@ describe('scripts/react/components/FormField', () => {
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
+    expect(engine.userAction).toHaveBeenCalledOnce();
+    expect(engine.userAction).toHaveBeenCalledWith({ data: 'test', path: 'root.0.field', type: 'input' });
   });
 
   test('renders correctly - Message', () => {
