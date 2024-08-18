@@ -99,7 +99,7 @@ describe('core/services/ApiClient', () => {
     httpClientRequest = prototype.request;
   });
 
-  test.only('[formatInput]', async () => {
+  test('[formatInput]', async () => {
     expect(await apiClient.formatInput('test')).toBe('test');
     expect(await apiClient.formatInput(new Uint8Array())).toBe('');
     expect(await apiClient.formatInput(['test'])).toEqual(['test']);
@@ -117,7 +117,7 @@ describe('core/services/ApiClient', () => {
     Object.assign(window, { FileReader });
   });
 
-  test.only('[formatOutput]', () => {
+  test('[formatOutput]', () => {
     expect(apiClient.formatOutput(null, { type: 'string' })).toBeNull();
     expect(apiClient.formatOutput('test', { type: 'string' })).toBe('test');
     expect(apiClient.formatOutput('', { type: 'binary' })).toEqual((new TextEncoder()).encode());
@@ -128,7 +128,7 @@ describe('core/services/ApiClient', () => {
     expect(apiClient.formatOutput({ _id: '000000000000000000000001' }, { type: 'id', relation: 'users' })).toEqual({ _id: expect.any(Id) as Id });
   });
 
-  test.only('[buildQuery]', () => {
+  test('[buildQuery]', () => {
     expect(apiClient.buildQuery({})).toEqual('');
     expect(apiClient.buildQuery({
       page: 2,
@@ -142,7 +142,7 @@ describe('core/services/ApiClient', () => {
     })).toEqual('?page=2&limit=20&offset=20&fields=field1&query=test&sortBy=field1&sortOrder=1');
   });
 
-  describe.only('[request]', () => {
+  describe('[request]', () => {
     test('real HTTP request with authentication, expired token', async () => {
       vi.setSystemTime(new Date('2023/01/02'));
       vi.spyOn(apiClient, 'refreshToken').mockImplementation(() => Promise.resolve({
@@ -217,7 +217,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  test.only('[getDataModel]', async () => {
+  test('[getDataModel]', async () => {
     vi.spyOn(apiClient, 'request').mockImplementation(() => Promise.resolve());
     const response = await apiClient.getDataModel('users');
     expect(apiClient.request).toHaveBeenCalledOnce();
@@ -240,7 +240,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[refreshToken]', () => {
+  describe('[refreshToken]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -276,7 +276,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[signOut]', () => {
+  describe('[signOut]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -295,7 +295,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[signIn]', () => {
+  describe('[signIn]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -329,7 +329,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[signUp]', () => {
+  describe('[signUp]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -363,7 +363,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[resetPassword]', () => {
+  describe('[resetPassword]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -390,7 +390,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[requestPasswordReset]', () => {
+  describe('[requestPasswordReset]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -413,7 +413,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[verifyEmail]', () => {
+  describe('[verifyEmail]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -436,7 +436,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[requestEmailVerification]', () => {
+  describe('[requestEmailVerification]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -455,7 +455,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[viewMe]', () => {
+  describe('[viewMe]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.auth = {};
       await expect(() => (
@@ -479,7 +479,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[view]', () => {
+  describe('[view]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.resources = {};
       await expect(() => (
@@ -506,7 +506,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[delete]', () => {
+  describe('[delete]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.resources = {};
       await expect(() => (
@@ -525,7 +525,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[create]', () => {
+  describe('[create]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.resources = {};
       await expect(() => (
@@ -554,7 +554,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[update]', () => {
+  describe('[update]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.resources = {};
       await expect(() => (
@@ -585,7 +585,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[list]', () => {
+  describe('[list]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.resources = {};
       await expect(() => (
@@ -611,7 +611,7 @@ describe('core/services/ApiClient', () => {
     });
   });
 
-  describe.only('[search]', () => {
+  describe('[search]', () => {
     test('no endpoint error', async () => {
       apiClient.endpoints.resources = {};
       await expect(() => (
