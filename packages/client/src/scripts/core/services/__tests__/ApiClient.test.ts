@@ -139,7 +139,7 @@ describe('core/services/ApiClient', () => {
       sortBy: ['field1'],
       fields: ['field1'],
       filters: { field1: true },
-    })).toEqual('?page=2&limit=20&offset=20&fields=field1&query=test&sortBy=field1&sortOrder=1');
+    })).toEqual('?page=2&limit=20&offset=20&fields=field1&query=test&sortBy=field1&sortOrder=1&filters={"field1":true}');
   });
 
   describe('[request]', () => {

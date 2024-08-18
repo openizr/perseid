@@ -274,6 +274,7 @@ export default class ApiClient<
       limit,
       offset,
       fields,
+      filters,
       sortBy,
       sortOrder,
       query: text,
@@ -287,7 +288,7 @@ export default class ApiClient<
     if (offset !== undefined && !Number.isNaN(offset)) {
       query.push(`offset=${String(offset)}`);
     }
-    if (fields !== undefined && fields.length > 0) {
+    if (Array.isArray(fields) && fields.length > 0) {
       query.push(`fields=${fields.join(',')}`);
     }
     if (text !== undefined && text.trim().length > 0) {
@@ -300,6 +301,12 @@ export default class ApiClient<
       && sortOrder.length === sortBy.length
     ) {
       query.push(`sortBy=${sortBy.join(',')}&sortOrder=${sortOrder.join(',')}`);
+    }
+    if (
+      isPlainObject(filters)
+      && Object.keys(filters as unknown as Record<string, unknown>).length > 0
+    ) {
+      query.push(`filters=${JSON.stringify(filters)}`);
     }
 
     return (query.length > 0) ? `?${query.join('&')}` : '';
