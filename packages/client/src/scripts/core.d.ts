@@ -8,7 +8,14 @@
 
 declare module '@perseid/client' {
   import type {
+    UserInputs,
+    FormPlugin,
+    Configuration,
+    FieldConfiguration,
+  } from '@perseid/form';
+  import type {
     Id,
+    I18n,
     Results,
     HttpClient,
     FieldSchema,
@@ -19,6 +26,156 @@ declare module '@perseid/client' {
     Model as BaseModel,
     Logger as BaseLogger,
   } from '@perseid/core';
+  import BaseStore from '@perseid/store';
+  import type { Module } from '@perseid/store';
+  import type { RoutingContext } from '@perseid/store/extensions/router';
+
+  /**
+   * Common props passed to generic components.
+   */
+  interface CommonProps<DataModel extends DefaultDataModel> {
+    /** Perseid client services instances. */
+    services: {
+      /** I18n instance. */
+      i18n: I18n;
+
+      /** Perseid store instance. */
+      store: Store<DataModel>;
+
+      /** Perseid model instance. */
+      model: Model<DataModel>;
+
+      /** API client instance. */
+      apiClient: ApiClient<DataModel>;
+    };
+
+    /** Data model resource, if any. */
+    resource?: keyof DataModel & string;
+  }
+
+  /**
+   * Generic confirmation modal props.
+   */
+  interface GenericConfirmationModalProps {
+    /** Confirmation title. */
+    title: string;
+
+    /** Confirmation subtitle. */
+    subTitle: string;
+
+    /** Confirmation button label. */
+    confirm: string;
+
+    /** Cancel button label. */
+    cancel: string;
+
+    /** Callback triggered at confirmation. */
+    onConfirm?: () => void;
+  }
+
+  /**
+   * Generic Layout props.
+   */
+  interface GenericLayoutProps<DataModel extends DefaultDataModel> extends CommonProps<DataModel> {
+    /** Whether to display layout itself, or only its children. Defaults to `true`. */
+    display?: boolean;
+  }
+
+  type UseSubscription = <T>(id: string, reducer?: ((state: any) => T) | undefined) => T;
+
+  /**
+   * Mapping of field paths to their respective sorting orders.
+   * The value `1` denotes an ascending sort order, while `-1` indicates a descending sort order.
+   */
+  type Sorting = Record<string, 1 | -1>;
+
+  /**
+   * Generic component props.
+   */
+  type ComponentProps = Record<string, unknown>;
+
+  /**
+   * Complete form definition, containing both its configuration and rendering properties.
+   */
+  interface FormDefinition {
+    /** Form configuration. */
+    configuration: Configuration;
+
+    /** List of fields that need to be fetched. */
+    requestedFields: Set<string>;
+
+    /** List of visual properties for each form field. */
+    fieldProps: Record<string, {
+      /** Name of the component to use for that field. */
+      component: string;
+
+      /** Component props for that field. */
+      componentProps?: ComponentProps;
+    } | undefined>;
+  }
+
+  /**
+   * List of data model resources, per id.
+   */
+  type Resources<
+    DataModel extends DefaultDataModel,
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  > = Record<string, DataModel[Resource]>;
+
+  /**
+   * Global resources registry.
+   */
+  type Registry<DataModel extends DefaultDataModel> = {
+    [Resource in keyof DataModel & string]: Resources<DataModel, Resource>;
+  };
+
+  /**
+   * Request search body, containing full-text search and filters.
+   */
+  interface SearchBody {
+    /** Search query, for performing full-text searches. */
+    query: null | {
+      /** List of fields paths on which to perform the full-text search. */
+      on: string[];
+
+      /** Search query. */
+      text: string;
+    };
+
+    /** Filters to apply to the request, per field. */
+    filters: null | Record<string, unknown>;
+  }
+
+  /**
+   * Query options to use when fetching resources.
+   */
+  interface QueryOptions {
+    page?: number;
+    query?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: string[];
+    fields?: string[];
+    sortOrder?: (1 | -1)[];
+    filters?: SearchBody['filters'];
+  }
+
+  /**
+   * HTTP error mock.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/errors/Http.ts
+   */
+  export class HttpError extends Error {
+    /** Mocked HTTP response. */
+    public response: { data: unknown; status: number; };
+
+    /**
+     * Class constructor.
+     *
+     * @param response Mocked HTTP response.
+     */
+    constructor(response: { data: unknown; status: number; });
+  }
 
   /**
    * Logger settings
@@ -30,6 +187,8 @@ declare module '@perseid/client' {
 
   /**
    * Console-based logging system.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Logger.ts
    */
   export class Logger extends BaseLogger {
     /** Console logger instance. */
@@ -97,6 +256,8 @@ declare module '@perseid/client' {
 
   /**
    * Data model.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Model.ts
    */
   export class Model<
     /** Data model types definitions. */
@@ -212,6 +373,8 @@ declare module '@perseid/client' {
 
   /**
    * Handles HTTP requests.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/ApiClient.ts
    */
   export class ApiClient<
     /** Data model types definitions. */
@@ -513,5 +676,781 @@ declare module '@perseid/client' {
       searchBody: SearchBody,
       options?: QueryOptions,
     ): Promise<Results<DataModel[Resource]>>;
+  }
+
+  interface NotificationData {
+    message: string;
+    duration?: number;
+    closable?: boolean;
+    modifiers?: string;
+  }
+
+  /**
+   * Access types for a specific resource field.
+   */
+  export type AccessType = 'SEARCH' | 'LIST' | 'CREATE' | 'UPDATE' | 'VIEW' | 'DELETE';
+
+  /**
+   * App page configuration.
+   */
+  export interface Page<DataModel extends DefaultDataModel> {
+    /** Page route. */
+    route: string;
+
+    /**
+     * Name of the page component to display. For generic pages, the default components will be used
+     * if this value is not specified.
+     */
+    component?: string;
+
+    /** Page visibility. */
+    visibility: 'PRIVATE' | 'PUBLIC' | 'PUBLIC_ONLY';
+
+    /** Additional props to pass to the page component. */
+    pageProps?: Record<string, unknown>;
+
+    /** Additional props to pass to the global layout when displaying this page. */
+    layoutProps?: Partial<GenericLayoutProps<DataModel>>;
+  }
+
+  /**
+   * Auth store module state.
+   */
+  export interface AuthState<DataModel extends DefaultDataModel = DefaultDataModel> {
+    /** Auth status. */
+    status: 'INITIAL' | 'SUCCESS' | 'ERROR' | 'PENDING';
+
+    /** Currently sign-in user, if any. */
+    user: DataModel['users'] | null;
+  }
+
+  /**
+   * Resource view page data.
+   */
+  export type ViewPageData = {
+    /** Resource id. */
+    id: Id;
+
+    /** Whether resource is being loaded. */
+    loading: boolean;
+
+    /** List of resource fields to display. */
+    fields: string[];
+  } | null;
+
+  /**
+   * Resource update or create page data.
+   */
+  export type UpdateOrCreatePageData = {
+    /** Resource id. */
+    id?: Id;
+
+    /** Whether resource is being loaded. */
+    loading: boolean;
+
+    /** Form configuration to update or create resource. */
+    configuration: FormDefinition['configuration'];
+
+    /** Additional form fields props. */
+    fieldProps: FormDefinition['fieldProps'];
+  } | null;
+
+  /**
+   * Resources list page data.
+   */
+  export type ListPageData<DataModel extends DefaultDataModel> = {
+    /** Whether resource is being loaded. */
+    loading: boolean;
+
+    /** List of resource fields to display. */
+    fields: string[];
+
+    /** Current results page. */
+    page: number;
+
+    /** Total number of results. */
+    total: number;
+
+    /** Maximum number of results to fetch at a time. */
+    limit: number;
+
+    /** How to sort results. */
+    sorting: Sorting;
+
+    /** List of results ids. */
+    results: Id[] | null;
+
+    /** Fields over which to search for results. */
+    searchFields: string[];
+
+    /** Results resource. */
+    resource: keyof DataModel & string;
+
+    /** Results search query. */
+    search: SearchBody | null;
+  } | null;
+
+  /**
+   * Modal store module state.
+   */
+  export interface ModalState {
+    /** Whether to display the modal. */
+    show: boolean;
+
+    /** Additional modifiers to apply to the modal container. */
+    modifiers: string;
+
+    /** Name of the component to display in modal. */
+    component: string;
+
+    /** Additional props to pass to the component once mounted in modal. */
+    componentProps: Record<string, unknown>;
+  }
+
+  /** Notification information. */
+  export type NotifierState = {
+    /** Notification unique id. */
+    id: string;
+
+    /** Notification message. */
+    message: string;
+
+    /** Whether notification can be manually dismissed. */
+    closable: boolean;
+
+    /** Additional modifiers to apply. */
+    modifiers?: string;
+
+    /** Handles notification duration. */
+    timer: {
+      id: number;
+      duration: number;
+      startedAt: number;
+    };
+  }[];
+
+  /**
+   * Store settings.
+   */
+  export interface StoreSettings<DataModel extends DefaultDataModel = DefaultDataModel> {
+    /** Route to use as a fallback for redirects. */
+    fallbackPageRoute: string;
+
+    /** Generic pages configurations. */
+    pages: {
+      auth: {
+        signUp?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        signIn?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        updateUser?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        verifyEmail?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        resetPassword?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+      };
+      resources: Partial<Record<keyof DataModel & string, Partial<Record<string, Omit<Page<DataModel>, 'visibility'>>>>>;
+    };
+  }
+
+  /**
+   * Perseid store, extended with various methods and attributes to handle generic apps states.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Store.ts
+   */
+  export class Store<
+    DataModel extends DefaultDataModel = DefaultDataModel
+  > extends BaseStore {
+    /** Logging system to use. */
+    protected logger: Logger;
+
+    /** Perseid model to use. */
+    protected model: Model<DataModel>;
+
+    /** API client to use. */
+    protected apiClient: ApiClient<DataModel>;
+
+    /** Form builder to use. */
+    protected formBuilder: FormBuilder<DataModel>;
+
+    /** Page route used as a fallback for missing pages. */
+    protected fallbackPageRoute: string;
+
+    /** Current app route. */
+    protected currentRoute: string | null;
+
+    /** `useSubscription` method to use in components. */
+    public useSubscription: UseSubscription;
+
+    /** List of resource already existing in data model. */
+    protected loadedResources: Set<keyof DataModel & string>;
+
+    /** List of app pages configurations. */
+    protected pages: Partial<Record<string, Omit<Page<DataModel>, 'route'>>>;
+
+    /** Currently signed-in user. */
+    protected user: DataModel['users'] | null;
+
+    /** List of auth and resources pages routes.  */
+    protected pageRoutes: {
+      auth: {
+        signIn?: string;
+        signUp?: string;
+        signOut?: string;
+        refreshToken?: string;
+        updateUser?: string;
+        verifyEmail?: string;
+        resetPassword?: string;
+      };
+      resources: Partial<Record<keyof DataModel & string, Partial<Record<string, string>>>>;
+    };
+
+    /** Notifies user when unhandled errors happen in the form. */
+    protected errorNotifierPlugin: FormPlugin;
+
+    /** Store module that handles app errors. */
+    protected errorModule: Module<Error | null>;
+
+    /** Store module that handles global resources registry. */
+    protected registryModule: Module<Partial<Registry<DataModel>>>;
+
+    /** Store module that handles current page state. */
+    protected pageModule: Module<ListPageData<DataModel> | ViewPageData | UpdateOrCreatePageData>;
+
+    /** Store module that handles users authentication. */
+    protected authModule: Module<AuthState<DataModel>>;
+
+    /** Store module that handles UI notifications. */
+    protected notifierModule: Module<NotifierState>;
+
+    /** Store module that handles app modal. */
+    protected modalModule: Module<ModalState>;
+
+    /**
+     * Parses querystring `sortBy` and `sortOrder` into a proper structure.
+     *
+     * @param querySortBy `sortBy` query param.
+     *
+     * @param querySortOrder `sortOrder` query param.
+     *
+     * @returns Structured sorting.
+     */
+    protected computeSorting(querySortBy?: string, querySortOrder?: string): Sorting;
+
+    /**
+     * Redirects user to sign-in page if it exists.
+     *
+     * @param path Redirect page after signing in.
+     */
+    protected redirectToSignInPage(path: string): void;
+
+    /**
+     * Catches and handles most common errors thrown by `callback`.
+     *
+     * @param callback Callback to wrap.
+     *
+     * @param redirect Whether user should be redirected to 403 or 404 pages if necessary.
+     *
+     * @returns Wrapped callback.
+     */
+    protected catchErrors<T>(promise: Promise<T>, redirect: boolean): Promise<T | null>;
+
+    /**
+     * Formats `output` from HTTP response into store registry.
+     *
+     * @param output Output to format.
+     *
+     * @param model Current output data model.
+     *
+     * @param registry Global resources registry to use.
+     *
+     * @returns Formatted output.
+     */
+    protected formatOutput<Resource extends keyof DataModel & string>(
+      output: DataModel[Resource],
+      model: FieldSchema<DataModel>,
+      registry: Partial<Registry<DataModel>>,
+    ): DataModel[Resource];
+
+    /**
+     * Normalizes `resources` of `resource`, extracting all relations into their registry and
+     * replacing them by their id. Also updates global resources registry.
+     *
+     * @param resource Resources resource.
+     *
+     * @param resources Resources to normalize.
+     *
+     * @returns Normalized resources.
+     */
+    protected normalizeResources<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      resources: DataModel[Resource][],
+    ): DataModel[Resource][];
+
+    /**
+     * Returns current page data.
+     *
+     * @param newState Routing, auth and error states.
+     *
+     * @returns Page data.
+     */
+    protected getPageData(
+      newState: [RoutingContext, AuthState],
+    ): Promise<unknown>;
+
+    /**
+     * Builds the URL querystring from `options`.
+     *
+     * @param options Query options.
+     *
+     * @returns URL querystring.
+     */
+    protected buildQuery(options: QueryOptions): string;
+
+    /**
+     * Class constructor.
+     *
+     * @param model Data model instance to use.
+     *
+     * @param logger Logging system to use.
+     *
+     * @param apiClient API client to use.
+     *
+     * @param formBuilder Form builder to use.
+     *
+     * @param settings Store settings.
+     */
+    constructor(
+      model: Model<DataModel>,
+      logger: Logger,
+      apiClient: ApiClient<DataModel>,
+      formBuilder: FormBuilder<DataModel>,
+      settings: StoreSettings<DataModel>,
+    );
+
+    /**
+     * Returns `true` if user has permissions to access `field` from `resource` in given context.
+     *
+     * @param resource Field resource.
+     *
+     * @param field Field path in resource.
+     *
+     * @param accessType Access type.
+     *
+     * @returns `true` if user has necessary permissions, `false` otherwise.
+     */
+    public canAccessField<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      field: string,
+      accessType: AccessType,
+    ): boolean;
+
+    /**
+     * Returns field value at `path`, from resource with id `id` in `resource`.
+     *
+     * @param resource Resource resource.
+     *
+     * @param id Resource id.
+     *
+     * @param path Path to the resource field.
+     *
+     * @param registry Global registry to use.
+     *
+     * @param currentPath Used internally - current path in resource.
+     *
+     * @param currentPrefix Used internally - current prefix in resource.
+     *
+     * @param currentValue Used internally - current value in resource.
+     *
+     * @returns Field value if it exists, `null` otherwise.
+     */
+    public getValue(
+      resource: keyof DataModel & string,
+      id: Id,
+      path: string,
+      registry: Partial<Registry<DataModel>>,
+      currentPath?: string,
+      currentPrefix?: string[],
+      currentValue?: unknown,
+    ): DataModel[keyof DataModel & string] | null;
+
+    /**
+     * API client `view` method wrapper, that handles common errors and updates global registry.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param id Resource id.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Requested resource.
+     */
+    public view<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id,
+      options?: QueryOptions,
+    ): Promise<DataModel[Resource] | null>;
+
+    /**
+     * API client `delete` method wrapper, that handles common errors and deletes global registry.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param id Resource id.
+     */
+    public delete<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id,
+    ): Promise<void>;
+
+    /**
+     * API client `update` method wrapper, that handles common errors and updates global registry.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param id Resource id.
+     *
+     * @param payload Resource payload.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Updated resource.
+     */
+    public update<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id,
+      payload: unknown,
+      options?: QueryOptions,
+    ): Promise<DataModel[Resource] | null>;
+
+    /**
+     * API client `create` method wrapper, that handles common errors and updates global registry.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param id Resource id.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Created resource.
+     */
+    public create<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      payload: unknown,
+      options?: QueryOptions,
+    ): Promise<DataModel[Resource] | null>;
+
+    /**
+     * API client `search` method wrapper, that handles common errors and updates global registry.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param searchBody Search request body.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Requested resources list.
+     */
+    public search<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      searchBody: SearchBody,
+      options?: QueryOptions,
+    ): Promise<Results<DataModel[Resource]> | null>;
+
+    /**
+     * API client `list` method wrapper, that handles common errors and updates global registry.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Requested resources list.
+     */
+    public list<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      options?: QueryOptions,
+    ): Promise<Results<DataModel[Resource]> | null>;
+
+    /**
+     * Either lists or searches for resources, depending on `searchBody`.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param searchBody Search request body. If null, a simple resources list will be performed.
+     *
+     * @param options Additional requests options.
+     */
+    public listOrSearch<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      searchBody: SearchBody | null,
+      options?: QueryOptions & { sorting?: Sorting; },
+    ): Promise<void>;
+
+    /**
+     * Navigates user to the given page.
+     *
+     * @param data Page data.
+     */
+    public goToPage(data: Exclude<ListPageData<DataModel>, null>): Promise<void>;
+
+    /**
+     * Initializes app router.
+     */
+    public createRoutes(): void;
+
+    /**
+     * Creates a new app page at `route` with `configuration`.
+     *
+     * @param route Path to the app page.
+     *
+     * @param configuration Route configuration.
+     */
+    public createRoute(route: string, configuration: Omit<Page<DataModel>, 'route'>): void;
+
+    /**
+    * Navigates to `url`, without reloading the page.
+    * Caveat: the `router` store module must be registered.
+    *
+    * @param url Target URL.
+    *
+    * @returns The actual navigation function.
+    */
+    public navigate(url: string): (event?: MouseEvent) => void;
+
+    /**
+     * Returns page route for `type`.
+     *
+     * @param type Route type (e.g. `auth.signIn`, `users.list`).
+     *
+     * @returns Page route.
+     */
+    public getRoute(type: string): string | null;
+
+    /**
+     * Returns all resources list pages routes.
+     *
+     * @returns Resources list routes.
+     */
+    public getResourceRoutes(): { resource: string; route: string; }[];
+
+    /**
+     * Returns all registered pages routes.
+     *
+     * @returns App pages routes.
+     */
+    public getAllRoutes(): string[];
+
+    /**
+     * Returns page configuration for `route`.
+     *
+     * @param route Route for which to get page configuration.
+     *
+     * @returns Page configuration if route exists, `null` otherwise.
+     */
+    public getPage(route: string): Page<DataModel> | null;
+
+    /**
+     * Returns app fallback page route.
+     *
+     * @returns Fallback page route.
+     */
+    public getFallbackPageRoute(): string;
+
+    /**
+     * Creates a new UI notification with `message`.
+     *
+     * @param message Notification message.
+     */
+    public notify(message: string): void;
+
+    /**
+     * Displays a confirmation modal with `props`.
+     *
+     * @param props Confirmation modal props.
+     */
+    public confirm<ConfirmationModalProps extends GenericConfirmationModalProps>(
+      props: ConfirmationModalProps,
+    ): void;
+
+    /**
+     * Navigates back through user history.
+     */
+    public goBack(): void;
+  }
+
+  /**
+   * Filtered perseid data model, according to user permissions.
+   */
+  export interface FilteredModel<DataModel extends DefaultDataModel> {
+    fields: Set<string>,
+    canUserCreateResource: boolean,
+    schema: FieldSchema<DataModel>,
+  }
+
+  /**
+   * Perseid data model to form configuration schema formatter.
+   */
+  export type FormFormatter<DataModel extends DefaultDataModel> = (
+    schema: FieldSchema<DataModel>,
+    path: string,
+    extraFieldsTree: Record<string, unknown>,
+    store: Store<DataModel>,
+  ) => {
+    configuration: FieldConfiguration;
+    fieldProps: Record<string, { component: string; componentProps: Record<string, unknown>; }>;
+  };
+
+  /**
+   * Handles forms configurations generation.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/FormBuilder.ts
+   */
+  export class FormBuilder<
+    DataModel extends DefaultDataModel = DefaultDataModel
+  > {
+    /** Logging system to use. */
+    protected logger: Logger;
+
+    /** Perseid model to use. */
+    protected model: Model<DataModel>;
+
+    /** Password pattern regexp. */
+    protected readonly PASSWORD_REGEXP: RegExp;
+
+    /** Email pattern regexp. */
+    protected readonly EMAIL_REGEXP: RegExp;
+
+    /** List of formatters, used to format a perseid data model into its form equivalent. */
+    protected readonly FORMATTERS: Record<FieldSchema<DataModel>['type'], FormFormatter<DataModel>>;
+
+    /**
+     * Generates fields tree from `fields`. Used to fetch nested relations fields in formatters.
+     *
+     * @param fields List of fields to generate tree from.
+     *
+     * @returns Generated fields tree.
+     */
+    protected generateFieldsTree(fields: Set<string>): Record<string, unknown>;
+
+    /**
+     * Filters `resource` data model schema and removes all fields for which user has no permission.
+     *
+     * @param resource Resource data model to filter.
+     *
+     * @param mode Edition mode (update / create).
+     *
+     * @param schema Current schema in data model schema.
+     *
+     * @param path Current path in data model.
+     *
+     * @param store Store instance that provides useful methods.
+     *
+     * @returns `null` if user has no access to the field, filtered data model otherwise.
+     */
+    protected filterModel<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      mode: 'UPDATE' | 'CREATE',
+      schema: FieldSchema<DataModel>,
+      path: string,
+      store: Store<DataModel>,
+    ): null | FilteredModel<DataModel>;
+
+    protected filterModel<T extends FilteredModel<DataModel>>(
+      resource: keyof DataModel & string,
+      mode: 'UPDATE' | 'CREATE',
+      schema: FieldSchema<DataModel>,
+      path: string,
+      store: Store<DataModel>,
+    ): T;
+
+    protected filterModel<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      mode: 'UPDATE' | 'CREATE',
+      schema: FieldSchema<DataModel>,
+      path: string,
+      store: Store<DataModel>,
+    ): null | FilteredModel<DataModel>;
+
+    /**
+     * Class constructor.
+     *
+     * @param model Data model instance to use.
+     *
+     * @param logger Logging system to use.
+     */
+    constructor(
+      model: Model<DataModel>,
+      logger: Logger,
+    );
+
+    /**
+     * Generates the form configuration for the resource update / creation UI of `resource`.
+     *
+     * @param resource Resource resource.
+     *
+     * @param id Id of the resource to update, if applicable. Defaults to `null`.
+     *
+     * @param extraFields Additional fields to request when fetching resource, if applicable.
+     * This is especially useful if you need to use a different field than `_id` to display
+     * relations. Defaults to `new Set()`.
+     *
+     * @param store Store instance that provides useful methods.
+     *
+     * @returns Generated form configuration.
+     */
+    public buildConfiguration<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id | null,
+      extraFields: Set<string>,
+      store: Store<DataModel>,
+    ): FormDefinition;
+
+    /**
+     * Returns sign-up page form configuration.
+     *
+     * @param signIn Submit callback to execute to sign user up.
+     *
+     * @returns Form configuration.
+     */
+    public getSignUpConfiguration(signUp: (data: UserInputs) => Promise<void>): FormDefinition;
+
+    /**
+     * Returns sign-in page form configuration.
+     *
+     * @param signIn Submit callback to execute to sign user in.
+     *
+     * @returns Form configuration.
+     */
+    public getSignInConfiguration(signIn: (data: UserInputs) => Promise<void>): FormDefinition;
+
+    /**
+     * Returns user update page form configuration.
+     *
+     * @param user Currently signed-in user.
+     *
+     * @param updateUser Submit callback to execute to update user info.
+     *
+     * @param resetPassword Callback to execute to request user password reset.
+     *
+     * @returns Form configuration.
+     */
+    public getUpdateUserConfiguration(
+      user: DataModel['users'],
+      updateUser: (data: UserInputs) => Promise<void>,
+      resetPassword: () => Promise<void>,
+    ): FormDefinition;
+
+    /**
+     * Returns password reset page form configuration.
+     *
+     * @param resetToken Password reset token.
+     *
+     * @param resetPassword Submit callback to execute to reset user password.
+     *
+     * @param requestPasswordReset Submit callback to execute to request user password reset.
+     *
+     * @returns Form configuration.
+     */
+    public getResetPasswordConfiguration(
+      resetToken: string | null,
+      resetPassword: (data: UserInputs) => Promise<void>,
+      requestPasswordReset: (data: UserInputs) => Promise<void>,
+    ): FormDefinition;
   }
 }

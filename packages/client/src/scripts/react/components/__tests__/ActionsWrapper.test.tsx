@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import { type DefaultDataModel } from '@perseid/core';
 import ActionsWrapper from 'scripts/react/components/ActionsWrapper';
@@ -52,7 +51,7 @@ describe('react/components/ActionsWrapper', () => {
     vi.spyOn(window, 'addEventListener').mockImplementation((_, callback) => {
       (callback as (event: Event) => void)({} as Event);
     });
-    const permissions = new Set(['TO_SNAKE_CASE_users_DELETE', 'TO_SNAKE_CASE_users_UPDATE']);
+    const permissions = new Set(['DELETE_TO_SNAKE_CASE_users', 'UPDATE_TO_SNAKE_CASE_users']);
     const resourceRoutes = { 'users.update': '/update-route' };
     const { container } = render(
       <ActionsWrapper
@@ -65,7 +64,7 @@ describe('react/components/ActionsWrapper', () => {
   });
 
   test('renders correctly - user has only update permission', () => {
-    const permissions = new Set(['TO_SNAKE_CASE_users_UPDATE']);
+    const permissions = new Set(['UPDATE_TO_SNAKE_CASE_users']);
     const resourceRoutes = {
       'users.update': '/update-route',
       'users.list': '/list-route',

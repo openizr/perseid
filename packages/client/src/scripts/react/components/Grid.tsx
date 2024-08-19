@@ -72,7 +72,7 @@ const css = `
 /**
  * Responsive grid, used for design integration.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Grid.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Grid.tsx
  */
 function Grid({ columns }: GridProps): JSX.Element {
   const [displayGrid, setDisplayGrid] = React.useState(false);

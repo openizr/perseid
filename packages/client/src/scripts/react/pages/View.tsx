@@ -8,19 +8,26 @@
 
 import * as React from 'react';
 import { buildClass } from '@perseid/ui/react';
-import { type DefaultDataModel } from '@perseid/core';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
 import DefaultLoader from 'scripts/react/components/Loader';
 import { type ViewPageData } from 'scripts/core/services/Store';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
 import DefaultPageLayout from 'scripts/react/components/PageLayout';
 import DefaultFieldValue from 'scripts/react/components/FieldValue';
 import DefaultFieldLabel from 'scripts/react/components/FieldLabel';
+import { type DefaultDataModel, type I18n as BaseI18n } from '@perseid/core';
 
 /**
  * Resource view page props.
  */
 export interface ViewProps<
-  DataModel extends DefaultDataModel
-> extends ReactCommonProps<DataModel> {
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
   /** Name of the resource resource. */
   resource: keyof DataModel & string;
 }
@@ -28,20 +35,20 @@ export interface ViewProps<
 /**
  * Resource view page.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/pages/View.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/View.tsx
  */
-function View<DataModel extends DefaultDataModel = DefaultDataModel>({
+function View({
   services,
   resource,
   components,
-}: ViewProps<DataModel>): JSX.Element {
+}: ViewProps): JSX.Element {
   const Loader = components.Loader ?? DefaultLoader;
   const PageLayout = components.PageLayout ?? DefaultPageLayout;
   const FieldValue = components.FieldValue ?? DefaultFieldValue;
   const FieldLabel = components.FieldLabel ?? DefaultFieldLabel;
 
   const pageData = services.store.useSubscription<ViewPageData>('page');
-  const registry = services.store.useSubscription<Registry<DataModel>>('registry');
+  const registry = services.store.useSubscription<Registry<DefaultDataModel>>('registry');
 
   // Page is still loading...
   if (pageData === null) {

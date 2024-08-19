@@ -100,7 +100,7 @@ export interface LazyOptionsProps<DataModel> {
 /**
  * List of options fetched dynamically using a search bar.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/LazyOptions.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/LazyOptions.tsx
  */
 function LazyOptions<DataModel extends DefaultDataModel = DefaultDataModel>({
   label,

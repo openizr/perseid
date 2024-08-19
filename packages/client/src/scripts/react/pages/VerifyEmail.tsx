@@ -8,7 +8,6 @@
 
 import * as React from 'react';
 import { UITitle, UIButton } from '@perseid/ui/react';
-import { type DefaultDataModel } from '@perseid/core';
 import DefaultLoader from 'scripts/react/components/Loader';
 import { type AuthState } from 'scripts/core/services/Store';
 import { type RoutingContext } from '@perseid/store/extensions/router';
@@ -16,12 +15,12 @@ import { type RoutingContext } from '@perseid/store/extensions/router';
 /**
  * Verify email page.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/pages/VerifyEmail.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/VerifyEmail.tsx
  */
-function VerifyEmail<DataModel extends DefaultDataModel = DefaultDataModel>({
+function VerifyEmail({
   services,
   components,
-}: ReactCommonProps<DataModel>): JSX.Element {
+}: ReactCommonProps): JSX.Element {
   const { store, i18n } = services;
   const Loader = components.Loader ?? DefaultLoader;
   const { user } = store.useSubscription<AuthState>('auth');

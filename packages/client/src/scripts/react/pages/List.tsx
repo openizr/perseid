@@ -10,24 +10,32 @@ import {
   toSnakeCase,
   type StringSchema,
   type DefaultDataModel,
+  type I18n as BaseI18n,
   type DataModelMetadata,
 } from '@perseid/core';
 import * as React from 'react';
-import { buildClass, UITextfield, UITitle } from '@perseid/ui/react';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
 import DefaultLoader from 'scripts/react/components/Loader';
 import { type ListPageData } from 'scripts/core/services/Store';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
 import DefaultFieldValue from 'scripts/react/components/FieldValue';
 import DefaultFieldLabel from 'scripts/react/components/FieldLabel';
 import DefaultPageLayout from 'scripts/react/components/PageLayout';
 import DefaultPagination from 'scripts/react/components/Pagination';
+import { buildClass, UITextfield, UITitle } from '@perseid/ui/react';
 import DefaultTable, { type TableRow } from 'scripts/react/components/Table';
 
 /**
  * Resources list page props.
  */
 export interface ListProps<
-  DataModel extends DefaultDataModel
-> extends ReactCommonProps<DataModel> {
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
   /** Name of the resource resource. */
   resource: keyof DataModel & string;
 }
@@ -35,16 +43,16 @@ export interface ListProps<
 /**
  * Resources list page.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/pages/List.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/List.tsx
  */
-function List<DataModel extends DefaultDataModel = DefaultDataModel>({
+function List({
   services,
   resource,
   components,
-}: ListProps<DataModel>): JSX.Element {
+}: ListProps): JSX.Element {
   const prefix = `PAGES.${toSnakeCase(String(resource))}.LIST`;
-  const registry = services.store.useSubscription<Registry<DataModel>>('registry');
-  const pageData = services.store.useSubscription<ListPageData<DataModel>>('page');
+  const registry = services.store.useSubscription<Registry<DefaultDataModel>>('registry');
+  const pageData = services.store.useSubscription<ListPageData<DefaultDataModel>>('page');
   const resourceViewRoute = services.store.getRoute(`${String(resource)}.view`);
   const labels = React.useMemo(() => ({
     loading: services.i18n.t(`${prefix}.TABLE.LOADING`),
@@ -60,17 +68,17 @@ function List<DataModel extends DefaultDataModel = DefaultDataModel>({
   const Pagination = components.Pagination ?? DefaultPagination;
 
   const handleSort = React.useCallback(async (newSorting: Sorting) => {
-    const { search } = pageData as unknown as Exclude<ListPageData<DataModel>, null>;
+    const { search } = pageData as unknown as Exclude<ListPageData<DefaultDataModel>, null>;
     await services.store.listOrSearch(resource, search, { ...pageData, sorting: newSorting });
   }, [services, pageData, resource]);
 
   const goToPage = React.useCallback((newPage: number) => async (): Promise<void> => {
-    const data = pageData as unknown as Exclude<ListPageData<DataModel>, null>;
+    const data = pageData as unknown as Exclude<ListPageData<DefaultDataModel>, null>;
     await services.store.goToPage({ ...data, page: newPage });
   }, [services, pageData]);
 
   const handleSearch = React.useCallback(async (query: string) => {
-    const { searchFields } = pageData as unknown as Exclude<ListPageData<DataModel>, null>;
+    const { searchFields } = pageData as unknown as Exclude<ListPageData<DefaultDataModel>, null>;
     const searchBody = { query: { on: searchFields, text: query }, filters: null };
     await services.store.listOrSearch(resource, searchBody, { ...pageData });
   }, [services, pageData, resource]);

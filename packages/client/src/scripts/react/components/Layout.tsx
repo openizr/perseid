@@ -9,15 +9,22 @@
 import * as React from 'react';
 import Modal from 'scripts/react/components/Modal';
 import DefaultMenu from 'scripts/react/components/Menu';
-import { type DefaultDataModel } from '@perseid/core';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
 import DefaultNotifier from 'scripts/react/components/Notifier';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
+import { type DefaultDataModel, type I18n as BaseI18n } from '@perseid/core';
 
 /**
  * Layout props.
  */
 export interface LayoutProps<
-  DataModel extends DefaultDataModel
-> extends ReactCommonProps<DataModel> {
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
   /** Whether to display layout itself, or only its children. Defaults to `true`. */
   display?: boolean;
 
@@ -28,14 +35,14 @@ export interface LayoutProps<
 /**
  * Application layout.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Layout.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Layout.tsx
  */
-export default function Layout<DataModel extends DefaultDataModel = DefaultDataModel>({
+function Layout({
   children,
   services,
   components,
   display = true,
-}: LayoutProps<DataModel>): JSX.Element {
+}: LayoutProps): JSX.Element {
   const Menu = components.Menu ?? DefaultMenu;
   const Notifier = components.Notifier ?? DefaultNotifier;
 
@@ -50,3 +57,5 @@ export default function Layout<DataModel extends DefaultDataModel = DefaultDataM
     </div>
   );
 }
+
+export default React.memo(Layout);

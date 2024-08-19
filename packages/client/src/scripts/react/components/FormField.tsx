@@ -28,10 +28,12 @@ const dateRegExp = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9
 
 /**
  * Generic form field.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/FormField.tsx
  */
-export default function FormField<DataModel extends DefaultDataModel = DefaultDataModel>(
+export default function FormField(
   fieldProps: FormDefinition['fieldProps'],
-  context: { prefix: string; services: ReactCommonProps<DataModel>['services']; },
+  context: { prefix: string; services: ReactCommonProps['services']; },
 ): React.FC<FormFieldProps & { _canonicalPath?: string; }> {
   return React.memo(({
     type,

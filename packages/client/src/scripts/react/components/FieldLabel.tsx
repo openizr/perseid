@@ -7,14 +7,21 @@
  */
 
 import * as React from 'react';
-import { toSnakeCase, type DefaultDataModel } from '@perseid/core';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
+import { toSnakeCase, type DefaultDataModel, type I18n as BaseI18n } from '@perseid/core';
 
 /**
  * Field label props.
  */
 export interface FieldLabelProps<
-  DataModel extends DefaultDataModel
-> extends ReactCommonProps<DataModel> {
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
   /** Field to display. */
   field: string;
 
@@ -25,14 +32,14 @@ export interface FieldLabelProps<
 /**
  * Displays a specific resource field label.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/FieldLabel.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/FieldLabel.tsx
  */
-export default function FieldLabel<DataModel extends DefaultDataModel = DefaultDataModel>({
+export default function FieldLabel({
   page,
   field,
   services,
   resource,
-}: FieldLabelProps<DataModel>): JSX.Element {
+}: FieldLabelProps): JSX.Element {
   const label = React.useMemo(() => {
     const path = toSnakeCase(field.replace(/\./g, '__'));
     return services.i18n.t(`PAGES.${toSnakeCase(String(resource))}.${page}.FIELDS.${path}.LABEL`);

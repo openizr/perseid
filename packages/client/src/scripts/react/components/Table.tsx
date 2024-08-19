@@ -71,7 +71,7 @@ const sortingModifiers: Record<string, 'ascending' | 'descending' | 'none'> = {
 /**
  * Generic table.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Table.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Table.tsx
  */
 function Table({
   labels,
@@ -161,4 +161,4 @@ function Table({
   );
 }
 
-export default React.memo(Table) as ReactTableComponent;
+export default React.memo(Table);

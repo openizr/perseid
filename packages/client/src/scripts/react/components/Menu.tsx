@@ -7,19 +7,19 @@
  */
 
 import * as React from 'react';
+import { toSnakeCase } from '@perseid/core';
 import { type AuthState } from 'scripts/core/services/Store';
 import { UILink, UIButton, buildClass } from '@perseid/ui/react';
-import { type DefaultDataModel, toSnakeCase } from '@perseid/core';
 import { type RoutingContext } from '@perseid/store/extensions/router';
 
 /**
  * App menu.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Menu.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Menu.tsx
  */
-function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
+function Menu({
   services,
-}: ReactCommonProps<DataModel>): JSX.Element {
+}: ReactCommonProps): JSX.Element {
   const { store, i18n } = services;
   const [isDisplayed, setIsDisplayed] = React.useState(false);
   const { user } = services.store.useSubscription<AuthState>('auth');
@@ -122,4 +122,4 @@ function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
   );
 }
 
-export default React.memo(Menu) as ReactMenuComponent;
+export default React.memo(Menu);

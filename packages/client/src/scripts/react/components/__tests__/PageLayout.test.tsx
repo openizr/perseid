@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import { type DefaultDataModel } from '@perseid/core';
 import PageLayout from 'scripts/react/components/PageLayout';
@@ -58,7 +57,7 @@ describe('react/components/PageLayout', () => {
         page="LIST"
         resource="users"
         components={components}
-        services={createServices(new Set(['TO_SNAKE_CASE_users_create']), '/users/create')}
+        services={createServices(new Set(['create_TO_SNAKE_CASE_users']), '/users/create')}
       >
         <div id="content" />
       </PageLayout>,

@@ -7,56 +7,50 @@
  */
 
 declare module '@perseid/client/react' {
-  import {
-    type Store,
-    type CommonProps,
-  } from '@perseid/client';
-  import {
-    type Id,
-    type DefaultDataModel,
-  } from '@perseid/core';
-  import { type UIButtonProps } from '@perseid/ui/react';
-  import { type FormFieldProps, type Fields } from '@perseid/form/react';
-
-  interface Value {
-    value: string;
-    label: string;
-  }
+  import type { Fields } from '@perseid/form';
+  import type { UIButtonProps } from '@perseid/ui';
+  import type BaseStore from 'scripts/core/services/Store';
+  import type BaseModel from 'scripts/core/services/Model';
+  import { type FormFieldProps } from '@perseid/form/react';
+  import type BaseApiClient from 'scripts/core/services/ApiClient';
+  import { I18n as BaseI18n, Id, type DefaultDataModel } from '@perseid/core';
 
   interface ReactPredefinedCustomComponents {
-    Menu?: ReactMenuComponent;
-    Table?: ReactTableComponent;
-    Loader?: ReactLoaderComponent;
-    Layout?: ReactLayoutComponent;
-    Notifier?: ReactNotifierComponent;
-    ErrorPage?: ReactErrorPageComponent;
-    FormField?: ReactFormFieldComponent;
-    PageLayout?: ReactPageLayoutComponent;
-    Pagination?: ReactPaginationComponent;
-    FieldLabel?: ReactFieldLabelComponent;
-    FieldValue?: ReactFieldValueComponent;
-    ActionsWrapper?: typeof ActionsWrapper;
-    ConfirmationModal?: typeof ConfirmationModal;
-    PermissionsWrapper?: ReactPermissionsWrapperComponent;
+    Table?: (props: TableProps) => React.ReactNode;
+    Layout?: (props: LayoutProps) => React.ReactNode;
+    Menu?: (props: ReactCommonProps) => React.ReactNode;
+    Modal?: (props: ReactCommonProps) => React.ReactNode;
+    Loader?: (props: ReactCommonProps) => React.ReactNode;
+    ErrorPage?: (props: ErrorPageProps) => React.ReactNode;
+    Notifier?: (props: ReactCommonProps) => React.ReactNode;
+    FieldLabel?: (props: FieldLabelProps) => React.ReactNode;
+    FieldValue?: (props: FieldValueProps) => React.ReactNode;
+    Pagination?: (props: PaginationProps) => React.ReactNode;
+    PageLayout?: (props: PageLayoutProps) => React.ReactNode;
+    ActionsWrapper?: (props: ActionsWrapperProps) => React.ReactNode;
+    PermissionsWrapper?: (props: ReactCommonProps) => React.ReactNode;
+    ConfirmationModal?: (props: ConfirmationModalProps) => React.ReactNode;
+    FormField?: (props: FormFieldProps & { _canonicalPath?: string; }) => React.ReactNode;
   }
 
   type ReactGenericCustomComponents<
     DataModel extends DefaultDataModel
-  > = Record<string, ((props: ReactCommonProps<DataModel>) => JSX.Element | null) | undefined>;
+  > = Partial<Record<string, (props: ReactCommonProps<DataModel>) => React.ReactNode>>;
 
   type ReactCustomComponents<
     DataModel extends DefaultDataModel
   > = ReactGenericCustomComponents<DataModel> & ReactPredefinedCustomComponents;
 
   /**
-   * Generic component props.
-   */
-  type ComponentProps = Record<string, unknown>;
-
-  /**
    * Common props passed to generic React components.
    */
-  interface ReactCommonProps<DataModel extends DefaultDataModel> extends CommonProps<DataModel> {
+  interface ReactCommonProps<
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends CommonProps<DataModel, I18n, Store, Model, ApiClient> {
     /** List of custom React components to use in pages. */
     components: ReactCustomComponents<DataModel>;
   }
@@ -65,8 +59,12 @@ declare module '@perseid/client/react' {
    * Actions wrapper props.
    */
   export interface ActionsWrapperProps<
-    DataModel extends DefaultDataModel
-  > extends ReactCommonProps<DataModel> {
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
     /** Name of the resource resource. */
     resource: keyof DataModel & string;
 
@@ -83,43 +81,82 @@ declare module '@perseid/client/react' {
   /**
    * Actions wrapper.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/ActionsWrapper.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/ActionsWrapper.tsx
    */
-  export function ActionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function ActionsWrapper({
     services,
     resource,
     moreButtonProps,
     deleteButtonProps,
     updateButtonProps,
-  }: ActionsWrapperProps<DataModel>): JSX.Element;
+  }: ActionsWrapperProps): JSX.Element;
 
   /**
    * Confirmation modal props.
    */
   export type ConfirmationModalProps<
-    DataModel extends DefaultDataModel
-  > = GenericConfirmationModalProps & ReactCommonProps<DataModel>;
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > = GenericConfirmationModalProps & ReactCommonProps<DataModel, I18n, Store, Model, ApiClient>;
 
   /**
    * Confirmation modal.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/ConfirmationModal.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/ConfirmationModal.tsx
    */
-  export function ConfirmationModal<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function ConfirmationModal({
     title,
     cancel,
     confirm,
     services,
     subTitle,
-    onConfirm: onConfirmProp,
-  }: ConfirmationModalProps<DataModel>): JSX.Element;
+    onConfirm,
+  }: ConfirmationModalProps): JSX.Element;
+
+  /**
+   * Error wrapper props.
+   */
+  export interface ErrorWrapperProps {
+    /** Components to wrap. */
+    children?: React.ReactNode;
+
+    /** Components to display when an error occurs. */
+    fallback?: React.ReactNode;
+
+    /** Callback to trigger when an error occurs. */
+    onError?: (error: Error, errorInfo: { componentStack: string }) => void;
+  }
+
+  /**
+   * Handles uncaught errors and displays a generic UI.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/ErrorWrapper.tsx
+   */
+  export class ErrorWrapper extends React.Component<ErrorWrapperProps, {
+    hasError: boolean;
+  }> {
+    constructor(props: ErrorWrapperProps);
+
+    componentDidCatch(error: Error, errorInfo: { componentStack: string }): void;
+
+    static getDerivedStateFromError(): { hasError: boolean };
+
+    render(): JSX.Element;
+  }
 
   /**
    * Field label props.
    */
   export interface FieldLabelProps<
-    DataModel extends DefaultDataModel
-  > extends ReactCommonProps<DataModel> {
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
     /** Field to display. */
     field: string;
 
@@ -130,21 +167,25 @@ declare module '@perseid/client/react' {
   /**
    * Displays a specific resource field label.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/FieldLabel.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/FieldLabel.tsx
    */
-  export function FieldLabel<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function FieldLabel({
     page,
     field,
     services,
     resource,
-  }: FieldLabelProps<DataModel>): JSX.Element;
+  }: FieldLabelProps): JSX.Element;
 
   /**
    * Field value props.
    */
   export interface FieldValueProps<
-    DataModel extends DefaultDataModel
-  > extends ReactCommonProps<DataModel> {
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
     /** Id of the resource to display. */
     id: Id;
 
@@ -167,9 +208,9 @@ declare module '@perseid/client/react' {
   /**
    * Displays a specific resource field value.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/FieldValue.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/FieldValue.tsx
    */
-  export function FieldValue<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function FieldValue({
     id,
     page,
     field,
@@ -177,14 +218,16 @@ declare module '@perseid/client/react' {
     services,
     registry,
     resource,
-  }: FieldValueProps<DataModel>): JSX.Element | null;
+  }: FieldValueProps): JSX.Element | null;
 
   /**
    * Generic form field.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/FormField.tsx
    */
-  export function FormField<DataModel extends DefaultDataModel = DefaultDataModel>(
+  export function FormField(
     fieldProps: FormDefinition['fieldProps'],
-    context: { prefix: string; services: ReactCommonProps<DataModel>['services']; },
+    context: { prefix: string; services: ReactCommonProps['services']; },
   ): React.FC<FormFieldProps & { _canonicalPath?: string; }>;
 
   /**
@@ -198,7 +241,7 @@ declare module '@perseid/client/react' {
   /**
    * Responsive grid, used for design integration.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Grid.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Grid.tsx
    */
   export function Grid({ columns }: GridProps): JSX.Element;
 
@@ -206,8 +249,12 @@ declare module '@perseid/client/react' {
    * Layout props.
    */
   export interface LayoutProps<
-    DataModel extends DefaultDataModel
-  > extends ReactCommonProps<DataModel> {
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
     /** Whether to display layout itself, or only its children. Defaults to `true`. */
     display?: boolean;
 
@@ -216,16 +263,21 @@ declare module '@perseid/client/react' {
   }
 
   /**
-   * Application layout.
-   *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Layout.tsx
-   */
-  export function Layout<DataModel extends DefaultDataModel = DefaultDataModel>({
+  * Application layout.
+  *
+  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Layout.tsx
+  */
+  export function Layout({
+    display,
     children,
     services,
     components,
-    display,
-  }: LayoutProps<DataModel>): JSX.Element;
+  }: LayoutProps): JSX.Element;
+
+  interface Value {
+    value: string;
+    label: string;
+  }
 
   /**
    * Lazy options props.
@@ -235,8 +287,8 @@ declare module '@perseid/client/react' {
     id?: string;
 
     /** Perseid store instance. */
-    store: Store & { useSubscription: UseSubscription; };
-    labelFn: (resource: Resource | null) => string;
+    store: BaseStore & { useSubscription: UseSubscription; };
+    labelFn: (resource: Record<string, unknown> | null) => string;
     resource: keyof DataModel & string;
 
     /** Results loading label. */
@@ -304,7 +356,7 @@ declare module '@perseid/client/react' {
   /**
    * List of options fetched dynamically using a search bar.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/LazyOptions.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/LazyOptions.tsx
    */
   export function LazyOptions<DataModel extends DefaultDataModel = DefaultDataModel>({
     label,
@@ -330,30 +382,30 @@ declare module '@perseid/client/react' {
   /**
    * App loader.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Loader.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Loader.tsx
    */
-  export function Loader<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function Loader({
     services,
-  }: ReactCommonProps<DataModel>): JSX.Element;
+  }: ReactCommonProps): JSX.Element;
 
   /**
    * App menu.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Menu.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Menu.tsx
    */
-  export function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function Menu({
     services,
-  }: ReactCommonProps<DataModel>): JSX.Element;
+  }: ReactCommonProps): JSX.Element;
 
   /**
    * App modal.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Modal.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Modal.tsx
    */
-  export function Modal<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function Modal({
     services,
     components,
-  }: ReactCommonProps<DataModel>): JSX.Element;
+  }: ReactCommonProps): JSX.Element;
 
   /**
    * Nested fields props.
@@ -398,7 +450,7 @@ declare module '@perseid/client/react' {
   /**
    * Nested fields (array / object) form component.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/NestedFields.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/NestedFields.tsx
    */
   export function NestedFields({
     id,
@@ -410,25 +462,27 @@ declare module '@perseid/client/react' {
     helper,
     engine,
     fields,
-    active,
-    modifiers,
+    isActive,
     minItems,
+    maxItems,
+    modifiers,
+    activeStep,
+    setActiveStep,
     _canonicalPath,
     addButtonProps,
     useSubscription,
     removeButtonProps,
-    maxItems,
   }: NestedFieldsProps): JSX.Element;
 
   /**
    * Displays UI notifications.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Notifier.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Notifier.tsx
    */
-  export function Notifier<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function Notifier({
     services,
     components,
-  }: ReactCommonProps<DataModel>): JSX.Element | null;
+  }: ReactCommonProps): JSX.Element | null;
 
   /**
    * Optional form field props.
@@ -447,7 +501,7 @@ declare module '@perseid/client/react' {
   /**
    * Optional form field.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/OptionalField.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/OptionalField.tsx
    */
   export function OptionalField({
     showLabel,
@@ -459,8 +513,14 @@ declare module '@perseid/client/react' {
   /**
    * Page layout props.
    */
-  export interface PageLayoutProps<DataModel extends DefaultDataModel>
-    extends ReactCommonProps<DataModel> {
+  export interface PageLayoutProps<
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  >
+    extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
     /** Name of the resource resource. */
     resource: keyof DataModel & string;
 
@@ -474,22 +534,26 @@ declare module '@perseid/client/react' {
   /**
   * Page layout.
   *
-  * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/PageLayout.tsx
+  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/PageLayout.tsx
   */
-  export function PageLayout<DataModel extends DefaultDataModel = DefaultDataModel>({
+  export function PageLayout({
     page,
     children,
     services,
     resource,
     components,
-  }: PageLayoutProps<DataModel>): JSX.Element;
+  }: PageLayoutProps): JSX.Element;
 
   /**
    * Pagination buttons props.
    */
   export interface PaginationProps<
-    DataModel extends DefaultDataModel
-  > extends ReactCommonProps<DataModel> {
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
     /** Total number of displayed items. */
     total: number;
 
@@ -504,24 +568,28 @@ declare module '@perseid/client/react' {
   }
 
   /**
-   * Pagination buttons.
-   *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Pagination.tsx
-   */
-  export function Pagination<DataModel extends DefaultDataModel = DefaultDataModel>({
+  * Pagination buttons.
+  *
+  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Pagination.tsx
+  */
+  export function Pagination({
     total,
     onClick,
     services,
     currentPage,
     itemsPerPage,
-  }: PaginationProps<DataModel>): JSX.Element | null;
+  }: PaginationProps): JSX.Element | null;
 
   /**
    * Permissions wrapper props.
    */
   export interface PermissionsWrapper<
-    DataModel extends DefaultDataModel
-  > extends ReactCommonProps<DataModel> {
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
     /** Permissions that are required to display content. */
     requiredPermissions: string[];
 
@@ -530,23 +598,27 @@ declare module '@perseid/client/react' {
   }
 
   /**
-   * Displays its children if user has proper permissions.
-   *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/PermissionsWrapper.tsx
-   */
-  export function PermissionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
+  * Displays its children if user has proper permissions.
+  *
+  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/PermissionsWrapper.tsx
+  */
+  export function PermissionsWrapper({
     children,
     services,
     requiredPermissions,
-  }: PermissionsWrapper<DataModel>): JSX.Element;
+  }: PermissionsWrapper): JSX.Element;
 
   /**
    * Router props.
    */
   export interface RouterProps<
-    DataModel extends DefaultDataModel
-  > extends Pick<ReactCommonProps<DataModel>, 'services'> {
-    /** App DOM container. Automatic resizing will be enabled only if this prop is specified. */
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends Pick<ReactCommonProps<DataModel, I18n, Store, Model, ApiClient>, 'services'> {
+    /** App DOM container. Automatic dimensionning is enabled only if this prop is specified. */
     container?: HTMLElement;
 
     /** Custom components declaration. */
@@ -554,24 +626,30 @@ declare module '@perseid/client/react' {
 
     /** Custom pages components declaration. */
     pages?: Partial<Record<string, (() => Promise<{
-      default: (props: ReactCommonProps<DataModel>) => React.ReactNode;
+      default: (props: ReactCommonProps<
+        DataModel,
+        I18n,
+        Store,
+        Model,
+        ApiClient
+      >) => React.ReactNode;
     }>)>>;
   }
 
   /**
    * App router. Handles redirects, not founds, and pages loading.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Router.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Router.tsx
    */
-  export function Router<DataModel extends DefaultDataModel = DefaultDataModel>({
-    pages,
-    services,
-    container,
-    components,
-  }: RouterProps<DataModel> & {
-    components: ReactCommonProps<DataModel>['components'];
-    pages: Exclude<RouterProps<DataModel>['pages'], undefined>;
-  }): JSX.Element;
+  export function Router<
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  >(
+    props: RouterProps<DataModel, I18n, Store, Model, ApiClient>,
+  ): React.ReactNode;
 
   /**
    * Table column.
@@ -628,14 +706,168 @@ declare module '@perseid/client/react' {
   /**
    * Generic table.
    *
-   * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Table.tsx
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Table.tsx
    */
   export function Table({
     labels,
-    columns,
     rows,
-    modifiers,
     onSort,
+    columns,
     sorting,
+    modifiers,
   }: TableProps): JSX.Element;
+
+  /**
+   * Resource creation / update page props.
+   */
+  export interface CreateOrUpdateProps<
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
+    /** Name of the resource resource. */
+    resource: keyof DataModel & string;
+  }
+
+  /**
+  * Resource creation / update page.
+  *
+  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/CreateOrUpdate.tsx
+  */
+  export function CreateOrUpdate({
+    services,
+    resource,
+    components,
+  }: CreateOrUpdateProps): JSX.Element;
+
+  /**
+   * Error page props.
+   */
+  export interface ErrorPageProps<
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
+    /** Additional modifiers to apply to the error page. */
+    modifiers?: string;
+
+    /** Error to display. */
+    error?: Error | Response | null;
+  }
+
+  /**
+  * Error page.
+  *
+  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/Error.tsx
+  */
+  export function ErrorPage({
+    services,
+    components,
+    error,
+    modifiers,
+  }: ErrorPageProps): JSX.Element | null;
+
+  /**
+   * Resources list page props.
+   */
+  export interface ListProps<
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
+    /** Name of the resource resource. */
+    resource: keyof DataModel & string;
+  }
+
+  /**
+  * Resources list page.
+  *
+  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/List.tsx
+  */
+  export function List({
+    services,
+    resource,
+    components,
+  }: ListProps): JSX.Element;
+
+  /**
+   * Reset password page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/ResetPassword.tsx
+   */
+  export function ResetPassword({
+    services,
+    components,
+  }: ReactCommonProps): JSX.Element;
+
+  /**
+   * Sign-in page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/SignIn.tsx
+   */
+  export function SignIn({
+    services,
+    components,
+  }: ReactCommonProps): JSX.Element;
+
+  /**
+   * Sign-up page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/SignUp.tsx
+   */
+  export function SignUp({
+    services,
+    components,
+  }: ReactCommonProps): JSX.Element;
+
+  /**
+   * Connected user update page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/UpdateUser.tsx
+   */
+  export function UpdateUser({
+    services,
+    components,
+  }: ReactCommonProps): JSX.Element;
+
+  /**
+   * Verify email page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/VerifyEmail.tsx
+   */
+  export function VerifyEmail({
+    services,
+    components,
+  }: ReactCommonProps): JSX.Element;
+
+  /**
+   * Resource view page props.
+   */
+  export interface ViewProps<
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
+    /** Name of the resource resource. */
+    resource: keyof DataModel & string;
+  }
+
+  /**
+  * Resource view page.
+  *
+  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/View.tsx
+  */
+  export function View({
+    services,
+    resource,
+    components,
+  }: ViewProps): JSX.Element;
 }

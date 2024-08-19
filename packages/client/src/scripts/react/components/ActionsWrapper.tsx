@@ -6,18 +6,30 @@
  *
  */
 
+import {
+  Id,
+  toSnakeCase,
+  I18n as BaseI18n,
+  type DefaultDataModel,
+} from '@perseid/core';
 import * as React from 'react';
 import { UIButton, buildClass } from '@perseid/ui/react';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
 import { type AuthState } from 'scripts/core/services/Store';
-import { toSnakeCase, Id, type DefaultDataModel } from '@perseid/core';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
 import { type RoutingContext } from '@perseid/store/extensions/router';
 
 /**
  * Actions wrapper props.
  */
 export interface ActionsWrapperProps<
-  DataModel extends DefaultDataModel
-> extends ReactCommonProps<DataModel> {
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
   /** Name of the resource resource. */
   resource: keyof DataModel & string;
 
@@ -36,23 +48,23 @@ const defaultComponentProps = {};
 /**
  * Actions wrapper.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/ActionsWrapper.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/ActionsWrapper.tsx
  */
-function ActionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
+function ActionsWrapper({
   services,
   resource,
   moreButtonProps = defaultComponentProps,
   deleteButtonProps = defaultComponentProps,
   updateButtonProps = defaultComponentProps,
-}: ActionsWrapperProps<DataModel>): JSX.Element {
+}: ActionsWrapperProps): JSX.Element {
   const actionsRef = React.useRef<HTMLDivElement>(null);
   const snakeCasedResource = toSnakeCase(String(resource));
   const router = services.store.useSubscription<RoutingContext>('router');
   const [displayActions, setDisplayActions] = React.useState(false);
   const resourceUpdateRoute = services.store.getRoute(`${String(resource)}.update`);
   const permissions = services.store.useSubscription('auth', (newState: AuthState) => newState.user?._permissions);
-  const canUserDeleteResource = permissions?.has(`${snakeCasedResource}_DELETE`) === true;
-  const canUserUpdateResource = permissions?.has(`${snakeCasedResource}_UPDATE`) && resourceUpdateRoute !== null;
+  const canUserDeleteResource = permissions?.has(`DELETE_${snakeCasedResource}`) === true;
+  const canUserUpdateResource = permissions?.has(`UPDATE_${snakeCasedResource}`) && resourceUpdateRoute !== null;
 
   const handleBlur = React.useCallback((event: MouseEvent): void => {
     if (actionsRef.current !== null && !actionsRef.current.contains(event.target as HTMLElement)) {
@@ -119,4 +131,4 @@ function ActionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
   );
 }
 
-export default React.memo(ActionsWrapper) as ReactActionsWrapperComponent;
+export default React.memo(ActionsWrapper);

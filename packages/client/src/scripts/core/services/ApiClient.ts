@@ -127,6 +127,8 @@ export interface Credentials {
 
 /**
  * Handles HTTP requests.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/ApiClient.ts
  */
 export default class ApiClient<
   /** Data model types definitions. */

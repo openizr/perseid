@@ -10,6 +10,8 @@ import { deepMerge, type DefaultDataModel, Model as BaseModel } from '@perseid/c
 
 /**
  * Data model.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Model.ts
  */
 export default class Model<
   /** Data model types definitions. */

@@ -27,7 +27,7 @@ export interface OptionalFieldProps extends FormFieldProps {
 /**
  * Optional form field.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/OptionalField.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/OptionalField.tsx
  */
 function OptionalField({
   showLabel,

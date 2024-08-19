@@ -11,17 +11,16 @@ import Form from '@perseid/form/react';
 import { UITitle } from '@perseid/ui/react';
 import FormField from 'scripts/react/components/FormField';
 import DefaultLoader from 'scripts/react/components/Loader';
-import { type DefaultDataModel } from '@perseid/core';
 
 /**
  * Connected user update page.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/pages/UpdateUser.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/UpdateUser.tsx
  */
-function UpdateUser<DataModel extends DefaultDataModel = DefaultDataModel>({
+function UpdateUser({
   services,
   components,
-}: ReactCommonProps<DataModel>): JSX.Element {
+}: ReactCommonProps): JSX.Element {
   const Loader = components.Loader ?? DefaultLoader;
   const pageData = services.store.useSubscription<FormDefinition | null>('page');
 

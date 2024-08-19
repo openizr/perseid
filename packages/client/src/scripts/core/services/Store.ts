@@ -203,7 +203,7 @@ export interface StoreSettings<DataModel extends DefaultDataModel = DefaultDataM
       verifyEmail?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
       resetPassword?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
     };
-    resources: Partial<Record<keyof DataModel & string, Partial<Record<string, Omit<Page<DataModel>, 'visibility'>>>>>;
+    resources: Partial<Record<keyof DataModel & string, Partial<Record<string, Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>>>>>;
   };
 }
 
@@ -216,6 +216,8 @@ const DEFAULT_NOTIFICATION_DURATION = 5000;
 
 /**
  * Perseid store, extended with various methods and attributes to handle generic apps states.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Store.ts
  */
 export default class Store<
   DataModel extends DefaultDataModel = DefaultDataModel
@@ -805,18 +807,20 @@ export default class Store<
         sortBy: Object.keys(sorting),
         sortOrder: Object.values(sorting),
       });
-      return {
-        page,
-        sorting,
-        resource,
-        loading: false,
-        search: searchBody,
-        fields: filteredFields,
-        limit: RESULTS_PER_PAGE,
-        searchFields: filteredSearchFields,
-        total: (response as Results<DataModel['users']>).total,
-        results: (response as Results<DataModel['users']>).results.map((result) => result._id),
-      };
+      if (response !== null) {
+        return {
+          page,
+          sorting,
+          resource,
+          loading: false,
+          search: searchBody,
+          fields: filteredFields,
+          limit: RESULTS_PER_PAGE,
+          searchFields: filteredSearchFields,
+          total: response.total,
+          results: response.results.map((result) => (result as Record<string, unknown>)._id),
+        };
+      }
     }
 
     // Resource creation / update page...

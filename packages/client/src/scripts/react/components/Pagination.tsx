@@ -1,13 +1,20 @@
 import * as React from 'react';
-import { type DefaultDataModel } from '@perseid/core';
 import { UIButton, buildClass } from '@perseid/ui/react';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
+import { type DefaultDataModel, type I18n as BaseI18n } from '@perseid/core';
 
 /**
  * Pagination buttons props.
  */
 export interface PaginationProps<
-  DataModel extends DefaultDataModel
-> extends ReactCommonProps<DataModel> {
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
   /** Total number of displayed items. */
   total: number;
 
@@ -35,15 +42,15 @@ const getRange = (currentPage: number, totalPages: number, length: number, min =
 /**
  * Pagination buttons.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Pagination.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Pagination.tsx
  */
-function Pagination<DataModel extends DefaultDataModel = DefaultDataModel>({
+function Pagination({
   total,
   onClick,
   services,
   currentPage,
   itemsPerPage,
-}: PaginationProps<DataModel>): JSX.Element | null {
+}: PaginationProps): JSX.Element | null {
   const totalPages = Math.ceil(total / itemsPerPage);
 
   const pages = getRange(currentPage, totalPages, 5).map((pageIndex) => (
@@ -82,4 +89,4 @@ function Pagination<DataModel extends DefaultDataModel = DefaultDataModel>({
   );
 }
 
-export default React.memo(Pagination) as ReactPaginationComponent;
+export default React.memo(Pagination);

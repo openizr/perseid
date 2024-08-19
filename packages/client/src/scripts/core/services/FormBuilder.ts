@@ -61,7 +61,9 @@ export type FormFormatter<DataModel extends DefaultDataModel> = (
 };
 
 /**
- * Perseid store, extended with various methods and attributes to handle generic apps states.
+ * Handles forms configurations generation.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/FormBuilder.ts
  */
 export default class FormBuilder<
   DataModel extends DefaultDataModel = DefaultDataModel

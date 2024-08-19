@@ -8,18 +8,17 @@
 
 import React from 'react';
 import { buildClass } from '@perseid/ui/react';
-import { type DefaultDataModel } from '@perseid/core';
 import { type ModalState } from 'scripts/core/services/Store';
 
 /**
  * App modal.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Modal.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Modal.tsx
  */
-function Modal<DataModel extends DefaultDataModel = DefaultDataModel>({
+function Modal({
   services,
   components,
-}: ReactCommonProps<DataModel>): JSX.Element {
+}: ReactCommonProps): JSX.Element {
   const modal = services.store.useSubscription<ModalState>('modal');
 
   const closeModal = React.useCallback(() => {
@@ -60,4 +59,4 @@ function Modal<DataModel extends DefaultDataModel = DefaultDataModel>({
   );
 }
 
-export default React.memo(Modal) as ReactModalComponent;
+export default React.memo(Modal);

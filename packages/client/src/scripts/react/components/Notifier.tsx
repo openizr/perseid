@@ -7,15 +7,14 @@
  */
 
 import * as React from 'react';
-import { type DefaultDataModel } from '@perseid/core';
 import { UIP, UIButton, buildClass } from '@perseid/ui/react';
 import { type NotifierState } from 'scripts/core/services/Store';
 
 /**
  * Single notification.
  */
-function Notification<DataModel extends DefaultDataModel = DefaultDataModel>(
-  props: ReactCommonProps<DataModel> & { notification: NotifierState[0]; },
+function Notification(
+  props: ReactCommonProps & { notification: NotifierState[0]; },
 ): JSX.Element {
   const { notification, services: { store, i18n } } = props;
   const [isClosed, setIsClosed] = React.useState(false);
@@ -55,12 +54,12 @@ const MemoizedNotification = React.memo(Notification);
 /**
  * Displays UI notifications.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Notifier.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Notifier.tsx
  */
-function Notifier<DataModel extends DefaultDataModel = DefaultDataModel>({
+function Notifier({
   services,
   components,
-}: ReactCommonProps<DataModel>): JSX.Element | null {
+}: ReactCommonProps): JSX.Element | null {
   const notifications = services.store.useSubscription<NotifierState>('notifier');
 
   return (notifications.length === 0)
@@ -69,14 +68,14 @@ function Notifier<DataModel extends DefaultDataModel = DefaultDataModel>({
       <div className="notifier">
         {(notifications.map((notification) => (
           <MemoizedNotification
+            services={services}
             key={notification.id}
+            components={components}
             notification={notification}
-            components={components as unknown as ReactCustomComponents<DefaultDataModel>}
-            services={services as unknown as ReactCommonProps<DefaultDataModel>['services']}
           />
         )))}
       </div>
     );
 }
 
-export default React.memo(Notifier) as ReactNotifierComponent;
+export default React.memo(Notifier);

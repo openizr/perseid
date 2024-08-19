@@ -54,7 +54,7 @@ export interface NestedFieldsProps extends FormFieldProps {
 /**
  * Nested fields (array / object) form component.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/NestedFields.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/NestedFields.tsx
  */
 function NestedFields({
   id,
