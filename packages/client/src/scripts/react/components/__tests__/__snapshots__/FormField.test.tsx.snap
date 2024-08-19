@@ -58,7 +58,7 @@ exports[`scripts/react/components/FormField > renders correctly - Object, isRequ
 <div
   id="nested-fields"
 >
-  {"type":"null","path":"root.0.field","error":null,"engine":{},"status":"initial","isActive":true,"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","isRequired":true,"value":null,"_canonicalPath":"root.0.field"}
+  {"type":"null","path":"root.0.field","error":null,"engine":{},"status":"initial","isActive":true,"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","isRequired":true,"value":null,"_canonicalPath":"field"}
 </div>
 `;
 

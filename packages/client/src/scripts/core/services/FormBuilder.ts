@@ -453,7 +453,7 @@ export default class FormBuilder<
       };
       Object.keys(fields).forEach((key) => {
         if (!key.startsWith('_')) {
-          const fieldPath = (path === '') ? `root.0.${key}` : `${path}.${key}`;
+          const fieldPath = (path === '') ? key : `${path}.${key}`;
           const extraSubfieldsTree = (extraFieldsTree[key] ?? {}) as Record<string, unknown>;
           const formatter = this.FORMATTERS[fields[key].type];
           const formattedField = formatter(fields[key], fieldPath, extraSubfieldsTree, store);
@@ -667,7 +667,7 @@ export default class FormBuilder<
       requestedFields: (mode === 'UPDATE' || canUserCreateResource) ? fields : new Set<string>(),
       fieldProps: {
         ...fieldProps,
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: {
             type: 'submit',
@@ -746,11 +746,11 @@ export default class FormBuilder<
         onSubmit: signUp,
       },
       fieldProps: {
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },
-        'root.0.email': {
+        email: {
           component: 'Textfield',
           componentProps: {
             maxlength: 50,
@@ -758,11 +758,11 @@ export default class FormBuilder<
             transform: (value: string): [string] => [value.toLowerCase()],
           },
         },
-        'root.0.password': {
+        password: {
           component: 'Textfield',
           componentProps: { maxlength: 50, type: 'password' },
         },
-        'root.0.passwordConfirmation': {
+        passwordConfirmation: {
           component: 'Textfield',
           componentProps: { maxlength: 50, type: 'password' },
         },
@@ -797,11 +797,11 @@ export default class FormBuilder<
         onSubmit: signIn,
       },
       fieldProps: {
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },
-        'root.0.email': {
+        email: {
           component: 'Textfield',
           componentProps: {
             maxlength: 50,
@@ -809,7 +809,7 @@ export default class FormBuilder<
             transform: (value: string): [string] => [value.toLowerCase()],
           },
         },
-        'root.0.password': {
+        password: {
           component: 'Textfield',
           componentProps: { maxlength: 50, type: 'password' },
         },
@@ -868,7 +868,7 @@ export default class FormBuilder<
         ],
       },
       fieldProps: {
-        'root.0.email': {
+        email: {
           component: 'Textfield',
           componentProps: {
             maxlength: 50,
@@ -876,11 +876,11 @@ export default class FormBuilder<
             transform: (value: string): [string] => [value.toLowerCase()],
           },
         },
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },
-        'root.0.resetPassword': {
+        resetPassword: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'secondary outlined' },
         },
@@ -911,13 +911,6 @@ export default class FormBuilder<
           root: 'root',
           fields: {
             title: { type: 'null' },
-            email: {
-              type: 'string',
-              required: true,
-              validation: (newValue) => (
-                this.EMAIL_REGEXP.test(newValue) ? null : 'PATTERN_VIOLATION'
-              ),
-            },
             password: {
               type: 'string',
               required: true,
@@ -946,33 +939,25 @@ export default class FormBuilder<
           steps: {
             root: {
               submit: true,
-              fields: ['title', 'email', 'password', 'passwordConfirmation', 'submit'],
+              fields: ['title', 'password', 'passwordConfirmation', 'submit'],
             },
           },
           onSubmit: resetPassword,
         },
         fieldProps: {
-          'root.0.title': {
+          title: {
             component: 'Message',
             componentProps: {},
           },
-          'root.0.email': {
-            component: 'Textfield',
-            componentProps: {
-              maxlength: 50,
-              autofocus: true,
-              transform: (value: string): [string] => [value.toLowerCase()],
-            },
-          },
-          'root.0.password': {
+          password: {
             component: 'Textfield',
             componentProps: { maxlength: 50, type: 'password' },
           },
-          'root.0.passwordConfirmation': {
+          passwordConfirmation: {
             component: 'Textfield',
             componentProps: { maxlength: 50, type: 'password' },
           },
-          'root.0.submit': {
+          submit: {
             component: 'Button',
             componentProps: { type: 'submit', modifiers: 'primary' },
           },
@@ -1009,19 +994,19 @@ export default class FormBuilder<
         onSubmit: requestPasswordReset,
       },
       fieldProps: {
-        'root.0.title': {
+        title: {
           component: 'Message',
           componentProps: {},
         },
-        'root.0.successTitle': {
+        successTitle: {
           component: 'Message',
           componentProps: {},
         },
-        'root.0.successMessage': {
+        successMessage: {
           component: 'Message',
           componentProps: {},
         },
-        'root.0.email': {
+        email: {
           component: 'Textfield',
           componentProps: {
             maxlength: 50,
@@ -1029,7 +1014,7 @@ export default class FormBuilder<
             transform: (value: string): [string] => [value.toLowerCase()],
           },
         },
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },

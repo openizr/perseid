@@ -49,13 +49,14 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
     ...rest
   }: FormFieldProps & { _canonicalPath?: string; }) => {
     const { services, prefix } = context;
-    const fieldConfiguration = fieldProps[_canonicalPath ?? path];
+    const shortPath = _canonicalPath ?? path.split('.').slice(2).join('.');
+    const fieldConfiguration = fieldProps[path] ?? fieldProps[shortPath];
     const { options, placeholder, ...componentProps } = fieldConfiguration?.componentProps ?? {};
     let modifiers = (fieldConfiguration?.componentProps?.modifiers as string | undefined) ?? '';
     modifiers = `${status} ${isRequired ? 'required' : ''} ${modifiers}`;
 
     const labels = React.useMemo(() => {
-      const fieldPath = toSnakeCase((_canonicalPath ?? path).replace('root.0.', '').replace(/\$n/g, 'fields'));
+      const fieldPath = toSnakeCase(shortPath.replace(/\$n/g, 'fields'));
       return {
         label: services.i18n.t(`${prefix}.FIELDS.${fieldPath}.LABEL`),
         helper: !error ? undefined : services.i18n.t(`${prefix}.FIELDS.${fieldPath}.ERRORS.${error}`),
@@ -65,7 +66,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           label: services.i18n.t(`${prefix}.FIELDS.${fieldPath}.OPTIONS.${option.label}`),
         })),
       };
-    }, [services, options, prefix, error, path, placeholder, _canonicalPath]);
+    }, [services, options, prefix, error, placeholder, shortPath]);
 
     if (fieldConfiguration?.component === 'Button') {
       return (
@@ -180,14 +181,13 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
         <section
           className={buildClass('ui-message', modifiers)}
           dangerouslySetInnerHTML={{ __html: markdown(labels.label, false) }}
-          {...rest}
         />
       );
     }
 
     if (fieldConfiguration?.component === 'Array' || fieldConfiguration?.component === 'Object') {
       if (!isRequired) {
-        const resource = toSnakeCase((_canonicalPath ?? path).replace('root.0.', '').replace(/\$n/g, 'fields'));
+        const resource = toSnakeCase(shortPath.replace(/\$n/g, 'fields'));
         return (
           <OptionalField
             type={type}
@@ -225,7 +225,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           fields={fields as unknown as Fields}
           {...rest}
           Field={Field as unknown as (props: FormFieldProps) => JSX.Element}
-          _canonicalPath={_canonicalPath ?? path}
+          _canonicalPath={shortPath}
           {...fieldConfiguration.componentProps}
         />
       );
