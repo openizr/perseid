@@ -21,9 +21,10 @@
       "default": "./pages/*.scss"
     }
   },
-  "description": "Dynamic, model-based UIs generator",
+  "description": "Dynamic, data model based UIs generator",
   "repository": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
+  "homepage": "https://github.com/openizr/perseid",
   "contributors": [
     {
       "name": "Matthieu Jabbour",
@@ -182,7 +183,7 @@
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
     "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure && cp -r src/styles/* dist",
-    "pure": "for i in dist/*.js; do sed -i 's/\\([a-z]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
+    "pure": "for i in dist/*.js; do sed -i 's/\\([a-zA-Z_]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
     "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer react react-dom",
     "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json"
   },
