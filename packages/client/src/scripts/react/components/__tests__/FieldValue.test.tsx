@@ -7,12 +7,11 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
+import { type Id } from '@perseid/core';
 import { render } from '@testing-library/react';
 import FieldValue from 'scripts/react/components/FieldValue';
-import { type Id, type DefaultDataModel } from '@perseid/core';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/FieldValue', () => {
   vi.mock('@perseid/core');
@@ -59,11 +58,11 @@ describe('react/components/FieldValue', () => {
         loading
         page="LIST"
         field="string"
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -75,11 +74,11 @@ describe('react/components/FieldValue', () => {
         loading
         field="null"
         page="LIST"
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -91,11 +90,11 @@ describe('react/components/FieldValue', () => {
         field="null"
         page="LIST"
         loading={false}
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -107,11 +106,11 @@ describe('react/components/FieldValue', () => {
         field="number"
         page="LIST"
         loading={false}
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -123,11 +122,11 @@ describe('react/components/FieldValue', () => {
         field="date"
         page="LIST"
         loading={false}
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -139,11 +138,11 @@ describe('react/components/FieldValue', () => {
         page="LIST"
         field="object"
         loading={false}
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -155,11 +154,11 @@ describe('react/components/FieldValue', () => {
         page="LIST"
         field="binary"
         loading={false}
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
         registry={{ roles: {}, users: {} }}
-        id={'123456789012345678901234' as unknown as Id}
+        id={'000000000000000000000011' as unknown as Id}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

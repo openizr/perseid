@@ -8,17 +8,26 @@
 
 import * as React from 'react';
 import { UIButton } from '@perseid/ui/react';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
 import { type AuthState } from 'scripts/core/services/Store';
-import { toSnakeCase, type DefaultDataModel } from '@perseid/core';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
 import DefaultActionsWrapper from 'scripts/react/components/ActionsWrapper';
+import { toSnakeCase, type DefaultDataModel, type I18n as BaseI18n } from '@perseid/core';
 
 /**
  * Page layout props.
  */
-export interface PageLayoutProps<DataModel extends DefaultDataModel>
-  extends ReactCommonProps<DataModel> {
-  /** Name of the resource collection. */
-  collection: keyof DataModel;
+export interface PageLayoutProps<
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+>
+  extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
+  /** Name of the resource resource. */
+  resource: keyof DataModel & string;
 
   /** Page to wrap. */
   page: 'UPDATE' | 'CREATE' | 'VIEW' | 'LIST';
@@ -30,15 +39,15 @@ export interface PageLayoutProps<DataModel extends DefaultDataModel>
 /**
  * Page layout.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/PageLayout.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/PageLayout.tsx
  */
-function PageLayout<DataModel extends DefaultDataModel = DefaultDataModel>({
+function PageLayout({
   page,
   children,
   services,
-  collection,
+  resource,
   components,
-}: PageLayoutProps<DataModel>): JSX.Element {
+}: PageLayoutProps): JSX.Element {
   const ActionsWrapper = components.ActionsWrapper ?? DefaultActionsWrapper;
   const permissions = services.store.useSubscription('auth', (newState: AuthState) => newState.user?._permissions);
 
@@ -54,23 +63,23 @@ function PageLayout<DataModel extends DefaultDataModel = DefaultDataModel>({
         <ActionsWrapper
           services={services}
           components={components}
-          collection={collection}
+          resource={resource}
         />
       </>
     );
   }
 
   if (page === 'LIST') {
-    const collectionCreateRoute = services.store.getRoute(`${String(collection)}.create`);
-    const canUserCreateResource = permissions?.has(toSnakeCase(`${String(collection)}_create`));
+    const resourceCreateRoute = services.store.getRoute(`${String(resource)}.create`);
+    const canUserCreateResource = permissions?.has(toSnakeCase(`create_${String(resource)}`));
     return (
       <>
         {children}
-        {(collectionCreateRoute !== null && canUserCreateResource) && (
+        {(resourceCreateRoute !== null && canUserCreateResource) && (
           <UIButton
             icon="plus"
             modifiers="primary floating"
-            onClick={services.store.navigate(collectionCreateRoute)}
+            onClick={services.store.navigate(resourceCreateRoute)}
           />
         )}
       </>
@@ -89,4 +98,4 @@ function PageLayout<DataModel extends DefaultDataModel = DefaultDataModel>({
   );
 }
 
-export default React.memo(PageLayout) as ReactPageLayoutComponent;
+export default React.memo(PageLayout);

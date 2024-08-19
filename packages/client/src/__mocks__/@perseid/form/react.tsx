@@ -10,8 +10,6 @@
  * `@perseid/form/react` mock.
  */
 
-import * as React from 'react';
-
 export default function Form(props: unknown): JSX.Element {
   return (
     <div id="react-form">

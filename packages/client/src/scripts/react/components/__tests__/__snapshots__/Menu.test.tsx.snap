@@ -2,7 +2,7 @@
 
 exports[`react/components/Menu > renders correctly - available routes 1`] = `
 <nav
-  class="menu "
+  class="menu visible"
 >
   <div
     class="menu__top-bar"
@@ -38,17 +38,6 @@ exports[`react/components/Menu > renders correctly - available routes 1`] = `
           id="ui-link"
         >
           {"href":"/users/me","label":"MENU.UPDATE_USER"}
-        </div>
-      </li>
-      <li
-        class="menu__panel__items__item "
-        role="menuitem"
-        tabindex="-1"
-      >
-        <div
-          id="ui-link"
-        >
-          {"href":"/users","label":"MENU.TO_SNAKE_CASE_users"}
         </div>
       </li>
     </ul>
@@ -63,7 +52,7 @@ exports[`react/components/Menu > renders correctly - available routes 1`] = `
 
 exports[`react/components/Menu > renders correctly - available routes 2`] = `
 <nav
-  class="menu "
+  class="menu visible"
 >
   <div
     class="menu__top-bar"
@@ -99,17 +88,6 @@ exports[`react/components/Menu > renders correctly - available routes 2`] = `
           id="ui-link"
         >
           {"href":"/users/me","label":"MENU.UPDATE_USER"}
-        </div>
-      </li>
-      <li
-        class="menu__panel__items__item active"
-        role="menuitem"
-        tabindex="-1"
-      >
-        <div
-          id="ui-link"
-        >
-          {"href":"/users","label":"MENU.TO_SNAKE_CASE_users"}
         </div>
       </li>
     </ul>

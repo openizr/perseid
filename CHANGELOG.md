@@ -1,3 +1,30 @@
+## @perseid/client:2.0.0 (2024-08-19)
+
+### Breaking changes
+- Major NPM dependencies update
+- Drop support of `node` < `20` and `npm` < `9`
+- Simplify `Store.goBack` method
+- Remove `Store.updateModel` method
+- Make `ApiClient` service extend `HttpClient`
+- Handle data model updates internally in `ApiClient`
+- Rename `collection` into `resource` in all codebase
+- Fix condition for access token refresh in `ApiClient.request` method
+- Throw errors if endpoints do not exist in configuration in all `ApiClient` methods
+- Make form fields labels and props configurable from both path and canonical path
+
+### Features
+- Add new `ApiClient.viewMe` method
+- Add support for `filters` in `ApiClient.buildQuery` method
+- Add `exports` configuration in `package.json` to enable support for native sub-modules imports
+
+### Bugs
+- Correctly export `HttpError`
+- Add missing `change` event handler in `Options` type in `FormField`
+
+### Improvements
+- Improve documentation and types definitions
+
+
 ## @perseid/ui:4.0.1 (2024-08-13)
 
 ### Bugs

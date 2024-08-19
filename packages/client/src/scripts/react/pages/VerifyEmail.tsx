@@ -8,7 +8,6 @@
 
 import * as React from 'react';
 import { UITitle, UIButton } from '@perseid/ui/react';
-import { type DefaultDataModel } from '@perseid/core';
 import DefaultLoader from 'scripts/react/components/Loader';
 import { type AuthState } from 'scripts/core/services/Store';
 import { type RoutingContext } from '@perseid/store/extensions/router';
@@ -16,13 +15,13 @@ import { type RoutingContext } from '@perseid/store/extensions/router';
 /**
  * Verify email page.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/pages/VerifyEmail.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/VerifyEmail.tsx
  */
-function VerifyEmail<DataModel extends DefaultDataModel = DefaultDataModel>({
+function VerifyEmail({
   services,
   components,
-}: ReactCommonProps<DataModel>): JSX.Element {
-  const { store, i18n: { t } } = services;
+}: ReactCommonProps): JSX.Element {
+  const { store, i18n } = services;
   const Loader = components.Loader ?? DefaultLoader;
   const { user } = store.useSubscription<AuthState>('auth');
   const router = store.useSubscription<RoutingContext>('router');
@@ -53,7 +52,7 @@ function VerifyEmail<DataModel extends DefaultDataModel = DefaultDataModel>({
         // No-op.
       });
     }
-  }, [t, verificationToken, store]);
+  }, [verificationToken, store]);
 
   return (
     <main className="verify-email-page">
@@ -63,11 +62,11 @@ function VerifyEmail<DataModel extends DefaultDataModel = DefaultDataModel>({
         // Email must be verified...
         : (
           <div>
-            <UITitle level="1" label={t('PAGES.VERIFY_EMAIL.TITLE')} />
-            <UITitle level="2" label={t('PAGES.VERIFY_EMAIL.SUBTITLE')} />
+            <UITitle level="1" label={i18n.t('PAGES.VERIFY_EMAIL.TITLE')} />
+            <UITitle level="2" label={i18n.t('PAGES.VERIFY_EMAIL.SUBTITLE')} />
             <UIButton
               modifiers="primary"
-              label={t('PAGES.VERIFY_EMAIL.CTA')}
+              label={i18n.t('PAGES.VERIFY_EMAIL.CTA')}
               onClick={requestEmailVerification as () => void}
             />
           </div>

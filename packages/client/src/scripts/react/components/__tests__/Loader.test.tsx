@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import Loader from 'scripts/react/components/Loader';
-import { type DefaultDataModel } from '@perseid/core';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/Loader', () => {
   vi.mock('@perseid/core');
@@ -32,7 +30,7 @@ describe('react/components/Loader', () => {
   test('renders correctly', () => {
     const { container } = render(
       <Loader
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
       />,

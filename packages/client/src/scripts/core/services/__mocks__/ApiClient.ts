@@ -6,6 +6,8 @@
  *
  */
 
+import { Id } from '@perseid/core';
+
 /**
  * `scripts/core/services/ApiClient` mock.
  */
@@ -14,6 +16,11 @@ export default class ApiClient {
   public signIn = vi.fn();
 
   public signUp = vi.fn();
+
+  public viewMe = vi.fn(() => Promise.resolve({
+    _id: new Id('000000000000000000000001'),
+    roles: [{ permissions: [] }],
+  }));
 
   public getModel = vi.fn();
 
@@ -30,36 +37,33 @@ export default class ApiClient {
   public buildQuery = vi.fn(() => 'BUILT_QUERY');
 
   public create = vi.fn(() => Promise.resolve({
-    _id: '123456789012345678901234',
+    _id: new Id('000000000000000000000001'),
   }));
 
-  public update = vi.fn((collection, id) => ((collection === 'users' && id === 'me') ? Promise.resolve({
-    _id: '123456789012345678901234',
+  public update = vi.fn((resource) => ((resource === 'users') ? Promise.resolve({
+    _id: new Id('000000000000000000000001'),
     roles: [{ permissions: [] }],
   }) : Promise.resolve({
-    _id: '123456789012345678901234',
+    _id: new Id('000000000000000000000001'),
   })));
 
-  public view = vi.fn((collection, id) => ((collection === 'users' && id === 'me') ? Promise.resolve({
-    _id: '123456789012345678901234',
-    roles: [{ permissions: [] }],
-  }) : Promise.resolve({
-    _id: '123456789012345678901234',
-  })));
+  public view = vi.fn(() => Promise.resolve({
+    _id: new Id('000000000000000000000001'),
+  }));
 
   public delete = vi.fn(() => Promise.resolve());
 
   public list = vi.fn(() => Promise.resolve({
     total: 1,
     results: [{
-      _id: '123456789012345678901234',
+      _id: new Id('000000000000000000000001'),
     }],
   }));
 
   public search = vi.fn(() => Promise.resolve({
     total: 1,
     results: [{
-      _id: '123456789012345678901234',
+      _id: new Id('000000000000000000000001'),
     }],
   }));
 }

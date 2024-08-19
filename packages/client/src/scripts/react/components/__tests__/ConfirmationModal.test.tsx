@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import ConfirmationModal from 'scripts/react/components/ConfirmationModal';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/ConfirmationModal', () => {
   vi.mock('@perseid/core');

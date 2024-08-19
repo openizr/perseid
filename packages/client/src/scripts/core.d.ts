@@ -7,33 +7,87 @@
  */
 
 declare module '@perseid/client' {
-  import {
-    type FormPlugin,
-    type UserInputs,
-    type Configuration,
-    type FieldConfiguration,
+  import type {
+    UserInputs,
+    FormPlugin,
+    Configuration,
+    FieldConfiguration,
   } from '@perseid/form';
-  import {
-    type Id,
-    type User,
-    type I18n,
-    type Results,
-    type FieldSchema,
+  import type {
+    Id,
+    I18n,
+    Results,
+    HttpClient,
+    FieldSchema,
+    ResourceSchema,
+    RequestSettings,
+    DefaultDataModel,
+    DataModelMetadata,
     Model as BaseModel,
     Logger as BaseLogger,
-    type DefaultDataModel,
   } from '@perseid/core';
-  import BaseStore, { type Module } from '@perseid/store';
-  import { type RoutingContext } from '@perseid/store/extensions/router';
+  import BaseStore from '@perseid/store';
+  import type { Module } from '@perseid/store';
+  import type { RoutingContext } from '@perseid/store/extensions/router';
+
+  /**
+   * Common props passed to generic components.
+   */
+  interface CommonProps<DataModel extends DefaultDataModel> {
+    /** Perseid client services instances. */
+    services: {
+      /** I18n instance. */
+      i18n: I18n;
+
+      /** Perseid store instance. */
+      store: Store<DataModel>;
+
+      /** Perseid model instance. */
+      model: Model<DataModel>;
+
+      /** API client instance. */
+      apiClient: ApiClient<DataModel>;
+    };
+
+    /** Data model resource, if any. */
+    resource?: keyof DataModel & string;
+  }
+
+  /**
+   * Generic confirmation modal props.
+   */
+  interface GenericConfirmationModalProps {
+    /** Confirmation title. */
+    title: string;
+
+    /** Confirmation subtitle. */
+    subTitle: string;
+
+    /** Confirmation button label. */
+    confirm: string;
+
+    /** Cancel button label. */
+    cancel: string;
+
+    /** Callback triggered at confirmation. */
+    onConfirm?: () => void;
+  }
+
+  /**
+   * Generic Layout props.
+   */
+  interface GenericLayoutProps<DataModel extends DefaultDataModel> extends CommonProps<DataModel> {
+    /** Whether to display layout itself, or only its children. Defaults to `true`. */
+    display?: boolean;
+  }
 
   type UseSubscription = <T>(id: string, reducer?: ((state: any) => T) | undefined) => T;
 
-  interface NotificationData {
-    message: string;
-    duration?: number;
-    closable?: boolean;
-    modifiers?: string;
-  }
+  /**
+   * Mapping of field paths to their respective sorting orders.
+   * The value `1` denotes an ascending sort order, while `-1` indicates a descending sort order.
+   */
+  type Sorting = Record<string, 1 | -1>;
 
   /**
    * Generic component props.
@@ -61,29 +115,18 @@ declare module '@perseid/client' {
   }
 
   /**
-   * Mapping of field paths to their respective sorting orders.
-   * The value `1` denotes an ascending sort order, while `-1` indicates a descending sort order.
-   */
-  type Sorting = Record<string, 1 | -1>;
-
-  /**
-   * Generic data model resource.
-   */
-  type Resource = Record<string, unknown>;
-
-  /**
    * List of data model resources, per id.
    */
   type Resources<
     DataModel extends DefaultDataModel,
-    Collection extends keyof DataModel = keyof DataModel
-  > = Record<string, DataModel[Collection]>;
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  > = Record<string, DataModel[Resource]>;
 
   /**
    * Global resources registry.
    */
   type Registry<DataModel extends DefaultDataModel> = {
-    [Collection in keyof DataModel]: Resources<DataModel, Collection>;
+    [Resource in keyof DataModel & string]: Resources<DataModel, Resource>;
   };
 
   /**
@@ -118,61 +161,9 @@ declare module '@perseid/client' {
   }
 
   /**
-   * Common props passed to generic components.
-   */
-  interface CommonProps<DataModel extends DefaultDataModel> {
-    /** Perseid client services instances. */
-    services: {
-      /** I18n instance. */
-      i18n: I18n;
-
-      /** Perseid store instance. */
-      store: Store<DataModel>;
-
-      /** Perseid model instance. */
-      model: Model<DataModel>;
-
-      /** API client instance. */
-      apiClient: ApiClient<DataModel>;
-    };
-
-    /** Data model collection, if any. */
-    collection?: keyof DataModel;
-  }
-
-  /**
-   * Generic confirmation modal props.
-   */
-  interface GenericConfirmationModalProps {
-    /** Confirmation title. */
-    title: string;
-
-    /** Confirmation subtitle. */
-    subTitle: string;
-
-    /** Confirmation button label. */
-    confirm: string;
-
-    /** Cancel button label. */
-    cancel: string;
-
-    /** Callback triggered at confirmation. */
-    onConfirm?: () => void;
-  }
-
-  /**
-   * Generic Layout props.
-   */
-  interface GenericLayoutProps<DataModel extends DefaultDataModel> extends CommonProps<DataModel> {
-    /** Whether to display layout itself, or only its children. Defaults to `true`. */
-    display?: boolean;
-
-    /** Layout children. */
-    children: React.ReactNode;
-  }
-
-  /**
    * HTTP error mock.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/errors/Http.ts
    */
   export class HttpError extends Error {
     /** Mocked HTTP response. */
@@ -183,555 +174,7 @@ declare module '@perseid/client' {
      *
      * @param response Mocked HTTP response.
      */
-    constructor(response: { data: unknown; status: number; })
-  }
-
-  /**
-   * API request configuration.
-   */
-  export interface RequestConfiguration {
-    /** API endpoint to call, from API baseUrl. */
-    endpoint?: string;
-
-    /** Absolute API URL to call, if necessary. */
-    url?: string;
-
-    /** HTTP method to use for this request. */
-    method: 'POST' | 'DELETE' | 'GET' | 'PUT';
-
-    /** Request body. */
-    body?: string;
-
-    /** Request headers. */
-    headers?: Record<string, string>;
-  }
-
-  /** Built-in endpoint type. */
-  export type EndpointType = 'search' | 'view' | 'list' | 'create' | 'update' | 'delete';
-
-  /** Build-in endpoint configuration. */
-  export interface BuiltInEndpoint {
-    /** API route for this endpoint. */
-    route: string;
-  }
-
-  /** List of all available built-in endpoints. */
-  export interface BuiltInEndpoints<DataModel> {
-    /** Auth-related endpoints. */
-    auth: {
-      /** Sign-up endpoint. */
-      signUp?: BuiltInEndpoint;
-
-      /** Sign-in endpoint. */
-      signIn?: BuiltInEndpoint;
-
-      /** Sign-out endpoint. */
-      signOut?: BuiltInEndpoint;
-
-      /** Email verification endpoint. */
-      verifyEmail?: BuiltInEndpoint;
-
-      /** Access token refresh endpoint. */
-      refreshToken?: BuiltInEndpoint;
-
-      /** Password reset endpoint. */
-      resetPassword?: BuiltInEndpoint;
-
-      /** Password reset request endpoint. */
-      requestPasswordReset?: BuiltInEndpoint;
-
-      /** Email verification request endpoint. */
-      requestEmailVerification?: BuiltInEndpoint;
-    };
-
-    /** Collections-related endpoints. */
-    collections: Partial<Record<keyof DataModel, Partial<Record<EndpointType, BuiltInEndpoint>>>>;
-  }
-
-  /**
-   * API client settings.
-   */
-  export interface ApiClientSettings<DataModel> {
-    /** API base URL. */
-    baseUrl: string;
-
-    /** List of built-in endpoints to register. */
-    endpoints: BuiltInEndpoints<DataModel>;
-
-    /** List of mocked API responses, for each endpoint. */
-    mockedResponses: Record<string, {
-      /** Response code for each request, in that order. */
-      codes?: number[];
-
-      /** Duration for each request, in that order. */
-      durations?: number[];
-
-      /** Response body for each request, in that order. */
-      responses?: unknown[];
-    }>;
-  }
-
-  /**
-   * Auth credentials.
-   */
-  export interface Credentials {
-    /** Current user device id. */
-    deviceId: string;
-
-    /** Remaining number of seconds before access token expiration. */
-    expiresIn: number;
-
-    /** Access token expiration absolute timestamp. */
-    expiration: number;
-
-    /** Current access token. */
-    accessToken: string;
-
-    /** Refresh token for current user device. */
-    refreshToken: string;
-  }
-
-  /**
-   * Handles HTTP requests to the API.
-   */
-  export class ApiClient<
-    /** Data model types definitions. */
-    DataModel extends DefaultDataModel = DefaultDataModel,
-  > {
-    /** Logging system to use. */
-    protected logger: Logger;
-
-    /** Perseid model to use. */
-    protected model: Model<DataModel>;
-
-    /** API base URL. */
-    protected baseUrl: string;
-
-    /** List of mocked API responses, for each endpoint. */
-    protected mockedResponses: ApiClientSettings<DataModel>['mockedResponses'];
-
-    /** List of built-in endpoints to register. */
-    protected endpoints: BuiltInEndpoints<DataModel>;
-
-    /** Default query options. */
-    protected defaultOptions: QueryOptions;
-
-    /** Encoder for binary uploads. */
-    protected encoder: TextEncoder;
-
-    /** Decoder for binary downloads. */
-    protected decoder: TextDecoder;
-
-    /**
-     * Formats `input` into an HTTP body.
-     *
-     * @param input Input to format.
-     *
-     * @param isRoot Whether this is the root call. Used internally to stringify payload.
-     * Defaults to `true`.
-     *
-     * @returns Formatted input.
-     */
-    protected formatInput(input: unknown, isRoot?: boolean): Promise<string>;
-
-    /**
-     * Formats `output` from HTTP response into valid resources.
-     *
-     * @param output Output to format.
-     *
-     * @param model Current output data model.
-     *
-     * @returns Formatted output.
-     */
-    protected formatOutput<Collection extends keyof DataModel>(
-      output: unknown,
-      model: FieldSchema<DataModel>,
-    ): DataModel[Collection];
-
-    /**
-     * Refreshes API access token.
-     *
-     * @returns New credentials.
-     */
-    protected refreshToken(): Promise<Credentials>;
-
-    /**
-     * Performs either an real HTTP request or a mocked request depending on `requrest`
-     * configuration, and handles authentication, errors, and environment-specific behaviour.
-     *
-     * @param request Request configuration.
-     *
-     * @param authenticate Whether to perform authentication before sending request.
-     *
-     * @returns HTTP response.
-     */
-    protected request<T>(request: RequestConfiguration, authenticate?: boolean): Promise<T>;
-
-    /**
-     * Class constructor.
-     *
-     * @param model Data model instance to use.
-     *
-     * @param logger Logging system to use.
-     *
-     * @param settings API client settings.
-     */
-    constructor(model: Model<DataModel>, logger: Logger, settings: ApiClientSettings<DataModel>);
-
-    /**
-     * Builds the URL querystring from `options`.
-     *
-     * @param options Query options.
-     *
-     * @returns URL querystring.
-     */
-    public buildQuery(options: QueryOptions): string;
-
-    /**
-     * Fetches data model fragment for `collection`.
-     *
-     * @param collection Collection to fetch data model for.
-     */
-    public getModel<Collection extends keyof DataModel>(collection: Collection): Promise<void>;
-
-    /**
-     * Signs user out.
-     */
-    public signOut(): Promise<void>;
-
-    /**
-     * Signs user in.
-     *
-     * @param email User email.
-     *
-     * @param password User password.
-     */
-    public signIn(email: string, password: string): Promise<void>;
-
-    /**
-     * Signs user up.
-     *
-     * @param email New user email.
-     *
-     * @param password New user password.
-     *
-     * @param passwordConfirmation New user password confirmation.
-     */
-    public signUp(
-      email: string,
-      password: string,
-      passwordConfirmation: string,
-    ): Promise<void>;
-
-    /**
-     * Resets user password.
-     *
-     * @param resetToken Password reset token.
-     *
-     * @param password New user password.
-     *
-     * @param passwordConfirmation User password confirmation.
-     */
-    public resetPassword(
-      resetToken: string,
-      password: string,
-      passwordConfirmation: string,
-    ): Promise<void>;
-
-    /**
-     * Requests user password reset.
-     *
-     * @param email User email.
-     */
-    public requestPasswordReset(email: string): Promise<void>;
-
-    /**
-     * Verifies user email.
-     *
-     * @param verificationToken Verification token.
-     */
-    public verifyEmail(verificationToken: string): Promise<void>;
-
-    /**
-     * Requests user email verification.
-     */
-    public requestEmailVerification(): Promise<void>;
-
-    /**
-     * Fetches resource identified by `id` from `collection`.
-     *
-     * @param collection Resource collection.
-     *
-     * @param id Resource id.
-     *
-     * @param options Additional requests options.
-     *
-     * @returns Requested resource.
-     */
-    public view<Collection extends keyof DataModel>(
-      collection: Collection,
-      id: Id | 'me',
-      options?: QueryOptions,
-    ): Promise<DataModel[Collection]>;
-
-    /**
-     * Deletes resource identified by `id` from `collection`.
-     *
-     * @param collection Resource collection.
-     *
-     * @param id Resource id.
-     */
-    public delete<Collection extends keyof DataModel>(
-      collection: Collection,
-      id: Id,
-    ): Promise<void>;
-
-    /**
-     * Creates a new resource in `collection`.
-     *
-     * @param collection Resource collection.
-     *
-     * @param payload Resource payload.
-     *
-     * @param options Additional requests options.
-     *
-     * @returns Created resource.
-     */
-    public create<Collection extends keyof DataModel>(
-      collection: Collection,
-      payload: unknown,
-      options?: QueryOptions,
-    ): Promise<DataModel[Collection]>;
-
-    /**
-     * Updates resource identified by `id` in `collection`.
-     *
-     * @param collection Resource collection.
-     *
-     * @param id Resource id.
-     *
-     * @param payload Resource payload.
-     *
-     * @param options Additional requests options.
-     *
-     * @returns Updated resource.
-     */
-    public update<Collection extends keyof DataModel>(
-      collection: Collection,
-      id: Id | 'me',
-      payload: unknown,
-      options?: QueryOptions,
-    ): Promise<DataModel[Collection]>;
-
-    /**
-     * Fetches a list of resources from `collection`.
-     *
-     * @param collection Resources collection.
-     *
-     * @param options Additional requests options.
-     *
-     * @returns Requested resources list.
-     */
-    public list<Collection extends keyof DataModel>(
-      collection: Collection,
-      options?: QueryOptions,
-    ): Promise<Results<DataModel[Collection]>>;
-
-    /**
-     * Searches for specific resources in `collection`.
-     *
-     * @param collection Resources collection.
-     *
-     * @param searchBody Search request body.
-     *
-     * @param options Additional requests options.
-     *
-     * @returns Requested resources list.
-     */
-    public search<Collection extends keyof DataModel>(
-      collection: Collection,
-      searchBody: SearchBody,
-      options?: QueryOptions,
-    ): Promise<Results<DataModel[Collection]>>;
-  }
-
-  /**
- * Filtered perseid data model, according to user permissions.
- */
-  export interface FilteredModel<DataModel extends DefaultDataModel> {
-    fields: Set<string>,
-    canUserCreateResource: boolean,
-    schema: FieldSchema<DataModel>,
-  }
-
-  /**
-   * Perseid data model to form configuration schema formatter.
-   */
-  export type FormFormatter<DataModel extends DefaultDataModel> = (
-    schema: FieldSchema<DataModel>,
-    path: string,
-    extraFieldsTree: Record<string, unknown>,
-    store: Store<DataModel>,
-  ) => {
-    configuration: FieldConfiguration;
-    fieldProps: Record<string, { component: string; componentProps: Record<string, unknown>; }>;
-  };
-
-  /**
-   * Perseid store, extended with various methods and attributes to handle generic apps states.
-   */
-  export class FormBuilder<
-    DataModel extends DefaultDataModel = DefaultDataModel
-  > {
-    /** Logging system to use. */
-    protected logger: Logger;
-
-    /** Perseid model to use. */
-    protected model: Model<DataModel>;
-
-    /** Password pattern regexp. */
-    protected readonly PASSWORD_REGEXP: RegExp;
-
-    /** Email pattern regexp. */
-    protected readonly EMAIL_REGEXP: RegExp;
-
-    /** List of formatters, used to format a perseid data model into its form equivalent. */
-    protected readonly FORMATTERS: Record<FieldSchema<DataModel>['type'], FormFormatter<DataModel>>;
-
-    /**
-     * Generates fields tree from `fields`. Used to fetch nested relations fields in formatters.
-     *
-     * @param fields List of fields to generate tree from.
-     *
-     * @returns Generated fields tree.
-     */
-    protected generateFieldsTree(fields: Set<string>): Record<string, unknown>;
-
-    /**
-     * Filters `collection` data model schema and removes all fields for which user has no
-     * permission.
-     *
-     * @param collection Collection data model to filter.
-     *
-     * @param mode Edition mode (update / create).
-     *
-     * @param schema Current schema in data model schema.
-     *
-     * @param path Current path in data model.
-     *
-     * @param store Store instance that provides useful methods.
-     *
-     * @returns `null` if user has no access to the field, filtered data model otherwise.
-     */
-    protected filterModel<Collection extends keyof DataModel>(
-      collection: Collection,
-      mode: 'UPDATE' | 'CREATE',
-      schema: FieldSchema<DataModel>,
-      path: string,
-      store: Store<DataModel>,
-    ): null | FilteredModel<DataModel>;
-
-    protected filterModel<T extends FilteredModel<DataModel>>(
-      collection: keyof DataModel,
-      mode: 'UPDATE' | 'CREATE',
-      schema: FieldSchema<DataModel>,
-      path: string,
-      store: Store<DataModel>,
-    ): T;
-
-    protected filterModel<Collection extends keyof DataModel>(
-      collection: Collection,
-      mode: 'UPDATE' | 'CREATE',
-      schema: FieldSchema<DataModel>,
-      path: string,
-      store: Store<DataModel>,
-    ): null | FilteredModel<DataModel>;
-
-    /**
-     * Class constructor.
-     *
-     * @param model Data model instance to use.
-     *
-     * @param logger Logging system to use.
-     */
-    constructor(
-      model: Model<DataModel>,
-      logger: Logger,
-    );
-
-    /**
-     * Generates the form configuration for the resource update / creation UI of `collection`.
-     *
-     * @param collection Resource collection.
-     *
-     * @param id Id of the resource to update, if applicable. Defaults to `null`.
-     *
-     * @param extraFields Additional fields to request when fetching resource, if applicable.
-     * This is especially useful if you need to use a different field than `_id` to display
-     * relations. Defaults to `new Set()`.
-     *
-     * @param store Store instance that provides useful methods.
-     *
-     * @returns Generated form configuration.
-     */
-    public buildConfiguration<Collection extends keyof DataModel>(
-      collection: Collection,
-      id: Id | null,
-      extraFields: Set<string>,
-      store: Store<DataModel>,
-    ): FormDefinition;
-
-    /**
-     * Returns sign-up page form configuration.
-     *
-     * @param signIn Submit callback to execute to sign user up.
-     *
-     * @returns Form configuration.
-     */
-    public getSignUpConfiguration(signUp: (data: UserInputs) => Promise<void>): FormDefinition;
-
-    /**
-     * Returns sign-in page form configuration.
-     *
-     * @param signIn Submit callback to execute to sign user in.
-     *
-     * @returns Form configuration.
-     */
-    public getSignInConfiguration(signIn: (data: UserInputs) => Promise<void>): FormDefinition;
-
-    /**
-     * Returns user update page form configuration.
-     *
-     * @param user Currently signed-in user.
-     *
-     * @param updateUser Submit callback to execute to update user info.
-     *
-     * @param resetPassword Callback to execute to request user password reset.
-     *
-     * @returns Form configuration.
-     */
-    public getUpdateUserConfiguration(
-      user: User,
-      updateUser: (data: UserInputs) => Promise<void>,
-      resetPassword: () => Promise<void>,
-    ): FormDefinition;
-
-    /**
-     * Returns password reset page form configuration.
-     *
-     * @param resetToken Password reset token.
-     *
-     * @param resetPassword Submit callback to execute to reset user password.
-     *
-     * @param requestPasswordReset Submit callback to execute to request user password reset.
-     *
-     * @returns Form configuration.
-     */
-    public getResetPasswordConfiguration(
-      resetToken: string | null,
-      resetPassword: (data: UserInputs) => Promise<void>,
-      requestPasswordReset: (data: UserInputs) => Promise<void>,
-    ): FormDefinition;
+    constructor(response: { data: unknown; status: number; });
   }
 
   /**
@@ -744,6 +187,8 @@ declare module '@perseid/client' {
 
   /**
    * Console-based logging system.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Logger.ts
    */
   export class Logger extends BaseLogger {
     /** Console logger instance. */
@@ -811,18 +256,433 @@ declare module '@perseid/client' {
 
   /**
    * Data model.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Model.ts
    */
   export class Model<
     /** Data model types definitions. */
-    DataModel = DefaultDataModel,
+    DataModel extends DefaultDataModel = DefaultDataModel,
   > extends BaseModel<DataModel> {
     /**
      * Updates data model with `schemaFragment`.
      *
-     * @param schemaFragment Fragment of data model schema. Contains a subset of collections
-     * schemas.
+     * @param schemaFragment Fragment of data model schema. Contains a subset of resources schemas.
      */
     public update(schemaFragment: Partial<DataModel>): void;
+  }
+
+  /** API request settings. */
+  export type ApiRequestSettings = Omit<RequestSettings, 'url'> & {
+    /** API endpoint to call, from API baseUrl. */
+    endpoint?: string;
+
+    /** Absolute API URL to call, if necessary. */
+    url?: string;
+  }
+
+  /** Build-in endpoint configuration. */
+  export interface BuiltInEndpoint {
+    /** API route for this endpoint. */
+    route: string;
+  }
+
+  /** List of all available built-in endpoints. */
+  export interface BuiltInEndpoints<DataModel> {
+    /** Auth-related endpoints. */
+    auth: {
+      /** Sign-up endpoint. */
+      signUp?: BuiltInEndpoint;
+
+      /** Sign-in endpoint. */
+      signIn?: BuiltInEndpoint;
+
+      /** Sign-out endpoint. */
+      signOut?: BuiltInEndpoint;
+
+      /** User info endpoint. */
+      viewMe?: BuiltInEndpoint;
+
+      /** Email verification endpoint. */
+      verifyEmail?: BuiltInEndpoint;
+
+      /** Access token refresh endpoint. */
+      refreshToken?: BuiltInEndpoint;
+
+      /** Password reset endpoint. */
+      resetPassword?: BuiltInEndpoint;
+
+      /** Password reset request endpoint. */
+      requestPasswordReset?: BuiltInEndpoint;
+
+      /** Email verification request endpoint. */
+      requestEmailVerification?: BuiltInEndpoint;
+    };
+
+    /** Resources-related endpoints. */
+    resources: Partial<Record<keyof DataModel & string, Partial<Record<
+      'search' | 'view' | 'list' | 'create' | 'update' | 'delete',
+      BuiltInEndpoint
+    >>>>;
+  }
+
+  /**
+   * API client settings.
+   */
+  export interface ApiClientSettings<DataModel> {
+    /** API base URL. */
+    baseUrl: string;
+
+    /** Maximum request duration (in ms) before generating a timeout. */
+    connectTimeout: number;
+
+    /** List of built-in endpoints to register. */
+    endpoints: BuiltInEndpoints<DataModel>;
+
+    /** List of mocked API responses, for each endpoint. */
+    mockedResponses: Partial<Record<string, {
+      /** Response code for each request, in that order. */
+      codes?: number[];
+
+      /** Duration for each request, in that order. */
+      durations?: number[];
+
+      /** Response body for each request, in that order. */
+      responses?: unknown[];
+    }>>;
+  }
+
+  /**
+   * Auth credentials.
+   */
+  export interface Credentials {
+    /** Current user device id. */
+    deviceId: string;
+
+    /** Remaining number of seconds before access token expiration. */
+    expiresIn: number;
+
+    /** Access token expiration absolute timestamp. */
+    expiration: number;
+
+    /** Current access token. */
+    accessToken: string;
+
+    /** Refresh token for current user device. */
+    refreshToken: string;
+  }
+
+  /**
+   * Handles HTTP requests.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/ApiClient.ts
+   */
+  export class ApiClient<
+    /** Data model types definitions. */
+    DataModel extends DefaultDataModel = DefaultDataModel,
+  > extends HttpClient {
+    /** Logging system to use. */
+    protected logger: Logger;
+
+    /** Perseid model to use. */
+    protected model: Model<DataModel>;
+
+    /** API base URL. */
+    protected baseUrl: string;
+
+    /** List of resources types already loaded in data model. */
+    protected loadedResources: Set<keyof DataModel & string>;
+
+    /** List of mocked API responses, for each endpoint. */
+    protected mockedResponses: ApiClientSettings<DataModel>['mockedResponses'];
+
+    /** List of built-in endpoints to register. */
+    protected endpoints: BuiltInEndpoints<DataModel>;
+
+    /** Default query options. */
+    protected defaultOptions: QueryOptions;
+
+    /** Encoder for binary uploads. */
+    protected encoder: TextEncoder;
+
+    /** Decoder for binary downloads. */
+    protected decoder: TextDecoder;
+
+    /**
+     * Formats `input` into an HTTP request body.
+     *
+     * @param input Input to format.
+     *
+     * @returns Formatted input.
+     */
+    protected formatInput(input: unknown): Promise<unknown>;
+
+    /**
+     * Formats `output` from HTTP response into valid resources.
+     *
+     * @param output Output to format.
+     *
+     * @param model Current output data model.
+     *
+     * @returns Formatted output.
+     */
+    protected formatOutput<T = unknown>(
+      output: unknown,
+      model: FieldSchema<DataModel>,
+    ): T;
+
+    /**
+     * Builds the URL querystring from `options`.
+     *
+     * @param options Query options.
+     *
+     * @returns URL querystring.
+     */
+    protected buildQuery(options: QueryOptions): string;
+
+    /**
+     * Performs either an real HTTP request or a mocked request depending on `settings`,
+     * and handles authentication, errors, and environment-specific behaviour.
+     *
+     * @param settings Request settings.
+     *
+     * @param authenticate Whether authenticate user before sending request. Defaults to `true`.
+     *
+     * @returns HTTP response.
+     */
+    protected request<T>(settings: ApiRequestSettings, authenticate?: boolean): Promise<T>;
+
+    /**
+     * Class constructor.
+     *
+     * @param model Data model instance to use.
+     *
+     * @param logger Logging system to use.
+     *
+     * @param settings API client settings.
+     */
+    constructor(model: Model<DataModel>, logger: Logger, settings: ApiClientSettings<DataModel>);
+
+    /**
+     * Fetches data model fragment for `resource` if necessary, and returns its metadata.
+     *
+     * @param resource Type of resource for which to get data model metadata.
+     *
+     * @returns Resource data model metadata.
+     */
+    public getDataModel<Resource extends keyof DataModel & string>(
+      resource: Resource,
+    ): Promise<DataModelMetadata<ResourceSchema<DataModel>>>;
+
+    /**
+     * Performs an API call to the `auth.refreshToken` endpoint.
+     *
+     * @returns New credentials.
+     *
+     * @throws If `auth.refreshToken` endpoint does not exist in configuration.
+     */
+    public refreshToken(): Promise<Credentials>;
+
+    /**
+     * Performs an API call to the `auth.signOut` endpoint.
+     *
+     * @throws If `auth.signOut` endpoint does not exist in configuration.
+     */
+    public signOut(): Promise<void>;
+
+    /**
+     * Performs an API call to the `auth.signIn` endpoint.
+     *
+     * @param email User email.
+     *
+     * @param password User password.
+     *
+     * @throws If `auth.signIn` endpoint does not exist in configuration.
+     */
+    public signIn(email: string, password: string): Promise<void>;
+
+    /**
+     * Performs an API call to the `auth.signUp` endpoint.
+     *
+     * @param email New user email.
+     *
+     * @param password New user password.
+     *
+     * @param passwordConfirmation New user password confirmation.
+     *
+     * @throws If `auth.signUp` endpoint does not exist in configuration.
+     */
+    public signUp(
+      email: string,
+      password: string,
+      passwordConfirmation: string,
+    ): Promise<void>;
+
+    /**
+     * Performs an API call to the `auth.resetPassword` endpoint.
+     *
+     * @param resetToken Password reset token.
+     *
+     * @param password New user password.
+     *
+     * @param passwordConfirmation User password confirmation.
+     *
+     * @throws If `auth.resetPassword` endpoint does not exist in configuration.
+     */
+    public resetPassword(
+      resetToken: string,
+      password: string,
+      passwordConfirmation: string,
+    ): Promise<void>;
+
+    /**
+     * Performs an API call to the `auth.requestPasswordReset` endpoint.
+     *
+     * @param email User email.
+     *
+     * @throws If `auth.requestPasswordReset` endpoint does not exist in configuration.
+     */
+    public requestPasswordReset(email: string): Promise<void>;
+
+    /**
+     * Performs an API call to the `auth.verifyEmail` endpoint.
+     *
+     * @param verificationToken Verification token.
+     *
+     * @throws If `auth.verifyEmail` endpoint does not exist in configuration.
+     */
+    public verifyEmail(verificationToken: string): Promise<void>;
+
+    /**
+     * Performs an API call to the `auth.requestEmailVerification` endpoint.
+     *
+     * @throws If `auth.requestEmailVerification` endpoint does not exist in configuration.
+     */
+    public requestEmailVerification(): Promise<void>;
+
+    /**
+     * Performs an API call to the `auth.viewMe` endpoint.
+     *
+     * @returns Current user info.
+     *
+     * @throws If `auth.viewMe` endpoint does not exist in configuration.
+     */
+    public viewMe(): Promise<DataModel['users']>;
+
+    /**
+     * Performs an API call to the `resource` view endpoint.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param id Resource id.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Requested resource.
+     *
+     * @throws If view endpoint for this resource does not exist in configuration.
+     */
+    public view<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id,
+      options?: QueryOptions,
+    ): Promise<DataModel[Resource]>;
+
+    /**
+     * Performs an API call to the `resource` delete endpoint.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param id Resource id.
+     *
+     * @throws If delete endpoint for this resource does not exist in configuration.
+     */
+    public delete<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id,
+    ): Promise<void>;
+
+    /**
+     * Performs an API call to the `resource` create endpoint.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param payload Resource payload.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Created resource.
+     *
+     * @throws If create endpoint for this resource does not exist in configuration.
+     */
+    public create<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      payload: unknown,
+      options?: QueryOptions,
+    ): Promise<DataModel[Resource]>;
+
+    /**
+     * Performs an API call to the `resource` update endpoint.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param id Resource id.
+     *
+     * @param payload Resource payload.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Updated resource.
+     *
+     * @throws If update endpoint for this resource does not exist in configuration.
+     */
+    public update<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id,
+      payload: unknown,
+      options?: QueryOptions,
+    ): Promise<DataModel[Resource]>;
+
+    /**
+     * Performs an API call to the `resource` list endpoint.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param options Additional requests options.
+     *
+     * @returns Requested resources list.
+     *
+     * @throws If list endpoint for this resource does not exist in configuration.
+     */
+    public list<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      options?: QueryOptions,
+    ): Promise<Results<DataModel[Resource]>>;
+
+    /**
+     * Performs an API call to the `resource` search endpoint.
+     *
+     * @param resource Type of resource for which to call the API.
+     *
+     * @param searchBody Search body.
+     *
+     * @param options Additional requests options. Defaults to `{}`.
+     *
+     * @returns Requested resources list.
+     *
+     * @throws If search endpoint for this resource does not exist in configuration.
+     */
+    public search<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      searchBody: SearchBody,
+      options?: QueryOptions,
+    ): Promise<Results<DataModel[Resource]>>;
+  }
+
+  interface NotificationData {
+    message: string;
+    duration?: number;
+    closable?: boolean;
+    modifiers?: string;
   }
 
   /**
@@ -837,17 +697,11 @@ declare module '@perseid/client' {
     /** Page route. */
     route: string;
 
-    /** Type of page, if applicable. */
-    type?: 'CREATE' | 'UPDATE' | 'LIST' | 'VIEW';
-
     /**
      * Name of the page component to display. For generic pages, the default components will be used
      * if this value is not specified.
      */
     component?: string;
-
-    /** Page related collection, if applicable. */
-    collection?: keyof DataModel;
 
     /** Page visibility. */
     visibility: 'PRIVATE' | 'PUBLIC' | 'PUBLIC_ONLY';
@@ -862,12 +716,12 @@ declare module '@perseid/client' {
   /**
    * Auth store module state.
    */
-  export interface AuthState {
+  export interface AuthState<DataModel extends DefaultDataModel = DefaultDataModel> {
     /** Auth status. */
     status: 'INITIAL' | 'SUCCESS' | 'ERROR' | 'PENDING';
 
     /** Currently sign-in user, if any. */
-    user: User | null;
+    user: DataModel['users'] | null;
   }
 
   /**
@@ -929,8 +783,8 @@ declare module '@perseid/client' {
     /** Fields over which to search for results. */
     searchFields: string[];
 
-    /** Results collection. */
-    collection: keyof DataModel;
+    /** Results resource. */
+    resource: keyof DataModel & string;
 
     /** Results search query. */
     search: SearchBody | null;
@@ -985,18 +839,20 @@ declare module '@perseid/client' {
     /** Generic pages configurations. */
     pages: {
       auth: {
-        signUp?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
-        signIn?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
-        updateUser?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
-        verifyEmail?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
-        resetPassword?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
+        signUp?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        signIn?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        updateUser?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        verifyEmail?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        resetPassword?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
       };
-      collections: Partial<Record<keyof DataModel, Partial<Record<string, Omit<Page<DataModel>, 'visibility'>>>>>;
+      resources: Partial<Record<keyof DataModel & string, Partial<Record<string, Omit<Page<DataModel>, 'visibility'>>>>>;
     };
   }
 
   /**
    * Perseid store, extended with various methods and attributes to handle generic apps states.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Store.ts
    */
   export class Store<
     DataModel extends DefaultDataModel = DefaultDataModel
@@ -1022,16 +878,16 @@ declare module '@perseid/client' {
     /** `useSubscription` method to use in components. */
     public useSubscription: UseSubscription;
 
-    /** List of collection already existing in data model. */
-    protected loadedCollections: Set<keyof DataModel>;
+    /** List of resource already existing in data model. */
+    protected loadedResources: Set<keyof DataModel & string>;
 
     /** List of app pages configurations. */
     protected pages: Partial<Record<string, Omit<Page<DataModel>, 'route'>>>;
 
     /** Currently signed-in user. */
-    protected user: User & { _permissions: Exclude<User['_permissions'], undefined>; } | null;
+    protected user: DataModel['users'] | null;
 
-    /** List of auth and collections pages routes.  */
+    /** List of auth and resources pages routes.  */
     protected pageRoutes: {
       auth: {
         signIn?: string;
@@ -1042,7 +898,7 @@ declare module '@perseid/client' {
         verifyEmail?: string;
         resetPassword?: string;
       };
-      collections: Partial<Record<keyof DataModel, Partial<Record<string, string>>>>;
+      resources: Partial<Record<keyof DataModel & string, Partial<Record<string, string>>>>;
     };
 
     /** Notifies user when unhandled errors happen in the form. */
@@ -1051,12 +907,6 @@ declare module '@perseid/client' {
     /** Store module that handles app errors. */
     protected errorModule: Module<Error | null>;
 
-    /** Store module that handles generic resources view pages state. */
-    protected viewModule: Module<{ loading: boolean; fields: string[]; }>;
-
-    /** Store module that handles generic resources creation or update pages state. */
-    protected createModule: Module<FormDefinition | null>;
-
     /** Store module that handles global resources registry. */
     protected registryModule: Module<Partial<Registry<DataModel>>>;
 
@@ -1064,7 +914,7 @@ declare module '@perseid/client' {
     protected pageModule: Module<ListPageData<DataModel> | ViewPageData | UpdateOrCreatePageData>;
 
     /** Store module that handles users authentication. */
-    protected authModule: Module<AuthState>;
+    protected authModule: Module<AuthState<DataModel>>;
 
     /** Store module that handles UI notifications. */
     protected notifierModule: Module<NotifierState>;
@@ -1112,43 +962,26 @@ declare module '@perseid/client' {
      *
      * @returns Formatted output.
      */
-    protected formatOutput<Collection extends keyof DataModel>(
-      output: DataModel[Collection],
+    protected formatOutput<Resource extends keyof DataModel & string>(
+      output: DataModel[Resource],
       model: FieldSchema<DataModel>,
       registry: Partial<Registry<DataModel>>,
-    ): DataModel[Collection];
+    ): DataModel[Resource];
 
     /**
-     * Normalizes `resources` of `collection`, extracting all relations into their registry and
+     * Normalizes `resources` of `resource`, extracting all relations into their registry and
      * replacing them by their id. Also updates global resources registry.
      *
-     * @param collection Resources collection.
+     * @param resource Resources resource.
      *
      * @param resources Resources to normalize.
      *
      * @returns Normalized resources.
      */
-    protected normalizeResources<Collection extends keyof DataModel>(
-      collection: Collection,
-      resources: DataModel[Collection][],
-    ): DataModel[Collection][];
-
-    /**
-     * Returns `true` if user has permissions to access `field` from `collection` in given context.
-     *
-     * @param collection Field collection.
-     *
-     * @param field Field path in collection.
-     *
-     * @param accessType Access type.
-     *
-     * @returns `true` if user has necessary permissions, `false` otherwise.
-     */
-    public canAccessField<Collection extends keyof DataModel>(
-      collection: Collection,
-      field: string,
-      accessType: AccessType,
-    ): boolean;
+    protected normalizeResources<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      resources: DataModel[Resource][],
+    ): DataModel[Resource][];
 
     /**
      * Returns current page data.
@@ -1158,8 +991,17 @@ declare module '@perseid/client' {
      * @returns Page data.
      */
     protected getPageData(
-      newState: [RoutingContext, AuthState, Error | null],
+      newState: [RoutingContext, AuthState],
     ): Promise<unknown>;
+
+    /**
+     * Builds the URL querystring from `options`.
+     *
+     * @param options Query options.
+     *
+     * @returns URL querystring.
+     */
+    protected buildQuery(options: QueryOptions): string;
 
     /**
      * Class constructor.
@@ -1183,9 +1025,26 @@ declare module '@perseid/client' {
     );
 
     /**
-     * Returns field value at `path`, from resource with id `id` in `collection`.
+     * Returns `true` if user has permissions to access `field` from `resource` in given context.
      *
-     * @param collection Resource collection.
+     * @param resource Field resource.
+     *
+     * @param field Field path in resource.
+     *
+     * @param accessType Access type.
+     *
+     * @returns `true` if user has necessary permissions, `false` otherwise.
+     */
+    public canAccessField<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      field: string,
+      accessType: AccessType,
+    ): boolean;
+
+    /**
+     * Returns field value at `path`, from resource with id `id` in `resource`.
+     *
+     * @param resource Resource resource.
      *
      * @param id Resource id.
      *
@@ -1202,19 +1061,19 @@ declare module '@perseid/client' {
      * @returns Field value if it exists, `null` otherwise.
      */
     public getValue(
-      collection: keyof DataModel,
+      resource: keyof DataModel & string,
       id: Id,
       path: string,
       registry: Partial<Registry<DataModel>>,
       currentPath?: string,
       currentPrefix?: string[],
       currentValue?: unknown,
-    ): DataModel[keyof DataModel] | null;
+    ): DataModel[keyof DataModel & string] | null;
 
     /**
      * API client `view` method wrapper, that handles common errors and updates global registry.
      *
-     * @param collection Resource collection.
+     * @param resource Type of resource for which to call the API.
      *
      * @param id Resource id.
      *
@@ -1222,28 +1081,28 @@ declare module '@perseid/client' {
      *
      * @returns Requested resource.
      */
-    public view<Collection extends keyof DataModel>(
-      collection: Collection,
-      id: Id | 'me',
+    public view<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id,
       options?: QueryOptions,
-    ): Promise<DataModel[Collection] | null>;
+    ): Promise<DataModel[Resource] | null>;
 
     /**
      * API client `delete` method wrapper, that handles common errors and deletes global registry.
      *
-     * @param collection Resource collection.
+     * @param resource Type of resource for which to call the API.
      *
      * @param id Resource id.
      */
-    public delete<Collection extends keyof DataModel>(
-      collection: Collection,
+    public delete<Resource extends keyof DataModel & string>(
+      resource: Resource,
       id: Id,
     ): Promise<void>;
 
     /**
      * API client `update` method wrapper, that handles common errors and updates global registry.
      *
-     * @param collection Resource collection.
+     * @param resource Type of resource for which to call the API.
      *
      * @param id Resource id.
      *
@@ -1253,17 +1112,17 @@ declare module '@perseid/client' {
      *
      * @returns Updated resource.
      */
-    public update<Collection extends keyof DataModel>(
-      collection: Collection,
-      id: Id | 'me',
+    public update<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id,
       payload: unknown,
       options?: QueryOptions,
-    ): Promise<DataModel[Collection] | null>;
+    ): Promise<DataModel[Resource] | null>;
 
     /**
      * API client `create` method wrapper, that handles common errors and updates global registry.
      *
-     * @param collection Resource collection.
+     * @param resource Type of resource for which to call the API.
      *
      * @param id Resource id.
      *
@@ -1271,16 +1130,16 @@ declare module '@perseid/client' {
      *
      * @returns Created resource.
      */
-    public create<Collection extends keyof DataModel>(
-      collection: Collection,
+    public create<Resource extends keyof DataModel & string>(
+      resource: Resource,
       payload: unknown,
       options?: QueryOptions,
-    ): Promise<DataModel[Collection] | null>;
+    ): Promise<DataModel[Resource] | null>;
 
     /**
      * API client `search` method wrapper, that handles common errors and updates global registry.
      *
-     * @param collection Resources collection.
+     * @param resource Type of resource for which to call the API.
      *
      * @param searchBody Search request body.
      *
@@ -1288,37 +1147,37 @@ declare module '@perseid/client' {
      *
      * @returns Requested resources list.
      */
-    public search<Collection extends keyof DataModel>(
-      collection: Collection,
+    public search<Resource extends keyof DataModel & string>(
+      resource: Resource,
       searchBody: SearchBody,
       options?: QueryOptions,
-    ): Promise<Results<DataModel[Collection]> | null>;
+    ): Promise<Results<DataModel[Resource]> | null>;
 
     /**
      * API client `list` method wrapper, that handles common errors and updates global registry.
      *
-     * @param collection Resources collection.
+     * @param resource Type of resource for which to call the API.
      *
      * @param options Additional requests options.
      *
      * @returns Requested resources list.
      */
-    public list<Collection extends keyof DataModel>(
-      collection: Collection,
+    public list<Resource extends keyof DataModel & string>(
+      resource: Resource,
       options?: QueryOptions,
-    ): Promise<Results<DataModel[Collection]> | null>;
+    ): Promise<Results<DataModel[Resource]> | null>;
 
     /**
      * Either lists or searches for resources, depending on `searchBody`.
      *
-     * @param collection Resources collection.
+     * @param resource Type of resource for which to call the API.
      *
      * @param searchBody Search request body. If null, a simple resources list will be performed.
      *
      * @param options Additional requests options.
      */
-    public listOrSearch<Collection extends keyof DataModel>(
-      collection: Collection,
+    public listOrSearch<Resource extends keyof DataModel & string>(
+      resource: Resource,
       searchBody: SearchBody | null,
       options?: QueryOptions & { sorting?: Sorting; },
     ): Promise<void>;
@@ -1345,15 +1204,6 @@ declare module '@perseid/client' {
     public createRoute(route: string, configuration: Omit<Page<DataModel>, 'route'>): void;
 
     /**
-     * Downloads data model fragment for `collection` and updates local data model, if necessary.
-     *
-     * @param collection Collection for which to fetch data model fragment.
-     */
-    public updateModel<Collection extends keyof DataModel>(
-      collection: Collection,
-    ): Promise<void>;
-
-    /**
     * Navigates to `url`, without reloading the page.
     * Caveat: the `router` store module must be registered.
     *
@@ -1373,11 +1223,11 @@ declare module '@perseid/client' {
     public getRoute(type: string): string | null;
 
     /**
-     * Returns all collections list pages routes.
+     * Returns all resources list pages routes.
      *
-     * @returns Collections list routes.
+     * @returns Resources list routes.
      */
-    public getCollectionRoutes(): { collection: string; route: string; }[];
+    public getResourceRoutes(): { resource: string; route: string; }[];
 
     /**
      * Returns all registered pages routes.
@@ -1419,8 +1269,188 @@ declare module '@perseid/client' {
     ): void;
 
     /**
-     * Either navigates back through user history if it exists, or navigates to the fallback route.
+     * Navigates back through user history.
      */
     public goBack(): void;
+  }
+
+  /**
+   * Filtered perseid data model, according to user permissions.
+   */
+  export interface FilteredModel<DataModel extends DefaultDataModel> {
+    fields: Set<string>,
+    canUserCreateResource: boolean,
+    schema: FieldSchema<DataModel>,
+  }
+
+  /**
+   * Perseid data model to form configuration schema formatter.
+   */
+  export type FormFormatter<DataModel extends DefaultDataModel> = (
+    schema: FieldSchema<DataModel>,
+    path: string,
+    extraFieldsTree: Record<string, unknown>,
+    store: Store<DataModel>,
+  ) => {
+    configuration: FieldConfiguration;
+    fieldProps: Record<string, { component: string; componentProps: Record<string, unknown>; }>;
+  };
+
+  /**
+   * Handles forms configurations generation.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/FormBuilder.ts
+   */
+  export class FormBuilder<
+    DataModel extends DefaultDataModel = DefaultDataModel
+  > {
+    /** Logging system to use. */
+    protected logger: Logger;
+
+    /** Perseid model to use. */
+    protected model: Model<DataModel>;
+
+    /** Password pattern regexp. */
+    protected readonly PASSWORD_REGEXP: RegExp;
+
+    /** Email pattern regexp. */
+    protected readonly EMAIL_REGEXP: RegExp;
+
+    /** List of formatters, used to format a perseid data model into its form equivalent. */
+    protected readonly FORMATTERS: Record<FieldSchema<DataModel>['type'], FormFormatter<DataModel>>;
+
+    /**
+     * Generates fields tree from `fields`. Used to fetch nested relations fields in formatters.
+     *
+     * @param fields List of fields to generate tree from.
+     *
+     * @returns Generated fields tree.
+     */
+    protected generateFieldsTree(fields: Set<string>): Record<string, unknown>;
+
+    /**
+     * Filters `resource` data model schema and removes all fields for which user has no permission.
+     *
+     * @param resource Resource data model to filter.
+     *
+     * @param mode Edition mode (update / create).
+     *
+     * @param schema Current schema in data model schema.
+     *
+     * @param path Current path in data model.
+     *
+     * @param store Store instance that provides useful methods.
+     *
+     * @returns `null` if user has no access to the field, filtered data model otherwise.
+     */
+    protected filterModel<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      mode: 'UPDATE' | 'CREATE',
+      schema: FieldSchema<DataModel>,
+      path: string,
+      store: Store<DataModel>,
+    ): null | FilteredModel<DataModel>;
+
+    protected filterModel<T extends FilteredModel<DataModel>>(
+      resource: keyof DataModel & string,
+      mode: 'UPDATE' | 'CREATE',
+      schema: FieldSchema<DataModel>,
+      path: string,
+      store: Store<DataModel>,
+    ): T;
+
+    protected filterModel<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      mode: 'UPDATE' | 'CREATE',
+      schema: FieldSchema<DataModel>,
+      path: string,
+      store: Store<DataModel>,
+    ): null | FilteredModel<DataModel>;
+
+    /**
+     * Class constructor.
+     *
+     * @param model Data model instance to use.
+     *
+     * @param logger Logging system to use.
+     */
+    constructor(
+      model: Model<DataModel>,
+      logger: Logger,
+    );
+
+    /**
+     * Generates the form configuration for the resource update / creation UI of `resource`.
+     *
+     * @param resource Resource resource.
+     *
+     * @param id Id of the resource to update, if applicable. Defaults to `null`.
+     *
+     * @param extraFields Additional fields to request when fetching resource, if applicable.
+     * This is especially useful if you need to use a different field than `_id` to display
+     * relations. Defaults to `new Set()`.
+     *
+     * @param store Store instance that provides useful methods.
+     *
+     * @returns Generated form configuration.
+     */
+    public buildConfiguration<Resource extends keyof DataModel & string>(
+      resource: Resource,
+      id: Id | null,
+      extraFields: Set<string>,
+      store: Store<DataModel>,
+    ): FormDefinition;
+
+    /**
+     * Returns sign-up page form configuration.
+     *
+     * @param signIn Submit callback to execute to sign user up.
+     *
+     * @returns Form configuration.
+     */
+    public getSignUpConfiguration(signUp: (data: UserInputs) => Promise<void>): FormDefinition;
+
+    /**
+     * Returns sign-in page form configuration.
+     *
+     * @param signIn Submit callback to execute to sign user in.
+     *
+     * @returns Form configuration.
+     */
+    public getSignInConfiguration(signIn: (data: UserInputs) => Promise<void>): FormDefinition;
+
+    /**
+     * Returns user update page form configuration.
+     *
+     * @param user Currently signed-in user.
+     *
+     * @param updateUser Submit callback to execute to update user info.
+     *
+     * @param resetPassword Callback to execute to request user password reset.
+     *
+     * @returns Form configuration.
+     */
+    public getUpdateUserConfiguration(
+      user: DataModel['users'],
+      updateUser: (data: UserInputs) => Promise<void>,
+      resetPassword: () => Promise<void>,
+    ): FormDefinition;
+
+    /**
+     * Returns password reset page form configuration.
+     *
+     * @param resetToken Password reset token.
+     *
+     * @param resetPassword Submit callback to execute to reset user password.
+     *
+     * @param requestPasswordReset Submit callback to execute to request user password reset.
+     *
+     * @returns Form configuration.
+     */
+    public getResetPasswordConfiguration(
+      resetToken: string | null,
+      resetPassword: (data: UserInputs) => Promise<void>,
+      requestPasswordReset: (data: UserInputs) => Promise<void>,
+    ): FormDefinition;
   }
 }

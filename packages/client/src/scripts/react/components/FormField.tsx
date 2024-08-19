@@ -28,10 +28,12 @@ const dateRegExp = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9
 
 /**
  * Generic form field.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/FormField.tsx
  */
-export default function FormField<DataModel extends DefaultDataModel = DefaultDataModel>(
+export default function FormField(
   fieldProps: FormDefinition['fieldProps'],
-  context: { prefix: string; services: ReactCommonProps<DataModel>['services']; },
+  context: { prefix: string; services: ReactCommonProps['services']; },
 ): React.FC<FormFieldProps & { _canonicalPath?: string; }> {
   return React.memo(({
     type,
@@ -40,22 +42,23 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
     error,
     value,
     engine,
-    active,
     status,
     fields,
-    required,
+    isActive,
+    isRequired,
     _canonicalPath,
     useSubscription,
     ...rest
   }: FormFieldProps & { _canonicalPath?: string; }) => {
     const { services, prefix } = context;
-    const fieldConfiguration = fieldProps[_canonicalPath ?? path];
+    const shortPath = _canonicalPath ?? path.split('.').slice(2).join('.');
+    const fieldConfiguration = fieldProps[path] ?? fieldProps[shortPath];
     const { options, placeholder, ...componentProps } = fieldConfiguration?.componentProps ?? {};
     let modifiers = (fieldConfiguration?.componentProps?.modifiers as string | undefined) ?? '';
-    modifiers = `${status} ${required ? 'required' : ''} ${modifiers}`;
+    modifiers = `${status} ${isRequired ? 'required' : ''} ${modifiers}`;
 
     const labels = React.useMemo(() => {
-      const fieldPath = toSnakeCase((_canonicalPath ?? path).replace('root.0.', '').replace(/\$n/g, 'fields'));
+      const fieldPath = toSnakeCase(shortPath.replace(/\$n/g, 'fields'));
       return {
         label: services.i18n.t(`${prefix}.FIELDS.${fieldPath}.LABEL`),
         helper: !error ? undefined : services.i18n.t(`${prefix}.FIELDS.${fieldPath}.ERRORS.${error}`),
@@ -65,7 +68,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           label: services.i18n.t(`${prefix}.FIELDS.${fieldPath}.OPTIONS.${option.label}`),
         })),
       };
-    }, [services, options, prefix, error, path, placeholder, _canonicalPath]);
+    }, [services, options, prefix, error, placeholder, shortPath]);
 
     if (fieldConfiguration?.component === 'Button') {
       return (
@@ -88,7 +91,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           helper={labels.helper}
           placeholder={labels.placeholder}
           value={(value as string | undefined) ?? undefined}
-          readonly={!active || componentProps.readOnly as boolean}
+          readonly={!isActive || componentProps.readOnly as boolean}
           onChange={(newValue): void => {
             if (newValue !== value) {
               engine.userAction({ type: 'input', path, data: newValue });
@@ -109,7 +112,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           helper={labels.helper}
           placeholder={labels.placeholder}
           value={(value as string | undefined) ?? undefined}
-          readonly={!active || componentProps.readOnly as boolean}
+          readonly={!isActive || componentProps.readOnly as boolean}
           onChange={(newValue): void => {
             engine.userAction({ type: 'input', path, data: newValue });
           }}
@@ -127,7 +130,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           label={labels.label}
           helper={labels.helper}
           placeholder={labels.placeholder}
-          readonly={!active || componentProps.readOnly as boolean}
+          readonly={!isActive || componentProps.readOnly as boolean}
           value={value instanceof Date ? (value).toISOString() : undefined}
           onChange={(newValue): void => {
             engine.userAction({
@@ -167,6 +170,9 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           helper={labels.helper}
           options={labels.options as UIOptionsOption[]}
           value={(value as string | undefined) ?? undefined}
+          onChange={(newValue): void => {
+            engine.userAction({ type: 'input', path, data: newValue });
+          }}
           {...componentProps}
         />
       );
@@ -177,14 +183,13 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
         <section
           className={buildClass('ui-message', modifiers)}
           dangerouslySetInnerHTML={{ __html: markdown(labels.label, false) }}
-          {...rest}
         />
       );
     }
 
     if (fieldConfiguration?.component === 'Array' || fieldConfiguration?.component === 'Object') {
-      if (!required) {
-        const collection = toSnakeCase((_canonicalPath ?? path).replace('root.0.', '').replace(/\$n/g, 'fields'));
+      if (!isRequired) {
+        const resource = toSnakeCase(shortPath.replace(/\$n/g, 'fields'));
         return (
           <OptionalField
             type={type}
@@ -194,13 +199,13 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
             value={value}
             fields={fields}
             engine={engine}
-            active={active}
             status={status}
-            required={required}
+            isActive={isActive}
+            isRequired={isRequired}
             useSubscription={useSubscription}
             modifiers={fieldConfiguration.component.toLowerCase()}
-            showLabel={services.i18n.t(`${prefix}.FIELDS.${collection}.SHOW.LABEL`)}
-            hideLabel={services.i18n.t(`${prefix}.FIELDS.${collection}.HIDE.LABEL`)}
+            showLabel={services.i18n.t(`${prefix}.FIELDS.${resource}.SHOW.LABEL`)}
+            hideLabel={services.i18n.t(`${prefix}.FIELDS.${resource}.HIDE.LABEL`)}
             {...rest}
           />
         );
@@ -212,17 +217,17 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           error={error}
           engine={engine}
           status={status}
-          active={active}
-          required={required}
+          isActive={isActive}
           label={labels.label}
           modifiers={modifiers}
           helper={labels.helper}
+          isRequired={isRequired}
           value={value as unknown[]}
           useSubscription={useSubscription}
           fields={fields as unknown as Fields}
           {...rest}
           Field={Field as unknown as (props: FormFieldProps) => JSX.Element}
-          _canonicalPath={_canonicalPath ?? path}
+          _canonicalPath={shortPath}
           {...fieldConfiguration.componentProps}
         />
       );
@@ -239,7 +244,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           loadingLabel="loading..."
           noResultLabel="no result..."
           placeholder={labels.placeholder}
-          collection={componentProps.collection as LazyOptionsProps<DefaultDataModel>['collection']}
+          resource={componentProps.resource as LazyOptionsProps<DefaultDataModel>['resource']}
           labelFn={componentProps.labelFn as LazyOptionsProps<DefaultDataModel>['labelFn']}
           loadResults={componentProps.loadResults as LazyOptionsProps<DefaultDataModel>['loadResults']}
           {...componentProps}

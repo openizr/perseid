@@ -9,7 +9,6 @@
 
 import {
   Id,
-  type User,
   type FieldSchema,
   type DefaultDataModel,
 } from '@perseid/core';
@@ -41,7 +40,7 @@ describe('core/services/FormBuilder', () => {
       return true;
     }),
     getValue: vi.fn((_, __, key) => (key === '_id' ? null : 'test')),
-    list: vi.fn(() => ({ results: [{ _id: '123456789012345678901234' }] })),
+    list: vi.fn(() => ({ results: [{ _id: '000000000000000000000001' }] })),
   } as unknown as Store;
 
   beforeEach(() => {
@@ -50,24 +49,24 @@ describe('core/services/FormBuilder', () => {
   });
 
   test('[FORMATTERS] - null', () => {
-    const configuration = formBuilder.FORMATTERS.null({ type: 'null' }, 'root.0.field', {}, store);
+    const configuration = formBuilder.FORMATTERS.null({ type: 'null' }, 'field', {}, store);
     expect(configuration).toEqual({
       configuration: { type: 'null' },
-      fieldProps: { 'root.0.field': { component: 'Null', componentProps: {} } },
+      fieldProps: { field: { component: 'Null', componentProps: {} } },
     });
   });
 
   test('[FORMATTERS] - id, no enumeration, no relation', () => {
-    const configuration = formBuilder.FORMATTERS.id({ type: 'id' }, 'root.0.field', {}, store);
+    const configuration = formBuilder.FORMATTERS.id({ type: 'id' }, 'field', {}, store);
     expect((configuration.configuration as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
-    expect((configuration.configuration as StringConfiguration).validation?.('123456789012345678901234', {}, {})).toBeNull();
+    expect((configuration.configuration as StringConfiguration).validation?.('000000000000000000000001', {}, {})).toBeNull();
     expect(configuration).toEqual({
       configuration: {
         type: 'string',
         validation: expect.any(Function) as () => void,
       },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Textfield',
           componentProps: {},
         },
@@ -76,19 +75,18 @@ describe('core/services/FormBuilder', () => {
   });
 
   test('[FORMATTERS] - id, enumeration, no relation', () => {
-    const id = new Id('123456789012345678901234');
+    const id = new Id('000000000000000000000001');
     expect(formBuilder.FORMATTERS.id({
       type: 'id',
-      required: true,
       enum: [id],
-    }, 'root.0.field', {}, store)).toEqual({
+      isRequired: true,
+    }, 'field', {}, store)).toEqual({
       configuration: {
         type: 'string',
         required: true,
-        defaultValue: id,
       },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -98,8 +96,8 @@ describe('core/services/FormBuilder', () => {
               label: 'PLACEHOLDER',
             }, {
               type: 'option',
-              value: '123456789012345678901234',
-              label: '123456789012345678901234',
+              value: '000000000000000000000001',
+              label: '000000000000000000000001',
             }],
           },
         },
@@ -108,12 +106,12 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.id({
       type: 'id',
       enum: [id],
-    }, 'root.0.field', {}, store)).toEqual({
+    }, 'field', {}, store)).toEqual({
       configuration: {
         type: 'string',
       },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -123,8 +121,8 @@ describe('core/services/FormBuilder', () => {
               label: 'PLACEHOLDER',
             }, {
               type: 'option',
-              value: '123456789012345678901234',
-              label: '123456789012345678901234',
+              value: '000000000000000000000001',
+              label: '000000000000000000000001',
             }],
           },
         },
@@ -133,53 +131,53 @@ describe('core/services/FormBuilder', () => {
   });
 
   test('[FORMATTERS] - id, no enumeration, relation', async () => {
-    let configuration = formBuilder.FORMATTERS.id({ type: 'id', relation: 'users' }, 'root.0.field', {}, store);
+    let configuration = formBuilder.FORMATTERS.id({ type: 'id', relation: 'users' }, 'field', {}, store);
     expect(configuration).toEqual({
       configuration: { type: 'string' },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'LazyOptions',
           componentProps: {
-            collection: 'users',
+            resource: 'users',
             labelFn: expect.any(Function) as () => void,
             loadResults: expect.any(Function) as () => void,
           },
         },
       },
     });
-    let { componentProps } = configuration.fieldProps['root.0.field'];
+    let { componentProps } = configuration.fieldProps.field;
     expect(await (componentProps.labelFn as (resource: unknown) => Promise<string>)(null)).toBe('');
     expect(await (componentProps.loadResults as (resource: unknown) => Promise<unknown[]>)('')).toEqual([{
       label: '',
       type: 'option',
-      value: '123456789012345678901234',
+      value: '000000000000000000000001',
     }]);
     expect(await (componentProps.loadResults as (resource: unknown) => Promise<unknown[]>)('test')).toEqual([]);
-    configuration = formBuilder.FORMATTERS.id({ type: 'id', relation: 'users' }, 'root.0.field', { email: 'email' }, store);
+    configuration = formBuilder.FORMATTERS.id({ type: 'id', relation: 'users' }, 'field', { email: 'email' }, store);
     expect(configuration).toEqual({
       configuration: { type: 'string' },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'LazyOptions',
           componentProps: {
-            collection: 'users',
+            resource: 'users',
             labelFn: expect.any(Function) as () => void,
             loadResults: expect.any(Function) as () => void,
           },
         },
       },
     });
-    componentProps = configuration.fieldProps['root.0.field'].componentProps;
+    componentProps = configuration.fieldProps.field.componentProps;
     expect(await (componentProps.labelFn as (resource: unknown) => Promise<string>)(null)).toBe('test');
     expect(await (componentProps.loadResults as (resource: unknown) => Promise<unknown[]>)('test')).toEqual([]);
   });
 
   test('[FORMATTERS] - binary', () => {
-    const configuration = formBuilder.FORMATTERS.binary({ type: 'binary' }, 'root.0.field', {}, store);
+    const configuration = formBuilder.FORMATTERS.binary({ type: 'binary' }, 'field', {}, store);
     expect(configuration).toEqual({
       configuration: { type: 'binary' },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'FilePicker',
           componentProps: {},
         },
@@ -188,10 +186,10 @@ describe('core/services/FormBuilder', () => {
   });
 
   test('[FORMATTERS] - boolean', () => {
-    expect(formBuilder.FORMATTERS.boolean({ type: 'boolean' }, 'root.0.field', {}, store)).toEqual({
+    expect(formBuilder.FORMATTERS.boolean({ type: 'boolean' }, 'field', {}, store)).toEqual({
       configuration: { type: 'boolean' },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             multiple: true,
@@ -204,10 +202,10 @@ describe('core/services/FormBuilder', () => {
         },
       },
     });
-    expect(formBuilder.FORMATTERS.boolean({ type: 'boolean', required: true }, 'root.0.field', {}, store)).toEqual({
+    expect(formBuilder.FORMATTERS.boolean({ type: 'boolean', isRequired: true }, 'field', {}, store)).toEqual({
       configuration: { type: 'boolean', required: true },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             multiple: true,
@@ -223,7 +221,7 @@ describe('core/services/FormBuilder', () => {
   });
 
   test('[FORMATTERS] - date, no enumeration', () => {
-    const configuration = formBuilder.FORMATTERS.date({ type: 'date' }, 'root.0.field', {}, store);
+    const configuration = formBuilder.FORMATTERS.date({ type: 'date' }, 'field', {}, store);
     const { validation } = configuration.configuration as StringConfiguration;
     expect(validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect(validation?.(new Date() as unknown as string, {}, {})).toBeNull();
@@ -231,16 +229,16 @@ describe('core/services/FormBuilder', () => {
     expect(configuration).toEqual({
       configuration: { type: 'date', validation: expect.any(Function) as () => void },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'DatePicker',
           componentProps: {},
         },
       },
     });
-    expect(formBuilder.FORMATTERS.date({ type: 'date', required: true }, 'root.0.field', {}, store)).toEqual({
+    expect(formBuilder.FORMATTERS.date({ type: 'date', isRequired: true }, 'field', {}, store)).toEqual({
       configuration: { type: 'date', required: true, validation: expect.any(Function) as () => void },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'DatePicker',
           componentProps: {},
         },
@@ -252,10 +250,10 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.date({
       type: 'date',
       enum: [new Date('2023/01/01')],
-    }, 'root.0.field', {}, store)).toEqual({
+    }, 'field', {}, store)).toEqual({
       configuration: { type: 'date' },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -275,12 +273,12 @@ describe('core/services/FormBuilder', () => {
     const date = new Date('2023/01/01');
     expect(formBuilder.FORMATTERS.date({
       type: 'date',
-      required: true,
+      isRequired: true,
       enum: [date],
-    }, 'root.0.field', {}, store)).toEqual({
-      configuration: { type: 'date', required: true, defaultValue: date },
+    }, 'field', {}, store)).toEqual({
+      configuration: { type: 'date', required: true },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -305,7 +303,7 @@ describe('core/services/FormBuilder', () => {
       maximum: 10,
       minimum: 1,
       multipleOf: 1,
-    }, 'root.0.field', {}, store);
+    }, 'field', {}, store);
     let { validation } = configuration.configuration as StringConfiguration;
     expect(validation?.(NaN as unknown as string, {}, {})).toBe('NOT_A_NUMBER');
     expect(validation?.(0 as unknown as string, {}, {})).toBe('BELOW_MINIMUM');
@@ -314,7 +312,7 @@ describe('core/services/FormBuilder', () => {
     expect(configuration).toEqual({
       configuration: { type: 'integer', validation: expect.any(Function) as () => void },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Textfield',
           componentProps: {
             type: 'number',
@@ -329,14 +327,14 @@ describe('core/services/FormBuilder', () => {
       type: 'integer',
       exclusiveMaximum: 10,
       exclusiveMinimum: 1,
-    }, 'root.0.field', {}, store);
+    }, 'field', {}, store);
     validation = (configuration.configuration as StringConfiguration).validation;
     expect(validation?.(0 as unknown as string, {}, {})).toBe('BELOW_STRICT_MINIMUM');
     expect(validation?.(11 as unknown as string, {}, {})).toBe('ABOVE_STRICT_MAXIMUM');
     expect(configuration).toEqual({
       configuration: { type: 'integer', validation: expect.any(Function) as () => void },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Textfield',
           componentProps: {
             type: 'number',
@@ -352,10 +350,10 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.integer({
       type: 'integer',
       enum: [1],
-    }, 'root.0.field', {}, store)).toEqual({
+    }, 'field', {}, store)).toEqual({
       configuration: { type: 'integer' },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -375,11 +373,11 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.integer({
       type: 'integer',
       enum: [1],
-      required: true,
-    }, 'root.0.field', {}, store)).toEqual({
-      configuration: { type: 'integer', required: true, defaultValue: 1 },
+      isRequired: true,
+    }, 'field', {}, store)).toEqual({
+      configuration: { type: 'integer', required: true },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -404,7 +402,7 @@ describe('core/services/FormBuilder', () => {
       maximum: 10,
       minimum: 1,
       multipleOf: 1,
-    }, 'root.0.field', {}, store);
+    }, 'field', {}, store);
     let { validation } = configuration.configuration as StringConfiguration;
     expect(validation?.(NaN as unknown as string, {}, {})).toBe('NOT_A_NUMBER');
     expect(validation?.(0 as unknown as string, {}, {})).toBe('BELOW_MINIMUM');
@@ -413,7 +411,7 @@ describe('core/services/FormBuilder', () => {
     expect(configuration).toEqual({
       configuration: { type: 'float', validation: expect.any(Function) as () => void },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Textfield',
           componentProps: {
             type: 'number',
@@ -428,14 +426,14 @@ describe('core/services/FormBuilder', () => {
       type: 'float',
       exclusiveMaximum: 10,
       exclusiveMinimum: 1,
-    }, 'root.0.field', {}, store);
+    }, 'field', {}, store);
     validation = (configuration.configuration as StringConfiguration).validation;
     expect(validation?.(0 as unknown as string, {}, {})).toBe('BELOW_STRICT_MINIMUM');
     expect(validation?.(11 as unknown as string, {}, {})).toBe('ABOVE_STRICT_MAXIMUM');
     expect(configuration).toEqual({
       configuration: { type: 'float', validation: expect.any(Function) as () => void },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Textfield',
           componentProps: {
             type: 'number',
@@ -451,10 +449,10 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.float({
       type: 'float',
       enum: [1],
-    }, 'root.0.field', {}, store)).toEqual({
+    }, 'field', {}, store)).toEqual({
       configuration: { type: 'float' },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -474,11 +472,11 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.float({
       type: 'float',
       enum: [1],
-      required: true,
-    }, 'root.0.field', {}, store)).toEqual({
-      configuration: { type: 'float', required: true, defaultValue: 1 },
+      isRequired: true,
+    }, 'field', {}, store)).toEqual({
+      configuration: { type: 'float', required: true },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -502,8 +500,8 @@ describe('core/services/FormBuilder', () => {
       type: 'string',
       minLength: 5,
       maxLength: 10,
-      pattern: /TEST/.source,
-    }, 'root.0.field', {}, store);
+      pattern: /TEST/,
+    }, 'field', {}, store);
     const { validation } = configuration.configuration as StringConfiguration;
     expect(validation?.('TEST', {}, {})).toBe('VALUE_TOO_SHORT');
     expect(validation?.('TESTTESTTEST', {}, {})).toBe('VALUE_TOO_LONG');
@@ -512,7 +510,7 @@ describe('core/services/FormBuilder', () => {
     expect(configuration).toEqual({
       configuration: { type: 'string', validation: expect.any(Function) as () => void },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Textfield',
           componentProps: {
             maxLength: 10,
@@ -520,10 +518,10 @@ describe('core/services/FormBuilder', () => {
         },
       },
     });
-    expect(formBuilder.FORMATTERS.string({ type: 'string' }, 'root.0.field', {}, store)).toEqual({
+    expect(formBuilder.FORMATTERS.string({ type: 'string' }, 'field', {}, store)).toEqual({
       configuration: { type: 'string', validation: expect.any(Function) as () => void },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Textarea',
           componentProps: {},
         },
@@ -535,10 +533,10 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.string({
       type: 'string',
       enum: ['test'],
-    }, 'root.0.field', {}, store)).toEqual({
+    }, 'field', {}, store)).toEqual({
       configuration: { type: 'string' },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -558,11 +556,11 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.string({
       type: 'string',
       enum: ['test'],
-      required: true,
-    }, 'root.0.field', {}, store)).toEqual({
-      configuration: { type: 'string', required: true, defaultValue: 'test' },
+      isRequired: true,
+    }, 'field', {}, store)).toEqual({
+      configuration: { type: 'string', required: true },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Options',
           componentProps: {
             select: true,
@@ -588,10 +586,11 @@ describe('core/services/FormBuilder', () => {
     }, '', {}, store)).toEqual({
       configuration: {
         type: 'object',
-        fields: { key: { type: 'string', validation: expect.any(Function) as () => void } },
+        required: undefined,
+        fields: { key: { type: 'string', required: undefined, validation: expect.any(Function) as () => void } },
       },
       fieldProps: {
-        'root.0.key': {
+        key: {
           component: 'Textarea',
           componentProps: {},
         },
@@ -600,17 +599,17 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.object({
       type: 'object',
       fields: { key: { type: 'string' } },
-    }, 'root.0.field', {}, store)).toEqual({
+    }, 'field', {}, store)).toEqual({
       configuration: {
         type: 'object',
         fields: { key: { type: 'string', validation: expect.any(Function) as () => void } },
       },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Object',
           componentProps: {},
         },
-        'root.0.field.key': {
+        'field.key': {
           component: 'Textarea',
           componentProps: {},
         },
@@ -625,7 +624,7 @@ describe('core/services/FormBuilder', () => {
       maxItems: 2,
       minItems: 1,
       fields: { type: 'string' },
-    }, 'root.0.field', {}, store);
+    }, 'field', {}, store);
     const { validation } = configuration.configuration as StringConfiguration;
     expect(validation?.([1, 1] as unknown as string, {}, {})).toBe('DUPLICATE_ITEMS');
     expect(validation?.([] as unknown as string, {}, {})).toBe('TOO_FEW_ITEMS');
@@ -641,14 +640,14 @@ describe('core/services/FormBuilder', () => {
         validation: expect.any(Function) as () => void,
       },
       fieldProps: {
-        'root.0.field': {
+        field: {
           component: 'Array',
           componentProps: {
             minItems: 1,
             maxItems: 2,
           },
         },
-        'root.0.field.$n': {
+        'field.$n': {
           component: 'Textarea',
           componentProps: {},
         },
@@ -745,7 +744,7 @@ describe('core/services/FormBuilder', () => {
           component: 'Null',
           componentProps: {},
         },
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: {
             modifiers: 'primary',
@@ -762,6 +761,16 @@ describe('core/services/FormBuilder', () => {
     expect(configuration).toEqual({
       configuration: {
         fields: {
+          roles: {
+            fields: {
+              type: 'string',
+              required: undefined,
+              validation: expect.any(Function) as () => void,
+            },
+            type: 'array',
+            required: undefined,
+            validation: expect.any(Function) as () => void,
+          },
           submit: {
             submit: true,
             type: 'null',
@@ -770,14 +779,25 @@ describe('core/services/FormBuilder', () => {
         root: 'root',
         steps: {
           root: {
-            fields: ['submit'],
+            fields: ['roles', 'submit'],
             submit: true,
           },
         },
         submitPartialUpdates: true,
       },
       fieldProps: {
-        'root.0.submit': {
+        roles: {
+          component: 'Array',
+          componentProps: {
+            maxItems: undefined,
+            minItems: undefined,
+          },
+        },
+        'roles.$n': {
+          component: 'Textfield',
+          componentProps: {},
+        },
+        submit: {
           component: 'Button',
           componentProps: {
             modifiers: 'primary',
@@ -785,14 +805,14 @@ describe('core/services/FormBuilder', () => {
           },
         },
       },
-      requestedFields: new Set(),
+      requestedFields: new Set(['roles']),
     });
   });
 
   test('[getSignUpConfiguration]', () => {
     const configuration = formBuilder.getSignUpConfiguration(vi.fn());
     const { fields } = configuration.configuration;
-    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
+    (configuration.fieldProps.email?.componentProps?.transform as (value: string) => void)('');
     expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.email as StringConfiguration).validation?.('test@test.test', {}, {})).toBeNull();
     expect((fields.password as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
@@ -834,11 +854,11 @@ describe('core/services/FormBuilder', () => {
         onSubmit: expect.any(Function) as () => void,
       },
       fieldProps: {
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },
-        'root.0.email': {
+        email: {
           component: 'Textfield',
           componentProps: {
             maxlength: 50,
@@ -846,11 +866,11 @@ describe('core/services/FormBuilder', () => {
             transform: expect.any(Function) as () => void,
           },
         },
-        'root.0.password': {
+        password: {
           component: 'Textfield',
           componentProps: { maxlength: 50, type: 'password' },
         },
-        'root.0.passwordConfirmation': {
+        passwordConfirmation: {
           component: 'Textfield',
           componentProps: { maxlength: 50, type: 'password' },
         },
@@ -860,7 +880,7 @@ describe('core/services/FormBuilder', () => {
 
   test('[getSignInConfiguration]', () => {
     const configuration = formBuilder.getSignInConfiguration(vi.fn());
-    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
+    (configuration.fieldProps.email?.componentProps?.transform as (value: string) => void)('');
     expect(configuration).toEqual({
       requestedFields: new Set(),
       configuration: {
@@ -880,11 +900,11 @@ describe('core/services/FormBuilder', () => {
         onSubmit: expect.any(Function) as () => void,
       },
       fieldProps: {
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },
-        'root.0.email': {
+        email: {
           component: 'Textfield',
           componentProps: {
             maxlength: 50,
@@ -892,7 +912,7 @@ describe('core/services/FormBuilder', () => {
             transform: expect.any(Function) as () => void,
           },
         },
-        'root.0.password': {
+        password: {
           component: 'Textfield',
           componentProps: { maxlength: 50, type: 'password' },
         },
@@ -901,14 +921,14 @@ describe('core/services/FormBuilder', () => {
   });
 
   test('[getUpdateUserConfiguration]', () => {
-    const configuration = formBuilder.getUpdateUserConfiguration({} as User, vi.fn(), vi.fn());
+    const configuration = formBuilder.getUpdateUserConfiguration({} as DefaultDataModel['users'], vi.fn(), vi.fn());
     const { fields } = configuration.configuration;
-    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
+    (configuration.fieldProps.email?.componentProps?.transform as (value: string) => void)('');
     expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.email as StringConfiguration).validation?.('test@test.test', {}, {})).toBeNull();
     configuration.configuration.plugins?.[0]({
       on: vi.fn((_, callback: (data: unknown, next: () => void) => void) => {
-        callback({ path: 'root.0.resetPassword' }, vi.fn());
+        callback({ path: 'resetPassword' }, vi.fn());
       }),
     } as unknown as Engine);
     expect(configuration).toEqual({
@@ -935,7 +955,7 @@ describe('core/services/FormBuilder', () => {
         plugins: [expect.any(Function) as () => void],
       },
       fieldProps: {
-        'root.0.email': {
+        email: {
           component: 'Textfield',
           componentProps: {
             maxlength: 50,
@@ -943,11 +963,11 @@ describe('core/services/FormBuilder', () => {
             transform: expect.any(Function) as () => void,
           },
         },
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },
-        'root.0.resetPassword': {
+        resetPassword: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'secondary outlined' },
         },
@@ -958,7 +978,7 @@ describe('core/services/FormBuilder', () => {
   test('[getResetPasswordConfiguration] - null reset token', () => {
     const configuration = formBuilder.getResetPasswordConfiguration(null, vi.fn(), vi.fn());
     const { fields } = configuration.configuration;
-    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
+    (configuration.fieldProps.email?.componentProps?.transform as (value: string) => void)('');
     expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.email as StringConfiguration).validation?.('test@test.test', {}, {})).toBeNull();
     expect(configuration).toEqual({
@@ -989,19 +1009,19 @@ describe('core/services/FormBuilder', () => {
         onSubmit: expect.any(Function) as () => void,
       },
       fieldProps: {
-        'root.0.title': {
+        title: {
           component: 'Message',
           componentProps: {},
         },
-        'root.0.successTitle': {
+        successTitle: {
           component: 'Message',
           componentProps: {},
         },
-        'root.0.successMessage': {
+        successMessage: {
           component: 'Message',
           componentProps: {},
         },
-        'root.0.email': {
+        email: {
           component: 'Textfield',
           componentProps: {
             maxlength: 50,
@@ -1009,7 +1029,7 @@ describe('core/services/FormBuilder', () => {
             transform: expect.any(Function) as () => void,
           },
         },
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },
@@ -1020,9 +1040,6 @@ describe('core/services/FormBuilder', () => {
   test('[getResetPasswordConfiguration] - non-null reset token', () => {
     const configuration = formBuilder.getResetPasswordConfiguration('resetToken', vi.fn(), vi.fn());
     const { fields } = configuration.configuration;
-    (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
-    expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
-    expect((fields.email as StringConfiguration).validation?.('test@test.test', {}, {})).toBeNull();
     expect((fields.password as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
     expect((fields.password as StringConfiguration).validation?.('Hello123!', {}, {})).toBeNull();
     expect((fields.passwordConfirmation as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');
@@ -1034,11 +1051,6 @@ describe('core/services/FormBuilder', () => {
         root: 'root',
         fields: {
           title: { type: 'null' },
-          email: {
-            type: 'string',
-            required: true,
-            validation: expect.any(Function) as () => void,
-          },
           password: {
             type: 'string',
             required: true,
@@ -1057,33 +1069,25 @@ describe('core/services/FormBuilder', () => {
         steps: {
           root: {
             submit: true,
-            fields: ['title', 'email', 'password', 'passwordConfirmation', 'submit'],
+            fields: ['title', 'password', 'passwordConfirmation', 'submit'],
           },
         },
         onSubmit: expect.any(Function) as () => void,
       },
       fieldProps: {
-        'root.0.title': {
+        title: {
           component: 'Message',
           componentProps: {},
         },
-        'root.0.email': {
-          component: 'Textfield',
-          componentProps: {
-            maxlength: 50,
-            autofocus: true,
-            transform: expect.any(Function) as () => void,
-          },
-        },
-        'root.0.password': {
+        password: {
           component: 'Textfield',
           componentProps: { maxlength: 50, type: 'password' },
         },
-        'root.0.passwordConfirmation': {
+        passwordConfirmation: {
           component: 'Textfield',
           componentProps: { maxlength: 50, type: 'password' },
         },
-        'root.0.submit': {
+        submit: {
           component: 'Button',
           componentProps: { type: 'submit', modifiers: 'primary' },
         },

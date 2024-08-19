@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import CreateOrUpdate from 'scripts/react/pages/CreateOrUpdate';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/pages/CreateOrUpdate', () => {
   vi.mock('@perseid/core');
@@ -37,7 +35,7 @@ describe('react/pages/CreateOrUpdate', () => {
   test('renders correctly - loading page', () => {
     const { container } = render(
       <CreateOrUpdate
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(null)}
       />,
@@ -48,10 +46,10 @@ describe('react/pages/CreateOrUpdate', () => {
   test('renders correctly - update mode', () => {
     const { container } = render(
       <CreateOrUpdate
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
-          id: '123456789012345678901234',
+          id: '000000000000000000000011',
           configuration: { root: 'root', fields: {}, steps: {} },
           fieldProps: { 'root.0.test': { component: 'Test', componentProps: { modifiers: 'primary' } } },
         })}
@@ -63,7 +61,7 @@ describe('react/pages/CreateOrUpdate', () => {
   test('renders correctly - create mode', () => {
     const { container } = render(
       <CreateOrUpdate
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           configuration: { root: 'root', fields: {}, steps: {} },

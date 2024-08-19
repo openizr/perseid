@@ -32,8 +32,8 @@ export interface LazyOptionsProps<DataModel> {
 
   /** Perseid store instance. */
   store: Store & { useSubscription: UseSubscription; };
-  labelFn: (resource: Resource | null) => string;
-  collection: keyof DataModel;
+  labelFn: (resource: Record<string, unknown> | null) => string;
+  resource: keyof DataModel & string;
 
   /** Results loading label. */
   loadingLabel: string;
@@ -100,7 +100,7 @@ export interface LazyOptionsProps<DataModel> {
 /**
  * List of options fetched dynamically using a search bar.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/LazyOptions.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/LazyOptions.tsx
  */
 function LazyOptions<DataModel extends DefaultDataModel = DefaultDataModel>({
   label,
@@ -112,7 +112,7 @@ function LazyOptions<DataModel extends DefaultDataModel = DefaultDataModel>({
   id: htmlId,
   loadResults,
   placeholder,
-  collection,
+  resource,
   loadingLabel,
   noResultLabel,
   modifiers = '',
@@ -142,14 +142,14 @@ function LazyOptions<DataModel extends DefaultDataModel = DefaultDataModel>({
   const registry = store.useSubscription<Partial<Registry<DataModel>>>('registry');
   const [currentValue, setCurrentValue] = React.useState<Value>({ value: 'null', label: '' });
   const className = buildClass('lazy-options', `${modifiers} ${showResults ? ' visible' : ''}`);
-  const resource = registry[collection]?.[String(currentValue.value)] ?? null;
+  const entity = registry[resource]?.[String(currentValue.value)] ?? null;
 
   const handleBlur = React.useCallback(() => {
     setCurrentValue((previousState) => ({
       ...previousState,
-      label: labelFn(resource),
+      label: labelFn(entity),
     }));
-  }, [labelFn, resource]);
+  }, [labelFn, entity]);
 
   const loadSuggestions = React.useCallback(async (newValue: string | null) => {
     const newResults = await loadResults(newValue);
@@ -186,16 +186,16 @@ function LazyOptions<DataModel extends DefaultDataModel = DefaultDataModel>({
     setShowResults(false);
     setCurrentValue({
       value: newValue.value,
-      label: labelFn(resource),
+      label: labelFn(entity),
     });
     // Resetting options value allows users to re-select their previous choice.
     setSelectedValue(generateRandomId);
     onChange?.(newValue);
-  }, [onChange, results, labelFn, resetResultsOnChange, resource]);
+  }, [onChange, results, labelFn, resetResultsOnChange, entity]);
 
   // Whenever `value` changes...
   React.useEffect(() => {
-    const newResource = registry[collection]?.[String(value)] ?? null;
+    const newResource = registry[resource]?.[String(value)] ?? null;
     if (value !== undefined && newResource !== null) {
       setCurrentValue((previousState) => {
         if (!forceSuggestions && value !== previousState.value) {
@@ -204,7 +204,7 @@ function LazyOptions<DataModel extends DefaultDataModel = DefaultDataModel>({
         return previousState;
       });
     }
-  }, [value, loadSuggestions, onChange, labelFn, forceSuggestions, collection, registry]);
+  }, [value, loadSuggestions, onChange, labelFn, forceSuggestions, resource, registry]);
 
   // Focuses input field whenever suggestions are loaded to enable keyboard navigation.
   React.useEffect(() => {

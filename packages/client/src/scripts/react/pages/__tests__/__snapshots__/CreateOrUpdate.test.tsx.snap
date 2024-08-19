@@ -8,7 +8,7 @@ exports[`react/pages/CreateOrUpdate > renders correctly - create mode 1`] = `
     id="page-layout"
   >
     <span>
-      {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"collection":"users","page":"CREATE"}
+      {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"resource":"users","page":"CREATE"}
     </span>
     <div>
       <div
@@ -39,7 +39,7 @@ exports[`react/pages/CreateOrUpdate > renders correctly - update mode 1`] = `
     id="page-layout"
   >
     <span>
-      {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"collection":"users","page":"UPDATE"}
+      {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"resource":"users","page":"UPDATE"}
     </span>
     <div>
       <div

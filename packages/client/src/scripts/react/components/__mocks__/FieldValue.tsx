@@ -10,8 +10,6 @@
  * `scripts/react/components/FieldValue` mock.
  */
 
-import * as React from 'react';
-
 export default function FieldValue(props: unknown): JSX.Element {
   return (
     <div id="field-value">{JSON.stringify(props)}</div>

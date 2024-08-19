@@ -9,19 +9,18 @@
 import * as React from 'react';
 import Form from '@perseid/form/react';
 import { UILink } from '@perseid/ui/react';
-import { type DefaultDataModel } from '@perseid/core';
 import FormField from 'scripts/react/components/FormField';
 import DefaultLoader from 'scripts/react/components/Loader';
 
 /**
  * Reset password page.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/pages/ResetPassword.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/ResetPassword.tsx
  */
-function ResetPassword<DataModel extends DefaultDataModel = DefaultDataModel>({
+function ResetPassword({
   services,
   components,
-}: ReactCommonProps<DataModel>): JSX.Element {
+}: ReactCommonProps): JSX.Element {
   const prefix = 'PAGES.RESET_PASSWORD';
   const Loader = components.Loader ?? DefaultLoader;
   const signInRoute = services.store.getRoute('auth.signIn');

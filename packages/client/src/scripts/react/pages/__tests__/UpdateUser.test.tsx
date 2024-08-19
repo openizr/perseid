@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import UpdateUser from 'scripts/react/pages/UpdateUser';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/pages/UpdateUser', () => {
   vi.mock('@perseid/core');

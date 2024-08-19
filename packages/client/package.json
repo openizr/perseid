@@ -13,11 +13,18 @@
     "./react": {
       "default": "./react.js",
       "types": "./react.d.ts"
+    },
+    "./components/*.scss": {
+      "default": "./components/*.scss"
+    },
+    "./pages/*.scss": {
+      "default": "./pages/*.scss"
     }
   },
-  "description": "Dynamic, model-based UIs generator",
+  "description": "Dynamic, data model based UIs generator",
   "repository": "https://github.com/openizr/perseid",
   "bugs": "https://github.com/openizr/perseid/issues",
+  "homepage": "https://github.com/openizr/perseid",
   "contributors": [
     {
       "name": "Matthieu Jabbour",
@@ -34,6 +41,7 @@
   ],
   "devDependencies": {
     "@perseid/dev-kit": "^10.0.0",
+    "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -60,15 +68,6 @@
       },
       {
         "files": [
-          "src/scripts/core/services/__tests__/**/*.ts"
-        ],
-        "rules": {
-          "prefer-promise-reject-errors": "off",
-          "@typescript-eslint/unbound-method": "off"
-        }
-      },
-      {
-        "files": [
           "src/scripts/react/components/FormField.tsx",
           "src/scripts/react/components/NestedFields.tsx",
           "src/scripts/react/components/OptionalField.tsx"
@@ -76,6 +75,15 @@
         "rules": {
           "react/no-danger": "off",
           "react/jsx-props-no-spreading": "off"
+        }
+      },
+      {
+        "files": [
+          "*.test.ts",
+          "*.test.tsx"
+        ],
+        "rules": {
+          "@typescript-eslint/unbound-method": "off"
         }
       },
       {
@@ -106,6 +114,23 @@
       },
       {
         "files": [
+          "*.d.ts",
+          "*.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/no-unnecessary-type-parameters": "off"
+        }
+      },
+      {
+        "files": [
+          "ErrorWrapper.tsx"
+        ],
+        "rules": {
+          "react/prop-types": "off"
+        }
+      },
+      {
+        "files": [
           "*.d.ts"
         ],
         "rules": {
@@ -129,7 +154,7 @@
     "@perseid/core": "^2.0.1",
     "@perseid/form": "^4.0.0",
     "@perseid/store": "^8.0.1",
-    "@perseid/ui": "^4.0.0",
+    "@perseid/ui": "^4.0.1",
     "idb-keyval": "^6.2.0"
   },
   "devKitConfig": {
@@ -158,7 +183,7 @@
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
     "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure && cp -r src/styles/* dist",
-    "pure": "for i in dist/*.js; do sed -i 's/\\([a-z]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
+    "pure": "for i in dist/*.js; do sed -i 's/\\([a-zA-Z_]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
     "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer react react-dom",
     "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json"
   },

@@ -10,8 +10,6 @@
  * `scripts/react/components/OptionalField` mock.
  */
 
-import * as React from 'react';
-
 export default function OptionalField(props: unknown): JSX.Element {
   return (
     <div id="optional-field">{JSON.stringify(props)}</div>

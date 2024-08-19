@@ -71,7 +71,7 @@ const sortingModifiers: Record<string, 'ascending' | 'descending' | 'none'> = {
 /**
  * Generic table.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Table.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Table.tsx
  */
 function Table({
   labels,
@@ -85,7 +85,7 @@ function Table({
   const [currentSorting, setCurrentSorting] = React.useState<Sorting>(sorting);
   const className = buildClass('table', `${modifiers} ${rows === null ? 'loading' : ''} ${rows?.length === 0 ? 'no-result' : ''}`);
 
-  const sortBy = React.useCallback((column: string) => () => {
+  const sortBy = React.useCallback((column: string) => (): void => {
     setCurrentSorting((previousState) => {
       let newState: Sorting;
       const { [column]: columnValue, ...rest } = previousState;
@@ -102,7 +102,7 @@ function Table({
   }, [onSort]);
 
   const keySortBy = React.useCallback((column: string) => (
-    (event: React.KeyboardEvent<HTMLTableCellElement>) => {
+    (event: React.KeyboardEvent<HTMLTableCellElement>): void => {
       if (event.key === 'Enter' || event.key === ' ' || event.key === 'Space') {
         sortBy(column)();
       }
@@ -121,7 +121,7 @@ function Table({
           <tr>
             {columns.map((column) => {
               // TODO currentSorting[column.path] may be undefined
-              const sortingModifier = sortingModifiers[`${currentSorting[column.path]}`];
+              const sortingModifier = sortingModifiers[String(currentSorting[column.path])];
               const columnModifiers = `${sortingModifier} ${column.path} ${column.isSortable ? 'sortable' : ''}`;
               const columnClassName = buildClass('table__headers__column', columnModifiers);
               return (
@@ -161,4 +161,4 @@ function Table({
   );
 }
 
-export default React.memo(Table) as ReactTableComponent;
+export default React.memo(Table);

@@ -18,6 +18,8 @@ export interface LoggerSettings {
 
 /**
  * Console-based logging system.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Logger.ts
  */
 export default class Logger extends BaseLogger {
   /** Console logger instance. */

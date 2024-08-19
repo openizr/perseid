@@ -22,7 +22,7 @@ export default function LazyOptions({ onChange, ...props }: LazyOptionsProps): J
     // Covers `onChange` handler.
     if (onChange !== undefined) {
       onChange(null);
-      onChange({ value: '123456789012345678901234' });
+      onChange({ value: '000000000000000000000011' });
     }
   }, []);
   return (

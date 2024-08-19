@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import Pagination from 'scripts/react/components/Pagination';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/Pagination', () => {
   vi.mock('@perseid/core');

@@ -8,7 +8,7 @@ exports[`react/pages/View > renders correctly - loaded page 1`] = `
     id="page-layout"
   >
     <span>
-      {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"collection":"users","page":"VIEW"}
+      {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"components":{},"resource":"users","page":"VIEW"}
     </span>
     <div>
       <div
@@ -20,12 +20,12 @@ exports[`react/pages/View > renders correctly - loaded page 1`] = `
           <div
             id="field-label"
           >
-            {"page":"VIEW","field":"field1","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+            {"page":"VIEW","field":"field1","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
           </div>
           <div
             id="field-value"
           >
-            {"page":"VIEW","field":"field1","id":"123456789012345678901234","registry":{"field1":"Value 1","field2":"Value 2"},"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{},"loading":false}
+            {"page":"VIEW","field":"field1","id":"000000000000000000000011","registry":{"field1":"Value 1","field2":"Value 2"},"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{},"loading":false}
           </div>
         </div>
         <div
@@ -34,12 +34,12 @@ exports[`react/pages/View > renders correctly - loaded page 1`] = `
           <div
             id="field-label"
           >
-            {"page":"VIEW","field":"field2","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+            {"page":"VIEW","field":"field2","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
           </div>
           <div
             id="field-value"
           >
-            {"page":"VIEW","field":"field2","id":"123456789012345678901234","registry":{"field1":"Value 1","field2":"Value 2"},"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{},"loading":false}
+            {"page":"VIEW","field":"field2","id":"000000000000000000000011","registry":{"field1":"Value 1","field2":"Value 2"},"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{},"loading":false}
           </div>
         </div>
       </div>

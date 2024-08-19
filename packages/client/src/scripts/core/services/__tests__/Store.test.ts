@@ -7,15 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import {
-  Id,
-  type User,
-  type IdSchema,
-  type DefaultDataModel,
-} from '@perseid/core';
 import Model from 'scripts/core/services/Model';
 import Logger from 'scripts/core/services/Logger';
 import ApiClient from 'scripts/core/services/ApiClient';
+import { Id, type DefaultDataModel } from '@perseid/core';
 import Engine, { type Configuration } from '@perseid/form';
 import FormBuilder from 'scripts/core/services/FormBuilder';
 import { type RoutingContext } from '@perseid/store/extensions/router';
@@ -56,8 +51,9 @@ describe('core/services/Store', () => {
   const formBuilder = new FormBuilder(model, logger);
   const apiClient = new ApiClient(model, logger, {
     baseUrl: '',
+    connectTimeout: 0,
     mockedResponses: {},
-    endpoints: { auth: {}, collections: {} },
+    endpoints: { auth: {}, resources: {} },
   });
 
   beforeEach(() => {
@@ -72,7 +68,7 @@ describe('core/services/Store', () => {
           updateUser: { route: '/users/me' },
           resetPassword: { route: '/reset-password' },
         },
-        collections: {
+        resources: {
           roles: { view: { route: '/roles/:id' } },
           users: {
             create: { route: '/users/create' },
@@ -131,6 +127,7 @@ describe('core/services/Store', () => {
       uncombine: vi.fn(),
       unregister: vi.fn(),
     };
+    store.user = { _id: new Id('000000000000000000000001') } as DefaultDataModel['users'];
     const state = { status: 'INITIAL' as const, user: null };
     expect(store.authModule.mutations.UPDATE_STATUS?.({ id: 'auth', state }, 'PENDING')).toEqual({
       user: null,
@@ -161,7 +158,7 @@ describe('core/services/Store', () => {
     await store.authModule.actions?.updateUser?.(actionApi, {});
     expect(apiClient.update).toHaveBeenCalledOnce();
     await store.authModule.actions?.getUser?.(actionApi, {});
-    expect(apiClient.view).toHaveBeenCalledOnce();
+    expect(apiClient.viewMe).toHaveBeenCalledOnce();
   });
 
   test('[notifierModule]', () => {
@@ -250,54 +247,54 @@ describe('core/services/Store', () => {
   });
 
   test('[catchErrors]', async () => {
-    let promise = (): Promise<void> => Promise.reject({ status: 401 });
+    let promise = (): Promise<void> => Promise.reject({ status: 401 } as unknown as Error);
     await store.catchErrors(promise(), true);
     expect(store.mutate).toHaveBeenCalledWith('auth', 'SIGN_OUT');
-    promise = (): Promise<void> => Promise.reject({ status: 403, body: { error: { code: 'NOT_VERIFIED' } } });
+    promise = (): Promise<void> => Promise.reject({ status: 403, body: { error: { code: 'USER_NOT_VERIFIED' } } } as unknown as Error);
     await store.catchErrors(promise(), true);
     expect(store.mutate).toHaveBeenCalledWith('error', 'SET', { status: 403 });
     store = new Store(model, logger, apiClient, formBuilder, {
       fallbackPageRoute: '/',
-      pages: { auth: { verifyEmail: { route: '/verify-email' } }, collections: {} },
+      pages: { auth: { verifyEmail: { route: '/verify-email' } }, resources: {} },
     }) as TestStore;
-    promise = (): Promise<void> => Promise.reject({ status: 403, body: { error: { code: 'NOT_VERIFIED' } } });
+    promise = (): Promise<void> => Promise.reject({ status: 403, body: { error: { code: 'USER_NOT_VERIFIED' } } } as unknown as Error);
     await store.catchErrors(promise(), true);
     expect(store.mutate).toHaveBeenCalledWith('router', 'NAVIGATE', '/verify-email');
-    promise = (): Promise<void> => Promise.reject({ status: 404 });
+    promise = (): Promise<void> => Promise.reject({ status: 404 } as unknown as Error);
     await store.catchErrors(promise(), true);
     expect(store.mutate).toHaveBeenCalledWith('error', 'SET', { status: 404 });
-    promise = (): Promise<void> => Promise.reject({ body: { error: { code: 'RESOURCE_EXISTS' } } });
+    promise = (): Promise<void> => Promise.reject({ body: { error: { code: 'RESOURCE_EXISTS' } } } as unknown as Error);
     await store.catchErrors(promise(), false);
-    promise = (): Promise<void> => Promise.reject({ body: { error: { code: 'RESOURCE_REFERENCED' } } });
+    promise = (): Promise<void> => Promise.reject({ body: { error: { code: 'RESOURCE_REFERENCED' } } } as unknown as Error);
     await store.catchErrors(promise(), false);
-    promise = (): Promise<void> => Promise.reject({ body: { error: { code: 'RESOURCE_REFERENCED' } } });
+    promise = (): Promise<void> => Promise.reject({ body: { error: { code: 'RESOURCE_REFERENCED' } } } as unknown as Error);
     await store.catchErrors(promise(), false);
-    promise = (): Promise<void> => Promise.reject({ status: 403 });
+    promise = (): Promise<void> => Promise.reject({ status: 403 } as unknown as Error);
     await store.catchErrors(promise(), false);
-    promise = (): Promise<void> => Promise.reject({ status: 404 });
+    promise = (): Promise<void> => Promise.reject({ status: 404 } as unknown as Error);
     await store.catchErrors(promise(), false);
     promise = (): Promise<void> => Promise.reject(new Error());
     await expect(() => store.catchErrors(promise(), false)).rejects.toEqual(new Error());
   });
 
   test('[formatOutput]', () => {
-    expect(store.formatOutput(null as unknown as User, { type: 'null' }, {})).toBeNull();
-    expect(store.formatOutput(['test'] as unknown as User, {
+    expect(store.formatOutput(null as unknown as DefaultDataModel['users'], { type: 'null' }, {})).toBeNull();
+    expect(store.formatOutput(['test'] as unknown as DefaultDataModel['users'], {
       type: 'array',
       fields: { type: 'string' },
     }, {})).toEqual(['test']);
-    expect(store.formatOutput({ key: 'test' } as unknown as User, {
+    expect(store.formatOutput({ key: 'test' } as unknown as DefaultDataModel['users'], {
       type: 'object',
       fields: { key: { type: 'string' } },
     }, {})).toEqual({ key: 'test' });
-    expect(store.formatOutput('123456789012345678901234' as unknown as User, {
+    expect(store.formatOutput('000000000000000000000001' as unknown as DefaultDataModel['users'], {
       type: 'id',
       relation: 'users',
-    }, {})).toEqual('123456789012345678901234');
-    expect(store.formatOutput({ _id: '123456789012345678901234' } as unknown as User, {
+    }, {})).toEqual('000000000000000000000001');
+    expect(store.formatOutput({ _id: '000000000000000000000001' } as unknown as DefaultDataModel['users'], {
       type: 'id',
       relation: 'users',
-    }, {})).toEqual('123456789012345678901234');
+    }, {})).toEqual('000000000000000000000001');
   });
 
   test('[getPageData] - unexisting page', async () => {
@@ -377,7 +374,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/users/me',
         route: '/users/:id',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ])).toBeNull();
@@ -387,8 +384,8 @@ describe('core/services/Store', () => {
 
   test('[getPageData] - view page', async () => {
     vi.spyOn(store, 'view').mockImplementation(() => Promise.resolve({
-      _id: '123456789012345678901234',
-    } as unknown as User));
+      _id: new Id('000000000000000000000001'),
+    } as DefaultDataModel['users']));
     vi.spyOn(store, 'canAccessField').mockImplementation(() => true);
     expect(await store.getPageData([
       {
@@ -397,7 +394,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/users/me',
         route: '/users/:id',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ])).toEqual({ fields: ['_id'], id: expect.any(Id) as Id, loading: false });
@@ -413,14 +410,14 @@ describe('core/services/Store', () => {
     vi.spyOn(store, 'list').mockImplementation(() => Promise.resolve({
       total: 1,
       results: [{
-        _id: '123456789012345678901234',
-      } as unknown as User],
+        _id: new Id('000000000000000000000001'),
+      } as DefaultDataModel['users']],
     }));
     vi.spyOn(store, 'search').mockImplementation(() => Promise.resolve({
       total: 1,
       results: [{
-        _id: '123456789012345678901234',
-      } as unknown as User],
+        _id: new Id('000000000000000000000001'),
+      } as DefaultDataModel['users']],
     }));
     vi.spyOn(store, 'canAccessField').mockImplementation(() => true);
     expect(await store.getPageData([
@@ -441,9 +438,9 @@ describe('core/services/Store', () => {
       search: null,
       loading: false,
       fields: ['_id'],
-      collection: 'users',
+      resource: 'users',
       searchFields: ['email'],
-      results: ['123456789012345678901234'],
+      results: [expect.any(Id) as Id],
     });
     expect(store.mutate).toHaveBeenCalledOnce();
     expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', {
@@ -455,7 +452,7 @@ describe('core/services/Store', () => {
       loading: true,
       results: null,
       fields: ['_id'],
-      collection: 'users',
+      resource: 'users',
       searchFields: ['email'],
     });
     delete (store.pages['/users'] as { pageProps: Record<string, string>; }).pageProps.searchFields;
@@ -477,8 +474,8 @@ describe('core/services/Store', () => {
       loading: false,
       fields: ['_id'],
       searchFields: [],
-      collection: 'users',
-      results: ['123456789012345678901234'],
+      resource: 'users',
+      results: [expect.any(Id) as Id],
       search: { query: { on: [], text: 'test' }, filters: null },
     });
     expect(store.mutate).toHaveBeenCalledTimes(2);
@@ -491,21 +488,21 @@ describe('core/services/Store', () => {
       results: null,
       fields: ['_id'],
       searchFields: [],
-      collection: 'users',
+      resource: 'users',
       search: { query: { on: [], text: 'test' }, filters: null },
     });
   });
 
   test('[getPageData] - create/update page', async () => {
     vi.spyOn(store, 'create').mockImplementation(() => Promise.resolve({
-      _id: '123456789012345678901234',
-    } as unknown as User));
+      _id: new Id('000000000000000000000001'),
+    } as DefaultDataModel['users']));
     vi.spyOn(store, 'update').mockImplementation(() => Promise.resolve({
-      _id: '123456789012345678901234',
-    } as unknown as User));
+      _id: new Id('000000000000000000000001'),
+    } as DefaultDataModel['users']));
     vi.spyOn(store, 'canAccessField').mockImplementation(() => true);
     vi.spyOn(store, 'normalizeResources').mockImplementation(() => [
-      { email: 'test@test.test' } as unknown as User,
+      { email: 'test@test.test' } as DefaultDataModel['users'],
     ]);
     let pageData = await store.getPageData([
       {
@@ -514,7 +511,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/users/:id/edit',
         route: '/users/:id/edit',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ]);
@@ -571,12 +568,16 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/users/:id/edit',
         route: '/users/:id/edit',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ])).toBeNull();
-    expect(store.mutate).toHaveBeenCalledTimes(2);
+    expect(store.mutate).toHaveBeenCalledTimes(5);
+    expect(store.mutate).toHaveBeenCalledWith('error', 'RESET');
+    expect(store.mutate).toHaveBeenCalledWith('router', 'NAVIGATE', '/');
     expect(store.mutate).toHaveBeenCalledWith('error', 'SET', { status: 403 });
+    expect(store.mutate).toHaveBeenCalledWith('notifier', 'PUSH', { message: 'NOTIFICATIONS.CREATED_RESOURCE' });
+    expect(store.mutate).toHaveBeenCalledWith('notifier', 'PUSH', { message: 'NOTIFICATIONS.UPDATED_RESOURCE' });
   });
 
   test('[getPageData] - user update page', async () => {
@@ -605,7 +606,7 @@ describe('core/services/Store', () => {
       .catch(() => null);
     vi.spyOn(store, 'dispatch').mockImplementation(() => Promise.reject({
       body: { error: { code: 'RESOURCE_EXISTS' } },
-    }));
+    } as unknown as Error));
     await (pageData as { configuration: Configuration; }).configuration.onSubmit?.({}, {});
   });
 
@@ -617,7 +618,7 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/reset-password',
         route: '/reset-password',
-        query: { resetToken: '123456789012345678901234' },
+        query: { resetToken: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'ERROR' } as AuthState,
     ]);
@@ -639,7 +640,7 @@ describe('core/services/Store', () => {
       .catch(() => null);
     vi.spyOn(store, 'dispatch').mockImplementation(() => Promise.reject({
       body: { error: { code: 'INVALID_RESET_TOKEN' } },
-    }));
+    } as unknown as Error));
     await (pageData as { configuration: Configuration; }).configuration.onSubmit?.({}, {});
   });
 
@@ -676,7 +677,7 @@ describe('core/services/Store', () => {
       .catch(() => null);
     vi.spyOn(store, 'dispatch').mockImplementation(() => Promise.reject({
       body: { error: { code: 'RESOURCE_EXISTS' } },
-    }));
+    } as unknown as Error));
     await (pageData as { configuration: Configuration; }).configuration.onSubmit?.({}, {});
   });
 
@@ -689,10 +690,10 @@ describe('core/services/Store', () => {
         host: 'localhost',
         path: '/test',
         route: '/test',
-        params: { id: '123456789012345678901234' },
+        params: { id: '000000000000000000000001' },
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
-    ])).toBeNull();
+    ])).toEqual({});
   });
 
   test('[constructor]', () => {
@@ -702,7 +703,7 @@ describe('core/services/Store', () => {
     store = new Store(model, logger, apiClient, formBuilder, {
       fallbackPageRoute: '/',
       pages: {
-        collections: {},
+        resources: {},
         auth: { verifyEmail: { route: '/verify-email' } },
       },
     }) as TestStore;
@@ -721,11 +722,11 @@ describe('core/services/Store', () => {
   });
 
   test('[canAccessField] - non-null user', () => {
-    store.user = { _permissions: new Set() } as unknown as User;
+    store.user = { _permissions: new Set() } as DefaultDataModel['users'];
     expect(store.canAccessField('users', '_id', 'CREATE')).toBe(false);
-    store.user = { _permissions: new Set(['TO_SNAKE_CASE_users_VIEW']) } as unknown as User;
+    store.user = { _permissions: new Set(['VIEW_TO_SNAKE_CASE_users']) } as DefaultDataModel['users'];
     expect(store.canAccessField('users', '_id', 'CREATE')).toBe(false);
-    store.user = { _permissions: new Set(['TO_SNAKE_CASE_users_VIEW', 'TO_SNAKE_CASE_users_CREATE']) } as unknown as User;
+    store.user = { _permissions: new Set(['VIEW_TO_SNAKE_CASE_users', 'CREATE_TO_SNAKE_CASE_users']) } as DefaultDataModel['users'];
     expect(store.canAccessField('users', '_verifiedAt', 'CREATE')).toBe(false);
     expect(store.canAccessField('users', 'password', 'VIEW')).toBe(false);
     expect(store.canAccessField('users', 'roles', 'VIEW')).toBe(false);
@@ -735,22 +736,22 @@ describe('core/services/Store', () => {
   test('[getValue]', () => {
     vi.spyOn(model, 'get').mockImplementationOnce(() => ({
       canonicalPath: [],
-      schema: { type: 'id', relation: 'users' } as unknown as IdSchema<DefaultDataModel>,
+      schema: { type: 'id', relation: 'users' },
     }));
-    const id = '123456789012345678901234' as unknown as Id;
     const relationId = new Id();
+    const id = new Id('000000000000000000000001');
     const registry = {
       users: {
-        '123456789012345678901234': {
-          _id: '123456789012345678901234',
+        '000000000000000000000001': {
+          _id: id,
           array: [{ key: 'test' }],
           test: 1,
           relation: relationId,
-        } as unknown as User,
+        } as unknown as DefaultDataModel['users'],
       },
     };
     expect(store.getValue('users', id, '_id', registry, '')).toBeNull();
-    expect(store.getValue('users', id, '_id', registry)).toEqual('123456789012345678901234');
+    expect(store.getValue('users', id, '_id', registry)).toEqual(id);
     expect(store.getValue('users', id, 'test', registry, 'field', [], 1)).toEqual(1);
     expect(store.getValue('users', id, 'test', registry, 'field', [], undefined)).toBeNull();
     expect(store.getValue('users', id, 'test', registry, 'field', [], [{ key: 'test' }])).toEqual([null]);
@@ -758,57 +759,87 @@ describe('core/services/Store', () => {
   });
 
   test('[view]', async () => {
-    expect(await store.view('users', new Id(), {})).toEqual({ _id: '123456789012345678901234' });
+    vi.spyOn(store, 'normalizeResources').mockImplementation(vi.fn());
+    vi.spyOn(store, 'catchErrors').mockImplementation((callback) => callback);
+    expect(await store.view('users', new Id(), {})).toEqual({ _id: expect.any(Id) as Id });
+    expect(store.catchErrors).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledWith('users', [{ _id: expect.any(Id) as Id }]);
   });
 
   test('[delete]', async () => {
     const id = new Id();
     vi.spyOn(store, 'mutate');
+    vi.spyOn(store, 'catchErrors').mockImplementation((callback) => callback);
     await store.delete('users', id);
+    expect(store.catchErrors).toHaveBeenCalledOnce();
     expect(store.mutate).toHaveBeenCalledOnce();
-    expect(store.mutate).toHaveBeenCalledWith('registry', 'REMOVE', { collection: 'users', id });
+    expect(store.mutate).toHaveBeenCalledWith('registry', 'REMOVE', { resource: 'users', id });
   });
 
   test('[update]', async () => {
-    expect(await store.update('users', new Id(), {})).toEqual({ _id: '123456789012345678901234' });
+    vi.spyOn(store, 'normalizeResources').mockImplementation(vi.fn());
+    vi.spyOn(store, 'catchErrors').mockImplementation((callback) => callback);
+    expect(await store.update('users', new Id(), {})).toEqual({
+      _id: expect.any(Id) as Id,
+      roles: [{ permissions: [] }],
+    });
+    expect(store.catchErrors).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledWith('users', [{
+      _id: expect.any(Id) as Id,
+      roles: [{ permissions: [] }],
+    }]);
   });
 
   test('[create]', async () => {
-    expect(await store.create('users', {})).toEqual({ _id: '123456789012345678901234' });
+    vi.spyOn(store, 'normalizeResources').mockImplementation(vi.fn());
+    vi.spyOn(store, 'catchErrors').mockImplementation((callback) => callback);
+    expect(await store.create('users', {})).toEqual({ _id: expect.any(Id) as Id });
+    expect(store.catchErrors).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledWith('users', [{ _id: expect.any(Id) as Id }]);
   });
 
   test('[search]', async () => {
+    vi.spyOn(store, 'normalizeResources').mockImplementation(vi.fn());
+    vi.spyOn(store, 'catchErrors').mockImplementation((callback) => callback);
     expect(await store.search('users', { query: null, filters: null })).toEqual({
       total: 1,
-      results: [{ _id: '123456789012345678901234' }],
+      results: [{ _id: expect.any(Id) as Id }],
     });
+    expect(store.catchErrors).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledWith('users', [{ _id: expect.any(Id) as Id }]);
   });
 
   test('[list]', async () => {
-    expect(await store.list('users', {})).toEqual({
+    vi.spyOn(store, 'normalizeResources').mockImplementation(vi.fn());
+    vi.spyOn(store, 'catchErrors').mockImplementation((callback) => callback);
+    expect(await store.list('users')).toEqual({
       total: 1,
-      results: [{ _id: '123456789012345678901234' }],
+      results: [{ _id: expect.any(Id) as Id }],
     });
+    expect(store.catchErrors).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledOnce();
+    expect(store.normalizeResources).toHaveBeenCalledWith('users', [{ _id: expect.any(Id) as Id }]);
   });
 
   test('[listOrSearch]', async () => {
+    const id = new Id('000000000000000000000001');
     vi.spyOn(store, 'mutate');
     vi.spyOn(window.history, 'replaceState');
     vi.spyOn(store, 'list').mockImplementation(() => Promise.resolve({
       total: 1,
-      results: [{
-        _id: '123456789012345678901234',
-      } as unknown as User],
+      results: [{ _id: id } as DefaultDataModel['users']],
     }));
     vi.spyOn(store, 'search').mockImplementation(() => Promise.resolve({
       total: 1,
-      results: [{
-        _id: '123456789012345678901234',
-      } as unknown as User],
+      results: [{ _id: id } as DefaultDataModel['users']],
     }));
     await store.listOrSearch('users', { filters: null, query: { on: ['email'], text: 'test ' } }, {});
     expect(window.history.replaceState).toHaveBeenCalledOnce();
-    expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/BUILT_QUERY');
+    expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/?query=test');
     expect(store.search).toHaveBeenCalledOnce();
     expect(store.search).toHaveBeenCalledWith('users', { filters: null, query: { on: ['email'], text: 'test ' } }, {
       limit: 20,
@@ -818,12 +849,12 @@ describe('core/services/Store', () => {
     expect(store.mutate).toHaveBeenCalledOnce();
     expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', {
       total: 1,
-      results: ['123456789012345678901234'],
+      results: [id],
       search: { filters: null, query: { on: ['email'], text: 'test ' } },
     });
     await store.listOrSearch('users', null, {});
     expect(window.history.replaceState).toHaveBeenCalledTimes(2);
-    expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/BUILT_QUERYBUILT_QUERY');
+    expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/?query=test');
     expect(store.list).toHaveBeenCalledOnce();
     expect(store.list).toHaveBeenCalledWith('users', {
       limit: 20,
@@ -834,7 +865,7 @@ describe('core/services/Store', () => {
     expect(store.mutate).toHaveBeenCalledWith('page', 'UPDATE', {
       total: 1,
       search: null,
-      results: ['123456789012345678901234'],
+      results: [id],
     });
   });
 
@@ -842,7 +873,7 @@ describe('core/services/Store', () => {
     vi.spyOn(window.history, 'pushState');
     vi.spyOn(store, 'listOrSearch').mockImplementation(() => Promise.resolve());
     await store.goToPage({
-      collection: 'users',
+      resource: 'users',
       fields: [],
       limit: 10,
       loading: false,
@@ -854,10 +885,10 @@ describe('core/services/Store', () => {
       search: { query: { on: ['email'], text: 'test' }, filters: null },
     });
     expect(window.history.pushState).toHaveBeenCalledOnce();
-    expect(window.history.pushState).toHaveBeenCalledWith({}, '', '/BUILT_QUERYBUILT_QUERYBUILT_QUERY');
+    expect(window.history.pushState).toHaveBeenCalledWith({}, '', '/?query=test');
     expect(store.listOrSearch).toHaveBeenCalledOnce();
     expect(store.listOrSearch).toHaveBeenCalledWith('users', { query: { on: ['email'], text: 'test' }, filters: null }, {
-      collection: 'users',
+      resource: 'users',
       fields: [],
       limit: 10,
       loading: false,
@@ -872,12 +903,14 @@ describe('core/services/Store', () => {
   });
 
   test('[createRoutes]', () => {
-    const sub = ((_: unknown, callback: (data: unknown) => void) => {
+    const sub = ((_: unknown, callback: (data: unknown) => void): string => {
       callback({});
-    }) as unknown as () => Promise<string>;
-    const cmb = ((_: unknown, __: unknown, callback: (data: unknown) => void) => {
+      return '';
+    });
+    const cmb = ((_: unknown, __: unknown, callback: (data: unknown) => void): string => {
       callback({});
-    }) as unknown as () => Promise<string>;
+      return '';
+    });
     vi.spyOn(store, 'mutate');
     vi.spyOn(store, 'register');
     vi.spyOn(store, 'combine').mockImplementation(cmb);
@@ -897,7 +930,7 @@ describe('core/services/Store', () => {
       type: 'CREATE',
       layoutProps: {},
       component: 'Test',
-      collection: 'users',
+      resource: 'users',
       visibility: 'PRIVATE',
     });
     expect(store.pages['/test']).toEqual({
@@ -905,16 +938,9 @@ describe('core/services/Store', () => {
       type: 'CREATE',
       layoutProps: {},
       component: 'Test',
-      collection: 'users',
+      resource: 'users',
       visibility: 'PRIVATE',
     });
-  });
-
-  test('[updateModel]', async () => {
-    await store.updateModel('users');
-    await store.updateModel('users');
-    expect(apiClient.getModel).toHaveBeenCalledOnce();
-    expect(apiClient.getModel).toHaveBeenCalledWith('users');
   });
 
   test('[navigate]', () => {
@@ -938,9 +964,9 @@ describe('core/services/Store', () => {
     expect(store.getRoute('auth.signIn')).toEqual('/sign-in');
   });
 
-  test('[getCollectionRoutes]', () => {
-    expect(store.getCollectionRoutes()).toEqual([{
-      collection: 'users',
+  test('[getResourceRoutes]', () => {
+    expect(store.getResourceRoutes()).toEqual([{
+      resource: 'users',
       route: '/users',
     }]);
   });
@@ -994,18 +1020,8 @@ describe('core/services/Store', () => {
     });
   });
 
-  test('[goBack] - no history', () => {
-    const navigate = vi.fn(() => (): null => null);
-    vi.spyOn(store, 'navigate').mockImplementation(navigate);
-    store.goBack();
-    expect(navigate).toHaveBeenCalledOnce();
-    expect(navigate).toHaveBeenCalledWith('/');
-  });
-
-  test('[goBack] - user history', () => {
+  test('[goBack]', () => {
     vi.spyOn(window.history, 'back');
-    window.history.pushState({}, '', '/');
-    window.history.pushState({}, '', '/');
     store.goBack();
     expect(window.history.back).toHaveBeenCalledOnce();
   });

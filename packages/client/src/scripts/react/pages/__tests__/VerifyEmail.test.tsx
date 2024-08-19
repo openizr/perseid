@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import VerifyEmail from 'scripts/react/pages/VerifyEmail';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/pages/VerifyEmail', () => {
   vi.mock('@perseid/core');
@@ -23,7 +21,7 @@ describe('react/pages/VerifyEmail', () => {
   const notify = vi.fn();
   const navigate = vi.fn(() => vi.fn());
   const dispatch = vi.fn(() => ((process.env.THROW_DISPATCH_ERROR === 'true')
-    ? Promise.reject()
+    ? Promise.reject(new Error())
     : Promise.resolve()));
   const createServices = (
     userVerifiedAt: string | null,
@@ -53,7 +51,7 @@ describe('react/pages/VerifyEmail', () => {
     const { container } = render(
       <VerifyEmail
         components={components}
-        services={createServices(null, '123456789012345678901234')}
+        services={createServices(null, '000000000000000000000011')}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

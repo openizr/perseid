@@ -10,8 +10,6 @@
  * `scripts/react/components/Loader` mock.
  */
 
-import * as React from 'react';
-
 export default function Loader(props: unknown): JSX.Element {
   return (
     <div id="loader">{JSON.stringify(props)}</div>

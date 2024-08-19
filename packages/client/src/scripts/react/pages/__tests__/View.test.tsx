@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
-import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import View from 'scripts/react/pages/View';
+import { render } from '@testing-library/react';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/pages/View', () => {
   vi.mock('@perseid/core');
@@ -41,7 +39,7 @@ describe('react/pages/View', () => {
   test('renders correctly - loading page', () => {
     const { container } = render(
       <View
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(null, null)}
       />,
@@ -52,11 +50,11 @@ describe('react/pages/View', () => {
   test('renders correctly - loaded page', () => {
     const { container } = render(
       <View
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           fields: ['field1', 'field2'],
-          id: '123456789012345678901234',
+          id: '000000000000000000000011',
           loading: false,
         }, {
           field1: 'Value 1',

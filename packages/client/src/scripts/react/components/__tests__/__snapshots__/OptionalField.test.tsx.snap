@@ -7,8 +7,11 @@ exports[`react/components/OptionalField > renders correctly - displayed 1`] = `
   <div
     id="ui-button"
   >
-    {"modifiers":"secondary outlined","label":"SHOW"}
+    {"modifiers":"secondary outlined","label":"HIDE"}
   </div>
+  <div
+    id="field"
+  />
 </div>
 `;
 
@@ -19,10 +22,7 @@ exports[`react/components/OptionalField > renders correctly - hidden 1`] = `
   <div
     id="ui-button"
   >
-    {"modifiers":"secondary outlined","label":"HIDE"}
+    {"modifiers":"secondary outlined","label":"SHOW"}
   </div>
-  <div
-    id="field"
-  />
 </div>
 `;

@@ -10,8 +10,6 @@ import {
   Id,
   deepCopy,
   deepMerge,
-  type User,
-  type Role,
   toSnakeCase,
   type Logger,
   type Results,
@@ -21,16 +19,16 @@ import {
   type ArraySchema,
   type ObjectSchema,
   type DefaultDataModel,
-  type CollectionSchema,
+  type ResourceSchema,
   type DataModelMetadata,
 } from '@perseid/core';
 import { generateRandomId } from '@perseid/ui';
 import Model from 'scripts/core/services/Model';
-import BaseStore, { Module } from '@perseid/store';
 import ApiClient from 'scripts/core/services/ApiClient';
+import BaseStore, { type Module } from '@perseid/store';
 import FormBuilder from 'scripts/core/services/FormBuilder';
 import { type UserInputs, type FormPlugin } from '@perseid/form';
-import router, { RoutingContext } from '@perseid/store/extensions/router';
+import router, { type RoutingContext } from '@perseid/store/extensions/router';
 
 interface NotificationData {
   message: string;
@@ -60,8 +58,8 @@ export interface Page<DataModel extends DefaultDataModel> {
    */
   component?: string;
 
-  /** Page related collection, if applicable. */
-  collection?: keyof DataModel;
+  /** Page related resource, if applicable. */
+  resource?: keyof DataModel & string;
 
   /** Page visibility. */
   visibility: 'PRIVATE' | 'PUBLIC' | 'PUBLIC_ONLY';
@@ -76,12 +74,12 @@ export interface Page<DataModel extends DefaultDataModel> {
 /**
  * Auth store module state.
  */
-export interface AuthState {
+export interface AuthState<DataModel extends DefaultDataModel = DefaultDataModel> {
   /** Auth status. */
   status: 'INITIAL' | 'SUCCESS' | 'ERROR' | 'PENDING';
 
   /** Currently sign-in user, if any. */
-  user: User | null;
+  user: DataModel['users'] | null;
 }
 
 /**
@@ -143,8 +141,8 @@ export type ListPageData<DataModel extends DefaultDataModel> = {
   /** Fields over which to search for results. */
   searchFields: string[];
 
-  /** Results collection. */
-  collection: keyof DataModel;
+  /** Results resource. */
+  resource: keyof DataModel & string;
 
   /** Results search query. */
   search: SearchBody | null;
@@ -199,13 +197,13 @@ export interface StoreSettings<DataModel extends DefaultDataModel = DefaultDataM
   /** Generic pages configurations. */
   pages: {
     auth: {
-      signUp?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
-      signIn?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
-      updateUser?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
-      verifyEmail?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
-      resetPassword?: Omit<Page<DataModel>, 'visibility' | 'collection' | 'type'>;
+      signUp?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+      signIn?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+      updateUser?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+      verifyEmail?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+      resetPassword?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
     };
-    collections: Partial<Record<keyof DataModel, Partial<Record<string, Omit<Page<DataModel>, 'visibility'>>>>>;
+    resources: Partial<Record<keyof DataModel & string, Partial<Record<string, Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>>>>>;
   };
 }
 
@@ -218,6 +216,8 @@ const DEFAULT_NOTIFICATION_DURATION = 5000;
 
 /**
  * Perseid store, extended with various methods and attributes to handle generic apps states.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Store.ts
  */
 export default class Store<
   DataModel extends DefaultDataModel = DefaultDataModel
@@ -243,16 +243,16 @@ export default class Store<
   /** `useSubscription` method to use in components. */
   public useSubscription: UseSubscription = undefined as unknown as UseSubscription;
 
-  /** List of collection already existing in data model. */
-  protected loadedCollections = new Set<keyof DataModel>();
+  /** List of resource already existing in data model. */
+  protected loadedResources = new Set<keyof DataModel & string>();
 
   /** List of app pages configurations. */
   protected pages: Partial<Record<string, Omit<Page<DataModel>, 'route'>>> = {};
 
   /** Currently signed-in user. */
-  protected user: User & { _permissions: Exclude<User['_permissions'], undefined>; } | null;
+  protected user: DataModel['users'] | null;
 
-  /** List of auth and collections pages routes.  */
+  /** List of auth and resources pages routes.  */
   protected pageRoutes: {
     auth: {
       signIn?: string;
@@ -263,7 +263,7 @@ export default class Store<
       verifyEmail?: string;
       resetPassword?: string;
     };
-    collections: Partial<Record<keyof DataModel, Partial<Record<string, string>>>>;
+    resources: Partial<Record<keyof DataModel & string, Partial<Record<string, string>>>>;
   };
 
   /** Notifies user when unhandled errors happen in the form. */
@@ -295,33 +295,33 @@ export default class Store<
       DELETE({ state }) {
         return { ...state };
       },
-      REMOVE({ state }, data: { id: string; collection: keyof DataModel; }) {
-        const collections = Object.keys(state) as (keyof DataModel)[];
-        return collections.reduce<Partial<Registry<DataModel>>>((newState, collection) => {
-          const collectionRegistry = newState[collection] as unknown as Resources<DataModel>;
-          const resourceIds = Object.keys(collectionRegistry);
+      REMOVE({ state }, data: { id: string; resource: keyof DataModel & string; }) {
+        const resources = Object.keys(state) as (keyof DataModel & string)[];
+        return resources.reduce<Partial<Registry<DataModel>>>((newState, resource) => {
+          const resourceRegistry = newState[resource] as unknown as Resources<DataModel>;
+          const resourceIds = Object.keys(resourceRegistry);
           return ({
             ...newState,
-            [collection]: (data.collection !== collection)
-              ? collectionRegistry
+            [resource]: (data.resource !== resource)
+              ? resourceRegistry
               : resourceIds.reduce<Resources<DataModel>>((registry, resourceId) => (
                 (data.id === resourceId)
                   ? registry
-                  : { ...registry, [resourceId]: collectionRegistry[resourceId] }
+                  : { ...registry, [resourceId]: resourceRegistry[resourceId] }
               ), {}),
           });
         }, state);
       },
       REFRESH({ state }, data: Registry<DataModel>) {
         const newState = { ...state };
-        (Object.keys(data) as (keyof DataModel)[]).forEach((collection) => {
-          const newCollectionRegistry = data[collection];
-          const collectionRegistry = { ...state[collection] } as Resources<DataModel>;
-          Object.keys(newCollectionRegistry).forEach((id) => {
-            const resource = newCollectionRegistry[id];
-            collectionRegistry[id] = deepMerge(collectionRegistry[id] as unknown ?? {}, resource);
+        (Object.keys(data) as (keyof DataModel & string)[]).forEach((resource) => {
+          const newResourceRegistry = data[resource];
+          const resourceRegistry = { ...state[resource] } as Resources<DataModel>;
+          Object.keys(newResourceRegistry).forEach((id) => {
+            const entity = newResourceRegistry[id];
+            resourceRegistry[id] = deepMerge(resourceRegistry[id] as unknown ?? {}, entity);
           });
-          newState[collection] = collectionRegistry;
+          newState[resource] = resourceRegistry;
         });
         return newState;
       },
@@ -342,7 +342,7 @@ export default class Store<
   };
 
   /** Store module that handles users authentication. */
-  protected authModule: Module<AuthState> = {
+  protected authModule: Module<AuthState<DataModel>> = {
     state: {
       user: null,
       status: 'INITIAL',
@@ -351,7 +351,7 @@ export default class Store<
       UPDATE_STATUS({ state }, status: AuthState['status']) {
         return { ...state, status };
       },
-      SIGN_IN({ state }, user: User) {
+      SIGN_IN({ state }, user: DataModel['users']) {
         return deepMerge(state, { status: 'SUCCESS', user });
       },
       SIGN_OUT({ state }) {
@@ -388,12 +388,12 @@ export default class Store<
       },
       updateUser: async ({ mutate }, data) => {
         const options = { fields: ['email', '_verifiedAt', 'roles.*'] };
-        await this.apiClient.update('users', 'me', data, options).then((user: User) => {
+        await this.apiClient.update('users', (this.user as unknown as DataModel['users'])._id, data, options).then((user) => {
           mutate('registry', 'REFRESH', { users: { [String(user._id)]: user } });
           this.user = {
             ...user,
             _permissions: new Set(
-              (user.roles as Role[]).reduce((permissions: string[], role) => (
+              (user.roles as DataModel['roles'][]).reduce<string[]>((permissions, role) => (
                 permissions.concat(role.permissions)
               ), []),
             ),
@@ -403,13 +403,11 @@ export default class Store<
       getUser: async ({ id, mutate }, redirect = true) => {
         mutate(id, 'UPDATE_STATUS', 'PENDING');
         await this.catchErrors((async (): Promise<void> => {
-          await this.updateModel('users');
-          const options = { fields: ['email', '_verifiedAt', 'roles.*'] };
-          await this.apiClient.view('users', 'me', options).then((user: User) => {
+          await this.apiClient.viewMe().then((user) => {
             mutate('registry', 'REFRESH', { users: { [String(user._id)]: user } });
             this.user = {
               ...user,
-              _permissions: new Set((user.roles as Role[]).reduce((permissions: string[], role) => (
+              _permissions: new Set((user.roles as DataModel['roles'][]).reduce<string[]>((permissions, role) => (
                 permissions.concat(role.permissions)
               ), [])),
             };
@@ -564,7 +562,7 @@ export default class Store<
         if (redirect) {
           this.redirectToSignInPage(`${window.location.pathname}${window.location.search}`);
         }
-      } else if (status === 403 && body?.error.code === 'NOT_VERIFIED') {
+      } else if (status === 403 && body?.error.code === 'USER_NOT_VERIFIED') {
         if (this.pageRoutes.auth.verifyEmail === undefined) {
           this.mutate('error', 'SET', { status: 403 });
         } else if (this.currentRoute !== this.pageRoutes.auth.verifyEmail) {
@@ -598,14 +596,16 @@ export default class Store<
    *
    * @returns Formatted output.
    */
-  protected formatOutput<Collection extends keyof DataModel>(
-    output: DataModel[Collection],
+  protected formatOutput<Resource extends keyof DataModel & string>(
+    output: DataModel[Resource],
     model: FieldSchema<DataModel>,
     registry: Partial<Registry<DataModel>>,
-  ): DataModel[Collection] {
+  ): DataModel[Resource] {
     const { type } = model;
-    const { relation } = model as IdSchema<DataModel>;
     const { fields } = model as ArraySchema<DataModel>;
+    const relation = (model as IdSchema<DataModel>).relation as (
+      keyof DataModel & string | undefined
+    );
 
     if (output as unknown === null) {
       return output;
@@ -614,23 +614,23 @@ export default class Store<
     // Arrays...
     if (type === 'array') {
       const formattedOutput = [];
-      const outputArray = output as unknown as DataModel[Collection][];
+      const outputArray = output as unknown as DataModel[Resource][];
       for (let index = 0, { length } = outputArray; index < length; index += 1) {
         formattedOutput.push(this.formatOutput(outputArray[index], fields, registry));
       }
-      return formattedOutput as unknown as DataModel[Collection];
+      return formattedOutput as unknown as DataModel[Resource];
     }
 
     // Objects...
     if (type === 'object') {
-      const formattedOutput: Resource = {};
+      const formattedOutput: Record<string, unknown> = {};
       const keys = Object.keys(output as Resource);
       for (let index = 0, { length } = keys; index < length; index += 1) {
         const key = keys[index];
-        const subOutput = (output as Resource)[key] as DataModel[Collection];
+        const subOutput = (output as Record<string, unknown>)[key] as DataModel[Resource];
         formattedOutput[key] = this.formatOutput(subOutput, model.fields[key], registry);
       }
-      return formattedOutput as DataModel[Collection];
+      return formattedOutput as DataModel[Resource];
     }
 
     // Expanded relation...
@@ -638,15 +638,15 @@ export default class Store<
       const updatedRegistry = registry;
       const resources: Partial<Resources<DataModel>> = registry[relation] ?? {};
       if (isPlainObject(output)) {
-        const resourceId = String((output as Resource)._id);
+        const resourceId = String((output as Record<string, unknown>)._id);
         const { schema } = this.model.get(relation) as DataModelMetadata<ObjectSchema<DataModel>>;
         const resourceModel: ObjectSchema<DataModel> = { type: 'object', fields: schema.fields };
         const formattedOutput = this.formatOutput(output, resourceModel, registry);
         resources[resourceId] = deepMerge(resources[resourceId] ?? {}, formattedOutput);
         updatedRegistry[relation] = resources as Resources<DataModel>;
-        return (output as Resource)._id as DataModel[Collection];
+        return (output as Record<string, unknown>)._id as DataModel[Resource];
       }
-      resources[String(output)] ??= { _id: output } as DataModel[Collection];
+      resources[String(output)] ??= { _id: output } as DataModel[Resource];
       updatedRegistry[relation] = resources as Resources<DataModel>;
     }
 
@@ -654,31 +654,31 @@ export default class Store<
   }
 
   /**
-   * Normalizes `resources` of `collection`, extracting all relations into their registry and
+   * Normalizes `resources` of `resource`, extracting all relations into their registry and
    * replacing them by their id. Also updates global resources registry.
    *
-   * @param collection Resources collection.
+   * @param resource Resources resource.
    *
    * @param resources Resources to normalize.
    *
    * @returns Normalized resources.
    */
-  protected normalizeResources<Collection extends keyof DataModel>(
-    collection: Collection,
-    resources: DataModel[Collection][],
-  ): DataModel[Collection][] {
-    const registry = { [collection]: {} } as Partial<Registry<DataModel>>;
-    const model = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
-    const normalizedResources = resources.map((resource) => {
+  protected normalizeResources<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    resources: DataModel[Resource][],
+  ): DataModel[Resource][] {
+    const registry = { [resource]: {} } as Partial<Registry<DataModel>>;
+    const model = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    const normalizedResources = resources.map((entity) => {
       // Do not move the following before `formatOutput`, or it will break registry recursive
-      // and nested updates. TODO put in unit tests intead of acomment
+      // and nested updates. TODO put in unit tests intead of a comment
       // DO NOT PUT formatOutput ON THE SAME LINE AS DEEPMERGE : cases like fetching
       // user.roles._createdBy._updatedBy =>   reg[col][`${resource._id}`] does not exist yet before
       // calling formatOutput, and thus _updatedBy data is overriten by { _id, roles } at the end.
-      const resourceId = String((resource as Resource)._id);
-      const subRegistry = registry[collection] as Record<string, Resource | undefined>;
+      const resourceId = String((entity as Record<string, unknown>)._id);
+      const subRegistry = registry[resource] as Record<string, Record<string, unknown> | undefined>;
       const resourceModel: ObjectSchema<DataModel> = { type: 'object', fields: model.schema.fields };
-      const normalizedResource = this.formatOutput(resource, resourceModel, registry);
+      const normalizedResource = this.formatOutput(entity, resourceModel, registry);
       subRegistry[resourceId] = deepMerge(subRegistry[resourceId] ?? {}, normalizedResource);
       return normalizedResource;
     });
@@ -719,7 +719,7 @@ export default class Store<
       return null;
     }
 
-    // Users needs to sign-in (private page)...
+    // User needs to sign-in (private page)...
     if (currentPage.visibility === 'PRIVATE' && authState.status === 'ERROR') {
       this.redirectToSignInPage(routerState.path);
       return null;
@@ -732,10 +732,16 @@ export default class Store<
     }
 
     const filteredFields: string[] = [];
-    const collection = currentPage.collection as unknown as keyof DataModel;
+    const { type } = currentPage;
+    const resource = currentPage.resource as unknown as keyof DataModel & string;
     const { searchFields } = currentPage.pageProps as Partial<Record<string, string[]>>;
     const fields = (currentPage.pageProps as Partial<Record<string, string[]>>).fields ?? [];
-    const { type } = currentPage;
+
+    // Unknown resource...
+    if (type !== undefined && (resource as unknown) === undefined) {
+      this.mutate('error', 'SET', { status: 404 });
+      return null;
+    }
 
     // Invalid resource id...
     if ((type === 'UPDATE' || type === 'VIEW') && id === null) {
@@ -743,15 +749,10 @@ export default class Store<
       return null;
     }
 
-    // Updates local data model if necessary.
-    if (collection as unknown !== undefined) {
-      await this.updateModel(collection);
-    }
-
     // Checking user permissions to access resources...
     if (type === 'LIST' || type === 'VIEW') {
       fields.forEach((field) => {
-        if (this.canAccessField(collection, field, type)) {
+        if (this.canAccessField(resource, field, type)) {
           filteredFields.push(field);
         }
       });
@@ -764,7 +765,7 @@ export default class Store<
     // Resource view page...
     if (type === 'VIEW') {
       this.mutate('page', 'UPDATE', { id, fields: filteredFields, loading: true });
-      await this.view(collection, id as unknown as Id, { fields: filteredFields });
+      await this.view(resource, id as unknown as Id, { fields: filteredFields });
       return { id: id as unknown as Id, fields: filteredFields, loading: false };
     }
 
@@ -776,7 +777,7 @@ export default class Store<
       const page = !Number.isNaN(queryPage) ? queryPage : 1;
       const offset = Math.max(0, (page - 1) * RESULTS_PER_PAGE);
       const filteredSearchFields = searchFields?.filter((field) => (
-        this.canAccessField(collection, field, 'SEARCH')
+        this.canAccessField(resource, field, 'SEARCH')
       )) ?? [];
       const searchBody = (query as unknown === undefined)
         ? null
@@ -786,48 +787,48 @@ export default class Store<
         limit: RESULTS_PER_PAGE,
         sorting,
         total: 0,
-        collection,
+        resource,
         results: null,
         loading: true,
         search: searchBody,
         fields: filteredFields,
         searchFields: filteredSearchFields,
       });
-      const response = (searchBody === null) ? await this.list(collection, {
+      const response = (searchBody === null) ? await this.list(resource, {
         offset,
         fields: filteredFields,
         limit: RESULTS_PER_PAGE,
         sortBy: Object.keys(sorting),
         sortOrder: Object.values(sorting),
-      }) : await this.search(collection, searchBody, {
+      }) : await this.search(resource, searchBody, {
         offset,
         fields: filteredFields,
         limit: RESULTS_PER_PAGE,
         sortBy: Object.keys(sorting),
         sortOrder: Object.values(sorting),
       });
-      return {
-        page,
-        sorting,
-        collection,
-        loading: false,
-        search: searchBody,
-        fields: filteredFields,
-        limit: RESULTS_PER_PAGE,
-        searchFields: filteredSearchFields,
-        total: (response as Results<DataModel>).total,
-        results: (response as Results<DataModel>).results.map((result) => (
-          (result as Resource)._id
-        )) as Id[],
-      };
+      if (response !== null) {
+        return {
+          page,
+          sorting,
+          resource,
+          loading: false,
+          search: searchBody,
+          fields: filteredFields,
+          limit: RESULTS_PER_PAGE,
+          searchFields: filteredSearchFields,
+          total: response.total,
+          results: response.results.map((result) => (result as Record<string, unknown>)._id),
+        };
+      }
     }
 
     // Resource creation / update page...
     if (type === 'CREATE' || type === 'UPDATE') {
       const { configuration, fieldProps, requestedFields } = this.formBuilder.buildConfiguration(
-        collection,
+        resource,
         id,
-        new Set(fields.filter((field) => this.canAccessField(collection, field, 'VIEW'))),
+        new Set(fields.filter((field) => this.canAccessField(resource, field, 'VIEW'))),
         this,
       );
       configuration.plugins ??= [];
@@ -836,10 +837,10 @@ export default class Store<
         engine.on('submit', async (data, next) => {
           if (data !== null) {
             const response = (id !== null)
-              ? await this.update(collection, id, data, { fields: [...fields] })
-              : await this.create(collection, data);
+              ? await this.update(resource, id, data, { fields: [...fields] })
+              : await this.create(resource, data);
             if (response !== null) {
-              const [updatedResource] = this.normalizeResources(collection, [response]);
+              const [updatedResource] = this.normalizeResources(resource, [response]);
               engine.setInitialValues(updatedResource as UserInputs);
               Object.keys(updatedResource as UserInputs).forEach((key) => {
                 const newFieldValue = (updatedResource as UserInputs)[key];
@@ -850,8 +851,8 @@ export default class Store<
               if (id !== null) {
                 this.notify('NOTIFICATIONS.UPDATED_RESOURCE');
               } else {
-                const collectionListRoute = this.getRoute(`${String(collection)}.list`);
-                this.navigate(collectionListRoute ?? this.getFallbackPageRoute())();
+                const resourceListRoute = this.getRoute(`${String(resource)}.list`);
+                this.navigate(resourceListRoute ?? this.getFallbackPageRoute())();
                 this.notify('NOTIFICATIONS.CREATED_RESOURCE');
               }
             }
@@ -866,19 +867,21 @@ export default class Store<
       if (id === null) {
         return { loading: false, configuration, fieldProps };
       }
-      fields.filter((field) => this.canAccessField(collection, field, 'VIEW')).forEach((field) => (
+      fields.filter((field) => this.canAccessField(resource, field, 'VIEW')).forEach((field) => (
         requestedFields.add(field)
       ));
       const options = { fields: [...requestedFields] };
-      const response = await this.view(collection, id, options) as DataModel[keyof DataModel];
-      const [updatedResource] = this.normalizeResources(collection, [response]);
-      configuration.initialValues = updatedResource as UserInputs;
-      return {
-        id,
-        fieldProps,
-        configuration,
-        loading: false,
-      };
+      const response = await this.view(resource, id, options);
+      if (response !== null) {
+        const [updatedResource] = this.normalizeResources(resource, [response]);
+        configuration.initialValues = updatedResource as UserInputs;
+        return {
+          id,
+          fieldProps,
+          configuration,
+          loading: false,
+        };
+      }
     }
 
     // User update page...
@@ -888,8 +891,8 @@ export default class Store<
         async (data) => {
           await this.dispatch('auth', 'updateUser', data).then(() => {
             this.notify('NOTIFICATIONS.UPDATED_USER');
-          }).catch((error) => {
-            const { body } = (error as unknown as { body?: { error: { code: string; }; }; });
+          }).catch((error: unknown) => {
+            const { body } = (error as { body?: { error: { code: string; }; }; });
             if (body?.error.code === 'RESOURCE_EXISTS') {
               this.notify('NOTIFICATIONS.ERRORS.USER_EXISTS');
             } else {
@@ -923,8 +926,8 @@ export default class Store<
                 this.notify('NOTIFICATIONS.RESET_PASSWORD');
                 this.navigate(this.pageRoutes.auth.signIn)();
               }
-            }).catch((error) => {
-              const { body } = (error as unknown as { body?: { error: { code: string; }; }; });
+            }).catch((error: unknown) => {
+              const { body } = (error as { body?: { error: { code: string; }; }; });
               if (body?.error.code === 'INVALID_RESET_TOKEN') {
                 this.notify('NOTIFICATIONS.ERRORS.INVALID_RESET_TOKEN');
               } else {
@@ -959,8 +962,8 @@ export default class Store<
     if (routerState.route === this.pageRoutes.auth.signUp) {
       const formConfiguration = this.formBuilder.getSignUpConfiguration(
         async (data) => {
-          await this.dispatch('auth', 'signUp', data).catch((error) => {
-            const { body } = (error as unknown as { body?: { error: { code: string; }; }; });
+          await this.dispatch('auth', 'signUp', data).catch((error: unknown) => {
+            const { body } = (error as { body?: { error: { code: string; }; }; });
             if (body?.error.code === 'RESOURCE_EXISTS') {
               this.notify('NOTIFICATIONS.ERRORS.DUPLICATE_USER');
             } else {
@@ -974,7 +977,41 @@ export default class Store<
       return formConfiguration;
     }
 
-    return null;
+    // Any other page...
+    return {};
+  }
+
+  /**
+   * Builds the URL querystring from `options`.
+   *
+   * @param options Query options.
+   *
+   * @returns URL querystring.
+   */
+  protected buildQuery(options: QueryOptions): string {
+    const query: string[] = [];
+    const {
+      page,
+      sortBy,
+      sortOrder,
+      query: text,
+    } = options;
+    if (page !== undefined && page > 1) {
+      query.push(`page=${String(page)}`);
+    }
+    if (text !== undefined && text.trim().length > 0) {
+      query.push(`query=${text.trim()}`);
+    }
+    if (
+      sortBy !== undefined
+      && sortOrder !== undefined
+      && sortBy.length > 0
+      && sortOrder.length === sortBy.length
+    ) {
+      query.push(`sortBy=${sortBy.join(',')}&sortOrder=${sortOrder.join(',')}`);
+    }
+
+    return (query.length > 0) ? `?${query.join('&')}` : '';
   }
 
   /**
@@ -1003,8 +1040,8 @@ export default class Store<
     this.logger = logger;
     this.apiClient = apiClient;
     this.formBuilder = formBuilder;
-    const { auth, collections } = settings.pages;
-    this.pageRoutes = { auth: {}, collections: {} };
+    const { auth, resources } = settings.pages;
+    this.pageRoutes = { auth: {}, resources: {} };
     this.fallbackPageRoute = settings.fallbackPageRoute;
     const capitalize = (text: string): string => text[0].toUpperCase() + text.slice(1);
 
@@ -1018,21 +1055,21 @@ export default class Store<
         visibility: (type === 'verifyEmail' || type === 'updateUser') ? 'PRIVATE' : 'PUBLIC_ONLY',
       });
     });
-    (Object.keys(collections) as (keyof DataModel)[]).forEach((collection) => {
+    (Object.keys(resources) as (keyof DataModel & string)[]).forEach((resource) => {
       // Sorting is important to register routes in the correct order (create, then everything else)
       // Otherwise `create` is treated as an id of update/:id route.
-      const collectionRoutes = collections[collection] as Record<string, Page<DataModel>>;
-      Object.keys(collectionRoutes).sort().forEach((type) => {
-        this.pageRoutes.collections[collection] ??= {};
-        const collectionPages = this.pageRoutes.collections[collection] as Record<string, string>;
-        collectionPages[type] = collectionRoutes[type].route;
-        this.createRoute(collectionRoutes[type].route, {
-          collection,
+      const resourceRoutes = resources[resource] as Record<string, Page<DataModel>>;
+      Object.keys(resourceRoutes).sort().forEach((type) => {
+        this.pageRoutes.resources[resource] ??= {};
+        const resourcePages = this.pageRoutes.resources[resource] as Record<string, string>;
+        resourcePages[type] = resourceRoutes[type].route;
+        this.createRoute(resourceRoutes[type].route, {
+          resource,
           visibility: 'PRIVATE',
           type: type.toUpperCase() as 'UPDATE',
-          pageProps: collectionRoutes[type].pageProps,
-          layoutProps: collectionRoutes[type].layoutProps,
-          component: collectionRoutes[type].component ?? capitalize(type),
+          pageProps: resourceRoutes[type].pageProps,
+          layoutProps: resourceRoutes[type].layoutProps,
+          component: resourceRoutes[type].component ?? capitalize(type),
         });
       });
     });
@@ -1056,25 +1093,25 @@ export default class Store<
   }
 
   /**
-   * Returns `true` if user has permissions to access `field` from `collection` in given context.
+   * Returns `true` if user has permissions to access `field` from `resource` in given context.
    *
-   * @param collection Field collection.
+   * @param resource Field resource.
    *
-   * @param field Field path in collection.
+   * @param field Field path in resource.
    *
    * @param accessType Access type.
    *
    * @returns `true` if user has necessary permissions, `false` otherwise.
    */
-  public canAccessField<Collection extends keyof DataModel>(
-    collection: Collection,
+  public canAccessField<Resource extends keyof DataModel & string>(
+    resource: Resource,
     field: string,
     accessType: AccessType,
   ): boolean {
-    const fieldMetadata = this.model.get(`${String(collection)}.${field}`);
+    const fieldMetadata = this.model.get(`${String(resource)}.${field}`);
 
     if (fieldMetadata === null) {
-      throw new Error(`Requested field "${String(collection)}.${field}" does not exist.`);
+      throw new Error(`Requested field "${String(resource)}.${field}" does not exist.`);
     }
 
     const { canonicalPath } = fieldMetadata;
@@ -1084,15 +1121,15 @@ export default class Store<
       return false;
     }
 
-    if (!this.user._permissions.has(`${toSnakeCase(canonicalPath[0])}_VIEW`)) {
+    if (!this.user._permissions.has(`VIEW_${toSnakeCase(canonicalPath[0])}`)) {
       return false;
     }
 
-    if (!this.user._permissions.has(`${toSnakeCase(String(collection))}_${accessType}`)) {
+    if (!this.user._permissions.has(`${accessType}_${toSnakeCase(String(resource))}`)) {
       return false;
     }
 
-    if (collection === 'users' && !this.user._permissions.has('USERS_AUTH_DETAILS_VIEW') && (
+    if (resource === 'users' && !this.user._permissions.has('VIEW_USERS_AUTH_DETAILS') && (
       canonicalPath[1] === '_devices'
       || canonicalPath[1] === '_apiKeys'
       || canonicalPath[1] === '_verifiedAt'
@@ -1100,14 +1137,14 @@ export default class Store<
       return false;
     }
 
-    if (collection === 'users' && canonicalPath[1] === 'password' && accessType !== 'CREATE') {
+    if (resource === 'users' && canonicalPath[1] === 'password' && accessType !== 'CREATE') {
       return false;
     }
 
     if (
-      collection === 'users'
+      resource === 'users'
       && canonicalPath[1] === 'roles'
-      && !this.user._permissions.has('USERS_ROLES_VIEW')
+      && !this.user._permissions.has('VIEW_USERS_ROLES')
     ) {
       return false;
     }
@@ -1116,9 +1153,9 @@ export default class Store<
   }
 
   /**
-   * Returns field value at `path`, from resource with id `id` in `collection`.
+   * Returns field value at `path`, from resource with id `id` in `resource`.
    *
-   * @param collection Resource collection.
+   * @param resource Resource resource.
    *
    * @param id Resource id.
    *
@@ -1135,21 +1172,21 @@ export default class Store<
    * @returns Field value if it exists, `null` otherwise.
    */
   public getValue(
-    collection: keyof DataModel,
+    resource: keyof DataModel & string,
     id: Id,
     path: string,
     registry: Partial<Registry<DataModel>>,
     currentPath = '_',
     currentPrefix: string[] = [],
     currentValue: unknown = undefined,
-  ): DataModel[keyof DataModel] | null {
+  ): DataModel[keyof DataModel & string] | null {
     if (currentPath === '_') {
-      const fullPrefix = [String(collection)];
-      const subValue = registry[collection]?.[String(id)];
-      return this.getValue(collection, id, path, registry, path, fullPrefix, subValue);
+      const fullPrefix = [String(resource)];
+      const subValue = registry[resource]?.[String(id)];
+      return this.getValue(resource, id, path, registry, path, fullPrefix, subValue);
     }
     if (currentPath === '') {
-      return currentValue as DataModel[keyof DataModel] | undefined ?? null;
+      return currentValue as DataModel[keyof DataModel & string] | undefined ?? null;
     }
     const splittedPath = currentPath.split('.');
     const subPath = String(splittedPath.shift());
@@ -1157,28 +1194,28 @@ export default class Store<
       const fullPath = splittedPath.join('.');
       const fullPrefix = currentPrefix.concat([subPath]);
       const subValue = (currentValue as Record<string, unknown>)[subPath];
-      return this.getValue(collection, id, path, registry, fullPath, fullPrefix, subValue);
+      return this.getValue(resource, id, path, registry, fullPath, fullPrefix, subValue);
     }
     if (Array.isArray(currentValue)) {
       const fullPath = [subPath].concat(splittedPath).join('.');
       return currentValue.map((item) => (
-        this.getValue(collection, id, path, registry, fullPath, [...currentPrefix], item)
-      )) as DataModel[keyof DataModel];
+        this.getValue(resource, id, path, registry, fullPath, [...currentPrefix], item)
+      )) as DataModel[keyof DataModel & string];
     }
     if (currentValue instanceof Id) {
       const model = this.model.get(currentPrefix.join('.')) as DataModelMetadata<IdSchema<DataModel>>;
       const fullPrefix = [String(model.schema.relation)];
       const fullPath = [subPath].concat(splittedPath).join('.');
       const subValue = registry[model.schema.relation]?.[String(currentValue)];
-      return this.getValue(collection, id, path, registry, fullPath, fullPrefix, subValue);
+      return this.getValue(resource, id, path, registry, fullPath, fullPrefix, subValue);
     }
-    return currentValue as DataModel[keyof DataModel] | undefined ?? null;
+    return currentValue as DataModel[keyof DataModel & string] | undefined ?? null;
   }
 
   /**
    * API client `view` method wrapper, that handles common errors and updates global registry.
    *
-   * @param collection Resource collection.
+   * @param resource Type of resource for which to call the API.
    *
    * @param id Resource id.
    *
@@ -1186,13 +1223,13 @@ export default class Store<
    *
    * @returns Requested resource.
    */
-  public async view<Collection extends keyof DataModel>(
-    collection: Collection,
-    id: Id | 'me',
+  public async view<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
     options?: QueryOptions,
-  ): Promise<DataModel[Collection] | null> {
-    return this.catchErrors(this.apiClient.view(collection, id, options).then((response) => {
-      this.normalizeResources(collection, [response]);
+  ): Promise<DataModel[Resource] | null> {
+    return this.catchErrors(this.apiClient.view(resource, id, options).then((response) => {
+      this.normalizeResources(resource, [response]);
       return response;
     }), true);
   }
@@ -1200,23 +1237,23 @@ export default class Store<
   /**
    * API client `delete` method wrapper, that handles common errors and deletes global registry.
    *
-   * @param collection Resource collection.
+   * @param resource Type of resource for which to call the API.
    *
    * @param id Resource id.
    */
-  public async delete<Collection extends keyof DataModel>(
-    collection: Collection,
+  public async delete<Resource extends keyof DataModel & string>(
+    resource: Resource,
     id: Id,
   ): Promise<void> {
-    await this.catchErrors(this.apiClient.delete(collection, id).then(() => {
-      this.mutate('registry', 'REMOVE', { collection, id });
+    await this.catchErrors(this.apiClient.delete(resource, id).then(() => {
+      this.mutate('registry', 'REMOVE', { resource, id });
     }), true);
   }
 
   /**
    * API client `update` method wrapper, that handles common errors and updates global registry.
    *
-   * @param collection Resource collection.
+   * @param resource Type of resource for which to call the API.
    *
    * @param id Resource id.
    *
@@ -1226,23 +1263,22 @@ export default class Store<
    *
    * @returns Updated resource.
    */
-  public async update<Collection extends keyof DataModel>(
-    collection: Collection,
-    id: Id | 'me',
+  public async update<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
     payload: unknown,
     options?: QueryOptions,
-  ): Promise<DataModel[Collection] | null> {
-    return this.catchErrors(this.apiClient.update(collection, id, payload, options)
-      .then((response) => {
-        this.normalizeResources(collection, [response]);
-        return response;
-      }), true);
+  ): Promise<DataModel[Resource] | null> {
+    return this.catchErrors(this.apiClient.update(resource, id, payload, options).then((res) => {
+      this.normalizeResources(resource, [res]);
+      return res;
+    }), true);
   }
 
   /**
    * API client `create` method wrapper, that handles common errors and updates global registry.
    *
-   * @param collection Resource collection.
+   * @param resource Type of resource for which to call the API.
    *
    * @param id Resource id.
    *
@@ -1250,13 +1286,13 @@ export default class Store<
    *
    * @returns Created resource.
    */
-  public async create<Collection extends keyof DataModel>(
-    collection: Collection,
+  public async create<Resource extends keyof DataModel & string>(
+    resource: Resource,
     payload: unknown,
     options?: QueryOptions,
-  ): Promise<DataModel[Collection] | null> {
-    return this.catchErrors(this.apiClient.create(collection, payload, options).then((response) => {
-      this.normalizeResources(collection, [response]);
+  ): Promise<DataModel[Resource] | null> {
+    return this.catchErrors(this.apiClient.create(resource, payload, options).then((response) => {
+      this.normalizeResources(resource, [response]);
       return response;
     }), true);
   }
@@ -1264,7 +1300,7 @@ export default class Store<
   /**
    * API client `search` method wrapper, that handles common errors and updates global registry.
    *
-   * @param collection Resources collection.
+   * @param resource Type of resource for which to call the API.
    *
    * @param searchBody Search request body.
    *
@@ -1272,33 +1308,32 @@ export default class Store<
    *
    * @returns Requested resources list.
    */
-  public async search<Collection extends keyof DataModel>(
-    collection: Collection,
+  public async search<Resource extends keyof DataModel & string>(
+    resource: Resource,
     searchBody: SearchBody,
     options?: QueryOptions,
-  ): Promise<Results<DataModel[Collection]> | null> {
-    return this.catchErrors(this.apiClient.search(collection, searchBody, options)
-      .then((response) => {
-        this.normalizeResources(collection, response.results);
-        return response;
-      }), true);
+  ): Promise<Results<DataModel[Resource]> | null> {
+    return this.catchErrors(this.apiClient.search(resource, searchBody, options).then((res) => {
+      this.normalizeResources(resource, res.results);
+      return res;
+    }), true);
   }
 
   /**
    * API client `list` method wrapper, that handles common errors and updates global registry.
    *
-   * @param collection Resources collection.
+   * @param resource Type of resource for which to call the API.
    *
    * @param options Additional requests options.
    *
    * @returns Requested resources list.
    */
-  public async list<Collection extends keyof DataModel>(
-    collection: Collection,
+  public async list<Resource extends keyof DataModel & string>(
+    resource: Resource,
     options?: QueryOptions,
-  ): Promise<Results<DataModel[Collection]> | null> {
-    return this.catchErrors(this.apiClient.list(collection, options).then((response) => {
-      this.normalizeResources(collection, response.results);
+  ): Promise<Results<DataModel[Resource]> | null> {
+    return this.catchErrors(this.apiClient.list(resource, options).then((response) => {
+      this.normalizeResources(resource, response.results);
       return response;
     }), true);
   }
@@ -1306,47 +1341,47 @@ export default class Store<
   /**
    * Either lists or searches for resources, depending on `searchBody`.
    *
-   * @param collection Resources collection.
+   * @param resource Type of resource for which to call the API.
    *
    * @param searchBody Search request body. If null, a simple resources list will be performed.
    *
    * @param options Additional requests options.
    */
-  public async listOrSearch<Collection extends keyof DataModel>(
-    collection: Collection,
+  public async listOrSearch<Resource extends keyof DataModel & string>(
+    resource: Resource,
     searchBody: SearchBody | null,
     options?: QueryOptions & { sorting?: Sorting; },
   ): Promise<void> {
     // Why using `replaceState` instead of `navigate`? Because we don't want to keep a history
     // of each user keystroke in the search field. Plus, we don't want to trigger a new
     // rendering in this specific case.
-    window.history.replaceState({}, '', `${window.location.pathname}${this.apiClient.buildQuery({
+    window.history.replaceState({}, '', `${window.location.pathname}${this.buildQuery({
       page: options?.page,
       query: searchBody?.query?.text,
       sortBy: Object.keys(options?.sorting ?? {}),
       sortOrder: Object.values(options?.sorting ?? {}),
     })}`);
-    const response = (searchBody === null) ? await this.list(collection, {
+    const response = (searchBody === null) ? await this.list(resource, {
       limit: RESULTS_PER_PAGE,
       offset: options?.offset,
       fields: options?.fields,
       sortBy: Object.keys(options?.sorting ?? {}),
       sortOrder: Object.values(options?.sorting ?? {}),
-    }) : await this.search(collection, searchBody, {
+    }) : await this.search(resource, searchBody, {
       limit: RESULTS_PER_PAGE,
       offset: options?.offset,
       fields: options?.fields,
       sortBy: Object.keys(options?.sorting ?? {}),
       sortOrder: Object.values(options?.sorting ?? {}),
     });
-    this.mutate('page', 'UPDATE', {
-      ...options,
-      search: searchBody,
-      total: (response as Results<DataModel>).total,
-      results: (response as Results<DataModel>).results.map((result) => (
-        (result as Resource)._id
-      )) as Id[],
-    });
+    if (response !== null) {
+      this.mutate('page', 'UPDATE', {
+        ...options,
+        search: searchBody,
+        total: response.total,
+        results: response.results.map((result) => (result as DataModel['users'])._id),
+      });
+    }
   }
 
   /**
@@ -1355,14 +1390,14 @@ export default class Store<
    * @param data Page data.
    */
   public async goToPage(data: Exclude<ListPageData<DataModel>, null>): Promise<void> {
-    window.history.pushState({}, '', `${window.location.pathname}${this.apiClient.buildQuery({
+    window.history.pushState({}, '', `${window.location.pathname}${this.buildQuery({
       page: data.page,
       query: data.search?.query?.text,
       sortBy: Object.keys(data.sorting),
       sortOrder: Object.values(data.sorting),
     })}`);
     const offset = Math.max(0, (data.page - 1) * RESULTS_PER_PAGE);
-    await this.listOrSearch(data.collection, data.search, { ...data, offset });
+    await this.listOrSearch(data.resource, data.search, { ...data, offset });
   }
 
   /**
@@ -1399,25 +1434,11 @@ export default class Store<
     this.pages[route] = {
       component: configuration.component,
       visibility: configuration.visibility,
-      collection: configuration.collection,
+      resource: configuration.resource,
       pageProps: configuration.pageProps ?? {},
       layoutProps: configuration.layoutProps ?? {},
-      type: (configuration.collection !== undefined) ? configuration.type : undefined,
+      type: (configuration.resource !== undefined) ? configuration.type : undefined,
     };
-  }
-
-  /**
-   * Downloads data model fragment for `collection` and updates local data model, if necessary.
-   *
-   * @param collection Collection for which to fetch data model fragment.
-   */
-  public async updateModel<Collection extends keyof DataModel>(
-    collection: Collection,
-  ): Promise<void> {
-    if (!this.loadedCollections.has(collection)) {
-      await this.apiClient.getModel(collection as keyof DefaultDataModel);
-      this.loadedCollections.add(collection);
-    }
   }
 
   /**
@@ -1451,24 +1472,24 @@ export default class Store<
    */
   public getRoute(type: string): string | null {
     const splittedType = type.split('.');
-    const collection = String(splittedType.shift()) as keyof DataModel;
-    if (collection === 'auth') {
+    const resource = String(splittedType.shift()) as keyof DataModel & string;
+    if (resource === 'auth') {
       return this.pageRoutes.auth[String(splittedType.shift()) as 'signIn'] ?? null;
     }
-    return this.pageRoutes.collections[collection]?.[String(splittedType.shift()) as 'list'] ?? null;
+    return this.pageRoutes.resources[resource]?.[String(splittedType.shift()) as 'list'] ?? null;
   }
 
   /**
-   * Returns all collections list pages routes.
+   * Returns all resources list pages routes.
    *
-   * @returns Collections list routes.
+   * @returns Resources list routes.
    */
-  public getCollectionRoutes(): { collection: string; route: string; }[] {
-    const collections = Object.keys(this.pageRoutes.collections) as (keyof DataModel)[];
-    return collections.reduce<{ collection: string; route: string; }[]>((routes, collection) => {
-      const collectionPages = this.pageRoutes.collections[collection] as Record<string, string>;
-      return (collectionPages.list as unknown !== undefined)
-        ? routes.concat([{ collection: String(collection), route: collectionPages.list }])
+  public getResourceRoutes(): { resource: string; route: string; }[] {
+    const resources = Object.keys(this.pageRoutes.resources) as (keyof DataModel & string)[];
+    return resources.reduce<{ resource: string; route: string; }[]>((routes, resource) => {
+      const resourcePages = this.pageRoutes.resources[resource] as Record<string, string>;
+      return (resourcePages.list as unknown !== undefined)
+        ? routes.concat([{ resource: String(resource), route: resourcePages.list }])
         : routes;
     }, []);
   }
@@ -1526,13 +1547,9 @@ export default class Store<
   }
 
   /**
-   * Either navigates back through user history if it exists, or navigates to the fallback route.
+   * Navigates back through user history.
    */
   public goBack(): void {
-    if (window.history.length > 2) {
-      window.history.back();
-    } else {
-      this.navigate(this.fallbackPageRoute)();
-    }
+    window.history.back();
   }
 }

@@ -54,19 +54,19 @@ exports[`scripts/react/components/FormField > renders correctly - Message 1`] = 
 </section>
 `;
 
+exports[`scripts/react/components/FormField > renders correctly - Object, isRequired 1`] = `
+<div
+  id="nested-fields"
+>
+  {"type":"null","path":"root.0.field","error":null,"engine":{},"status":"initial","isActive":true,"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","isRequired":true,"value":null,"_canonicalPath":"field"}
+</div>
+`;
+
 exports[`scripts/react/components/FormField > renders correctly - Object, optional 1`] = `
 <div
   id="optional-field"
 >
-  {"type":"null","path":"root.0.field","error":null,"value":null,"engine":{},"active":true,"status":"initial","required":false,"modifiers":"object","showLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.SHOW.LABEL","hideLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.HIDE.LABEL"}
-</div>
-`;
-
-exports[`scripts/react/components/FormField > renders correctly - Object, required 1`] = `
-<div
-  id="nested-fields"
->
-  {"type":"null","path":"root.0.field","error":null,"engine":{},"status":"initial","active":true,"required":true,"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","value":null,"_canonicalPath":"root.0.field"}
+  {"type":"null","path":"root.0.field","error":null,"value":null,"engine":{},"status":"initial","isActive":true,"isRequired":false,"modifiers":"object","showLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.SHOW.LABEL","hideLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.HIDE.LABEL"}
 </div>
 `;
 

@@ -7,20 +7,20 @@
  */
 
 import * as React from 'react';
+import { toSnakeCase } from '@perseid/core';
 import { type AuthState } from 'scripts/core/services/Store';
 import { UILink, UIButton, buildClass } from '@perseid/ui/react';
-import { type DefaultDataModel, toSnakeCase } from '@perseid/core';
 import { type RoutingContext } from '@perseid/store/extensions/router';
 
 /**
  * App menu.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Menu.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Menu.tsx
  */
-function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
+function Menu({
   services,
-}: ReactCommonProps<DataModel>): JSX.Element {
-  const { store, i18n: { t } } = services;
+}: ReactCommonProps): JSX.Element {
+  const { store, i18n } = services;
   const [isDisplayed, setIsDisplayed] = React.useState(false);
   const { user } = services.store.useSubscription<AuthState>('auth');
   const className = buildClass('menu', isDisplayed ? 'visible' : '');
@@ -35,7 +35,7 @@ function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
   }, [isDisplayed]);
 
   const onClick = React.useCallback((url: string) => (
-    (event: MouseEvent) => {
+    (event: MouseEvent): void => {
       if (url === route) {
         event.preventDefault();
       } else {
@@ -59,23 +59,23 @@ function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
           <UILink
             href={updateUserRoute}
             onClick={onClick(updateUserRoute)}
-            label={t('MENU.UPDATE_USER')}
+            label={i18n.t('MENU.UPDATE_USER')}
           />
         </li>,
       );
     }
     // Do not use the `condition && <Component .../>` expression here, as if condition is not met,
     // `menuItems` will be filled with `false`, which will break burger menu display condition.
-    store.getCollectionRoutes().forEach((collectionRoute) => {
-      const isCurrentRoute = route === collectionRoute.route;
+    store.getResourceRoutes().forEach((resourceRoute) => {
+      const isCurrentRoute = route === resourceRoute.route;
       const itemModifiers = buildClass('menu__panel__items__item', isCurrentRoute ? 'active' : '');
-      if (user._permissions.has(`${toSnakeCase(collectionRoute.collection)}_LIST`)) {
+      if (user._permissions.has(`LIST_${toSnakeCase(resourceRoute.resource)}`)) {
         menuItems.push(
-          <li className={itemModifiers} tabIndex={-1} role="menuitem" key={collectionRoute.collection}>
+          <li className={itemModifiers} tabIndex={-1} role="menuitem" key={resourceRoute.resource}>
             <UILink
-              href={collectionRoute.route}
-              onClick={onClick(collectionRoute.route)}
-              label={t(`MENU.${toSnakeCase(collectionRoute.collection)}`)}
+              href={resourceRoute.route}
+              onClick={onClick(resourceRoute.route)}
+              label={i18n.t(`MENU.${toSnakeCase(resourceRoute.resource)}`)}
             />
           </li>,
         );
@@ -104,14 +104,14 @@ function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
             icon="close"
             onClick={toggleMenu}
           />
-          <span className="menu__panel__title">{t('MENU.ITEMS.TITLE')}</span>
+          <span className="menu__panel__title">{i18n.t('MENU.ITEMS.TITLE')}</span>
           <ul className="menu__panel__items">
             {menuItems}
           </ul>
           {user !== null && (
             <UIButton
               icon="signOut"
-              label={t('MENU.SIGN_OUT')}
+              label={i18n.t('MENU.SIGN_OUT')}
               modifiers="outlined secondary"
               onClick={signOut as () => void}
             />
@@ -122,4 +122,4 @@ function Menu<DataModel extends DefaultDataModel = DefaultDataModel>({
   );
 }
 
-export default React.memo(Menu) as ReactMenuComponent;
+export default React.memo(Menu);

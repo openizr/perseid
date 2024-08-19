@@ -10,8 +10,6 @@
  * `scripts/react/components/Notifier` mock.
  */
 
-import * as React from 'react';
-
 export default function Notifier(props: unknown): JSX.Element {
   return (
     <div id="notifier">{JSON.stringify(props)}</div>

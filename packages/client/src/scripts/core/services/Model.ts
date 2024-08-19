@@ -10,15 +10,17 @@ import { deepMerge, type DefaultDataModel, Model as BaseModel } from '@perseid/c
 
 /**
  * Data model.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/services/Model.ts
  */
 export default class Model<
   /** Data model types definitions. */
-  DataModel = DefaultDataModel,
+  DataModel extends DefaultDataModel = DefaultDataModel,
 > extends BaseModel<DataModel> {
   /**
    * Updates data model with `schemaFragment`.
    *
-   * @param schemaFragment Fragment of data model schema. Contains a subset of collections schemas.
+   * @param schemaFragment Fragment of data model schema. Contains a subset of resources schemas.
    */
   public update(schemaFragment: Partial<DataModel>): void {
     this.schema = deepMerge(this.schema, schemaFragment);

@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
-import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import List from 'scripts/react/pages/List';
+import { render } from '@testing-library/react';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/pages/List', () => {
   vi.mock('@perseid/core');
@@ -33,7 +31,7 @@ describe('react/pages/List', () => {
     viewRoute: string | null,
   ): Services => ({
     apiClient: {},
-    model: { get: vi.fn((path: string) => ({ schema: { index: path.includes('sortable') } })) },
+    model: { get: vi.fn((path: string) => ({ schema: { isIndexed: path.includes('sortable') } })) },
     i18n: { t: vi.fn((label: string) => label) },
     store: {
       goToPage,
@@ -53,7 +51,7 @@ describe('react/pages/List', () => {
   test('renders correctly - loading page', () => {
     const { container } = render(
       <List
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({ results: null }, null, null)}
       />,
@@ -65,7 +63,7 @@ describe('react/pages/List', () => {
     const searchBody = { query: { on: ['searchField'], text: 'test' }, filters: null };
     const { container } = render(
       <List
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           page: 1,
@@ -76,10 +74,10 @@ describe('react/pages/List', () => {
           loading: false,
           searchFields: ['searchField'],
           fields: ['sortableField', 'nonSortableField'],
-          results: ['123456789012345678901234', '123456789012345678901235'],
+          results: ['000000000000000000000011', '123456789012345678901235'],
         }, {
           users: {
-            '123456789012345678901234': { sortableField: 'Value 1', nonSortableField: 'Value 2' },
+            '000000000000000000000011': { sortableField: 'Value 1', nonSortableField: 'Value 2' },
           },
         }, '/view/:id')}
       />,
@@ -95,7 +93,7 @@ describe('react/pages/List', () => {
       sorting: { field1: 1 },
       searchFields: ['searchField'],
       fields: ['sortableField', 'nonSortableField'],
-      results: ['123456789012345678901234', '123456789012345678901235'],
+      results: ['000000000000000000000011', '123456789012345678901235'],
     });
     expect(listOrSearch).toHaveBeenCalledWith('users', searchBody, {
       page: 1,
@@ -106,7 +104,7 @@ describe('react/pages/List', () => {
       loading: false,
       searchFields: ['searchField'],
       fields: ['sortableField', 'nonSortableField'],
-      results: ['123456789012345678901234', '123456789012345678901235'],
+      results: ['000000000000000000000011', '123456789012345678901235'],
     });
     expect(goToPage).toHaveBeenCalledTimes(1);
     expect(goToPage).toHaveBeenCalledWith({
@@ -118,14 +116,14 @@ describe('react/pages/List', () => {
       loading: false,
       searchFields: ['searchField'],
       fields: ['sortableField', 'nonSortableField'],
-      results: ['123456789012345678901234', '123456789012345678901235'],
+      results: ['000000000000000000000011', '123456789012345678901235'],
     });
   });
 
   test('renders correctly - loaded page, results, view route does not exist', () => {
     const { container } = render(
       <List
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           page: 1,
@@ -136,10 +134,10 @@ describe('react/pages/List', () => {
           loading: false,
           searchFields: ['searchField'],
           fields: ['sortableField', 'nonSortableField'],
-          results: ['123456789012345678901234', '123456789012345678901235'],
+          results: ['000000000000000000000011', '123456789012345678901235'],
         }, {
           users: {
-            '123456789012345678901234': { sortableField: 'Value 1', nonSortableField: 'Value 2' },
+            '000000000000000000000011': { sortableField: 'Value 1', nonSortableField: 'Value 2' },
           },
         }, null)}
       />,
@@ -150,7 +148,7 @@ describe('react/pages/List', () => {
   test('renders correctly - loaded page, no results', () => {
     const { container } = render(
       <List
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           results: [],

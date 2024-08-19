@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import type Engine from '@perseid/form';
 import { render } from '@testing-library/react';
 import OptionalField from 'scripts/react/components/OptionalField';
@@ -34,13 +33,14 @@ describe('react/components/OptionalField', () => {
         type="null"
         value={null}
         error="TEST"
-        active={false}
-        required={false}
+        isActive={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
         showLabel="SHOW"
         hideLabel="HIDE"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -54,13 +54,14 @@ describe('react/components/OptionalField', () => {
         type="null"
         error="TEST"
         value="test"
-        active={false}
-        required={false}
+        isActive={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
         showLabel="SHOW"
         hideLabel="HIDE"
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

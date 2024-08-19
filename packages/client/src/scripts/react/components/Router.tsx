@@ -8,13 +8,16 @@
 
 import * as React from 'react';
 import connect from '@perseid/store/connectors/react';
-import { type DefaultDataModel } from '@perseid/core';
 import DefaultErrorPage from 'scripts/react/pages/Error';
+import type BaseModel from 'scripts/core/services/Model';
+import type BaseStore from 'scripts/core/services/Store';
 import DefaultLoader from 'scripts/react/components/Loader';
 import DefaultLayout from 'scripts/react/components/Layout';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
 import ErrorWrapper from 'scripts/react/components/ErrorWrapper';
 import { type Page as PageType } from 'scripts/core/services/Store';
 import { type RoutingContext } from '@perseid/store/extensions/router';
+import type { I18n as BaseI18n, DefaultDataModel } from '@perseid/core';
 import ConfirmationModal from 'scripts/react/components/ConfirmationModal';
 
 type ReactPage<DataModel extends DefaultDataModel> = PageType<DataModel> & {
@@ -40,9 +43,13 @@ const defaultPages = {
  * Router props.
  */
 export interface RouterProps<
-  DataModel extends DefaultDataModel
-> extends Pick<ReactCommonProps<DataModel>, 'services'> {
-  /** App DOM container. Automatic dimensionning will be enabled only if this prop is specified. */
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> extends Pick<ReactCommonProps<DataModel, I18n, Store, Model, ApiClient>, 'services'> {
+  /** App DOM container. Automatic dimensionning is enabled only if this prop is specified. */
   container?: HTMLElement;
 
   /** Custom components declaration. */
@@ -50,23 +57,23 @@ export interface RouterProps<
 
   /** Custom pages components declaration. */
   pages?: Partial<Record<string, (() => Promise<{
-    default: (props: ReactCommonProps<DataModel>) => React.ReactNode;
+    default: (props: ReactCommonProps<DataModel, I18n, Store, Model, ApiClient>) => React.ReactNode;
   }>)>>;
 }
 
 /**
  * App router. Handles redirects, not founds, and pages loading.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Router.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Router.tsx
  */
-function Router<DataModel extends DefaultDataModel = DefaultDataModel>({
+function Router({
   pages,
   services,
   container,
   components,
-}: RouterProps<DataModel> & {
-  components: ReactCommonProps<DataModel>['components'];
-  pages: Exclude<RouterProps<DataModel>['pages'], undefined>;
+}: RouterProps & {
+  components: ReactCommonProps['components'];
+  pages: Exclude<RouterProps['pages'], undefined>;
 }): JSX.Element {
   const { store } = services;
   const error = store.useSubscription('error');
@@ -77,11 +84,11 @@ function Router<DataModel extends DefaultDataModel = DefaultDataModel>({
 
   // We need to wrap `React.lazy` in a `useState` as lazy components must not be declared in
   // rendering functions (see https://react.dev/reference/react/lazy#troubleshooting).
-  const [allPages] = React.useState<Record<string, ReactPage<DataModel>>>(() => {
+  const [allPages] = React.useState<Record<string, ReactPage<DefaultDataModel>>>(() => {
     const allRoutes = services.store.getAllRoutes();
     return allRoutes.reduce((finalRoutes, route) => {
-      const pageConfiguration = services.store.getPage(route) as unknown as PageType<DataModel>;
-      const page = pages[String(pageConfiguration.component)] ?? null;
+      const pageConfiguration = services.store.getPage(route);
+      const page = pages[String(pageConfiguration?.component)] ?? null;
       return ({
         ...finalRoutes,
         [route]: {
@@ -116,7 +123,7 @@ function Router<DataModel extends DefaultDataModel = DefaultDataModel>({
         currentViewportAvailableWidth = window.screen.availWidth;
       } else if (parent !== undefined && shouldResize) {
         shouldResize = false;
-        requestAnimationFrame(() => { parent.style.height = `${window.innerHeight}px`; });
+        requestAnimationFrame(() => { parent.style.height = `${String(window.innerHeight)}px`; });
       }
     };
     setHeight();
@@ -150,7 +157,7 @@ function Router<DataModel extends DefaultDataModel = DefaultDataModel>({
             services={services}
             {...page.pageProps}
             components={components}
-            collection={page.collection}
+            resource={page.resource}
           />
         )}
       </React.Suspense>
@@ -158,22 +165,25 @@ function Router<DataModel extends DefaultDataModel = DefaultDataModel>({
   );
 }
 
-export default React.memo(<DataModel extends DefaultDataModel = DefaultDataModel>({
+export default React.memo(({
   pages,
   services,
   container,
   components,
-}: RouterProps<DataModel>) => {
-  const allComponents = { ...defaultComponents, ...components } as ReactCustomComponents<DataModel>;
-  const allPages = { ...defaultPages, ...pages } as Exclude<RouterProps<DataModel>['pages'], undefined>;
+}: RouterProps) => {
+  const allComponents = {
+    ...defaultComponents,
+    ...components,
+  } as ReactCustomComponents<DefaultDataModel>;
+  const allPages = { ...defaultPages, ...pages } as Exclude<RouterProps['pages'], undefined>;
   const ErrorPage = allComponents.ErrorPage ?? DefaultErrorPage;
 
   // Initializes React connection to the store.
   const { store } = services;
   store.useSubscription = connect(services.store);
 
-  // We need to wrap all components including Router inside the error handler at the highest level,
-  // to be able to cleanly handle as many errors as possible, including store errors.
+  // We need to wrap all components including Router inside the error handler at the highest
+  // level, to be able to cleanly handle as many errors as possible, including store errors.
   return (
     <ErrorWrapper fallback={<ErrorPage services={services} components={allComponents} />}>
       <Router

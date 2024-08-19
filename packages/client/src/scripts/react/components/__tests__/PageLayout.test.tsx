@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import PageLayout from 'scripts/react/components/PageLayout';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/PageLayout', () => {
   vi.mock('@perseid/core');
@@ -42,7 +40,7 @@ describe('react/components/PageLayout', () => {
     const { container } = render(
       <PageLayout
         page="VIEW"
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(new Set(), null)}
       >
@@ -56,9 +54,9 @@ describe('react/components/PageLayout', () => {
     const { container } = render(
       <PageLayout
         page="LIST"
-        collection="users"
+        resource="users"
         components={components}
-        services={createServices(new Set(['TO_SNAKE_CASE_users_create']), '/users/create')}
+        services={createServices(new Set(['create_TO_SNAKE_CASE_users']), '/users/create')}
       >
         <div id="content" />
       </PageLayout>,
@@ -70,7 +68,7 @@ describe('react/components/PageLayout', () => {
     const { container } = render(
       <PageLayout
         page="CREATE"
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(new Set(), null)}
       >

@@ -8,7 +8,7 @@ exports[`react/pages/List > renders correctly - loaded page, no results 1`] = `
     id="page-layout"
   >
     <span>
-      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
     </span>
     <div>
       <div
@@ -45,7 +45,7 @@ exports[`react/pages/List > renders correctly - loaded page, no results 1`] = `
               <div
                 id="field-label"
               >
-                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
               </div>
             </div>
             <div>
@@ -55,7 +55,7 @@ exports[`react/pages/List > renders correctly - loaded page, no results 1`] = `
               <div
                 id="field-label"
               >
-                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
               </div>
             </div>
           </div>
@@ -64,7 +64,7 @@ exports[`react/pages/List > renders correctly - loaded page, no results 1`] = `
         <div
           id="pagination"
         >
-          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":0,"components":{},"collection":"users","currentPage":1,"itemsPerPage":10}
+          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":0,"components":{},"resource":"users","currentPage":1,"itemsPerPage":10}
         </div>
       </div>
     </div>
@@ -80,7 +80,7 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
     id="page-layout"
   >
     <span>
-      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
     </span>
     <div>
       <div
@@ -117,7 +117,7 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
               <div
                 id="field-label"
               >
-                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
               </div>
             </div>
             <div>
@@ -127,7 +127,7 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
               <div
                 id="field-label"
               >
-                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
               </div>
             </div>
           </div>
@@ -136,12 +136,12 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
               <div
                 id="field-value"
               >
-                {"id":"123456789012345678901234","page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"123456789012345678901234":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"collection":"users","components":{},"loading":false}
+                {"id":"000000000000000000000011","page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"000000000000000000000011":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"resource":"users","components":{},"loading":false}
               </div>
               <div
                 id="field-value"
               >
-                {"id":"123456789012345678901234","page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"123456789012345678901234":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"collection":"users","components":{},"loading":false}
+                {"id":"000000000000000000000011","page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"000000000000000000000011":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"resource":"users","components":{},"loading":false}
               </div>
             </div>
           </div>
@@ -149,7 +149,7 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
         <div
           id="pagination"
         >
-          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":20,"components":{},"collection":"users","currentPage":1,"itemsPerPage":10}
+          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":20,"components":{},"resource":"users","currentPage":1,"itemsPerPage":10}
         </div>
       </div>
     </div>
@@ -165,7 +165,7 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
     id="page-layout"
   >
     <span>
-      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+      {"page":"LIST","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
     </span>
     <div>
       <div
@@ -202,7 +202,7 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
               <div
                 id="field-label"
               >
-                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+                {"page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
               </div>
             </div>
             <div>
@@ -212,7 +212,7 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
               <div
                 id="field-label"
               >
-                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"collection":"users","components":{}}
+                {"page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"resource":"users","components":{}}
               </div>
             </div>
           </div>
@@ -221,12 +221,12 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
               <div
                 id="field-value"
               >
-                {"id":"123456789012345678901234","page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"123456789012345678901234":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"collection":"users","components":{},"loading":false}
+                {"id":"000000000000000000000011","page":"LIST","field":"sortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"000000000000000000000011":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"resource":"users","components":{},"loading":false}
               </div>
               <div
                 id="field-value"
               >
-                {"id":"123456789012345678901234","page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"123456789012345678901234":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"collection":"users","components":{},"loading":false}
+                {"id":"000000000000000000000011","page":"LIST","field":"nonSortableField","services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"registry":{"users":{"000000000000000000000011":{"sortableField":"Value 1","nonSortableField":"Value 2"}}},"resource":"users","components":{},"loading":false}
               </div>
             </div>
           </div>
@@ -234,7 +234,7 @@ exports[`react/pages/List > renders correctly - loaded page, results, view route
         <div
           id="pagination"
         >
-          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":20,"components":{},"collection":"users","currentPage":1,"itemsPerPage":10}
+          {"services":{"apiClient":{},"model":{},"i18n":{},"store":{}},"total":20,"components":{},"resource":"users","currentPage":1,"itemsPerPage":10}
         </div>
       </div>
     </div>

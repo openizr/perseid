@@ -7,16 +7,15 @@
  */
 
 import * as React from 'react';
-import { type DefaultDataModel } from '@perseid/core';
 
 /**
  * App loader.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Loader.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Loader.tsx
  */
-function Loader<DataModel extends DefaultDataModel = DefaultDataModel>({
+function Loader({
   services,
-}: ReactCommonProps<DataModel>): JSX.Element {
+}: ReactCommonProps): JSX.Element {
   return (
     <div className="loader">
       {services.i18n.t('LOADER.LABEL')}
@@ -24,4 +23,4 @@ function Loader<DataModel extends DefaultDataModel = DefaultDataModel>({
   );
 }
 
-export default React.memo(Loader) as ReactLoaderComponent;
+export default React.memo(Loader);

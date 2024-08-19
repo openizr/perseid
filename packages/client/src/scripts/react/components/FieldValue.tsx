@@ -6,16 +6,27 @@
  *
  */
 
-import * as React from 'react';
+import {
+  type Id,
+  isPlainObject,
+  type DefaultDataModel,
+  type I18n as BaseI18n,
+} from '@perseid/core';
 import { UIImage } from '@perseid/ui/react';
-import { type Id, isPlainObject, type DefaultDataModel } from '@perseid/core';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
 
 /**
  * Field value props.
  */
 export interface FieldValueProps<
-  DataModel extends DefaultDataModel
-> extends ReactCommonProps<DataModel> {
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
   /** Id of the resource to display. */
   id: Id;
 
@@ -31,8 +42,8 @@ export interface FieldValueProps<
   /** Resources registry. */
   registry: Registry<DataModel>;
 
-  /** Data model collection, if any. */
-  collection: keyof DataModel;
+  /** Data model resource, if any. */
+  resource: keyof DataModel & string;
 }
 
 const textDecoder = new TextDecoder();
@@ -40,19 +51,19 @@ const textDecoder = new TextDecoder();
 /**
  * Displays a specific resource field value.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/FieldValue.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/FieldValue.tsx
  */
-export default function FieldValue<DataModel extends DefaultDataModel = DefaultDataModel>({
+export default function FieldValue({
   id,
   page,
   field,
   loading,
   services,
   registry,
-  collection,
-}: FieldValueProps<DataModel>): JSX.Element | null {
+  resource,
+}: FieldValueProps): JSX.Element | null {
   let valueElement = null;
-  const value = services.store.getValue(collection, id, field, registry);
+  const value = services.store.getValue(resource, id, field, registry);
 
   if (typeof page !== 'string' || value === null) {
     valueElement = services.i18n.t(loading ? 'FIELD.LOADING.LABEL' : 'FIELD.FALLBACK.LABEL');

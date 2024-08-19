@@ -72,7 +72,7 @@ const css = `
 /**
  * Responsive grid, used for design integration.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/Grid.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Grid.tsx
  */
 function Grid({ columns }: GridProps): JSX.Element {
   const [displayGrid, setDisplayGrid] = React.useState(false);
@@ -99,7 +99,7 @@ function Grid({ columns }: GridProps): JSX.Element {
     style.innerHTML = css;
     document.head.appendChild(style);
     window.addEventListener('keydown', toggleGrid, keyDownEventOptions);
-    return () => { window.removeEventListener('keydown', toggleGrid, keyDownEventOptions); };
+    return (): void => { window.removeEventListener('keydown', toggleGrid, keyDownEventOptions); };
   }, [toggleGrid]);
 
   return (

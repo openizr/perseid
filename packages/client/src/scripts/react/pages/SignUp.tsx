@@ -9,19 +9,18 @@
 import * as React from 'react';
 import Form from '@perseid/form/react';
 import { UILink, UITitle } from '@perseid/ui/react';
-import { type DefaultDataModel } from '@perseid/core';
 import FormField from 'scripts/react/components/FormField';
 import DefaultLoader from 'scripts/react/components/Loader';
 
 /**
  * Sign-up page.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/pages/SignUp.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/SignUp.tsx
  */
-function SignUp<DataModel extends DefaultDataModel = DefaultDataModel>({
+function SignUp({
   services,
   components,
-}: ReactCommonProps<DataModel>): JSX.Element {
+}: ReactCommonProps): JSX.Element {
   const prefix = 'PAGES.SIGN_UP';
   const Loader = components.Loader ?? DefaultLoader;
   const signInRoute = services.store.getRoute('auth.signIn');

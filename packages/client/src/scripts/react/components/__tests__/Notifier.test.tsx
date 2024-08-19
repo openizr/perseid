@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
-import { type DefaultDataModel } from '@perseid/core';
 import Notifier from 'scripts/react/components/Notifier';
 import { render, fireEvent, queryByAttribute } from '@testing-library/react';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/Notifier', () => {
   vi.mock('@perseid/ui/react');

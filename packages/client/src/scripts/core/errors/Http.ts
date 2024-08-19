@@ -8,6 +8,8 @@
 
 /**
  * HTTP error mock.
+ *
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/core/errors/Http.ts
  */
 export default class HttpError extends Error {
   /** Mocked HTTP response. */

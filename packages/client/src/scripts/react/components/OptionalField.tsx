@@ -27,7 +27,7 @@ export interface OptionalFieldProps extends FormFieldProps {
 /**
  * Optional form field.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/OptionalField.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/OptionalField.tsx
  */
 function OptionalField({
   showLabel,
@@ -35,7 +35,6 @@ function OptionalField({
   modifiers = '',
   ...field
 }: OptionalFieldProps): JSX.Element {
-  const [isExpanded, setIsExpanded] = React.useState(field.value !== null);
   const {
     path,
     Field,
@@ -44,24 +43,18 @@ function OptionalField({
   } = field;
 
   const toggleExpand = React.useCallback(() => {
-    setIsExpanded((previousState) => !previousState);
-  }, []);
-
-  React.useEffect(() => {
-    if (!isExpanded && value !== null) {
-      engine.userAction({ type: 'input', path, data: null });
-    }
-  }, [isExpanded, value, path, engine]);
+    engine.userAction({ type: 'input', path, data: (value === null) ? {} : null });
+  }, [engine, path, value]);
 
   return (
     <div className={buildClass('optional-field', modifiers)}>
       <UIButton
         onClick={toggleExpand}
         modifiers="secondary outlined"
-        label={isExpanded ? hideLabel : showLabel}
+        label={(value !== null) ? hideLabel : showLabel}
       />
-      {isExpanded && (
-        <Field {...field} required />
+      {(value !== null) && (
+        <Field {...field} isRequired />
       )}
     </div>
   );

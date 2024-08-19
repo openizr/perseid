@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import PermissionsWrapper from 'scripts/react/components/PermissionsWrapper';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/PermissionsWrapper', () => {
   vi.mock('scripts/core/services/Store');

@@ -25,7 +25,7 @@ export interface ErrorWrapperProps {
 /**
  * Handles uncaught errors and displays a generic UI.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/ErrorWrapper.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/ErrorWrapper.tsx
  */
 export default class ErrorWrapper extends React.Component<ErrorWrapperProps, {
   hasError: boolean;

@@ -91,4 +91,4 @@ export const UITextfield = Component('ui-textfield');
 export const UIFilePicker = Component('ui-file-picker');
 export const generateRandomId = vi.fn(() => '18972182');
 export const buildClass = vi.fn((...values: string[]): string => values.join(' '));
-export const markdown = vi.fn((label: string, lightMode: boolean) => `MARKDOWN FOR ${label}, ${lightMode}`);
+export const markdown = vi.fn((label: string, lightMode: boolean) => `MARKDOWN FOR ${label}, ${String(lightMode)}`);

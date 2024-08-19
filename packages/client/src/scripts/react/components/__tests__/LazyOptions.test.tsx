@@ -13,7 +13,6 @@ import {
   fireEvent,
   queryByAttribute,
 } from '@testing-library/react';
-import React from 'react';
 import type Store from 'scripts/core/services/Store';
 import LazyOptions from 'scripts/react/components/LazyOptions';
 
@@ -38,7 +37,7 @@ describe('react/components/LazyOptions', () => {
           value="test"
           label="LABEL"
           labelFn={labelFn}
-          collection="users"
+          resource="users"
           loadingLabel="LOADING"
           noResultLabel="NO_RESULT"
           onChange={vi.fn(() => null)}
@@ -64,7 +63,7 @@ describe('react/components/LazyOptions', () => {
         <LazyOptions
           label="LABEL"
           labelFn={labelFn}
-          collection="users"
+          resource="users"
           loadingLabel="LOADING"
           noResultLabel="NO_RESULT"
           onChange={vi.fn(() => null)}

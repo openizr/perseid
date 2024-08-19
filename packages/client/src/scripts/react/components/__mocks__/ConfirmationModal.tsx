@@ -10,8 +10,6 @@
  * `scripts/react/components/ConfirmationModal` mock.
  */
 
-import * as React from 'react';
-
 export default function ConfirmationModal(props: unknown): JSX.Element {
   return (
     <div id="confirmation-modal">{JSON.stringify(props)}</div>

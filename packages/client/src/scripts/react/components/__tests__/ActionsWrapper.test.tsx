@@ -7,12 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import ActionsWrapper from 'scripts/react/components/ActionsWrapper';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/ActionsWrapper', () => {
   vi.mock('@perseid/core');
@@ -26,7 +24,7 @@ describe('react/components/ActionsWrapper', () => {
   const deleteAction = vi.fn();
   const createServices = (
     permissions: Set<string>,
-    collectionRoutes: Record<string, string | null>,
+    resourceRoutes: Record<string, string | null>,
   ): Services => ({
     apiClient: {},
     model: {},
@@ -37,10 +35,10 @@ describe('react/components/ActionsWrapper', () => {
       navigate,
       delete: deleteAction,
       useSubscription: vi.fn((subscription) => ((subscription === 'router')
-        ? { params: { id: '123456789012345678901234' } }
+        ? { params: { id: '000000000000000000000011' } }
         : permissions)),
       getFallbackPageRoute: vi.fn(() => '/fallback-route'),
-      getRoute: vi.fn((route: string) => collectionRoutes[route]),
+      getRoute: vi.fn((route: string) => resourceRoutes[route]),
     },
   }) as unknown as Services;
 
@@ -52,29 +50,29 @@ describe('react/components/ActionsWrapper', () => {
     vi.spyOn(window, 'addEventListener').mockImplementation((_, callback) => {
       (callback as (event: Event) => void)({} as Event);
     });
-    const permissions = new Set(['TO_SNAKE_CASE_users_DELETE', 'TO_SNAKE_CASE_users_UPDATE']);
-    const collectionRoutes = { 'users.update': '/update-route' };
+    const permissions = new Set(['DELETE_TO_SNAKE_CASE_users', 'UPDATE_TO_SNAKE_CASE_users']);
+    const resourceRoutes = { 'users.update': '/update-route' };
     const { container } = render(
       <ActionsWrapper
-        collection="users"
+        resource="users"
         components={components}
-        services={createServices(permissions, collectionRoutes)}
+        services={createServices(permissions, resourceRoutes)}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
   });
 
   test('renders correctly - user has only update permission', () => {
-    const permissions = new Set(['TO_SNAKE_CASE_users_UPDATE']);
-    const collectionRoutes = {
+    const permissions = new Set(['UPDATE_TO_SNAKE_CASE_users']);
+    const resourceRoutes = {
       'users.update': '/update-route',
       'users.list': '/list-route',
     };
     const { container } = render(
       <ActionsWrapper
-        collection="users"
+        resource="users"
         components={components}
-        services={createServices(permissions, collectionRoutes)}
+        services={createServices(permissions, resourceRoutes)}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

@@ -8,28 +8,35 @@
 
 import * as React from 'react';
 import { UIButton, UITitle } from '@perseid/ui/react';
-import { type DefaultDataModel } from '@perseid/core';
+import type BaseStore from 'scripts/core/services/Store';
+import type BaseModel from 'scripts/core/services/Model';
+import type BaseApiClient from 'scripts/core/services/ApiClient';
+import { type DefaultDataModel, type I18n as BaseI18n } from '@perseid/core';
 
 /**
  * Confirmation modal props.
  */
 export type ConfirmationModalProps<
-  DataModel extends DefaultDataModel
-> = GenericConfirmationModalProps & ReactCommonProps<DataModel>;
+  DataModel extends DefaultDataModel = DefaultDataModel,
+  I18n extends BaseI18n = BaseI18n,
+  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+> = GenericConfirmationModalProps & ReactCommonProps<DataModel, I18n, Store, Model, ApiClient>;
 
 /**
  * Confirmation modal.
  *
- * @linkcode https://github.com/openizr/perseid/blob/main/client/src/scripts/react/components/ConfirmationModal.tsx
+ * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/ConfirmationModal.tsx
  */
-function ConfirmationModal<DataModel extends DefaultDataModel = DefaultDataModel>({
+function ConfirmationModal({
   title,
   cancel,
   confirm,
   services,
   subTitle,
   onConfirm: onConfirmProp,
-}: ConfirmationModalProps<DataModel>): JSX.Element {
+}: ConfirmationModalProps): JSX.Element {
   const onCancel = React.useCallback(() => {
     services.store.mutate('modal', 'HIDE');
   }, [services]);
