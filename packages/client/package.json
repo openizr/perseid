@@ -13,6 +13,12 @@
     "./react": {
       "default": "./react.js",
       "types": "./react.d.ts"
+    },
+    "./components/*.scss": {
+      "default": "./components/*.scss"
+    },
+    "./pages/*.scss": {
+      "default": "./pages/*.scss"
     }
   },
   "description": "Dynamic, model-based UIs generator",
@@ -103,6 +109,23 @@
         ],
         "rules": {
           "react/jsx-props-no-spreading": "off"
+        }
+      },
+      {
+        "files": [
+          "*.d.ts",
+          "*.ts"
+        ],
+        "rules": {
+          "@typescript-eslint/no-unnecessary-type-parameters": "off"
+        }
+      },
+      {
+        "files": [
+          "ErrorWrapper.tsx"
+        ],
+        "rules": {
+          "react/prop-types": "off"
         }
       },
       {
