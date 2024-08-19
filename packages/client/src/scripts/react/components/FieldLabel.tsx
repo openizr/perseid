@@ -31,12 +31,12 @@ export default function FieldLabel<DataModel extends DefaultDataModel = DefaultD
   page,
   field,
   services,
-  collection,
+  resource,
 }: FieldLabelProps<DataModel>): JSX.Element {
   const label = React.useMemo(() => {
     const path = toSnakeCase(field.replace(/\./g, '__'));
-    return services.i18n.t(`PAGES.${toSnakeCase(String(collection))}.${page}.FIELDS.${path}.LABEL`);
-  }, [services, collection, field, page]);
+    return services.i18n.t(`PAGES.${toSnakeCase(String(resource))}.${page}.FIELDS.${path}.LABEL`);
+  }, [services, resource, field, page]);
 
   return <span className="field-label">{label}</span>;
 }

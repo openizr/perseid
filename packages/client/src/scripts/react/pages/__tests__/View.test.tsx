@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import { type DefaultDataModel } from '@perseid/core';
 import View from 'scripts/react/pages/View';
@@ -41,7 +40,7 @@ describe('react/pages/View', () => {
   test('renders correctly - loading page', () => {
     const { container } = render(
       <View
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(null, null)}
       />,
@@ -52,7 +51,7 @@ describe('react/pages/View', () => {
   test('renders correctly - loaded page', () => {
     const { container } = render(
       <View
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           fields: ['field1', 'field2'],

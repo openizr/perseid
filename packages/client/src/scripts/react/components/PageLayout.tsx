@@ -17,8 +17,8 @@ import DefaultActionsWrapper from 'scripts/react/components/ActionsWrapper';
  */
 export interface PageLayoutProps<DataModel extends DefaultDataModel>
   extends ReactCommonProps<DataModel> {
-  /** Name of the resource collection. */
-  collection: keyof DataModel;
+  /** Name of the resource resource. */
+  resource: keyof DataModel & string;
 
   /** Page to wrap. */
   page: 'UPDATE' | 'CREATE' | 'VIEW' | 'LIST';
@@ -36,7 +36,7 @@ function PageLayout<DataModel extends DefaultDataModel = DefaultDataModel>({
   page,
   children,
   services,
-  collection,
+  resource,
   components,
 }: PageLayoutProps<DataModel>): JSX.Element {
   const ActionsWrapper = components.ActionsWrapper ?? DefaultActionsWrapper;
@@ -54,23 +54,23 @@ function PageLayout<DataModel extends DefaultDataModel = DefaultDataModel>({
         <ActionsWrapper
           services={services}
           components={components}
-          collection={collection}
+          resource={resource}
         />
       </>
     );
   }
 
   if (page === 'LIST') {
-    const collectionCreateRoute = services.store.getRoute(`${String(collection)}.create`);
-    const canUserCreateResource = permissions?.has(toSnakeCase(`${String(collection)}_create`));
+    const resourceCreateRoute = services.store.getRoute(`${String(resource)}.create`);
+    const canUserCreateResource = permissions?.has(toSnakeCase(`${String(resource)}_create`));
     return (
       <>
         {children}
-        {(collectionCreateRoute !== null && canUserCreateResource) && (
+        {(resourceCreateRoute !== null && canUserCreateResource) && (
           <UIButton
             icon="plus"
             modifiers="primary floating"
-            onClick={services.store.navigate(collectionCreateRoute)}
+            onClick={services.store.navigate(resourceCreateRoute)}
           />
         )}
       </>

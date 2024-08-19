@@ -54,7 +54,7 @@ function OptionalField({
         label={(value !== null) ? hideLabel : showLabel}
       />
       {(value !== null) && (
-        <Field {...field} required />
+        <Field {...field} isRequired />
       )}
     </div>
   );

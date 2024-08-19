@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import Menu from 'scripts/react/components/Menu';
 import { type DefaultDataModel } from '@perseid/core';
@@ -25,7 +24,7 @@ describe('react/components/Menu', () => {
     _permissions: Set<string>,
     route: string,
     updateUserRoute: string | null,
-    collectionRoutes: { route: string, collection: string }[],
+    resourceRoutes: { route: string, resource: string }[],
   ): Services => ({
     apiClient: {},
     model: {},
@@ -33,7 +32,7 @@ describe('react/components/Menu', () => {
     store: {
       navigate,
       dispatch,
-      getCollectionRoutes: vi.fn(() => collectionRoutes),
+      getResourceRoutes: vi.fn(() => resourceRoutes),
       getRoute: vi.fn((path) => (path === 'auth.updateUser' ? updateUserRoute : null)),
       useSubscription: vi.fn((subscription) => ((subscription === 'auth') ? { user: { _permissions } } : route)),
     },
@@ -45,18 +44,18 @@ describe('react/components/Menu', () => {
 
   test('renders correctly - available routes', () => {
     const permissions = new Set(['TO_SNAKE_CASE_users_LIST']);
-    const collectionRoutes = [{ route: '/users', collection: 'users' }];
+    const resourceRoutes = [{ route: '/users', resource: 'users' }];
     const { container, rerender } = render(
       <Menu
         components={components}
-        services={createServices(permissions, '/users/me', '/users/me', collectionRoutes)}
+        services={createServices(permissions, '/users/me', '/users/me', resourceRoutes)}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
     rerender(
       <Menu
         components={components}
-        services={createServices(permissions, '/users', '/users/me', collectionRoutes)}
+        services={createServices(permissions, '/users', '/users/me', resourceRoutes)}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

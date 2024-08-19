@@ -26,7 +26,7 @@ describe('react/components/ActionsWrapper', () => {
   const deleteAction = vi.fn();
   const createServices = (
     permissions: Set<string>,
-    collectionRoutes: Record<string, string | null>,
+    resourceRoutes: Record<string, string | null>,
   ): Services => ({
     apiClient: {},
     model: {},
@@ -40,7 +40,7 @@ describe('react/components/ActionsWrapper', () => {
         ? { params: { id: '000000000000000000000011' } }
         : permissions)),
       getFallbackPageRoute: vi.fn(() => '/fallback-route'),
-      getRoute: vi.fn((route: string) => collectionRoutes[route]),
+      getRoute: vi.fn((route: string) => resourceRoutes[route]),
     },
   }) as unknown as Services;
 
@@ -53,12 +53,12 @@ describe('react/components/ActionsWrapper', () => {
       (callback as (event: Event) => void)({} as Event);
     });
     const permissions = new Set(['TO_SNAKE_CASE_users_DELETE', 'TO_SNAKE_CASE_users_UPDATE']);
-    const collectionRoutes = { 'users.update': '/update-route' };
+    const resourceRoutes = { 'users.update': '/update-route' };
     const { container } = render(
       <ActionsWrapper
-        collection="users"
+        resource="users"
         components={components}
-        services={createServices(permissions, collectionRoutes)}
+        services={createServices(permissions, resourceRoutes)}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
@@ -66,15 +66,15 @@ describe('react/components/ActionsWrapper', () => {
 
   test('renders correctly - user has only update permission', () => {
     const permissions = new Set(['TO_SNAKE_CASE_users_UPDATE']);
-    const collectionRoutes = {
+    const resourceRoutes = {
       'users.update': '/update-route',
       'users.list': '/list-route',
     };
     const { container } = render(
       <ActionsWrapper
-        collection="users"
+        resource="users"
         components={components}
-        services={createServices(permissions, collectionRoutes)}
+        services={createServices(permissions, resourceRoutes)}
       />,
     );
     expect(container.firstChild).toMatchSnapshot();

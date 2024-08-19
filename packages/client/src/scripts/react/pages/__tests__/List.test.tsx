@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import { type DefaultDataModel } from '@perseid/core';
 import List from 'scripts/react/pages/List';
@@ -33,7 +32,7 @@ describe('react/pages/List', () => {
     viewRoute: string | null,
   ): Services => ({
     apiClient: {},
-    model: { get: vi.fn((path: string) => ({ schema: { index: path.includes('sortable') } })) },
+    model: { get: vi.fn((path: string) => ({ schema: { isIndexed: path.includes('sortable') } })) },
     i18n: { t: vi.fn((label: string) => label) },
     store: {
       goToPage,
@@ -53,7 +52,7 @@ describe('react/pages/List', () => {
   test('renders correctly - loading page', () => {
     const { container } = render(
       <List
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({ results: null }, null, null)}
       />,
@@ -65,7 +64,7 @@ describe('react/pages/List', () => {
     const searchBody = { query: { on: ['searchField'], text: 'test' }, filters: null };
     const { container } = render(
       <List
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           page: 1,
@@ -125,7 +124,7 @@ describe('react/pages/List', () => {
   test('renders correctly - loaded page, results, view route does not exist', () => {
     const { container } = render(
       <List
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           page: 1,
@@ -150,7 +149,7 @@ describe('react/pages/List', () => {
   test('renders correctly - loaded page, no results', () => {
     const { container } = render(
       <List
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           results: [],

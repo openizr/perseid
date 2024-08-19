@@ -25,8 +25,6 @@ import ActionsWrapper from 'scripts/react/components/ActionsWrapper';
 import ConfirmationModal from 'scripts/react/components/ConfirmationModal';
 import PermissionsWrapper from 'scripts/react/components/PermissionsWrapper';
 
-export * from 'scripts/core/index';
-
 const ViewPage = (): unknown => import('scripts/react/pages/View');
 const ListPage = (): unknown => import('scripts/react/pages/List');
 const ErrorPage = (): unknown => import('scripts/react/pages/Error');

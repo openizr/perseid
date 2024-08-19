@@ -32,7 +32,7 @@ describe('react/components/Loader', () => {
   test('renders correctly', () => {
     const { container } = render(
       <Loader
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
       />,

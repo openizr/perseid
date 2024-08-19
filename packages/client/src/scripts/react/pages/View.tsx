@@ -21,8 +21,8 @@ import DefaultFieldLabel from 'scripts/react/components/FieldLabel';
 export interface ViewProps<
   DataModel extends DefaultDataModel
 > extends ReactCommonProps<DataModel> {
-  /** Name of the resource collection. */
-  collection: keyof DataModel;
+  /** Name of the resource resource. */
+  resource: keyof DataModel & string;
 }
 
 /**
@@ -32,7 +32,7 @@ export interface ViewProps<
  */
 function View<DataModel extends DefaultDataModel = DefaultDataModel>({
   services,
-  collection,
+  resource,
   components,
 }: ViewProps<DataModel>): JSX.Element {
   const Loader = components.Loader ?? DefaultLoader;
@@ -49,8 +49,8 @@ function View<DataModel extends DefaultDataModel = DefaultDataModel>({
   }
 
   return (
-    <main className={buildClass('view-page', String(collection))}>
-      <PageLayout services={services} components={components} collection={collection} page="VIEW">
+    <main className={buildClass('view-page', String(resource))}>
+      <PageLayout services={services} components={components} resource={resource} page="VIEW">
         <div className="view-page__fields">
           {pageData.fields.map((field) => (
             <div className="view-page__fields__field" key={field}>
@@ -58,7 +58,7 @@ function View<DataModel extends DefaultDataModel = DefaultDataModel>({
                 page="VIEW"
                 field={field}
                 services={services}
-                collection={collection}
+                resource={resource}
                 components={components}
               />
               <FieldValue
@@ -67,7 +67,7 @@ function View<DataModel extends DefaultDataModel = DefaultDataModel>({
                 id={pageData.id}
                 registry={registry}
                 services={services}
-                collection={collection}
+                resource={resource}
                 components={components}
                 loading={pageData.loading}
               />

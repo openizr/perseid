@@ -45,7 +45,7 @@ function Modal<DataModel extends DefaultDataModel = DefaultDataModel>({
       }
     };
     window.addEventListener('keyup', handleKeyUp);
-    return () => {
+    return (): void => {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [closeModal, currentContent]);

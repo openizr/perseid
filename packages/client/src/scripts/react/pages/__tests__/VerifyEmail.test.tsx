@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import { type DefaultDataModel } from '@perseid/core';
 import VerifyEmail from 'scripts/react/pages/VerifyEmail';
@@ -23,7 +22,7 @@ describe('react/pages/VerifyEmail', () => {
   const notify = vi.fn();
   const navigate = vi.fn(() => vi.fn());
   const dispatch = vi.fn(() => ((process.env.THROW_DISPATCH_ERROR === 'true')
-    ? Promise.reject()
+    ? Promise.reject(new Error())
     : Promise.resolve()));
   const createServices = (
     userVerifiedAt: string | null,

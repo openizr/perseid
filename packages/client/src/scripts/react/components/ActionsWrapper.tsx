@@ -18,8 +18,8 @@ import { type RoutingContext } from '@perseid/store/extensions/router';
 export interface ActionsWrapperProps<
   DataModel extends DefaultDataModel
 > extends ReactCommonProps<DataModel> {
-  /** Name of the resource collection. */
-  collection: keyof DataModel;
+  /** Name of the resource resource. */
+  resource: keyof DataModel & string;
 
   /** "More" button props. */
   moreButtonProps?: ComponentProps;
@@ -40,19 +40,19 @@ const defaultComponentProps = {};
  */
 function ActionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
   services,
-  collection,
+  resource,
   moreButtonProps = defaultComponentProps,
   deleteButtonProps = defaultComponentProps,
   updateButtonProps = defaultComponentProps,
 }: ActionsWrapperProps<DataModel>): JSX.Element {
   const actionsRef = React.useRef<HTMLDivElement>(null);
-  const snakeCasedCollection = toSnakeCase(String(collection));
+  const snakeCasedResource = toSnakeCase(String(resource));
   const router = services.store.useSubscription<RoutingContext>('router');
   const [displayActions, setDisplayActions] = React.useState(false);
-  const collectionUpdateRoute = services.store.getRoute(`${String(collection)}.update`);
+  const resourceUpdateRoute = services.store.getRoute(`${String(resource)}.update`);
   const permissions = services.store.useSubscription('auth', (newState: AuthState) => newState.user?._permissions);
-  const canUserDeleteResource = permissions?.has(`${snakeCasedCollection}_DELETE`) === true;
-  const canUserUpdateResource = permissions?.has(`${snakeCasedCollection}_UPDATE`) && collectionUpdateRoute !== null;
+  const canUserDeleteResource = permissions?.has(`${snakeCasedResource}_DELETE`) === true;
+  const canUserUpdateResource = permissions?.has(`${snakeCasedResource}_UPDATE`) && resourceUpdateRoute !== null;
 
   const handleBlur = React.useCallback((event: MouseEvent): void => {
     if (actionsRef.current !== null && !actionsRef.current.contains(event.target as HTMLElement)) {
@@ -65,21 +65,21 @@ function ActionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
   }, []);
 
   const deleteResource = React.useCallback(async () => {
-    const collectionListRoute = services.store.getRoute(`${String(collection)}.list`);
-    await services.store.delete(collection, new Id(router.params.id));
+    const resourceListRoute = services.store.getRoute(`${String(resource)}.list`);
+    await services.store.delete(resource, new Id(router.params.id));
     services.store.notify('NOTIFICATIONS.DELETED_RESOURCE');
-    services.store.navigate(collectionListRoute ?? services.store.getFallbackPageRoute())();
-  }, [collection, services, router.params.id]);
+    services.store.navigate(resourceListRoute ?? services.store.getFallbackPageRoute())();
+  }, [resource, services, router.params.id]);
 
   const confirmDeletion = React.useCallback(() => {
     services.store.confirm({
       onConfirm: deleteResource as () => void,
-      title: `CONFIRM.DELETE.${snakeCasedCollection}.TITLE`,
-      subTitle: `CONFIRM.DELETE.${snakeCasedCollection}.SUBTITLE`,
-      confirm: `CONFIRM.DELETE.${snakeCasedCollection}.CONFIRM`,
-      cancel: `CONFIRM.DELETE.${snakeCasedCollection}.CANCEL`,
+      title: `CONFIRM.DELETE.${snakeCasedResource}.TITLE`,
+      subTitle: `CONFIRM.DELETE.${snakeCasedResource}.SUBTITLE`,
+      confirm: `CONFIRM.DELETE.${snakeCasedResource}.CONFIRM`,
+      cancel: `CONFIRM.DELETE.${snakeCasedResource}.CANCEL`,
     });
-  }, [deleteResource, services, snakeCasedCollection]);
+  }, [deleteResource, services, snakeCasedResource]);
 
   React.useEffect(() => {
     if (displayActions) {
@@ -110,7 +110,7 @@ function ActionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
         {canUserUpdateResource && (
           <UIButton
             icon="edit"
-            onClick={services.store.navigate(collectionUpdateRoute.replace(':id', router.params.id))}
+            onClick={services.store.navigate(resourceUpdateRoute.replace(':id', router.params.id))}
             {...updateButtonProps}
           />
         )}

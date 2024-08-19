@@ -73,7 +73,7 @@ export interface BuiltInEndpoints<DataModel> {
   };
 
   /** Resources-related endpoints. */
-  resources: Partial<Record<keyof DataModel, Partial<Record<
+  resources: Partial<Record<keyof DataModel & string, Partial<Record<
     'search' | 'view' | 'list' | 'create' | 'update' | 'delete',
     BuiltInEndpoint
   >>>>;
@@ -142,7 +142,7 @@ export default class ApiClient<
   protected baseUrl: string;
 
   /** List of resources types already loaded in data model. */
-  protected loadedResources = new Set<keyof DataModel>();
+  protected loadedResources = new Set<keyof DataModel & string>();
 
   /** List of mocked API responses, for each endpoint. */
   protected mockedResponses: ApiClientSettings<DataModel>['mockedResponses'];

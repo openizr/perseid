@@ -8,12 +8,12 @@
 
 import * as react from 'scripts/react/index';
 
-describe('react/index', () => {
+describe('scripts/react', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('correctly exports components and services', () => {
+  test('contains correct exports', () => {
     react.ViewPage();
     react.ListPage();
     react.ErrorPage();
@@ -24,11 +24,6 @@ describe('react/index', () => {
     react.ResetPasswordPage();
     react.CreateOrUpdatePage();
     expect(Object.keys(react)).toEqual([
-      'ApiClient',
-      'FormBuilder',
-      'Logger',
-      'Model',
-      'Store',
       'ActionsWrapper',
       'ConfirmationModal',
       'FieldLabel',

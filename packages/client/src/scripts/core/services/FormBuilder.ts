@@ -8,7 +8,6 @@
 
 import {
   Id,
-  type User,
   type Model,
   type Logger,
   type IdSchema,
@@ -21,8 +20,8 @@ import {
   type ObjectSchema,
   type BinarySchema,
   type BooleanSchema,
+  type ResourceSchema,
   type DefaultDataModel,
-  type CollectionSchema,
   type DataModelMetadata,
 } from '@perseid/core';
 import {
@@ -89,14 +88,15 @@ export default class FormBuilder<
     },
     id: (schema, path, extraFieldsTree, store) => {
       const {
-        relation,
-        required,
+        isRequired,
         enum: enumerations,
-        default: defaultValue,
       } = schema as IdSchema<DataModel>;
+      const relation = (schema as IdSchema<DataModel>).relation as (
+        undefined | keyof DataModel & string
+      );
       if (enumerations !== undefined) {
         return {
-          configuration: { type: 'string', defaultValue: required ? enumerations[0] : undefined, required },
+          configuration: { type: 'string', required: isRequired },
           fieldProps: {
             [path]: {
               component: 'Options',
@@ -120,21 +120,21 @@ export default class FormBuilder<
       if (relation !== undefined) {
         const keys = Object.keys(extraFieldsTree);
         const fields = keys.length === 0 ? ['_id'] : keys;
-        const labelFn = (resource: Resource | null): string => {
+        const labelFn = (resource: Record<string, unknown> | null): string => {
           const id = new Id();
           const registry = { [relation]: { [String(id)]: resource } } as Registry<DataModel>;
           const value = store.getValue(relation, id, fields[0], registry);
           return value ? String(value) : '';
         };
         return {
-          configuration: { type: 'string', required, defaultValue },
+          configuration: { type: 'string', isRequired },
           fieldProps: {
             [path]: {
               component: 'LazyOptions',
               componentProps: {
-                collection: relation,
+                resource: relation,
                 labelFn,
-                loadResults: async (newValue: string | null): Promise<Resource[]> => {
+                loadResults: async (newValue: string | null): Promise<unknown[]> => {
                   // We can't perform a full text search on ids.
                   const searchBody = (newValue === null || newValue.trim() === '') ? null : {
                     query: (keys.length === 0) ? null : { on: fields, text: newValue },
@@ -143,10 +143,10 @@ export default class FormBuilder<
                   const response = (searchBody === null)
                     ? await store.list(relation, { fields, limit: 10 })
                     : await store.search(relation, searchBody, { fields, limit: 10 });
-                  return response?.results.map((resource) => ({
+                  return response?.results.map((resource: unknown) => ({
                     type: 'option',
-                    label: labelFn(resource as Resource),
-                    value: String((resource as Resource)._id),
+                    label: labelFn(resource as Record<string, unknown>),
+                    value: String((resource as Record<string, unknown>)._id),
                   })) ?? [];
                 },
               },
@@ -157,9 +157,8 @@ export default class FormBuilder<
       const idRegExp = /^[0-9a-fA-F]{24}$/;
       return {
         configuration: {
-          required,
-          defaultValue,
           type: 'string',
+          required: isRequired,
           validation(newValue): string | null {
             return !idRegExp.test(newValue) ? 'PATTERN_VIOLATION' : null;
           },
@@ -173,16 +172,16 @@ export default class FormBuilder<
       };
     },
     binary(schema, path) {
-      const { type, required } = schema as BinarySchema;
+      const { type, isRequired } = schema as BinarySchema;
       return {
-        configuration: { type, required },
+        configuration: { type, required: isRequired },
         fieldProps: { [path]: { component: 'FilePicker', componentProps: {} } },
       };
     },
     boolean(schema, path) {
-      const { type, default: defaultValue, required } = schema as BooleanSchema;
+      const { type, isRequired } = schema as BooleanSchema;
       return {
-        configuration: { type, required, defaultValue: required ? defaultValue : undefined },
+        configuration: { type, required: isRequired },
         fieldProps: {
           [path]: {
             component: 'Options',
@@ -201,13 +200,12 @@ export default class FormBuilder<
     date(schema, path) {
       const {
         type,
-        required,
+        isRequired,
         enum: enumerations,
-        default: defaultValue,
       } = schema as DateSchema;
       if (enumerations !== undefined) {
         return {
-          configuration: { type, required, defaultValue: required ? enumerations[0] : undefined },
+          configuration: { type, required: isRequired },
           fieldProps: {
             [path]: {
               component: 'Options',
@@ -232,8 +230,7 @@ export default class FormBuilder<
       return {
         configuration: {
           type,
-          required,
-          defaultValue: required ? defaultValue : undefined,
+          required: isRequired,
           validation(newValue) {
             return !dateRegExp.test((newValue instanceof Date ? newValue.toISOString() : newValue))
               ? 'PATTERN_VIOLATION'
@@ -253,16 +250,15 @@ export default class FormBuilder<
         type,
         minimum,
         maximum,
-        required,
+        isRequired,
         multipleOf,
         exclusiveMinimum,
         exclusiveMaximum,
         enum: enumerations,
-        default: defaultValue,
       } = schema as NumberSchema;
       if (enumerations !== undefined) {
         return {
-          configuration: { type, required, defaultValue: required ? enumerations[0] : undefined },
+          configuration: { type, required: isRequired },
           fieldProps: {
             [path]: {
               component: 'Options',
@@ -286,8 +282,7 @@ export default class FormBuilder<
       return {
         configuration: {
           type,
-          required,
-          defaultValue,
+          required: isRequired,
           validation(newValue) {
             if (Number.isNaN(newValue)) {
               return 'NOT_A_NUMBER';
@@ -325,16 +320,15 @@ export default class FormBuilder<
         type,
         minimum,
         maximum,
-        required,
+        isRequired,
         multipleOf,
         exclusiveMinimum,
         exclusiveMaximum,
         enum: enumerations,
-        default: defaultValue,
       } = schema as NumberSchema;
       if (enumerations !== undefined) {
         return {
-          configuration: { type, required, defaultValue: required ? enumerations[0] : undefined },
+          configuration: { type, required: isRequired },
           fieldProps: {
             [path]: {
               component: 'Options',
@@ -358,8 +352,7 @@ export default class FormBuilder<
       return {
         configuration: {
           type,
-          required,
-          defaultValue,
+          required: isRequired,
           validation(newValue) {
             if (Number.isNaN(newValue)) {
               return 'NOT_A_NUMBER';
@@ -396,15 +389,14 @@ export default class FormBuilder<
       const {
         type,
         pattern,
-        required,
         maxLength,
         minLength,
+        isRequired,
         enum: enumerations,
-        default: defaultValue,
       } = schema as StringSchema;
       if (enumerations !== undefined) {
         return {
-          configuration: { type, required, defaultValue: required ? enumerations[0] : undefined },
+          configuration: { type, required: isRequired },
           fieldProps: {
             [path]: {
               component: 'Options',
@@ -428,8 +420,7 @@ export default class FormBuilder<
       return {
         configuration: {
           type,
-          defaultValue,
-          required,
+          required: isRequired,
           validation(newValue) {
             if (pattern !== undefined && !(new RegExp(pattern)).test(newValue)) {
               return 'PATTERN_VIOLATION';
@@ -452,8 +443,8 @@ export default class FormBuilder<
       };
     },
     object: (schema, path, extraFieldsTree, store) => {
-      const { type, fields, required } = schema as ObjectSchema<DataModel>;
-      const configuration: ObjectConfiguration = { type, required, fields: {} };
+      const { type, fields, isRequired } = schema as ObjectSchema<DataModel>;
+      const configuration: ObjectConfiguration = { type, required: isRequired, fields: {} };
       const fieldProps = (path === '') ? {} : {
         [path]: {
           component: 'Object',
@@ -478,7 +469,7 @@ export default class FormBuilder<
         fields,
         maxItems,
         minItems,
-        required,
+        isRequired,
         uniqueItems,
       } = schema as ArraySchema<DataModel>;
       const formatter = this.FORMATTERS[fields.type];
@@ -486,7 +477,7 @@ export default class FormBuilder<
       return {
         configuration: {
           type,
-          required,
+          required: isRequired,
           fields: formattedFields.configuration as ObjectConfiguration,
           validation(newValue) {
             if (uniqueItems !== undefined) {
@@ -541,9 +532,9 @@ export default class FormBuilder<
   }
 
   /**
-   * Filters `collection` data model schema and removes all fields for which user has no permission.
+   * Filters `resource` data model schema and removes all fields for which user has no permission.
    *
-   * @param collection Collection data model to filter.
+   * @param resource Resource data model to filter.
    *
    * @param mode Edition mode (update / create).
    *
@@ -555,8 +546,8 @@ export default class FormBuilder<
    *
    * @returns `null` if user has no access to the field, filtered data model otherwise.
    */
-  protected filterModel<Collection extends keyof DataModel>(
-    collection: Collection,
+  protected filterModel<Resource extends keyof DataModel & string>(
+    resource: Resource,
     mode: 'UPDATE' | 'CREATE',
     schema: FieldSchema<DataModel>,
     path: string,
@@ -564,27 +555,27 @@ export default class FormBuilder<
   ): null | FilteredModel<DataModel>;
 
   protected filterModel<T extends FilteredModel<DataModel>>(
-    collection: keyof DataModel,
+    resource: keyof DataModel & string,
     mode: 'UPDATE' | 'CREATE',
     schema: FieldSchema<DataModel>,
     path: string,
     store: Store<DataModel>,
   ): T;
 
-  protected filterModel<Collection extends keyof DataModel>(
-    collection: Collection,
+  protected filterModel<Resource extends keyof DataModel & string>(
+    resource: Resource,
     mode: 'UPDATE' | 'CREATE',
     schema: FieldSchema<DataModel>,
     path: string,
     store: Store<DataModel>,
   ): null | FilteredModel<DataModel> {
-    if (path !== '_' && !store.canAccessField(collection, path, mode)) {
+    if (path !== '_' && !store.canAccessField(resource, path, mode)) {
       return null;
     }
     if (schema.type === 'array') {
       const { fields } = schema;
       const subModel = this.filterModel<FilteredModel<DataModel>>(
-        collection,
+        resource,
         mode,
         fields,
         path,
@@ -605,7 +596,7 @@ export default class FormBuilder<
       updatableFields.forEach((key) => {
         const fieldSchema = schema.fields[key];
         const fullPath = (path === '_') ? key : `${path}.${key}`;
-        const filteredModel = this.filterModel(collection, mode, fieldSchema, fullPath, store);
+        const filteredModel = this.filterModel(resource, mode, fieldSchema, fullPath, store);
         if (filteredModel === null) {
           fetchWholeObject = false;
           canUserCreateResource = false;
@@ -644,9 +635,9 @@ export default class FormBuilder<
   }
 
   /**
-   * Generates the form configuration for the resource update / creation UI of `collection`.
+   * Generates the form configuration for the resource update / creation UI of `resource`.
    *
-   * @param collection Resource collection.
+   * @param resource Resource resource.
    *
    * @param id Id of the resource to update, if applicable. Defaults to `null`.
    *
@@ -658,17 +649,17 @@ export default class FormBuilder<
    *
    * @returns Generated form configuration.
    */
-  public buildConfiguration<Collection extends keyof DataModel>(
-    collection: Collection,
+  public buildConfiguration<Resource extends keyof DataModel & string>(
+    resource: Resource,
     id: Id | null,
     extraFields: Set<string>,
     store: Store<DataModel>,
   ): FormDefinition {
     const mode = (id !== null) ? 'UPDATE' : 'CREATE';
     const extraFieldsTree = this.generateFieldsTree(extraFields);
-    const { schema } = this.model.get(collection) as DataModelMetadata<CollectionSchema<DataModel>>;
+    const { schema } = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
     const subSchema: ObjectSchema<DataModel> = { type: 'object', fields: schema.fields };
-    const model = this.filterModel<FilteredModel<DataModel>>(collection, mode, subSchema, '_', store);
+    const model = this.filterModel<FilteredModel<DataModel>>(resource, mode, subSchema, '_', store);
     const { schema: filteredSchema, fields, canUserCreateResource } = model;
     const formatter = this.FORMATTERS[filteredSchema.type];
     const { configuration, fieldProps } = formatter(filteredSchema, '', extraFieldsTree, store);
@@ -838,7 +829,7 @@ export default class FormBuilder<
    * @returns Form configuration.
    */
   public getUpdateUserConfiguration(
-    user: User,
+    user: DataModel['users'],
     updateUser: (data: UserInputs) => Promise<void>,
     resetPassword: () => Promise<void>,
   ): FormDefinition {

@@ -18,8 +18,6 @@ declare module '@perseid/client/react' {
   import { type UIButtonProps } from '@perseid/ui/react';
   import { type FormFieldProps, type Fields } from '@perseid/form/react';
 
-  export * from '@perseid/client';
-
   interface Value {
     value: string;
     label: string;
@@ -69,8 +67,8 @@ declare module '@perseid/client/react' {
   export interface ActionsWrapperProps<
     DataModel extends DefaultDataModel
   > extends ReactCommonProps<DataModel> {
-    /** Name of the resource collection. */
-    collection: keyof DataModel;
+    /** Name of the resource resource. */
+    resource: keyof DataModel & string;
 
     /** "More" button props. */
     moreButtonProps?: ComponentProps;
@@ -89,7 +87,7 @@ declare module '@perseid/client/react' {
    */
   export function ActionsWrapper<DataModel extends DefaultDataModel = DefaultDataModel>({
     services,
-    collection,
+    resource,
     moreButtonProps,
     deleteButtonProps,
     updateButtonProps,
@@ -138,7 +136,7 @@ declare module '@perseid/client/react' {
     page,
     field,
     services,
-    collection,
+    resource,
   }: FieldLabelProps<DataModel>): JSX.Element;
 
   /**
@@ -162,8 +160,8 @@ declare module '@perseid/client/react' {
     /** Resources registry. */
     registry: Registry<DataModel>;
 
-    /** Data model collection, if any. */
-    collection: keyof DataModel;
+    /** Data model resource, if any. */
+    resource: keyof DataModel & string;
   }
 
   /**
@@ -178,7 +176,7 @@ declare module '@perseid/client/react' {
     loading,
     services,
     registry,
-    collection,
+    resource,
   }: FieldValueProps<DataModel>): JSX.Element | null;
 
   /**
@@ -239,7 +237,7 @@ declare module '@perseid/client/react' {
     /** Perseid store instance. */
     store: Store & { useSubscription: UseSubscription; };
     labelFn: (resource: Resource | null) => string;
-    collection: keyof DataModel;
+    resource: keyof DataModel & string;
 
     /** Results loading label. */
     loadingLabel: string;
@@ -318,7 +316,7 @@ declare module '@perseid/client/react' {
     id: htmlId,
     loadResults,
     placeholder,
-    collection,
+    resource,
     loadingLabel,
     noResultLabel,
     modifiers,
@@ -463,8 +461,8 @@ declare module '@perseid/client/react' {
    */
   export interface PageLayoutProps<DataModel extends DefaultDataModel>
     extends ReactCommonProps<DataModel> {
-    /** Name of the resource collection. */
-    collection: keyof DataModel;
+    /** Name of the resource resource. */
+    resource: keyof DataModel & string;
 
     /** Page to wrap. */
     page: 'UPDATE' | 'CREATE' | 'VIEW' | 'LIST';
@@ -482,7 +480,7 @@ declare module '@perseid/client/react' {
     page,
     children,
     services,
-    collection,
+    resource,
     components,
   }: PageLayoutProps<DataModel>): JSX.Element;
 

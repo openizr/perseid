@@ -18,7 +18,7 @@ export default class Model<
   /**
    * Updates data model with `schemaFragment`.
    *
-   * @param schemaFragment Fragment of data model schema. Contains a subset of collections schemas.
+   * @param schemaFragment Fragment of data model schema. Contains a subset of resources schemas.
    */
   public update(schemaFragment: Partial<DataModel>): void {
     this.schema = deepMerge(this.schema, schemaFragment);

@@ -21,8 +21,8 @@ import { type UpdateOrCreatePageData } from 'scripts/core/services/Store';
 export interface CreateOrUpdateProps<
   DataModel extends DefaultDataModel
 > extends ReactCommonProps<DataModel> {
-  /** Name of the resource collection. */
-  collection: keyof DataModel;
+  /** Name of the resource resource. */
+  resource: keyof DataModel & string;
 }
 
 /**
@@ -32,7 +32,7 @@ export interface CreateOrUpdateProps<
  */
 function CreateOrUpdate<DataModel extends DefaultDataModel = DefaultDataModel>({
   services,
-  collection,
+  resource,
   components,
 }: CreateOrUpdateProps<DataModel>): JSX.Element {
   const Loader = components.Loader ?? DefaultLoader;
@@ -45,11 +45,11 @@ function CreateOrUpdate<DataModel extends DefaultDataModel = DefaultDataModel>({
   }
 
   const mode = (pageData.id !== undefined) ? 'UPDATE' : 'CREATE';
-  const prefix = `PAGES.${toSnakeCase(String(collection))}.${mode}`;
+  const prefix = `PAGES.${toSnakeCase(String(resource))}.${mode}`;
 
   return (
-    <main className={buildClass(`${mode.toLowerCase()}-page`, String(collection))}>
-      <PageLayout services={services} components={components} collection={collection} page={mode}>
+    <main className={buildClass(`${mode.toLowerCase()}-page`, String(resource))}>
+      <PageLayout services={services} components={components} resource={resource} page={mode}>
         <Form
           configuration={pageData.configuration}
           Field={FormField(pageData.fieldProps, { prefix, services })}

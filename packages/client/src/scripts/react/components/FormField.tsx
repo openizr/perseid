@@ -187,7 +187,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
 
     if (fieldConfiguration?.component === 'Array' || fieldConfiguration?.component === 'Object') {
       if (!isRequired) {
-        const collection = toSnakeCase((_canonicalPath ?? path).replace('root.0.', '').replace(/\$n/g, 'fields'));
+        const resource = toSnakeCase((_canonicalPath ?? path).replace('root.0.', '').replace(/\$n/g, 'fields'));
         return (
           <OptionalField
             type={type}
@@ -202,8 +202,8 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
             isRequired={isRequired}
             useSubscription={useSubscription}
             modifiers={fieldConfiguration.component.toLowerCase()}
-            showLabel={services.i18n.t(`${prefix}.FIELDS.${collection}.SHOW.LABEL`)}
-            hideLabel={services.i18n.t(`${prefix}.FIELDS.${collection}.HIDE.LABEL`)}
+            showLabel={services.i18n.t(`${prefix}.FIELDS.${resource}.SHOW.LABEL`)}
+            hideLabel={services.i18n.t(`${prefix}.FIELDS.${resource}.HIDE.LABEL`)}
             {...rest}
           />
         );
@@ -242,7 +242,7 @@ export default function FormField<DataModel extends DefaultDataModel = DefaultDa
           loadingLabel="loading..."
           noResultLabel="no result..."
           placeholder={labels.placeholder}
-          collection={componentProps.collection as LazyOptionsProps<DefaultDataModel>['collection']}
+          resource={componentProps.resource as LazyOptionsProps<DefaultDataModel>['resource']}
           labelFn={componentProps.labelFn as LazyOptionsProps<DefaultDataModel>['labelFn']}
           loadResults={componentProps.loadResults as LazyOptionsProps<DefaultDataModel>['loadResults']}
           {...componentProps}

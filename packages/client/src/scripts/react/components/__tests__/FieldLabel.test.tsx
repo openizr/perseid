@@ -35,7 +35,7 @@ describe('react/components/FieldLabel', () => {
       <FieldLabel
         field="test"
         page="LIST"
-        collection="users"
+        resource="users"
         components={components}
         services={createServices()}
       />,

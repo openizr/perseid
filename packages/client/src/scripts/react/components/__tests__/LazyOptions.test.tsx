@@ -38,7 +38,7 @@ describe('react/components/LazyOptions', () => {
           value="test"
           label="LABEL"
           labelFn={labelFn}
-          collection="users"
+          resource="users"
           loadingLabel="LOADING"
           noResultLabel="NO_RESULT"
           onChange={vi.fn(() => null)}
@@ -64,7 +64,7 @@ describe('react/components/LazyOptions', () => {
         <LazyOptions
           label="LABEL"
           labelFn={labelFn}
-          collection="users"
+          resource="users"
           loadingLabel="LOADING"
           noResultLabel="NO_RESULT"
           onChange={vi.fn(() => null)}

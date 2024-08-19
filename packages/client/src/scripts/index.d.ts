@@ -60,23 +60,18 @@ declare global {
   type Sorting = Record<string, 1 | -1>;
 
   /**
-   * Generic data model resource.
-   */
-  type Resource = Record<string, unknown>;
-
-  /**
    * List of data model resources, per id.
    */
   type Resources<
     DataModel extends DefaultDataModel,
-    Collection extends keyof DataModel = keyof DataModel
-  > = Record<string, DataModel[Collection]>;
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  > = Record<string, DataModel[Resource]>;
 
   /**
    * Global resources registry.
    */
   type Registry<DataModel extends DefaultDataModel> = {
-    [Collection in keyof DataModel]: Resources<DataModel, Collection>;
+    [Resource in keyof DataModel & string]: Resources<DataModel, Resource>;
   };
 
   /**
@@ -129,8 +124,8 @@ declare global {
       apiClient: ApiClient<DataModel>;
     };
 
-    /** Data model collection, if any. */
-    collection?: keyof DataModel;
+    /** Data model resource, if any. */
+    resource?: keyof DataModel & string;
   }
 
   /**

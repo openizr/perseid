@@ -13,8 +13,8 @@
 export default class Model {
   public update = vi.fn();
 
-  public get = vi.fn((collection: string) => {
-    if (collection === 'users') {
+  public get = vi.fn((path: string) => {
+    if (path === 'users') {
       return {
         schema: {
           fields: {
@@ -24,25 +24,25 @@ export default class Model {
         },
       };
     }
-    if (collection === 'users._id') {
+    if (path === 'users._id') {
       return {
         canonicalPath: ['users'],
         schema: { type: 'id' },
       };
     }
-    if (collection === 'users._verifiedAt') {
+    if (path === 'users._verifiedAt') {
       return {
         canonicalPath: ['users', '_verifiedAt'],
         schema: { type: 'date' },
       };
     }
-    if (collection === 'users.password') {
+    if (path === 'users.password') {
       return {
         canonicalPath: ['users', 'password'],
         schema: { type: 'string' },
       };
     }
-    if (collection === 'users.roles') {
+    if (path === 'users.roles') {
       return {
         canonicalPath: ['users', 'roles'],
         schema: { type: 'array' },

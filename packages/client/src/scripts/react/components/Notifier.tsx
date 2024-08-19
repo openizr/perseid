@@ -19,7 +19,7 @@ function Notification<DataModel extends DefaultDataModel = DefaultDataModel>(
 ): JSX.Element {
   const { notification, services: { store, i18n } } = props;
   const [isClosed, setIsClosed] = React.useState(false);
-  const className = buildClass('notification', notification.modifiers + (isClosed ? ' closed' : ''));
+  const className = buildClass('notification', `${String(notification.modifiers)}${isClosed ? ' closed' : ''}`);
 
   const close = React.useCallback(() => {
     setIsClosed(true);

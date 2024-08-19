@@ -42,7 +42,7 @@ describe('react/components/PageLayout', () => {
     const { container } = render(
       <PageLayout
         page="VIEW"
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(new Set(), null)}
       >
@@ -56,7 +56,7 @@ describe('react/components/PageLayout', () => {
     const { container } = render(
       <PageLayout
         page="LIST"
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(new Set(['TO_SNAKE_CASE_users_create']), '/users/create')}
       >
@@ -70,7 +70,7 @@ describe('react/components/PageLayout', () => {
     const { container } = render(
       <PageLayout
         page="CREATE"
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(new Set(), null)}
       >

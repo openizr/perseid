@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import SignUp from 'scripts/react/pages/SignUp';
 import { render } from '@testing-library/react';
 import { type DefaultDataModel } from '@perseid/core';

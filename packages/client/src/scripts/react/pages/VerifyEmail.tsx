@@ -22,7 +22,7 @@ function VerifyEmail<DataModel extends DefaultDataModel = DefaultDataModel>({
   services,
   components,
 }: ReactCommonProps<DataModel>): JSX.Element {
-  const { store, i18n: { t } } = services;
+  const { store, i18n } = services;
   const Loader = components.Loader ?? DefaultLoader;
   const { user } = store.useSubscription<AuthState>('auth');
   const router = store.useSubscription<RoutingContext>('router');
@@ -53,7 +53,7 @@ function VerifyEmail<DataModel extends DefaultDataModel = DefaultDataModel>({
         // No-op.
       });
     }
-  }, [t, verificationToken, store]);
+  }, [verificationToken, store]);
 
   return (
     <main className="verify-email-page">
@@ -63,11 +63,11 @@ function VerifyEmail<DataModel extends DefaultDataModel = DefaultDataModel>({
         // Email must be verified...
         : (
           <div>
-            <UITitle level="1" label={t('PAGES.VERIFY_EMAIL.TITLE')} />
-            <UITitle level="2" label={t('PAGES.VERIFY_EMAIL.SUBTITLE')} />
+            <UITitle level="1" label={i18n.t('PAGES.VERIFY_EMAIL.TITLE')} />
+            <UITitle level="2" label={i18n.t('PAGES.VERIFY_EMAIL.SUBTITLE')} />
             <UIButton
               modifiers="primary"
-              label={t('PAGES.VERIFY_EMAIL.CTA')}
+              label={i18n.t('PAGES.VERIFY_EMAIL.CTA')}
               onClick={requestEmailVerification as () => void}
             />
           </div>

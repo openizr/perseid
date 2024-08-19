@@ -6,7 +6,6 @@
  *
  */
 
-import * as React from 'react';
 import { UIImage } from '@perseid/ui/react';
 import { type Id, isPlainObject, type DefaultDataModel } from '@perseid/core';
 
@@ -31,8 +30,8 @@ export interface FieldValueProps<
   /** Resources registry. */
   registry: Registry<DataModel>;
 
-  /** Data model collection, if any. */
-  collection: keyof DataModel;
+  /** Data model resource, if any. */
+  resource: keyof DataModel & string;
 }
 
 const textDecoder = new TextDecoder();
@@ -49,10 +48,10 @@ export default function FieldValue<DataModel extends DefaultDataModel = DefaultD
   loading,
   services,
   registry,
-  collection,
+  resource,
 }: FieldValueProps<DataModel>): JSX.Element | null {
   let valueElement = null;
-  const value = services.store.getValue(collection, id, field, registry);
+  const value = services.store.getValue(resource, id, field, registry);
 
   if (typeof page !== 'string' || value === null) {
     valueElement = services.i18n.t(loading ? 'FIELD.LOADING.LABEL' : 'FIELD.FALLBACK.LABEL');

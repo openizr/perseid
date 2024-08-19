@@ -99,7 +99,7 @@ function Grid({ columns }: GridProps): JSX.Element {
     style.innerHTML = css;
     document.head.appendChild(style);
     window.addEventListener('keydown', toggleGrid, keyDownEventOptions);
-    return () => { window.removeEventListener('keydown', toggleGrid, keyDownEventOptions); };
+    return (): void => { window.removeEventListener('keydown', toggleGrid, keyDownEventOptions); };
   }, [toggleGrid]);
 
   return (

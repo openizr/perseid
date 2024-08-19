@@ -9,7 +9,6 @@
 
 import {
   Id,
-  type User,
   type FieldSchema,
   type DefaultDataModel,
 } from '@perseid/core';
@@ -79,13 +78,12 @@ describe('core/services/FormBuilder', () => {
     const id = new Id('000000000000000000000001');
     expect(formBuilder.FORMATTERS.id({
       type: 'id',
-      required: true,
       enum: [id],
+      isRequired: true,
     }, 'root.0.field', {}, store)).toEqual({
       configuration: {
         type: 'string',
         required: true,
-        defaultValue: id,
       },
       fieldProps: {
         'root.0.field': {
@@ -140,7 +138,7 @@ describe('core/services/FormBuilder', () => {
         'root.0.field': {
           component: 'LazyOptions',
           componentProps: {
-            collection: 'users',
+            resource: 'users',
             labelFn: expect.any(Function) as () => void,
             loadResults: expect.any(Function) as () => void,
           },
@@ -162,7 +160,7 @@ describe('core/services/FormBuilder', () => {
         'root.0.field': {
           component: 'LazyOptions',
           componentProps: {
-            collection: 'users',
+            resource: 'users',
             labelFn: expect.any(Function) as () => void,
             loadResults: expect.any(Function) as () => void,
           },
@@ -204,7 +202,7 @@ describe('core/services/FormBuilder', () => {
         },
       },
     });
-    expect(formBuilder.FORMATTERS.boolean({ type: 'boolean', required: true }, 'root.0.field', {}, store)).toEqual({
+    expect(formBuilder.FORMATTERS.boolean({ type: 'boolean', isRequired: true }, 'root.0.field', {}, store)).toEqual({
       configuration: { type: 'boolean', required: true },
       fieldProps: {
         'root.0.field': {
@@ -237,7 +235,7 @@ describe('core/services/FormBuilder', () => {
         },
       },
     });
-    expect(formBuilder.FORMATTERS.date({ type: 'date', required: true }, 'root.0.field', {}, store)).toEqual({
+    expect(formBuilder.FORMATTERS.date({ type: 'date', isRequired: true }, 'root.0.field', {}, store)).toEqual({
       configuration: { type: 'date', required: true, validation: expect.any(Function) as () => void },
       fieldProps: {
         'root.0.field': {
@@ -275,10 +273,10 @@ describe('core/services/FormBuilder', () => {
     const date = new Date('2023/01/01');
     expect(formBuilder.FORMATTERS.date({
       type: 'date',
-      required: true,
+      isRequired: true,
       enum: [date],
     }, 'root.0.field', {}, store)).toEqual({
-      configuration: { type: 'date', required: true, defaultValue: date },
+      configuration: { type: 'date', required: true },
       fieldProps: {
         'root.0.field': {
           component: 'Options',
@@ -375,9 +373,9 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.integer({
       type: 'integer',
       enum: [1],
-      required: true,
+      isRequired: true,
     }, 'root.0.field', {}, store)).toEqual({
-      configuration: { type: 'integer', required: true, defaultValue: 1 },
+      configuration: { type: 'integer', required: true },
       fieldProps: {
         'root.0.field': {
           component: 'Options',
@@ -474,9 +472,9 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.float({
       type: 'float',
       enum: [1],
-      required: true,
+      isRequired: true,
     }, 'root.0.field', {}, store)).toEqual({
-      configuration: { type: 'float', required: true, defaultValue: 1 },
+      configuration: { type: 'float', required: true },
       fieldProps: {
         'root.0.field': {
           component: 'Options',
@@ -502,7 +500,7 @@ describe('core/services/FormBuilder', () => {
       type: 'string',
       minLength: 5,
       maxLength: 10,
-      pattern: /TEST/.source,
+      pattern: /TEST/,
     }, 'root.0.field', {}, store);
     const { validation } = configuration.configuration as StringConfiguration;
     expect(validation?.('TEST', {}, {})).toBe('VALUE_TOO_SHORT');
@@ -558,9 +556,9 @@ describe('core/services/FormBuilder', () => {
     expect(formBuilder.FORMATTERS.string({
       type: 'string',
       enum: ['test'],
-      required: true,
+      isRequired: true,
     }, 'root.0.field', {}, store)).toEqual({
-      configuration: { type: 'string', required: true, defaultValue: 'test' },
+      configuration: { type: 'string', required: true },
       fieldProps: {
         'root.0.field': {
           component: 'Options',
@@ -766,7 +764,6 @@ describe('core/services/FormBuilder', () => {
             fields: {
               type: 'string',
               required: undefined,
-              defaultValue: undefined,
               validation: expect.any(Function) as () => void,
             },
             type: 'array',
@@ -923,7 +920,7 @@ describe('core/services/FormBuilder', () => {
   });
 
   test('[getUpdateUserConfiguration]', () => {
-    const configuration = formBuilder.getUpdateUserConfiguration({} as User, vi.fn(), vi.fn());
+    const configuration = formBuilder.getUpdateUserConfiguration({} as DefaultDataModel['users'], vi.fn(), vi.fn());
     const { fields } = configuration.configuration;
     (configuration.fieldProps['root.0.email']?.componentProps?.transform as (value: string) => void)('');
     expect((fields.email as StringConfiguration).validation?.('', {}, {})).toBe('PATTERN_VIOLATION');

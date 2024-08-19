@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
 import { type DefaultDataModel } from '@perseid/core';
 import CreateOrUpdate from 'scripts/react/pages/CreateOrUpdate';
@@ -37,7 +36,7 @@ describe('react/pages/CreateOrUpdate', () => {
   test('renders correctly - loading page', () => {
     const { container } = render(
       <CreateOrUpdate
-        collection="users"
+        resource="users"
         components={components}
         services={createServices(null)}
       />,
@@ -48,7 +47,7 @@ describe('react/pages/CreateOrUpdate', () => {
   test('renders correctly - update mode', () => {
     const { container } = render(
       <CreateOrUpdate
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           id: '000000000000000000000011',
@@ -63,7 +62,7 @@ describe('react/pages/CreateOrUpdate', () => {
   test('renders correctly - create mode', () => {
     const { container } = render(
       <CreateOrUpdate
-        collection="users"
+        resource="users"
         components={components}
         services={createServices({
           configuration: { root: 'root', fields: {}, steps: {} },

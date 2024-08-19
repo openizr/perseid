@@ -116,7 +116,7 @@ function Router<DataModel extends DefaultDataModel = DefaultDataModel>({
         currentViewportAvailableWidth = window.screen.availWidth;
       } else if (parent !== undefined && shouldResize) {
         shouldResize = false;
-        requestAnimationFrame(() => { parent.style.height = `${window.innerHeight}px`; });
+        requestAnimationFrame(() => { parent.style.height = `${String(window.innerHeight)}px`; });
       }
     };
     setHeight();
@@ -150,7 +150,7 @@ function Router<DataModel extends DefaultDataModel = DefaultDataModel>({
             services={services}
             {...page.pageProps}
             components={components}
-            collection={page.collection}
+            resource={page.resource}
           />
         )}
       </React.Suspense>

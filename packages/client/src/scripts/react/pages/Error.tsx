@@ -35,19 +35,19 @@ function ErrorPage<DataModel extends DefaultDataModel = DefaultDataModel>({
   error = null,
   modifiers = '',
 }: ErrorPageProps<DataModel>): JSX.Element | null {
-  const { i18n: { t } } = services;
+  const { i18n } = services;
   const Layout = components.Layout ?? DefaultLayout;
   const fallbackRoute = services.store.getFallbackPageRoute();
 
   // Forbidden.
   if ((error as Response | null)?.status === 403) {
-    const title = t('PAGES.ERROR.FORBIDDEN.TITLE');
+    const title = i18n.t('PAGES.ERROR.FORBIDDEN.TITLE');
     return (
       <Layout services={services} components={components}>
         <main className={buildClass('error-page', `${modifiers} forbidden`)}>
           <UITitle label={title} />
-          <UITitle level="2" label={t('PAGES.ERROR.FORBIDDEN.SUBTITLE')} />
-          <UILink href={fallbackRoute} label={t('PAGES.ERROR.FORBIDDEN.CTA')} modifiers="button" />
+          <UITitle level="2" label={i18n.t('PAGES.ERROR.FORBIDDEN.SUBTITLE')} />
+          <UILink href={fallbackRoute} label={i18n.t('PAGES.ERROR.FORBIDDEN.CTA')} modifiers="button" />
         </main>
       </Layout>
     );
@@ -58,9 +58,9 @@ function ErrorPage<DataModel extends DefaultDataModel = DefaultDataModel>({
     return (
       <Layout services={services} components={components} display={false}>
         <main className={buildClass('error-page', `${modifiers} not-found`)}>
-          <UITitle label={t('PAGES.ERROR.NOT_FOUND.TITLE')} />
-          <UITitle level="2" label={t('PAGES.ERROR.NOT_FOUND.SUBTITLE')} />
-          <UILink href={fallbackRoute} label={t('PAGES.ERROR.NOT_FOUND.CTA')} modifiers="button" />
+          <UITitle label={i18n.t('PAGES.ERROR.NOT_FOUND.TITLE')} />
+          <UITitle level="2" label={i18n.t('PAGES.ERROR.NOT_FOUND.SUBTITLE')} />
+          <UILink href={fallbackRoute} label={i18n.t('PAGES.ERROR.NOT_FOUND.CTA')} modifiers="button" />
         </main>
       </Layout>
     );
@@ -68,13 +68,13 @@ function ErrorPage<DataModel extends DefaultDataModel = DefaultDataModel>({
 
   // Not Found - API.
   if ((error as Response | null)?.status === 404) {
-    const title = t('PAGES.ERROR.NOT_FOUND.TITLE');
+    const title = i18n.t('PAGES.ERROR.NOT_FOUND.TITLE');
     return (
       <Layout services={services} components={components}>
         <main className={buildClass('error-page', `${modifiers} resource-not-found`)}>
           <UITitle label={title} />
-          <UITitle level="2" label={t('PAGES.ERROR.NOT_FOUND.SUBTITLE')} />
-          <UILink href={fallbackRoute} label={t('PAGES.ERROR.NOT_FOUND.CTA')} modifiers="button" />
+          <UITitle level="2" label={i18n.t('PAGES.ERROR.NOT_FOUND.SUBTITLE')} />
+          <UILink href={fallbackRoute} label={i18n.t('PAGES.ERROR.NOT_FOUND.CTA')} modifiers="button" />
         </main>
       </Layout>
     );
@@ -86,9 +86,9 @@ function ErrorPage<DataModel extends DefaultDataModel = DefaultDataModel>({
     <div className="layout">
       <div className="layout__content">
         <main className={buildClass('error-page', `${modifiers} generic`)}>
-          <UITitle label={t('PAGES.ERROR.GENERIC.TITLE')} />
-          <UITitle level="2" label={t('PAGES.ERROR.GENERIC.SUBTITLE')} />
-          <UILink href={fallbackRoute} label={t('PAGES.ERROR.GENERIC.CTA')} modifiers="button" />
+          <UITitle label={i18n.t('PAGES.ERROR.GENERIC.TITLE')} />
+          <UITitle level="2" label={i18n.t('PAGES.ERROR.GENERIC.SUBTITLE')} />
+          <UILink href={fallbackRoute} label={i18n.t('PAGES.ERROR.GENERIC.CTA')} modifiers="button" />
         </main>
       </div>
     </div>
