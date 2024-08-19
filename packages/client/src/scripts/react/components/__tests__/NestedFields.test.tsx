@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import type Engine from '@perseid/form';
 import { render } from '@testing-library/react';
 import NestedFields from 'scripts/react/components/NestedFields';
@@ -33,13 +32,14 @@ describe('react/components/NestedFields', () => {
         type="array"
         error="TEST"
         label="LABEL"
-        active={false}
+        isActive={false}
         helper="HELPER"
         fields={[null]}
-        required={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
         value={null as unknown as unknown[]}
       />,
     );
@@ -62,12 +62,13 @@ describe('react/components/NestedFields', () => {
           path: 'root.0.field.key',
         }]}
         label="LABEL"
-        active={false}
+        isActive={false}
         helper="HELPER"
-        required={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
         value={{ key: 'test1' } as unknown as unknown[]}
       />,
     );
@@ -90,12 +91,13 @@ describe('react/components/NestedFields', () => {
           path: 'root.0.field.0',
         }]}
         label="LABEL"
-        active={false}
+        isActive={false}
         helper="HELPER"
-        required={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
         value={['test1']}
       />,
     );
@@ -111,12 +113,13 @@ describe('react/components/NestedFields', () => {
         error="TEST"
         fields={[]}
         label="LABEL"
-        active={false}
+        isActive={false}
         helper="HELPER"
-        required={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
         value={[]}
         minItems={1}
       />,
@@ -133,12 +136,13 @@ describe('react/components/NestedFields', () => {
         error="TEST"
         fields={[]}
         label="LABEL"
-        active={false}
+        isActive={false}
         helper="HELPER"
-        required={false}
+        isRequired={false}
         status="initial"
         Field={SubField}
-        useSubscription={vi.fn}
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
         value={['test1', 'test2']}
         maxItems={1}
       />,

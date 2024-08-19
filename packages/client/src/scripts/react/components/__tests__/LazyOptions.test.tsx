@@ -13,7 +13,6 @@ import {
   fireEvent,
   queryByAttribute,
 } from '@testing-library/react';
-import React from 'react';
 import type Store from 'scripts/core/services/Store';
 import LazyOptions from 'scripts/react/components/LazyOptions';
 

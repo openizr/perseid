@@ -10,8 +10,6 @@
  * `scripts/react/components/FieldLabel` mock.
  */
 
-import * as React from 'react';
-
 export default function FieldLabel(props: unknown): JSX.Element {
   return (
     <div id="field-label">{JSON.stringify(props)}</div>

@@ -10,8 +10,6 @@
  * `scripts/react/components/Pagination` mock.
  */
 
-import * as React from 'react';
-
 interface PaginationProps {
   [key: string]: unknown;
   onClick?: (page: number) => () => void;

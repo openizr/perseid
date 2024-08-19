@@ -9,10 +9,9 @@
 
 import type Engine from '@perseid/form';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import FormField from 'scripts/react/components/FormField';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 function SubField(): JSX.Element {
   return <div id="field" />;

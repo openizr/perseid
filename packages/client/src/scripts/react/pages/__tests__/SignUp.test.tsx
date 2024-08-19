@@ -9,9 +9,8 @@
 
 import SignUp from 'scripts/react/pages/SignUp';
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/pages/SignUp', () => {
   vi.mock('@perseid/core');

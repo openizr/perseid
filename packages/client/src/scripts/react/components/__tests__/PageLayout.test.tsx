@@ -8,10 +8,9 @@
  */
 
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import PageLayout from 'scripts/react/components/PageLayout';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/PageLayout', () => {
   vi.mock('@perseid/core');

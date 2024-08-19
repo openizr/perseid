@@ -8,10 +8,9 @@
  */
 
 import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import ActionsWrapper from 'scripts/react/components/ActionsWrapper';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/ActionsWrapper', () => {
   vi.mock('@perseid/core');

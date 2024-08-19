@@ -10,8 +10,6 @@
  * `scripts/react/components/Menu` mock.
  */
 
-import * as React from 'react';
-
 export default function Menu(props: unknown): JSX.Element {
   return (
     <div id="menu">{JSON.stringify(props)}</div>

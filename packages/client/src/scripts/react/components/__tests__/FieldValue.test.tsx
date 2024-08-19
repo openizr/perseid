@@ -7,12 +7,11 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
+import { type Id } from '@perseid/core';
 import { render } from '@testing-library/react';
 import FieldValue from 'scripts/react/components/FieldValue';
-import { type Id, type DefaultDataModel } from '@perseid/core';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/FieldValue', () => {
   vi.mock('@perseid/core');

@@ -9,9 +9,8 @@
 
 import { render } from '@testing-library/react';
 import Menu from 'scripts/react/components/Menu';
-import { type DefaultDataModel } from '@perseid/core';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/components/Menu', () => {
   vi.mock('@perseid/core');

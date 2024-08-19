@@ -7,7 +7,6 @@
  * @vitest-environment jsdom
  */
 
-import React from 'react';
 import Table from 'scripts/react/components/Table';
 import { fireEvent, queryByAttribute, render } from '@testing-library/react';
 

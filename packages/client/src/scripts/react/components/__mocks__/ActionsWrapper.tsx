@@ -10,8 +10,6 @@
  * `scripts/react/components/ActionsWrapper` mock.
  */
 
-import * as React from 'react';
-
 export default function ActionsWrapper(props: unknown): JSX.Element {
   return (
     <div id="actions-wrapper">{JSON.stringify(props)}</div>

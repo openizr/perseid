@@ -7,11 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import { render } from '@testing-library/react';
-import { type DefaultDataModel } from '@perseid/core';
 import List from 'scripts/react/pages/List';
+import { render } from '@testing-library/react';
 
-type Services = CommonProps<DefaultDataModel>['services'];
+type Services = CommonProps['services'];
 
 describe('react/pages/List', () => {
   vi.mock('@perseid/core');

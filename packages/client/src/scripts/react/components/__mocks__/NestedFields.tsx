@@ -10,8 +10,6 @@
  * `scripts/react/components/NestedFields` mock.
  */
 
-import * as React from 'react';
-
 export default function NestedFields(props: unknown): JSX.Element {
   return (
     <div id="nested-fields">{JSON.stringify(props)}</div>

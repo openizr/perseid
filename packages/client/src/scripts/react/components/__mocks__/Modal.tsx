@@ -10,8 +10,6 @@
  * `scripts/react/components/Modal` mock.
  */
 
-import * as React from 'react';
-
 export default function Modal(props: unknown): JSX.Element {
   return (
     <div id="modal">{JSON.stringify(props)}</div>

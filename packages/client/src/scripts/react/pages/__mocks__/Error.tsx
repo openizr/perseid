@@ -10,8 +10,6 @@
  * `scripts/react/pages/Error` mock.
  */
 
-import * as React from 'react';
-
 export default function Error(props: unknown): JSX.Element {
   return (
     <div id="error-page">{JSON.stringify(props)}</div>
