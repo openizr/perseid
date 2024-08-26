@@ -1,6 +1,6 @@
 {
   "name": "@perseid/server",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
@@ -122,7 +122,7 @@
   "devKitConfig": {
     "target": "node",
     "runInDev": true,
-    "splitChunks": false,
+    "splitChunks": true,
     "entries": {
       "dist": "./scripts/core/index.ts",
       "core": "./__playground__/index.ts",
