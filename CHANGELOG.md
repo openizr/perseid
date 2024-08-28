@@ -1,3 +1,18 @@
+## @perseid/client:2.0.1 (2024-08-28)
+
+### Bugs
+- Fix unecessary `/_model` API calls when data model fragment already exists locally
+- Correctly download data model fragment when necessary in `Store.getPageData` method
+
+
+## @perseid/server:2.0.4 (2024-08-26)
+
+### Bugs
+- Whitelist all headers by default in all endpoints
+- Fix package bundle configuration that generated issues with `instanceof` statements
+- Fix `viewMe` endpoint `authenticate` setting in `FastifyController` service
+
+
 ## @perseid/client:2.0.0 (2024-08-19)
 
 ### Breaking changes

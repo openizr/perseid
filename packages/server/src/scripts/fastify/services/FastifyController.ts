@@ -125,6 +125,7 @@ export default class FastifyController<
       },
     },
     viewMe: {
+      authenticate: true,
       handler: async (request, response) => {
         const user = await this.engine.viewMe(request.params as CommandContext<DataModel>);
         await response.status(200).send(user);
@@ -309,20 +310,11 @@ export default class FastifyController<
       isRequired: true,
       fields: settings.params?.fields ?? {},
     }, settings.params?.allowPartial !== true));
-    const validateHeaders = this.ajv.compile(this.AJV_FORMATTERS.object({
+    const headersSchema = this.AJV_FORMATTERS.object({
       type: 'object',
       isRequired: true,
       fields: {
         ...settings.headers?.fields,
-        authorization: { type: 'string', isRequired: true },
-        'user-agent': { type: 'string', isRequired: true },
-        connection: { type: 'string', isRequired: true },
-        'accept-encoding': { type: 'string', isRequired: true },
-        accept: { type: 'string', isRequired: true },
-        'content-length': { type: 'string', isRequired: true },
-        'content-type': { type: 'string', isRequired: true },
-        host: { type: 'string', isRequired: true },
-        origin: { type: 'string', isRequired: true },
         ...(settings.authenticate ? {
           'x-device-id': {
             type: 'string',
@@ -334,7 +326,9 @@ export default class FastifyController<
           },
         } : {}),
       },
-    }, false));
+    }, false);
+    headersSchema.additionalProperties = true;
+    const validateHeaders = this.ajv.compile(headersSchema);
     return {
       handler: async (request, response): Promise<void> => {
         await this.catchErrors(async () => {

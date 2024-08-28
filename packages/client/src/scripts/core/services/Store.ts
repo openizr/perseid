@@ -751,6 +751,7 @@ export default class Store<
 
     // Checking user permissions to access resources...
     if (type === 'LIST' || type === 'VIEW') {
+      await this.apiClient.getDataModel(resource);
       fields.forEach((field) => {
         if (this.canAccessField(resource, field, type)) {
           filteredFields.push(field);
@@ -825,6 +826,7 @@ export default class Store<
 
     // Resource creation / update page...
     if (type === 'CREATE' || type === 'UPDATE') {
+      await this.apiClient.getDataModel(resource);
       const { configuration, fieldProps, requestedFields } = this.formBuilder.buildConfiguration(
         resource,
         id,

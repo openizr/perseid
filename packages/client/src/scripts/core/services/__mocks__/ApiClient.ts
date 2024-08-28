@@ -26,6 +26,8 @@ export default class ApiClient {
 
   public verifyEmail = vi.fn();
 
+  public getDataModel = vi.fn();
+
   public resetPassword = vi.fn();
 
   public requestPasswordReset = vi.fn();

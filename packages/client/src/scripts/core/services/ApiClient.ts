@@ -420,7 +420,8 @@ export default class ApiClient<
         endpoint: `/_model?resource=${resource}`,
       });
       this.model.update(modelFragment);
-      this.loadedResources.add(resource);
+      const resources = (Object.keys(modelFragment) as Resource[]);
+      resources.forEach(this.loadedResources.add.bind(this.loadedResources));
     }
     return this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
   }
