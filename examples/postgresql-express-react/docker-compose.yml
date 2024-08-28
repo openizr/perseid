@@ -1,0 +1,73 @@
+version: "3.6"
+
+
+services:
+
+  jobs:
+    tty: true
+    user: node:node
+    image: openizr/node:7.0.0-dev
+    container_name: ${PROJECT_NAME}_jobs
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./jobs:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    depends_on:
+      - postgresql
+
+  backend:
+    tty: true
+    user: node:node
+    image: openizr/node:7.0.0-dev
+    container_name: ${PROJECT_NAME}_backend
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./backend:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    ports:
+      - "${HOST_IP}:${BACKEND_PORT}:${BACKEND_PORT}"
+    depends_on:
+      - postgresql
+
+  frontend:
+    tty: true
+    user: node:node
+    image: openizr/node:7.0.0-dev
+    container_name: ${PROJECT_NAME}_frontend
+    env_file:
+      - .env
+    command: sh -c "yarn && yarn run dev"
+    volumes:
+      - ./frontend:/var/www/html
+      - ~/.cache/yarn:/home/node/.cache/yarn
+    ports:
+      - "${HOST_IP}:${FRONTEND_PORT}:${FRONTEND_PORT}"
+    depends_on:
+      - backend
+      - postgresql
+
+  postgresql:
+    tty: true
+    attach: false
+    image: postgres:latest
+    container_name: ${PROJECT_NAME}_postgresql
+    environment:
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: root
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: Test123!
+    ports:
+      - "${HOST_IP}:${DATABASE_PORT}:5432"
+
+
+# For people that use a VPN
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET}

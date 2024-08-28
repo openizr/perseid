@@ -1,0 +1,30 @@
+{
+  "name": "perseid-mongodb-fastify-react",
+  "type": "module",
+  "license": "UNLICENSED",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "devDependencies": {
+    "@perseid/dev-kit": "^10.0.0"
+  },
+  "devKitConfig": {
+    "target": "node",
+    "runInDev": true,
+    "splitChunks": false,
+    "entries": {
+      "index": "./index.ts"
+    },
+    "srcPath": "src",
+    "distPath": "dist"
+  },
+  "scripts": {
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "postinstall": "mkdir -p node_modules/.cache"
+  },
+  "dependencies": {
+    "@perseid/core": "^2.0.1",
+    "@perseid/server": "^2.0.4",
+    "fastify": "^4.28.1",
+    "mongodb": "^6.8.0"
+  }
+}
