@@ -15,7 +15,19 @@ exports[`react/components/OptionalField > renders correctly - displayed 1`] = `
 </div>
 `;
 
-exports[`react/components/OptionalField > renders correctly - hidden 1`] = `
+exports[`react/components/OptionalField > renders correctly - hidden, array 1`] = `
+<div
+  class="optional-field "
+>
+  <div
+    id="ui-button"
+  >
+    {"modifiers":"secondary outlined","label":"SHOW"}
+  </div>
+</div>
+`;
+
+exports[`react/components/OptionalField > renders correctly - hidden, object 1`] = `
 <div
   class="optional-field "
 >
