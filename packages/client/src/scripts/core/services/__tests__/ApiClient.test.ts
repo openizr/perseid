@@ -206,13 +206,15 @@ describe('core/services/ApiClient', () => {
     });
 
     test('mocked HTTP request, error', async () => {
+      vi.useFakeTimers();
       await expect(async () => {
         const promise = apiClient.request({
           headers: {},
           method: 'PUT',
           endpoint: '/test',
         }, false);
-        await promise;
+        vi.runAllTimers();
+        return promise;
       }).rejects.toThrow(new HttpError({ data: '', status: 500 }));
     });
   });
