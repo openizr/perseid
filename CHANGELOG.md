@@ -1,3 +1,9 @@
+## @perseid/client:2.0.2 (2024-08-28)
+
+### Bugs
+- Fix `OptionalField` logic with `array` typed field
+
+
 ## @perseid/client:2.0.1 (2024-08-28)
 
 ### Bugs
