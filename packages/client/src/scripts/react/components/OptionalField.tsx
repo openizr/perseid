@@ -43,8 +43,9 @@ function OptionalField({
   } = field;
 
   const toggleExpand = React.useCallback(() => {
-    engine.userAction({ type: 'input', path, data: (value === null) ? {} : null });
-  }, [engine, path, value]);
+    const newData = (field.type === 'array') ? [] : {};
+    engine.userAction({ type: 'input', path, data: (value === null) ? newData : null });
+  }, [engine, path, value, field.type]);
 
   return (
     <div className={buildClass('optional-field', modifiers)}>

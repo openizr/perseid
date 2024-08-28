@@ -25,12 +25,12 @@ describe('react/components/OptionalField', () => {
     vi.clearAllMocks();
   });
 
-  test('renders correctly - hidden', () => {
+  test('renders correctly - hidden, object', () => {
     const { container } = render(
       <OptionalField
         engine={engine}
         path="root.0.field"
-        type="null"
+        type="object"
         value={null}
         error="TEST"
         isActive={false}
@@ -44,6 +44,31 @@ describe('react/components/OptionalField', () => {
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
+    expect(engine.userAction).toHaveBeenCalledOnce();
+    expect(engine.userAction).toHaveBeenCalledWith({ data: {}, path: 'root.0.field', type: 'input' });
+  });
+
+  test('renders correctly - hidden, array', () => {
+    const { container } = render(
+      <OptionalField
+        engine={engine}
+        path="root.0.field"
+        type="array"
+        value={null}
+        error="TEST"
+        isActive={false}
+        isRequired={false}
+        status="initial"
+        Field={SubField}
+        showLabel="SHOW"
+        hideLabel="HIDE"
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
+      />,
+    );
+    expect(container.firstChild).toMatchSnapshot();
+    expect(engine.userAction).toHaveBeenCalledOnce();
+    expect(engine.userAction).toHaveBeenCalledWith({ data: [], path: 'root.0.field', type: 'input' });
   });
 
   test('renders correctly - displayed', () => {
@@ -65,5 +90,7 @@ describe('react/components/OptionalField', () => {
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
+    expect(engine.userAction).toHaveBeenCalledOnce();
+    expect(engine.userAction).toHaveBeenCalledWith({ data: null, path: 'root.0.field', type: 'input' });
   });
 });
