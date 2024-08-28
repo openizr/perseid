@@ -1,0 +1,28 @@
+// Importing useful SASS mixins and placeholders from @perseid/ui...
+@import '@perseid/ui/core/index.scss';
+
+// Adding default theme for built-in @perseid/ui generic components (textfields, buttons, etc.)...
+@import '@perseid/ui/templates/index.scss';
+
+// Adding default theme for built-in @perseid/client pages and specific components...
+@import '@perseid/client/pages/index.scss';
+@import '@perseid/client/components/index.scss';
+
+// Initializing built-in layout classes...
+@include init();
+
+// And a some extra app-specific stuff...
+
+body {
+  height: 100vh;
+}
+
+#root {
+  @include extend(h-full flex flex-auto);
+}
+
+.ui-options__wrapper__button {
+  min-height: 1rem;
+  min-width: 10rem;
+  background: var(--clr-greys-800);
+}

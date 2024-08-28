@@ -1,0 +1,31 @@
+{
+  "name": "perseid-postgresql-express-react",
+  "type": "module",
+  "license": "UNLICENSED",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "devDependencies": {
+    "@perseid/dev-kit": "^10.0.0",
+    "@types/express": "^4.17.21"
+  },
+  "devKitConfig": {
+    "target": "node",
+    "runInDev": true,
+    "splitChunks": false,
+    "entries": {
+      "index": "./index.ts"
+    },
+    "srcPath": "src",
+    "distPath": "dist"
+  },
+  "scripts": {
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
+    "postinstall": "mkdir -p node_modules/.cache"
+  },
+  "dependencies": {
+    "@perseid/core": "^2.0.1",
+    "@perseid/server": "^2.0.4",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}
