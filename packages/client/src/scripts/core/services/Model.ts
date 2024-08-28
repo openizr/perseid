@@ -23,6 +23,7 @@ export default class Model<
    * @param schemaFragment Fragment of data model schema. Contains a subset of resources schemas.
    */
   public update(schemaFragment: Partial<DataModel>): void {
+    // TODO format stuff like pattern, enum, ...
     this.schema = deepMerge(this.schema, schemaFragment);
   }
 }

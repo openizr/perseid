@@ -218,7 +218,23 @@ describe('core/services/ApiClient', () => {
   });
 
   test('[getDataModel]', async () => {
-    vi.spyOn(apiClient, 'request').mockImplementation(() => Promise.resolve());
+    const dataModelFragment = {
+      users: {
+        schema: {
+          _id: { type: 'id' },
+          roles: {
+            type: 'array',
+            fields: { type: 'id', relation: 'roles' },
+          },
+        },
+      },
+      roles: {
+        schema: {
+          _id: { type: 'id' },
+        },
+      },
+    };
+    vi.spyOn(apiClient, 'request').mockImplementation(() => Promise.resolve(dataModelFragment));
     const response = await apiClient.getDataModel('users');
     expect(apiClient.request).toHaveBeenCalledOnce();
     expect(apiClient.request).toHaveBeenCalledWith({
@@ -226,7 +242,8 @@ describe('core/services/ApiClient', () => {
       endpoint: '/_model?resource=users',
     });
     expect(model.update).toHaveBeenCalledOnce();
-    expect(apiClient.loadedResources).toEqual(new Set(['users']));
+    expect(model.update).toHaveBeenCalledWith(dataModelFragment);
+    expect(apiClient.loadedResources).toEqual(new Set(['users', 'roles']));
     expect(response).toEqual({
       schema: {
         fields: {
