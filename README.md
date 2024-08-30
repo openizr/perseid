@@ -70,7 +70,7 @@ yarn add @perseid/ui
 
 ## Documentation
 
-The complete documentation is available [here](https://openizr.gitbook.io/perseid).
+The complete documentation is available [here](https://perseid.dev).
 
 
 ## Contributing
@@ -80,9 +80,7 @@ You're free to contribute to this project by submitting [issues](https://github.
 
 ## Sponsor
 
-Love this project and want to support it? You can [buy me a coffee](https://www.buymeacoffee.com/matthieujabbour) :)
-
-Or just sending me a quick message saying "Thanks" is also very gratifying, and keeps me motivated to maintain open-source projects I work on!
+Love this project and want to support it? You can [sponsor it!](https://github.com/sponsors/openizr) :)
 
 
 ## Maintainers
