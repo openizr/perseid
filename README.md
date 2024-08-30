@@ -1,6 +1,6 @@
 # perseid
 
-🌠 Web development, coming from space
+🌠 The Product-oriented Framework
 
 This monorepo contains the following packages:
 - [@perseid/dev-kit](https://github.com/openizr/perseid/tree/main/packages/dev-kit)
