@@ -2,9 +2,7 @@
 
 <p align="center">
   <br/>
-  <a href="https://perseiv.dev">Perseid</a> is a new way to build web applications, with a focus on features deliverability, scalability, and best practices&mdash;
-  <br/>
-  ship faster than ever before, while keeping technical debt under control.
+  <a href="https://perseiv.dev">Perseid</a> is a new way to build web applications, with a focus on features deliverability, scalability, and best practices&mdash;ship faster than ever before, while keeping technical debt under control.
   <br/><br/>
 </p>
 
