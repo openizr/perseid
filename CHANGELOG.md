@@ -1,3 +1,10 @@
+## @perseid/form:4.0.1 (2024-09-19)
+
+### Bugs
+- Fix `@perseid/form/vue` exports
+- Fix `@perseid/form/svelte` exports
+
+
 ## @perseid/client:2.0.2 (2024-08-28)
 
 ### Bugs

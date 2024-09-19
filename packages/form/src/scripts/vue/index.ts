@@ -1,5 +1,3 @@
-/* c8 ignore start */
-
 /**
  * Copyright (c) Openizr. All Rights Reserved.
  *
@@ -8,12 +6,12 @@
  *
  */
 
-import Form from 'scripts/react/Form';
+import Form from 'scripts/vue/Form.vue';
 import Engine from 'scripts/core/Engine';
-import DefaultStep from 'scripts/react/DefaultStep';
-import DefaultField from 'scripts/react/DefaultField';
-import DefaultLoader from 'scripts/react/DefaultLoader';
-import DefaultLayout from 'scripts/react/DefaultLayout';
+import DefaultStep from 'scripts/vue/DefaultStep.vue';
+import DefaultField from 'scripts/vue/DefaultField.vue';
+import DefaultLoader from 'scripts/vue/DefaultLoader.vue';
+import DefaultLayout from 'scripts/vue/DefaultLayout.vue';
 
 export default Form;
 
