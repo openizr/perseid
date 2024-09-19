@@ -1,26 +1,26 @@
 {
   "name": "@perseid/form",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
   "types": "./core.d.ts",
   "exports": {
     ".": {
-      "default": "./core.js",
-      "types": "./core.d.ts"
+      "types": "./core.d.ts",
+      "default": "./core.js"
     },
     "./react": {
-      "default": "./react.js",
-      "types": "./react.d.ts"
+      "types": "./react.d.ts",
+      "default": "./react.js"
     },
     "./vue": {
-      "default": "./vue.js",
-      "types": "./vue.d.ts"
+      "types": "./vue.d.ts",
+      "default": "./vue.js"
     },
     "./svelte": {
-      "default": "./svelte.js",
-      "types": "./svelte.d.ts"
+      "types": "./svelte.d.ts",
+      "default": "./svelte.js"
     }
   },
   "description": "Build complex, dynamic forms or inputs-based UIs in seconds",
@@ -172,8 +172,8 @@
   "peerDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "svelte": "^4.2.18",
-    "vue": "^3.4.37"
+    "svelte": "^4.2.19",
+    "vue": "^3.5.6"
   },
   "peerDependenciesMeta": {
     "react": {

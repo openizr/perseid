@@ -1,5 +1,3 @@
-/* c8 ignore start */
-
 /**
  * Copyright (c) Openizr. All Rights Reserved.
  *

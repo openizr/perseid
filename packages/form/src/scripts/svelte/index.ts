@@ -1,5 +1,3 @@
-/* c8 ignore start */
-
 /**
  * Copyright (c) Openizr. All Rights Reserved.
  *
@@ -8,12 +6,12 @@
  *
  */
 
-import Form from 'scripts/react/Form';
 import Engine from 'scripts/core/Engine';
-import DefaultStep from 'scripts/react/DefaultStep';
-import DefaultField from 'scripts/react/DefaultField';
-import DefaultLoader from 'scripts/react/DefaultLoader';
-import DefaultLayout from 'scripts/react/DefaultLayout';
+import Form from 'scripts/svelte/Form.svelte';
+import DefaultStep from 'scripts/svelte/DefaultStep.svelte';
+import DefaultField from 'scripts/svelte/DefaultField.svelte';
+import DefaultLoader from 'scripts/svelte/DefaultLoader.svelte';
+import DefaultLayout from 'scripts/svelte/DefaultLayout.svelte';
 
 export default Form;
 
