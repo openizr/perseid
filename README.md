@@ -8,7 +8,7 @@
 
 <div align="center">
 
-[![CI](https://github.com/vitejs/vite/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/openizr/perseid)
+[![Coverage Status](https://coveralls.io/repos/github/openizr/perseid/badge.svg?branch=main)](https://coveralls.io/github/openizr/perseid?branch=main)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/openizr/perseid/blob/main/LICENSE)
 [![downloads](https://img.shields.io/npm/dm/@perseid/server.svg?style=flat-square)](https://www.npmjs.com/package/@perseid/server)
 [![GitHub last commit](https://img.shields.io/github/last-commit/openizr/perseid)](https://github.com/openizr/perseid/commits/main)
