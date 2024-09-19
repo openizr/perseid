@@ -2,6 +2,7 @@
 
 Build complex, dynamic forms or inputs-based UIs in seconds.
 
+[![Coverage Status](https://coveralls.io/repos/github/openizr/perseid/badge.svg?branch=main)](https://coveralls.io/github/openizr/perseid?branch=main)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/openizr/perseid/blob/main/packages/form/LICENSE)
 [![NPM](https://img.shields.io/npm/v/@perseid/form.svg)](https://www.npmjs.com/package/@perseid/form)
 [![Node version](https://img.shields.io/node/v/@perseid/form.svg)](https://nodejs.org)

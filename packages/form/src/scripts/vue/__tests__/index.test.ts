@@ -21,6 +21,7 @@ describe('vue', () => {
   });
 
   test('correctly exports library', () => {
+    const { default: Form } = exports;
     expect(Object.keys(exports)).toEqual([
       'default',
       'Engine',
@@ -29,6 +30,6 @@ describe('vue', () => {
       'DefaultLoader',
       'DefaultLayout',
     ]);
-    expect(vi.isMockFunction(exports.default.setup)).toBe(true);
+    expect(vi.isMockFunction((Form as unknown as { setup: () => void; }).setup)).toBe(true);
   });
 });
