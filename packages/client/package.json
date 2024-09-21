@@ -1,6 +1,6 @@
 {
   "name": "@perseid/client",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
@@ -201,8 +201,8 @@
     "test": "node_modules/@perseid/dev-kit/scripts/test",
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
-    "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure && cp -r src/styles/* dist",
-    "pure": "for i in dist/*.js; do sed -i 's/\\([a-zA-Z_]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
+    "build:types": "cp src/scripts/*.d.ts dist && rm dist/extensions.d.ts && rm dist/global.d.ts && yarn run pure && cp -r src/styles/* dist",
+    "pure": "for i in dist/*.js; do sed -i 's/\\([a-zA-Z_$]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
     "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer react react-dom vue",
     "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json"
   },
