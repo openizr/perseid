@@ -6,6 +6,9 @@
 ### Improvements
 - Improve default `UIOptions` component styling
 
+### Bugs
+- Fix `@perseid/ui/vue` exports
+
 
 ## @perseid/form:4.0.1 (2024-09-19)
 
