@@ -9,28 +9,7 @@
 import * as React from 'react';
 import Modal from 'scripts/react/components/Modal';
 import DefaultMenu from 'scripts/react/components/Menu';
-import type BaseStore from 'scripts/core/services/Store';
-import type BaseModel from 'scripts/core/services/Model';
 import DefaultNotifier from 'scripts/react/components/Notifier';
-import type BaseApiClient from 'scripts/core/services/ApiClient';
-import { type DefaultDataModel, type I18n as BaseI18n } from '@perseid/core';
-
-/**
- * Layout props.
- */
-export interface LayoutProps<
-  DataModel extends DefaultDataModel = DefaultDataModel,
-  I18n extends BaseI18n = BaseI18n,
-  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
-  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
-> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
-  /** Whether to display layout itself, or only its children. Defaults to `true`. */
-  display?: boolean;
-
-  /** Layout children. */
-  children: React.ReactNode;
-}
 
 /**
  * Application layout.
@@ -42,7 +21,7 @@ function Layout({
   services,
   components,
   display = true,
-}: LayoutProps): JSX.Element {
+}: React.LayoutProps): JSX.Element {
   const Menu = components.Menu ?? DefaultMenu;
   const Notifier = components.Notifier ?? DefaultNotifier;
 

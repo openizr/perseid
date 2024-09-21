@@ -15,7 +15,6 @@ declare module '@perseid/client' {
   } from '@perseid/form';
   import type {
     Id,
-    I18n,
     Results,
     HttpClient,
     FieldSchema,
@@ -29,29 +28,6 @@ declare module '@perseid/client' {
   import BaseStore from '@perseid/store';
   import type { Module } from '@perseid/store';
   import type { RoutingContext } from '@perseid/store/extensions/router';
-
-  /**
-   * Common props passed to generic components.
-   */
-  interface CommonProps<DataModel extends DefaultDataModel> {
-    /** Perseid client services instances. */
-    services: {
-      /** I18n instance. */
-      i18n: I18n;
-
-      /** Perseid store instance. */
-      store: Store<DataModel>;
-
-      /** Perseid model instance. */
-      model: Model<DataModel>;
-
-      /** API client instance. */
-      apiClient: ApiClient<DataModel>;
-    };
-
-    /** Data model resource, if any. */
-    resource?: keyof DataModel & string;
-  }
 
   /**
    * Generic confirmation modal props.
@@ -72,16 +48,6 @@ declare module '@perseid/client' {
     /** Callback triggered at confirmation. */
     onConfirm?: () => void;
   }
-
-  /**
-   * Generic Layout props.
-   */
-  interface GenericLayoutProps<DataModel extends DefaultDataModel> extends CommonProps<DataModel> {
-    /** Whether to display layout itself, or only its children. Defaults to `true`. */
-    display?: boolean;
-  }
-
-  type UseSubscription = <T>(id: string, reducer?: ((state: any) => T) | undefined) => T;
 
   /**
    * Mapping of field paths to their respective sorting orders.
@@ -693,7 +659,7 @@ declare module '@perseid/client' {
   /**
    * App page configuration.
    */
-  export interface Page<DataModel extends DefaultDataModel> {
+  export interface Page {
     /** Page route. */
     route: string;
 
@@ -710,7 +676,13 @@ declare module '@perseid/client' {
     pageProps?: Record<string, unknown>;
 
     /** Additional props to pass to the global layout when displaying this page. */
-    layoutProps?: Partial<GenericLayoutProps<DataModel>>;
+    layoutProps?: {
+      /** Whether to display layout itself, or only its children. Defaults to `true`. */
+      display?: boolean;
+
+      /** Any additional prop. */
+      [name: string]: unknown;
+    };
   }
 
   /**
@@ -839,13 +811,13 @@ declare module '@perseid/client' {
     /** Generic pages configurations. */
     pages: {
       auth: {
-        signUp?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
-        signIn?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
-        updateUser?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
-        verifyEmail?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
-        resetPassword?: Omit<Page<DataModel>, 'visibility' | 'resource' | 'type'>;
+        signUp?: Omit<Page, 'visibility' | 'resource' | 'type'>;
+        signIn?: Omit<Page, 'visibility' | 'resource' | 'type'>;
+        updateUser?: Omit<Page, 'visibility' | 'resource' | 'type'>;
+        verifyEmail?: Omit<Page, 'visibility' | 'resource' | 'type'>;
+        resetPassword?: Omit<Page, 'visibility' | 'resource' | 'type'>;
       };
-      resources: Partial<Record<keyof DataModel & string, Partial<Record<string, Omit<Page<DataModel>, 'visibility'>>>>>;
+      resources: Partial<Record<keyof DataModel & string, Partial<Record<string, Omit<Page, 'visibility'>>>>>;
     };
   }
 
@@ -876,13 +848,13 @@ declare module '@perseid/client' {
     protected currentRoute: string | null;
 
     /** `useSubscription` method to use in components. */
-    public useSubscription: UseSubscription;
+    public useSubscription: unknown;
 
     /** List of resource already existing in data model. */
     protected loadedResources: Set<keyof DataModel & string>;
 
     /** List of app pages configurations. */
-    protected pages: Partial<Record<string, Omit<Page<DataModel>, 'route'>>>;
+    protected pages: Partial<Record<string, Omit<Page, 'route'>>>;
 
     /** Currently signed-in user. */
     protected user: DataModel['users'] | null;
@@ -1201,7 +1173,7 @@ declare module '@perseid/client' {
      *
      * @param configuration Route configuration.
      */
-    public createRoute(route: string, configuration: Omit<Page<DataModel>, 'route'>): void;
+    public createRoute(route: string, configuration: Omit<Page, 'route'>): void;
 
     /**
     * Navigates to `url`, without reloading the page.
@@ -1243,7 +1215,7 @@ declare module '@perseid/client' {
      *
      * @returns Page configuration if route exists, `null` otherwise.
      */
-    public getPage(route: string): Page<DataModel> | null;
+    public getPage(route: string): Page | null;
 
     /**
      * Returns app fallback page route.

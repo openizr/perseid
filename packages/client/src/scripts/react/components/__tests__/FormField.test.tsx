@@ -11,7 +11,7 @@ import type Engine from '@perseid/form';
 import { render } from '@testing-library/react';
 import FormField from 'scripts/react/components/FormField';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 function SubField(): JSX.Element {
   return <div id="field" />;

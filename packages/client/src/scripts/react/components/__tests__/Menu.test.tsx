@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import Menu from 'scripts/react/components/Menu';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/Menu', () => {
   vi.mock('@perseid/core');

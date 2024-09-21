@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import ActionsWrapper from 'scripts/react/components/ActionsWrapper';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/ActionsWrapper', () => {
   vi.mock('@perseid/core');

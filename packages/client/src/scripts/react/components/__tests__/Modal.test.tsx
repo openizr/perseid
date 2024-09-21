@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import Modal from 'scripts/react/components/Modal';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/Modal', () => {
   vi.mock('@perseid/ui/react');

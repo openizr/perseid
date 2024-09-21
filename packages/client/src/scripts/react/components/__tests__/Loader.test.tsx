@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import Loader from 'scripts/react/components/Loader';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/Loader', () => {
   vi.mock('@perseid/core');

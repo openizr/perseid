@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import Pagination from 'scripts/react/components/Pagination';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/Pagination', () => {
   vi.mock('@perseid/core');
