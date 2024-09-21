@@ -147,7 +147,9 @@ export default function Options(): JSX.Element {
         <UIOptions name="dropdown4" select options={selectOptions} value={newValue} label="Select large" selectPosition="bottom" />
         <UIOptions name="dropdown5" select options={selectOptions} value={['option1']} label="Select" modifiers="disabled" />
         <UIOptions name="dropdown6" select options={selectOptions} value="option4" multiple label="Select with focus listener" onFocus={onFocus} onChange={onChange} />
-        <UIOptions name="dropdown7" select options={selectOptions} value="option4" expanded label="Select expanded" />
+        <UIOptions name="dropdown7" select options={selectOptions} label="Select with placeholder" placeholder="test" />
+        <UIOptions name="dropdown8" select options={selectOptions} label="Select with no placeholder" />
+        <UIOptions name="dropdown9" select options={selectOptions} value="option4" expanded label="Select expanded" />
       </main>
     </div>
   );

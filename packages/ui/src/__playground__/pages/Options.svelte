@@ -218,6 +218,19 @@
       name="dropdown7"
       select
       options={selectOptions}
+      placeholder="test"
+      label="Select with placeholder"
+    />
+    <UIOptions
+      name="dropdown8"
+      select
+      options={selectOptions}
+      label="Select with no placeholder"
+    />
+    <UIOptions
+      name="dropdown9"
+      select
+      options={selectOptions}
       value="option4"
       expanded
       label="Select expanded"
