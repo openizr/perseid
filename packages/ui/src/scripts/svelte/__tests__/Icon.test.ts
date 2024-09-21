@@ -11,17 +11,21 @@ import UIIcon from 'scripts/svelte/Icon.svelte';
 import { render } from '@testing-library/svelte';
 
 describe('svelte/UIIcon', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   test('renders correctly - basic', () => {
-    const { container } = render(UIIcon, { props: { name: 'star', modifiers: 'large' } });
+    const { container } = render(UIIcon, { name: 'star', modifiers: 'large' });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - with id', () => {
-    const { container } = render(UIIcon, { props: { name: 'star', id: 'test' } });
+  test('renders correctly - with id', async () => {
+    const { container, rerender } = render(UIIcon, { name: 'star', id: 'test' });
+    expect(container.firstChild).toMatchSnapshot();
+    await rerender({ id: undefined, modifiers: undefined });
     expect(container.firstChild).toMatchSnapshot();
   });
 });

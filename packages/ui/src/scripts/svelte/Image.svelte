@@ -8,7 +8,7 @@
  *
  */
 
-import buildClass from 'scripts/core/buildClass';
+import { buildClass } from 'scripts/core/index';
 
 export let src: string;
 export let alt: string;

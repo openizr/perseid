@@ -11,6 +11,8 @@ import UIP from 'scripts/vue/UIP.vue';
 import { render } from '@testing-library/vue';
 
 describe('vue/UIP', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

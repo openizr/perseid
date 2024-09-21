@@ -11,22 +11,33 @@ import UIP from 'scripts/svelte/P.svelte';
 import { render } from '@testing-library/svelte';
 
 describe('svelte/UIP', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('renders correctly - basic', () => {
-    const { container } = render(UIP, { props: { label: 'Test', modifiers: 'large' } });
+  test('basic', () => {
+    const { container } = render(UIP, { label: 'Test' });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - with id', () => {
-    const { container } = render(UIP, { props: { label: 'Test', id: 'test' } });
+  test('with modifiers', async () => {
+    const { container, rerender } = render(UIP, { label: 'Test', modifiers: 'large' });
+    expect(container.firstChild).toMatchSnapshot();
+    await rerender({ modifiers: undefined });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - with itemProp', () => {
-    const { container } = render(UIP, { props: { label: 'Test', itemProp: 'description' } });
+  test('with id', async () => {
+    const { container, rerender } = render(UIP, { label: 'Test', id: 'test' });
+    expect(container.firstChild).toMatchSnapshot();
+    await rerender({ id: undefined });
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  test('with itemProp', () => {
+    const { container } = render(UIP, { label: 'Test', itemProp: 'description' });
     expect(container.firstChild).toMatchSnapshot();
   });
 });

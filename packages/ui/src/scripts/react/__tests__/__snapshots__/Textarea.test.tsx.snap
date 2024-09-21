@@ -2,7 +2,7 @@
 
 exports[`react/UITextarea > renders correctly - autocomplete off 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <div
     class="ui-textarea__wrapper"
@@ -20,7 +20,7 @@ exports[`react/UITextarea > renders correctly - autocomplete off 1`] = `
 
 exports[`react/UITextarea > renders correctly - basic 1`] = `
 <div
-  class="ui-textarea ui-textarea--large"
+  class="ui-textarea large"
 >
   <div
     class="ui-textarea__wrapper"
@@ -38,7 +38,7 @@ exports[`react/UITextarea > renders correctly - basic 1`] = `
 
 exports[`react/UITextarea > renders correctly - disabled 1`] = `
 <div
-  class="ui-textarea ui-textarea--disabled"
+  class="ui-textarea  disabled"
 >
   <div
     class="ui-textarea__wrapper"
@@ -57,7 +57,7 @@ exports[`react/UITextarea > renders correctly - disabled 1`] = `
 
 exports[`react/UITextarea > renders correctly - readonly 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <div
     class="ui-textarea__wrapper"
@@ -76,7 +76,7 @@ exports[`react/UITextarea > renders correctly - readonly 1`] = `
 
 exports[`react/UITextarea > renders correctly - with autoresize 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <div
     class="ui-textarea__wrapper"
@@ -98,7 +98,7 @@ value
 
 exports[`react/UITextarea > renders correctly - with cols and rows 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <div
     class="ui-textarea__wrapper"
@@ -118,7 +118,7 @@ exports[`react/UITextarea > renders correctly - with cols and rows 1`] = `
 
 exports[`react/UITextarea > renders correctly - with helper 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <div
     class="ui-textarea__wrapper"
@@ -134,18 +134,16 @@ exports[`react/UITextarea > renders correctly - with helper 1`] = `
   <span
     class="ui-textarea__helper"
   >
-    <span
-      class="ui-markdown ui-markdown--emphasis"
-    >
-      Helper
-    </span>
+    <strong>
+      *Helper*
+    </strong>
   </span>
 </div>
 `;
 
 exports[`react/UITextarea > renders correctly - with id 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
   id="my-id"
 >
   <div
@@ -164,17 +162,15 @@ exports[`react/UITextarea > renders correctly - with id 1`] = `
 
 exports[`react/UITextarea > renders correctly - with label 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <label
     class="ui-textarea__label"
     for="z8a8d7a5zad4"
   >
-    <span
-      class="ui-markdown ui-markdown--emphasis"
-    >
-      Label
-    </span>
+    <strong>
+      *Label*
+    </strong>
   </label>
   <div
     class="ui-textarea__wrapper"
@@ -192,7 +188,7 @@ exports[`react/UITextarea > renders correctly - with label 1`] = `
 
 exports[`react/UITextarea > renders correctly - with listeners and debounce 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <div
     class="ui-textarea__wrapper"
@@ -212,7 +208,7 @@ exports[`react/UITextarea > renders correctly - with listeners and debounce 1`] 
 
 exports[`react/UITextarea > renders correctly - with placeholder 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <div
     class="ui-textarea__wrapper"
@@ -231,7 +227,7 @@ exports[`react/UITextarea > renders correctly - with placeholder 1`] = `
 
 exports[`react/UITextarea > renders correctly - with value 1`] = `
 <div
-  class="ui-textarea"
+  class="ui-textarea "
 >
   <div
     class="ui-textarea__wrapper"

@@ -11,8 +11,8 @@ import UITextarea from 'scripts/svelte/Textarea.svelte';
 import { render, fireEvent } from '@testing-library/svelte';
 
 describe('svelte/UITextarea', () => {
-  vi.mock('scripts/core/generateRandomId');
   vi.useFakeTimers();
+  vi.mock('scripts/core/index');
 
   beforeEach(() => {
     vi.clearAllMocks();

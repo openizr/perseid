@@ -11,6 +11,8 @@ import { render } from '@testing-library/svelte';
 import UIImage from 'scripts/svelte/Image.svelte';
 
 describe('svelte/UIImage', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

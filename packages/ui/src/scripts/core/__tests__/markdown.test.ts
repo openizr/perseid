@@ -8,7 +8,7 @@
 
 import markdown from 'scripts/core/markdown';
 
-describe('markdown', () => {
+describe('core/markdown', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

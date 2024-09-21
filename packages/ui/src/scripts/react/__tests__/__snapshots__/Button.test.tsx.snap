@@ -2,7 +2,7 @@
 
 exports[`react/UIButton > renders correctly - basic 1`] = `
 <button
-  class="ui-button ui-button--large"
+  class="ui-button large"
   tabindex="0"
   type="button"
 >
@@ -16,7 +16,7 @@ exports[`react/UIButton > renders correctly - basic 1`] = `
 
 exports[`react/UIButton > renders correctly - default type 1`] = `
 <button
-  class="ui-button"
+  class="ui-button "
   tabindex="0"
   type="button"
 />
@@ -24,7 +24,7 @@ exports[`react/UIButton > renders correctly - default type 1`] = `
 
 exports[`react/UIButton > renders correctly - disabled 1`] = `
 <button
-  class="ui-button ui-button--disabled"
+  class="ui-button  disabled"
   tabindex="-1"
   type="button"
 />
@@ -32,37 +32,43 @@ exports[`react/UIButton > renders correctly - disabled 1`] = `
 
 exports[`react/UIButton > renders correctly - icon only 1`] = `
 <button
-  class="ui-button ui-button--icon"
+  class="ui-button  icon"
   tabindex="0"
   type="button"
 >
   <i
-    class="ui-icon ui-icon--star"
-  />
+    id="icon"
+  >
+    {"name":"star"}
+  </i>
 </button>
 `;
 
 exports[`react/UIButton > renders correctly - icon only 2`] = `
 <button
-  class="ui-button ui-button--icon"
+  class="ui-button  icon"
   tabindex="0"
   type="button"
 >
   <i
-    class="ui-icon ui-icon--star"
-  />
+    id="icon"
+  >
+    {"name":"star"}
+  </i>
 </button>
 `;
 
 exports[`react/UIButton > renders correctly - label with icon 1`] = `
 <button
-  class="ui-button"
+  class="ui-button "
   tabindex="0"
   type="button"
 >
   <i
-    class="ui-icon ui-icon--star"
-  />
+    id="icon"
+  >
+    {"name":"star"}
+  </i>
   <span
     class="ui-button__label"
   >
@@ -73,7 +79,7 @@ exports[`react/UIButton > renders correctly - label with icon 1`] = `
 
 exports[`react/UIButton > renders correctly - no label 1`] = `
 <button
-  class="ui-button"
+  class="ui-button "
   tabindex="0"
   type="button"
 />
@@ -81,7 +87,7 @@ exports[`react/UIButton > renders correctly - no label 1`] = `
 
 exports[`react/UIButton > renders correctly - type submit 1`] = `
 <button
-  class="ui-button"
+  class="ui-button "
   tabindex="0"
   type="submit"
 />
@@ -89,7 +95,7 @@ exports[`react/UIButton > renders correctly - type submit 1`] = `
 
 exports[`react/UIButton > renders correctly - with id 1`] = `
 <button
-  class="ui-button"
+  class="ui-button "
   id="test"
   tabindex="0"
   type="button"
@@ -104,7 +110,7 @@ exports[`react/UIButton > renders correctly - with id 1`] = `
 
 exports[`react/UIButton > renders correctly - with listeners 1`] = `
 <button
-  class="ui-button"
+  class="ui-button "
   tabindex="0"
   type="button"
 />

@@ -11,6 +11,8 @@ import UIIcon from 'scripts/react/Icon';
 import { render } from '@testing-library/react';
 
 describe('react/UIIcon', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

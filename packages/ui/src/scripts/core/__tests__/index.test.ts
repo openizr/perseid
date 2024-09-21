@@ -9,7 +9,7 @@
 
 import * as entry from 'scripts/core/index';
 
-describe('main', () => {
+describe('core/index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

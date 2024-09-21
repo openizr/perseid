@@ -11,6 +11,9 @@ import UIButton from 'scripts/react/Button';
 import { render, fireEvent } from '@testing-library/react';
 
 describe('react/UIButton', () => {
+  vi.mock('scripts/core/index');
+  vi.mock('scripts/react/Icon');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

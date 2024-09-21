@@ -10,9 +10,9 @@
 import UIFilePicker from 'scripts/vue/UIFilePicker.vue';
 import { render, fireEvent } from '@testing-library/vue';
 
-vi.mock('scripts/core/generateRandomId');
-
 describe('vue/UIFilePicker', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -76,7 +76,7 @@ describe('vue/UIFilePicker', () => {
           size: 1515,
           type: 'image/png',
           lastModified: Date.now(),
-        }],
+        } as File],
       },
     });
     expect(container.firstChild).toMatchSnapshot();

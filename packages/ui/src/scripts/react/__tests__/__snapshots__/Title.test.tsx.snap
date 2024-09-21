@@ -2,34 +2,42 @@
 
 exports[`react/UITitle > renders correctly - basic 1`] = `
 <h1
-  class="ui-title ui-title--large--1"
+  class="ui-title large 1"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h1>
 `;
 
 exports[`react/UITitle > renders correctly - modifier different than level 1`] = `
 <h1
-  class="ui-title ui-title--5--large"
+  class="ui-title 5 large"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h1>
 `;
 
 exports[`react/UITitle > renders correctly - with id 1`] = `
 <h1
-  class="ui-title ui-title--1"
+  class="ui-title  1"
   id="test"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h1>
 `;
 
 exports[`react/UITitle > renders correctly - with itemProp 1`] = `
 <h1
-  class="ui-title ui-title--1"
+  class="ui-title  1"
   itemprop="name"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h1>
 `;

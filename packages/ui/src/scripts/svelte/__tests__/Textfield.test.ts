@@ -11,8 +11,8 @@ import UITextfield from 'scripts/svelte/Textfield.svelte';
 import { render, fireEvent } from '@testing-library/svelte';
 
 describe('svelte/UITextfield', () => {
-  vi.mock('scripts/core/generateRandomId');
   vi.useFakeTimers();
+  vi.mock('scripts/core/index');
 
   beforeEach(() => {
     vi.clearAllMocks();

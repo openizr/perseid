@@ -1,4 +1,4 @@
-<!-- Basic icon. -->
+<!-- `scripts/vue/UIIcon.vue` mock. -->
 <script lang="ts" setup>
 /**
  * Copyright (c) Openizr. All Rights Reserved.
@@ -8,9 +8,6 @@
  *
  */
 
-import { computed } from 'vue';
-import { buildClass } from 'scripts/core/index';
-
 const props = withDefaults(defineProps<{
   id?: string;
   name: string;
@@ -19,13 +16,8 @@ const props = withDefaults(defineProps<{
   id: undefined,
   modifiers: '',
 });
-
-const className = computed(() => buildClass('ui-icon', `${props.name} ${props.modifiers}`));
 </script>
 
 <template>
-  <i
-    :id="id"
-    :class="className"
-  />
+  <i id="icon">{{ JSON.stringify(props) }}</i>
 </template>

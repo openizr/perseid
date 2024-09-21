@@ -11,6 +11,9 @@ import UIButton from 'scripts/vue/UIButton.vue';
 import { render, fireEvent } from '@testing-library/vue';
 
 describe('vue/UIButton', () => {
+  vi.mock('scripts/core/index');
+  vi.mock('scripts/vue/UIIcon.vue');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

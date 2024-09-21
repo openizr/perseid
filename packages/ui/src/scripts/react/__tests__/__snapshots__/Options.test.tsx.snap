@@ -1,14 +1,108 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`react/UIOptions > basic select 1`] = `
+<div
+  class="ui-options large select"
+>
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    >
+      <strong>
+        Option 1
+      </strong>
+    </button>
+    <ul
+      aria-activedescendant="z8a8d7a5zad40"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider "
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header "
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+    </ul>
+  </div>
+</div>
+`;
+
 exports[`react/UIOptions > correctly handles checkboxes keyboard navigation 1`] = `
 <div
-  class="ui-options ui-options--multiple"
+  class="ui-options  multiple"
 >
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option ui-options__wrapper__option--checked"
+      class="ui-options__wrapper__option  checked"
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -22,11 +116,13 @@ exports[`react/UIOptions > correctly handles checkboxes keyboard navigation 1`] 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_1"
     >
       <input
@@ -40,11 +136,13 @@ exports[`react/UIOptions > correctly handles checkboxes keyboard navigation 1`] 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_2"
     >
       <input
@@ -58,11 +156,13 @@ exports[`react/UIOptions > correctly handles checkboxes keyboard navigation 1`] 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_3"
     >
       <input
@@ -76,7 +176,9 @@ exports[`react/UIOptions > correctly handles checkboxes keyboard navigation 1`] 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
   </div>
@@ -85,7 +187,7 @@ exports[`react/UIOptions > correctly handles checkboxes keyboard navigation 1`] 
 
 exports[`react/UIOptions > correctly handles select keyboard navigation 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -99,75 +201,87 @@ exports[`react/UIOptions > correctly handles select keyboard navigation 1`] = `
       tabindex="0"
       type="button"
     >
-      Option 1
+      <strong>
+        Option 1
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad40"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - basic select 1`] = `
+exports[`react/UIOptions > multiple select with listeners 1`] = `
 <div
-  class="ui-options ui-options--large--select"
+  class="ui-options  select multiple"
 >
   <div
     class="ui-options__wrapper"
@@ -181,163 +295,97 @@ exports[`react/UIOptions > renders correctly - basic select 1`] = `
       tabindex="0"
       type="button"
     >
-      Option 1
-    </button>
-    <ul
-      aria-activedescendant="z8a8d7a5zad40"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
+      <strong>
         Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-    </ul>
-  </div>
-</div>
-`;
-
-exports[`react/UIOptions > renders correctly - multiple select with listeners 1`] = `
-<div
-  class="ui-options ui-options--select--multiple"
->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    >
-      Option 2, Option 1
+      </strong>
+      , 
+      <strong>
+        Option 1
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad40"
       aria-expanded="true"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
+      class="ui-options__wrapper__list bottom expanded"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - radio  with listeners 1`] = `
+exports[`react/UIOptions > radio  with listeners 1`] = `
 <div
-  class="ui-options"
+  class="ui-options "
 >
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -351,11 +399,13 @@ exports[`react/UIOptions > renders correctly - radio  with listeners 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_1"
     >
       <input
@@ -369,11 +419,13 @@ exports[`react/UIOptions > renders correctly - radio  with listeners 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option ui-options__wrapper__option--checked"
+      class="ui-options__wrapper__option  checked"
       for="z8a8d7a5zad4_2"
     >
       <input
@@ -387,11 +439,13 @@ exports[`react/UIOptions > renders correctly - radio  with listeners 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_3"
     >
       <input
@@ -405,22 +459,24 @@ exports[`react/UIOptions > renders correctly - radio  with listeners 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - radio basic 1`] = `
+exports[`react/UIOptions > radio basic 1`] = `
 <div
-  class="ui-options ui-options--large"
+  class="ui-options large"
 >
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -434,11 +490,13 @@ exports[`react/UIOptions > renders correctly - radio basic 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_1"
     >
       <input
@@ -452,11 +510,13 @@ exports[`react/UIOptions > renders correctly - radio basic 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_2"
     >
       <input
@@ -470,11 +530,13 @@ exports[`react/UIOptions > renders correctly - radio basic 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_3"
     >
       <input
@@ -488,22 +550,24 @@ exports[`react/UIOptions > renders correctly - radio basic 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - radio disabled 1`] = `
+exports[`react/UIOptions > radio disabled 1`] = `
 <div
-  class="ui-options ui-options--disabled"
+  class="ui-options  disabled"
 >
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -518,11 +582,13 @@ exports[`react/UIOptions > renders correctly - radio disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_1"
     >
       <input
@@ -537,11 +603,13 @@ exports[`react/UIOptions > renders correctly - radio disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_2"
     >
       <input
@@ -556,11 +624,13 @@ exports[`react/UIOptions > renders correctly - radio disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_3"
     >
       <input
@@ -575,22 +645,24 @@ exports[`react/UIOptions > renders correctly - radio disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - radio with helper 1`] = `
+exports[`react/UIOptions > radio with helper 1`] = `
 <div
-  class="ui-options"
+  class="ui-options "
 >
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -604,11 +676,13 @@ exports[`react/UIOptions > renders correctly - radio with helper 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_1"
     >
       <input
@@ -622,11 +696,13 @@ exports[`react/UIOptions > renders correctly - radio with helper 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_2"
     >
       <input
@@ -640,11 +716,13 @@ exports[`react/UIOptions > renders correctly - radio with helper 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_3"
     >
       <input
@@ -658,28 +736,32 @@ exports[`react/UIOptions > renders correctly - radio with helper 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
   </div>
   <span
     class="ui-options__helper"
   >
-    test
+    <strong>
+      test
+    </strong>
   </span>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - radio with id 1`] = `
+exports[`react/UIOptions > radio with id 1`] = `
 <div
-  class="ui-options"
+  class="ui-options "
   id="test"
 >
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -693,11 +775,13 @@ exports[`react/UIOptions > renders correctly - radio with id 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_1"
     >
       <input
@@ -711,11 +795,13 @@ exports[`react/UIOptions > renders correctly - radio with id 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_2"
     >
       <input
@@ -729,11 +815,13 @@ exports[`react/UIOptions > renders correctly - radio with id 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_3"
     >
       <input
@@ -747,28 +835,32 @@ exports[`react/UIOptions > renders correctly - radio with id 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - radio with label 1`] = `
+exports[`react/UIOptions > radio with label 1`] = `
 <div
-  class="ui-options"
+  class="ui-options "
 >
   <label
     class="ui-options__label"
     for="z8a8d7a5zad4_0"
   >
-    test
+    <strong>
+      test
+    </strong>
   </label>
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -782,11 +874,13 @@ exports[`react/UIOptions > renders correctly - radio with label 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_1"
     >
       <input
@@ -800,11 +894,13 @@ exports[`react/UIOptions > renders correctly - radio with label 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_2"
     >
       <input
@@ -818,11 +914,13 @@ exports[`react/UIOptions > renders correctly - radio with label 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_3"
     >
       <input
@@ -836,22 +934,24 @@ exports[`react/UIOptions > renders correctly - radio with label 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - radio with option disabled 1`] = `
+exports[`react/UIOptions > radio with option disabled 1`] = `
 <div
-  class="ui-options"
+  class="ui-options "
 >
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option ui-options__wrapper__option--disabled"
+      class="ui-options__wrapper__option  disabled"
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -866,22 +966,24 @@ exports[`react/UIOptions > renders correctly - radio with option disabled 1`] = 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 5
+        <strong>
+          Option 5
+        </strong>
       </span>
     </label>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - radio with value 1`] = `
+exports[`react/UIOptions > radio with value 1`] = `
 <div
-  class="ui-options"
+  class="ui-options "
 >
   <div
     class="ui-options__wrapper"
   >
     <label
-      class="ui-options__wrapper__option ui-options__wrapper__option--checked"
+      class="ui-options__wrapper__option  checked"
       for="z8a8d7a5zad4_0"
     >
       <input
@@ -896,11 +998,13 @@ exports[`react/UIOptions > renders correctly - radio with value 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_1"
     >
       <input
@@ -914,11 +1018,13 @@ exports[`react/UIOptions > renders correctly - radio with value 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_2"
     >
       <input
@@ -932,11 +1038,13 @@ exports[`react/UIOptions > renders correctly - radio with value 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option"
+      class="ui-options__wrapper__option "
       for="z8a8d7a5zad4_3"
     >
       <input
@@ -950,16 +1058,18 @@ exports[`react/UIOptions > renders correctly - radio with value 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select changing options 1`] = `
+exports[`react/UIOptions > select changing options 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -973,75 +1083,326 @@ exports[`react/UIOptions > renders correctly - select changing options 1`] = `
       tabindex="0"
       type="button"
     >
-      Option 4
+      <strong>
+        Option 4
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad45"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select disabled 1`] = `
+exports[`react/UIOptions > select correctly focuses last available option when narrowing options down 1`] = `
 <div
-  class="ui-options ui-options--select--disabled"
+  class="ui-options  select multiple"
+>
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad40"
+      aria-expanded="true"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="true"
+      class="ui-options__wrapper__list bottom expanded"
+      role="listbox"
+      tabindex="-1"
+    >
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider "
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+    </ul>
+  </div>
+</div>
+`;
+
+exports[`react/UIOptions > select correctly updates current value when changing value and multiple props 1`] = `
+<div
+  class="ui-options  select multiple"
+>
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    >
+      <strong>
+        Option 1
+      </strong>
+      , 
+      <strong>
+        Option 2
+      </strong>
+    </button>
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="true"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider "
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header "
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+    </ul>
+  </div>
+</div>
+`;
+
+exports[`react/UIOptions > select correctly updates current value when changing value and multiple props 2`] = `
+<div
+  class="ui-options  select"
+>
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    >
+      <strong>
+        Option 1
+      </strong>
+    </button>
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider "
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header "
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option "
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+    </ul>
+  </div>
+</div>
+`;
+
+exports[`react/UIOptions > select disabled 1`] = `
+<div
+  class="ui-options  select disabled"
 >
   <div
     class="ui-options__wrapper"
@@ -1060,68 +1421,78 @@ exports[`react/UIOptions > renders correctly - select disabled 1`] = `
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select expanded 1`] = `
+exports[`react/UIOptions > select expanded 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1140,68 +1511,78 @@ exports[`react/UIOptions > renders correctly - select expanded 1`] = `
       aria-expanded="true"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
+      class="ui-options__wrapper__list bottom expanded"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select expanded with no option and small viewport 1`] = `
+exports[`react/UIOptions > select expanded with no option and small viewport 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1220,7 +1601,7 @@ exports[`react/UIOptions > renders correctly - select expanded with no option an
       aria-expanded="true"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--top--expanded"
+      class="ui-options__wrapper__list top expanded"
       role="listbox"
       tabindex="-1"
     />
@@ -1228,9 +1609,9 @@ exports[`react/UIOptions > renders correctly - select expanded with no option an
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select expanded with selectPosition 1`] = `
+exports[`react/UIOptions > select expanded with selectPosition 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1249,68 +1630,78 @@ exports[`react/UIOptions > renders correctly - select expanded with selectPositi
       aria-expanded="true"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--top--expanded"
+      class="ui-options__wrapper__list top expanded"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select expanded with value 1`] = `
+exports[`react/UIOptions > select expanded with value 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1324,75 +1715,87 @@ exports[`react/UIOptions > renders correctly - select expanded with value 1`] = 
       tabindex="0"
       type="button"
     >
-      Option 1
+      <strong>
+        Option 1
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad4-1"
       aria-expanded="true"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
+      class="ui-options__wrapper__list bottom expanded"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select with default value 1`] = `
+exports[`react/UIOptions > select with default value 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1411,25 +1814,27 @@ exports[`react/UIOptions > renders correctly - select with default value 1`] = `
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
-      />
+      >
+        <strong />
+      </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select with helper 1`] = `
+exports[`react/UIOptions > select with helper 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1442,79 +1847,93 @@ exports[`react/UIOptions > renders correctly - select with helper 1`] = `
       name="test"
       tabindex="0"
       type="button"
-    />
+    >
+      test2
+    </button>
     <ul
       aria-activedescendant="z8a8d7a5zad4-1"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
   <span
     class="ui-options__helper"
   >
-    test
+    <strong>
+      test
+    </strong>
   </span>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select with id 1`] = `
+exports[`react/UIOptions > select with id 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
   id="test"
 >
   <div
@@ -1534,74 +1953,86 @@ exports[`react/UIOptions > renders correctly - select with id 1`] = `
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select with label 1`] = `
+exports[`react/UIOptions > select with label 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <label
     class="ui-options__label"
     for="z8a8d7a5zad4"
   >
-    test
+    <strong>
+      test
+    </strong>
   </label>
   <div
     class="ui-options__wrapper"
@@ -1620,68 +2051,78 @@ exports[`react/UIOptions > renders correctly - select with label 1`] = `
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select with listeners 1`] = `
+exports[`react/UIOptions > select with listeners 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1695,75 +2136,87 @@ exports[`react/UIOptions > renders correctly - select with listeners 1`] = `
       tabindex="0"
       type="button"
     >
-      Option 1
+      <strong>
+        Option 1
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad42"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select with option disabled 1`] = `
+exports[`react/UIOptions > select with option disabled 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1782,27 +2235,29 @@ exports[`react/UIOptions > renders correctly - select with option disabled 1`] =
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--disabled"
+        class="ui-options__wrapper__list__option  disabled"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 5
+        <strong>
+          Option 5
+        </strong>
       </li>
     </ul>
   </div>
 </div>
 `;
 
-exports[`react/UIOptions > renders correctly - select with value 1`] = `
+exports[`react/UIOptions > select with value 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <div
     class="ui-options__wrapper"
@@ -1816,275 +2271,78 @@ exports[`react/UIOptions > renders correctly - select with value 1`] = `
       tabindex="0"
       type="button"
     >
-      Option 1
+      <strong>
+        Option 1
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad4-1"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__divider"
+        class="ui-options__wrapper__list__divider "
         id="z8a8d7a5zad41"
         tabindex="-1"
       />
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad43"
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__header"
+        class="ui-options__wrapper__list__header "
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        class="ui-options__wrapper__list__option "
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
-      </li>
-    </ul>
-  </div>
-</div>
-`;
-
-exports[`react/UIOptions > select correctly focuses last available option when narrowing options down 1`] = `
-<div
-  class="ui-options ui-options--select--multiple"
->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad40"
-      aria-expanded="true"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
-      role="listbox"
-      tabindex="-1"
-    >
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-    </ul>
-  </div>
-</div>
-`;
-
-exports[`react/UIOptions > select correctly updates current value when changing value and multiple props 1`] = `
-<div
-  class="ui-options ui-options--select--multiple"
->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    >
-      Option 1, Option 2
-    </button>
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-    </ul>
-  </div>
-</div>
-`;
-
-exports[`react/UIOptions > select correctly updates current value when changing value and multiple props 2`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    >
-      Option 1
-    </button>
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
     </ul>
   </div>

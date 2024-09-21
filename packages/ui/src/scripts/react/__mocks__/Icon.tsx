@@ -6,4 +6,12 @@
  *
  */
 
-export default vi.fn(() => 'z8a8d7a5zad4');
+/**
+ * `scripts/react/Icon` mock.
+ */
+
+export default function Icon(props: unknown): JSX.Element {
+  return (
+    <i id="icon">{JSON.stringify(props)}</i>
+  );
+}

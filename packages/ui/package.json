@@ -126,8 +126,8 @@
   "peerDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "svelte": "^4.2.18",
-    "vue": "^3.4.37"
+    "svelte": "^4.2.19",
+    "vue": "^3.5.7"
   },
   "devKitConfig": {
     "target": "web",

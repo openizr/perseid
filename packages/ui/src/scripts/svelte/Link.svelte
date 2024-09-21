@@ -8,8 +8,7 @@
  *
  */
 
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
+import { markdown, buildClass } from 'scripts/core/index';
 
 export let href: string;
 export let label: string;

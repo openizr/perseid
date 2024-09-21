@@ -9,9 +9,7 @@
  */
 
 import { computed, ref, watch } from 'vue';
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
-import generateRandomId from 'scripts/core/generateRandomId';
+import { markdown, buildClass, generateRandomId } from 'scripts/core/index';
 
 type FocusEventHandler = (value: string, event: FocusEvent) => void;
 type ChangeEventHandler = (value: string, event: InputEvent) => void;

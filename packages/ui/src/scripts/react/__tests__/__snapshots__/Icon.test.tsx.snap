@@ -2,13 +2,13 @@
 
 exports[`react/UIIcon > renders correctly - basic 1`] = `
 <i
-  class="ui-icon ui-icon--star--large"
+  class="ui-icon star large"
 />
 `;
 
 exports[`react/UIIcon > renders correctly - with id 1`] = `
 <i
-  class="ui-icon ui-icon--star"
+  class="ui-icon star "
   id="test"
 />
 `;

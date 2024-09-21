@@ -2,9 +2,11 @@
 
 exports[`vue/UIP > renders correctly - basic 1`] = `
 <p
-  class="ui-p ui-p--large"
+  class="ui-p large"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </p>
 `;
 
@@ -13,7 +15,9 @@ exports[`vue/UIP > renders correctly - with id 1`] = `
   class="ui-p"
   id="test"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </p>
 `;
 
@@ -22,6 +26,8 @@ exports[`vue/UIP > renders correctly - with itemProp 1`] = `
   class="ui-p"
   itemprop="description"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </p>
 `;

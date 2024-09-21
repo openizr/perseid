@@ -9,7 +9,7 @@
  */
 
 import { computed, ref } from 'vue';
-import buildClass from 'scripts/core/buildClass';
+import { buildClass } from 'scripts/core/index';
 
 const props = withDefaults(defineProps<{
   id?: string;

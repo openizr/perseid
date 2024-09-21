@@ -11,6 +11,8 @@ import UILink from 'scripts/svelte/Link.svelte';
 import { render } from '@testing-library/svelte';
 
 describe('svelte/UILink', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -10,7 +10,7 @@
 
 import { computed } from 'vue';
 import UIIcon from 'scripts/vue/UIIcon.vue';
-import buildClass from 'scripts/core/buildClass';
+import { buildClass } from 'scripts/core/index';
 
 type MouseEventHandler = (event: MouseEvent) => void;
 type FocusEventHandler = (event: FocusEvent) => void;

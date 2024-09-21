@@ -2,7 +2,7 @@
 
 exports[`vue/UIFilePicker > renders correctly - basic 1`] = `
 <div
-  class="ui-file-picker ui-file-picker--large"
+  class="ui-file-picker large"
 >
   <!--v-if-->
   <div
@@ -27,7 +27,7 @@ exports[`vue/UIFilePicker > renders correctly - basic 1`] = `
 
 exports[`vue/UIFilePicker > renders correctly - disabled 1`] = `
 <div
-  class="ui-file-picker ui-file-picker--disabled"
+  class="ui-file-picker  disabled"
 >
   <!--v-if-->
   <div
@@ -52,7 +52,7 @@ exports[`vue/UIFilePicker > renders correctly - disabled 1`] = `
 
 exports[`vue/UIFilePicker > renders correctly - multiple 1`] = `
 <div
-  class="ui-file-picker ui-file-picker--multiple"
+  class="ui-file-picker  multiple"
 >
   <!--v-if-->
   <div
@@ -78,7 +78,7 @@ exports[`vue/UIFilePicker > renders correctly - multiple 1`] = `
 
 exports[`vue/UIFilePicker > renders correctly - multiple with listeners 1`] = `
 <div
-  class="ui-file-picker ui-file-picker--multiple"
+  class="ui-file-picker  multiple"
 >
   <!--v-if-->
   <div
@@ -154,7 +154,9 @@ exports[`vue/UIFilePicker > renders correctly - with helper 1`] = `
   <span
     class="ui-file-picker__helper"
   >
-    Helper
+    <strong>
+      Helper
+    </strong>
   </span>
 </div>
 `;
@@ -193,7 +195,9 @@ exports[`vue/UIFilePicker > renders correctly - with label 1`] = `
     class="ui-file-picker__label"
     for="z8a8d7a5zad4"
   >
-    Label
+    <strong>
+      Label
+    </strong>
   </label>
   <div
     class="ui-file-picker__wrapper"
@@ -224,7 +228,7 @@ exports[`vue/UIFilePicker > renders correctly - with left icon 1`] = `
     class="ui-file-picker__wrapper"
   >
     <i
-      class="ui-icon ui-icon--star"
+      class="ui-icon star"
     />
     <input
       class="ui-file-picker__wrapper__field"
@@ -313,7 +317,7 @@ exports[`vue/UIFilePicker > renders correctly - with right icon 1`] = `
       type="file"
     />
     <i
-      class="ui-icon ui-icon--star"
+      class="ui-icon star"
     />
     <span
       class="ui-file-picker__wrapper__placeholder"

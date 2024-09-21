@@ -7,9 +7,7 @@
  */
 
 import * as React from 'react';
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
-import generateRandomId from 'scripts/core/generateRandomId';
+import { markdown, buildClass, generateRandomId } from 'scripts/core/index';
 
 /**
  * Text area.

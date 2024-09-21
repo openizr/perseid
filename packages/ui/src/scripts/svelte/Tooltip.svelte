@@ -8,7 +8,7 @@
  *
  */
 
-import buildClass from 'scripts/core/buildClass';
+import { buildClass } from 'scripts/core/index';
 
 export let label: string;
 export let modifiers = '';
@@ -26,6 +26,8 @@ const hideDescription = () => {
 };
 
 // Enforces props default values.
+$: id = id ?? undefined;
+$: description = description ?? undefined;
 $: modifiers = (modifiers as string | undefined) ?? '';
 
 $: isDescriptionDisplayed = isDescriptionVisible && description !== undefined;

@@ -11,6 +11,9 @@ import { render } from '@testing-library/svelte';
 import UIButton from 'scripts/svelte/Button.svelte';
 
 describe('svelte/UIButton', () => {
+  vi.mock('scripts/core/index');
+  vi.mock('scripts/svelte/Icon.svelte');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -41,17 +44,17 @@ describe('svelte/UIButton', () => {
   });
 
   test('renders correctly - icon only', () => {
-    const { container } = render(UIButton, { props: { icon: 'star' } });
+    const { container } = render(UIButton, { icon: 'star', iconPosition: 'left' });
     expect(container.firstChild).toMatchSnapshot();
   });
 
   test('renders correctly - right icon', () => {
-    const { container } = render(UIButton, { props: { icon: 'star', iconPosition: 'right' } });
+    const { container } = render(UIButton, { icon: 'star', iconPosition: 'right' });
     expect(container.firstChild).toMatchSnapshot();
   });
 
   test('renders correctly - disabled', () => {
-    const { container } = render(UIButton, { props: { disabled: true } });
+    const { container } = render(UIButton, { disabled: true });
     expect(container.firstChild).toMatchSnapshot();
   });
 });

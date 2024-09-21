@@ -11,8 +11,8 @@ import UITextarea from 'scripts/vue/UITextarea.vue';
 import { render, fireEvent } from '@testing-library/vue';
 
 describe('vue/UITextarea', () => {
-  vi.mock('scripts/core/generateRandomId');
   vi.useFakeTimers();
+  vi.mock('scripts/core/index');
 
   beforeEach(() => {
     vi.clearAllMocks();

@@ -7,8 +7,7 @@
  */
 
 import * as React from 'react';
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
+import { markdown, buildClass } from 'scripts/core/index';
 
 /**
  * Title.

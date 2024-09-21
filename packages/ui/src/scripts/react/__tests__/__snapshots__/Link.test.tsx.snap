@@ -2,7 +2,7 @@
 
 exports[`react/UILink > renders correctly - basic 1`] = `
 <a
-  class="ui-link ui-link--large"
+  class="ui-link large"
   href="https://test.com"
   tabindex="0"
 >
@@ -12,7 +12,7 @@ exports[`react/UILink > renders correctly - basic 1`] = `
 
 exports[`react/UILink > renders correctly - disabled 1`] = `
 <a
-  class="ui-link ui-link--disabled"
+  class="ui-link  disabled"
   href="https://test.com"
   tabindex="-1"
 >
@@ -22,7 +22,7 @@ exports[`react/UILink > renders correctly - disabled 1`] = `
 
 exports[`react/UILink > renders correctly - with id 1`] = `
 <a
-  class="ui-link"
+  class="ui-link "
   href="https://test.com"
   id="test"
   tabindex="0"
@@ -33,7 +33,7 @@ exports[`react/UILink > renders correctly - with id 1`] = `
 
 exports[`react/UILink > renders correctly - with itemProp 1`] = `
 <a
-  class="ui-link"
+  class="ui-link "
   href="https://test.com"
   itemprop="name"
   tabindex="0"
@@ -44,7 +44,7 @@ exports[`react/UILink > renders correctly - with itemProp 1`] = `
 
 exports[`react/UILink > renders correctly - with listeners 1`] = `
 <a
-  class="ui-link"
+  class="ui-link "
   href=""
   tabindex="0"
 />
@@ -52,7 +52,7 @@ exports[`react/UILink > renders correctly - with listeners 1`] = `
 
 exports[`react/UILink > renders correctly - with rel 1`] = `
 <a
-  class="ui-link"
+  class="ui-link "
   href="https://test.com"
   rel="no referrer"
   tabindex="0"
@@ -63,7 +63,7 @@ exports[`react/UILink > renders correctly - with rel 1`] = `
 
 exports[`react/UILink > renders correctly - with target 1`] = `
 <a
-  class="ui-link"
+  class="ui-link "
   href="https://test.com"
   tabindex="0"
   target="_blank"

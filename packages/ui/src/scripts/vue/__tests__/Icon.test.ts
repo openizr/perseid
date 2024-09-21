@@ -11,6 +11,8 @@ import UIIcon from 'scripts/vue/UIIcon.vue';
 import { render } from '@testing-library/vue';
 
 describe('vue/UIIcon', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

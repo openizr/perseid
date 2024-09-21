@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import buildClass from 'scripts/core/buildClass';
+import { buildClass } from 'scripts/core/index';
 
 /**
  * Tooltip wrapper, for accessibility.

@@ -8,8 +8,8 @@
  *
  */
 
+import { buildClass } from 'scripts/core/index';
 import UIIcon from 'scripts/svelte/Icon.svelte';
-import buildClass from 'scripts/core/buildClass';
 
 export let modifiers = '';
 export let id: string | undefined = undefined;
@@ -22,6 +22,8 @@ export let onClick: ((event: MouseEvent) => void) | undefined = undefined;
 export let onFocus: ((event: FocusEvent) => void) | undefined = undefined;
 
 // Enforces props default values.
+$: icon = icon ?? undefined;
+$: disabled = disabled ?? false;
 $: type = (type as 'button' | undefined) ?? 'button';
 $: modifiers = (modifiers as string | undefined) ?? '';
 $: iconPosition = (iconPosition as 'left' | 'right' | undefined) ?? 'left';

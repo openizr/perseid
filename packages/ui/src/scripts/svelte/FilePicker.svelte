@@ -9,9 +9,7 @@
  */
 
 import UIIcon from 'scripts/svelte/Icon.svelte';
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
-import generateRandomId from 'scripts/core/generateRandomId';
+import { markdown, buildClass, generateRandomId } from 'scripts/core/index';
 
 const toArray = (newValue: File | File[]): File[] => (Array.isArray(newValue)
   ? newValue
