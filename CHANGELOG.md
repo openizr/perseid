@@ -1,3 +1,12 @@
+## @perseid/client:2.1.0 (2024-09-21)
+
+### Features
+- Implement support for VueJS in `@perseid/client/vue`
+
+### Improvements
+- Improve types definitions
+
+
 ## @perseid/ui:4.1.0 (2024-09-21)
 
 ### Features
