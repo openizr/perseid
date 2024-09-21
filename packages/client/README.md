@@ -2,21 +2,45 @@
 
 Dynamic, model-based UIs generator.
 
-[![npm](https://img.shields.io/npm/v/@perseid/client.svg)](https://www.npmjs.com/package/@perseid/client)
-[![node](https://img.shields.io/node/v/@perseid/client.svg)](https://nodejs.org)
-[![downloads](https://img.shields.io/npm/dm/@perseid/client.svg?style=flat-square)](https://www.npmjs.com/package/@perseid/client)
+[![Coverage Status](https://coveralls.io/repos/github/openizr/perseid/badge.svg?branch=main)](https://coveralls.io/github/openizr/perseid?branch=main)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/openizr/perseid/blob/main/packages/client/LICENSE)
+[![NPM](https://img.shields.io/npm/v/@perseid/client.svg)](https://www.npmjs.com/package/@perseid/client)
+[![Node version](https://img.shields.io/node/v/@perseid/client.svg)](https://nodejs.org)
+[![Downloads](https://img.shields.io/npm/dm/@perseid/client.svg?style=flat-square)](https://www.npmjs.com/package/@perseid/client)
+[![Minzipped size](https://badgen.net/bundlephobia/minzip/@perseid/client)](https://bundlephobia.com/package/@perseid/client)
+[![Discord badge](https://img.shields.io/discord/1279051839047729212?label=Discord&logo=Discord)](https://discord.gg/jsWCRMqM2K)
 
 
-## Installation
+## Install
 
 ```bash
 yarn add @perseid/client
 ```
 
 
-### Documentation
+## Documentation
 
-See https://perseid.dev/.
+Visit our [official documentation](https://perseid.dev).
+
+
+## Support
+
+Having trouble? Get help in the official [Perseid Discord](https://discord.gg/jsWCRMqM2K).
+
+
+## Contributing
+
+**New contributors welcome!** Check out our [Contributors](../../CONTRIBUTING.md) Guide for help getting started.
+
+Join us on [Discord](https://discord.gg/jsWCRMqM2K) to meet other maintainers. We'll help you get your first contribution in no time!
+
+
+## Sponsor
+
+Love this project and want to support it?
+
+
+[❤️ Sponsor Perseid](https://github.com/sponsors/openizr), or 🌟 star the project on GitHub
 
 
 ## License
