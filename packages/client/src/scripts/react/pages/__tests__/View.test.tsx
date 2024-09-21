@@ -10,7 +10,7 @@
 import View from 'scripts/react/pages/View';
 import { render } from '@testing-library/react';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/pages/View', () => {
   vi.mock('@perseid/core');

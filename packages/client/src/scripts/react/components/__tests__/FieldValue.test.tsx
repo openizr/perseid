@@ -11,7 +11,7 @@ import { type Id } from '@perseid/core';
 import { render } from '@testing-library/react';
 import FieldValue from 'scripts/react/components/FieldValue';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/FieldValue', () => {
   vi.mock('@perseid/core');

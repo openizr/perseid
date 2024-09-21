@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import VerifyEmail from 'scripts/react/pages/VerifyEmail';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/pages/VerifyEmail', () => {
   vi.mock('@perseid/core');

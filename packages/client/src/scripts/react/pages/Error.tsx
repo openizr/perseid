@@ -7,29 +7,8 @@
  */
 
 import * as React from 'react';
-import type BaseModel from 'scripts/core/services/Model';
-import type BaseStore from 'scripts/core/services/Store';
 import DefaultLayout from 'scripts/react/components/Layout';
 import { UITitle, UILink, buildClass } from '@perseid/ui/react';
-import type BaseApiClient from 'scripts/core/services/ApiClient';
-import { type DefaultDataModel, type I18n as BaseI18n } from '@perseid/core';
-
-/**
- * Error page props.
- */
-export interface ErrorPageProps<
-  DataModel extends DefaultDataModel = DefaultDataModel,
-  I18n extends BaseI18n = BaseI18n,
-  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
-  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
-> extends ReactCommonProps<DataModel, I18n, Store, Model, ApiClient> {
-  /** Additional modifiers to apply to the error page. */
-  modifiers?: string;
-
-  /** Error to display. */
-  error?: Error | Response | null;
-}
 
 /**
  * Error page.
@@ -41,7 +20,7 @@ function ErrorPage({
   components,
   error = null,
   modifiers = '',
-}: ErrorPageProps): JSX.Element | null {
+}: React.ErrorPageProps): JSX.Element | null {
   const { i18n } = services;
   const Layout = components.Layout ?? DefaultLayout;
   const fallbackRoute = services.store.getFallbackPageRoute();

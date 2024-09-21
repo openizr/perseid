@@ -500,6 +500,7 @@ describe('core/services/Store', () => {
     vi.spyOn(store, 'update').mockImplementation(() => Promise.resolve({
       _id: new Id('000000000000000000000001'),
     } as DefaultDataModel['users']));
+    vi.spyOn(store, 'navigate').mockImplementation(() => (): null => null);
     vi.spyOn(store, 'canAccessField').mockImplementation(() => true);
     vi.spyOn(store, 'normalizeResources').mockImplementation(() => [
       { email: 'test@test.test' } as DefaultDataModel['users'],
@@ -572,9 +573,9 @@ describe('core/services/Store', () => {
       } as RoutingContext,
       { status: 'SUCCESS' } as AuthState,
     ])).toBeNull();
-    expect(store.mutate).toHaveBeenCalledTimes(5);
-    expect(store.mutate).toHaveBeenCalledWith('error', 'RESET');
-    expect(store.mutate).toHaveBeenCalledWith('router', 'NAVIGATE', '/');
+    expect(store.navigate).toHaveBeenCalledOnce();
+    expect(store.navigate).toHaveBeenCalledWith('/');
+    expect(store.mutate).toHaveBeenCalledTimes(3);
     expect(store.mutate).toHaveBeenCalledWith('error', 'SET', { status: 403 });
     expect(store.mutate).toHaveBeenCalledWith('notifier', 'PUSH', { message: 'NOTIFICATIONS.CREATED_RESOURCE' });
     expect(store.mutate).toHaveBeenCalledWith('notifier', 'PUSH', { message: 'NOTIFICATIONS.UPDATED_RESOURCE' });
@@ -949,8 +950,7 @@ describe('core/services/Store', () => {
     const event = { preventDefault: vi.fn() } as unknown as MouseEvent;
     store.navigate('/404')(event);
     expect(event.preventDefault).toHaveBeenCalledOnce();
-    expect(store.mutate).toHaveBeenCalledTimes(2);
-    expect(store.mutate).toHaveBeenCalledWith('error', 'RESET');
+    expect(store.mutate).toHaveBeenCalledOnce();
     expect(store.mutate).toHaveBeenCalledWith('router', 'NAVIGATE', '/404');
     store.navigate('/404')({ preventDefault: vi.fn(), ctrlKey: true } as unknown as MouseEvent);
     expect(window.open).toHaveBeenCalledOnce();

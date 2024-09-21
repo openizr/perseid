@@ -68,7 +68,13 @@ export interface Page<DataModel extends DefaultDataModel> {
   pageProps?: Record<string, unknown>;
 
   /** Additional props to pass to the global layout when displaying this page. */
-  layoutProps?: Partial<GenericLayoutProps<DataModel>>;
+  layoutProps?: {
+    /** Whether to display layout itself, or only its children. Defaults to `true`. */
+    display?: boolean;
+
+    /** Any additional prop. */
+    [name: string]: unknown;
+  };
 }
 
 /**
@@ -241,7 +247,7 @@ export default class Store<
   protected currentRoute: string | null = null;
 
   /** `useSubscription` method to use in components. */
-  public useSubscription: UseSubscription = undefined as unknown as UseSubscription;
+  public useSubscription: unknown = undefined;
 
   /** List of resource already existing in data model. */
   protected loadedResources = new Set<keyof DataModel & string>();
@@ -736,12 +742,6 @@ export default class Store<
     const resource = currentPage.resource as unknown as keyof DataModel & string;
     const { searchFields } = currentPage.pageProps as Partial<Record<string, string[]>>;
     const fields = (currentPage.pageProps as Partial<Record<string, string[]>>).fields ?? [];
-
-    // Unknown resource...
-    if (type !== undefined && (resource as unknown) === undefined) {
-      this.mutate('error', 'SET', { status: 404 });
-      return null;
-    }
 
     // Invalid resource id...
     if ((type === 'UPDATE' || type === 'VIEW') && id === null) {
@@ -1411,6 +1411,7 @@ export default class Store<
     // We don't want to display error page forever, especially if user navigates through history.
     this.subscribe('router', () => {
       this.mutate('error', 'RESET');
+      this.mutate('page', 'UPDATE', null);
     });
 
     this.combine('appRoute', ['router', 'auth'], (
@@ -1419,7 +1420,6 @@ export default class Store<
     ) => [routerState, authState]);
 
     this.subscribe('appRoute', async (newState: [RoutingContext, AuthState]) => {
-      this.mutate('page', 'UPDATE', null);
       const newPageData = await this.getPageData(newState);
       this.mutate('page', 'UPDATE', newPageData);
     });
@@ -1444,13 +1444,13 @@ export default class Store<
   }
 
   /**
-  * Navigates to `url`, without reloading the page.
-  * Caveat: the `router` store module must be registered.
-  *
-  * @param url Target URL.
-  *
-  * @returns The actual navigation function.
-  */
+   * Navigates to `url`, without reloading the page.
+   * Caveat: the `router` store module must be registered.
+   *
+   * @param url Target URL.
+   *
+   * @returns The actual navigation function.
+   */
   public navigate(url: string): (event?: MouseEvent) => void {
     return (event) => {
       if (event !== undefined) {
@@ -1459,7 +1459,6 @@ export default class Store<
       if (event?.ctrlKey) {
         window.open(url, '_blank');
       } else {
-        this.mutate('error', 'RESET');
         this.mutate('router', 'NAVIGATE', url);
       }
     };

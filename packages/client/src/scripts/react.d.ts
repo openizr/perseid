@@ -14,6 +14,39 @@ declare module '@perseid/client/react' {
   import { type FormFieldProps } from '@perseid/form/react';
   import type BaseApiClient from 'scripts/core/services/ApiClient';
   import { I18n as BaseI18n, Id, type DefaultDataModel } from '@perseid/core';
+  import type { UseSubscription as ReactUseSubscription } from '@perseid/store/connectors/react';
+
+  /**
+   * Common props passed to generic React components.
+   */
+  interface CommonProps<
+    DataModel extends DefaultDataModel = DefaultDataModel,
+    I18n extends BaseI18n = BaseI18n,
+    Store extends BaseStore<DataModel> = BaseStore<DataModel>,
+    Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+    ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
+  > {
+    /** Perseid client services instances. */
+    services: {
+      /** I18n instance. */
+      i18n: I18n;
+
+      /** Perseid store instance. */
+      store: Store & { useSubscription: ReactUseSubscription; };
+
+      /** Perseid model instance. */
+      model: Model;
+
+      /** API client instance. */
+      apiClient: ApiClient;
+    };
+
+    /** Data model resource, if any. */
+    resource?: keyof DataModel & string;
+
+    /** List of custom React components to use in pages. */
+    components: ReactCustomComponents<DataModel>;
+  }
 
   interface ReactPredefinedCustomComponents {
     Table?: (props: TableProps) => React.ReactNode;
@@ -263,10 +296,10 @@ declare module '@perseid/client/react' {
   }
 
   /**
-  * Application layout.
-  *
-  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Layout.tsx
-  */
+   * Application layout.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Layout.tsx
+   */
   export function Layout({
     display,
     children,
@@ -287,7 +320,7 @@ declare module '@perseid/client/react' {
     id?: string;
 
     /** Perseid store instance. */
-    store: BaseStore & { useSubscription: UseSubscription; };
+    store: BaseStore & { useSubscription: ReactUseSubscription; };
     labelFn: (resource: Record<string, unknown> | null) => string;
     resource: keyof DataModel & string;
 
@@ -532,10 +565,10 @@ declare module '@perseid/client/react' {
   }
 
   /**
-  * Page layout.
-  *
-  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/PageLayout.tsx
-  */
+   * Page layout.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/PageLayout.tsx
+   */
   export function PageLayout({
     page,
     children,
@@ -568,10 +601,10 @@ declare module '@perseid/client/react' {
   }
 
   /**
-  * Pagination buttons.
-  *
-  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Pagination.tsx
-  */
+   * Pagination buttons.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/Pagination.tsx
+   */
   export function Pagination({
     total,
     onClick,
@@ -598,10 +631,10 @@ declare module '@perseid/client/react' {
   }
 
   /**
-  * Displays its children if user has proper permissions.
-  *
-  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/PermissionsWrapper.tsx
-  */
+   * Displays its children if user has proper permissions.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/components/PermissionsWrapper.tsx
+   */
   export function PermissionsWrapper({
     children,
     services,
@@ -732,10 +765,10 @@ declare module '@perseid/client/react' {
   }
 
   /**
-  * Resource creation / update page.
-  *
-  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/CreateOrUpdate.tsx
-  */
+   * Resource creation / update page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/CreateOrUpdate.tsx
+   */
   export function CreateOrUpdate({
     services,
     resource,
@@ -760,10 +793,10 @@ declare module '@perseid/client/react' {
   }
 
   /**
-  * Error page.
-  *
-  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/Error.tsx
-  */
+   * Error page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/Error.tsx
+   */
   export function ErrorPage({
     services,
     components,
@@ -786,10 +819,10 @@ declare module '@perseid/client/react' {
   }
 
   /**
-  * Resources list page.
-  *
-  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/List.tsx
-  */
+   * Resources list page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/List.tsx
+   */
   export function List({
     services,
     resource,
@@ -861,10 +894,10 @@ declare module '@perseid/client/react' {
   }
 
   /**
-  * Resource view page.
-  *
-  * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/View.tsx
-  */
+   * Resource view page.
+   *
+   * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/View.tsx
+   */
   export function View({
     services,
     resource,

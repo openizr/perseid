@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import FieldLabel from 'scripts/react/components/FieldLabel';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/FieldLabel', () => {
   vi.mock('@perseid/core');

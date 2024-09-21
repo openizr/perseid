@@ -10,7 +10,7 @@
 import { act, render } from '@testing-library/react';
 import Router from 'scripts/react/components/Router';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/Router', () => {
   vi.mock('scripts/react/pages/Error');

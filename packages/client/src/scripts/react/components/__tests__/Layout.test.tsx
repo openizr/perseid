@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import Layout from 'scripts/react/components/Layout';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/Layout', () => {
   vi.mock('scripts/react/components/Modal');
