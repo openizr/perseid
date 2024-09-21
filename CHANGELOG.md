@@ -5,6 +5,7 @@
 
 ### Improvements
 - Improve types definitions
+- Minor NPM dependencies update
 
 
 ## @perseid/ui:4.1.0 (2024-09-21)
