@@ -8,16 +8,13 @@
 
 import * as React from 'react';
 import connect from '@perseid/store/connectors/react';
+import type { DefaultDataModel } from '@perseid/core';
 import DefaultErrorPage from 'scripts/react/pages/Error';
-import type BaseModel from 'scripts/core/services/Model';
-import type BaseStore from 'scripts/core/services/Store';
 import DefaultLoader from 'scripts/react/components/Loader';
 import DefaultLayout from 'scripts/react/components/Layout';
-import type BaseApiClient from 'scripts/core/services/ApiClient';
 import ErrorWrapper from 'scripts/react/components/ErrorWrapper';
 import { type Page as PageType } from 'scripts/core/services/Store';
 import { type RoutingContext } from '@perseid/store/extensions/router';
-import type { I18n as BaseI18n, DefaultDataModel } from '@perseid/core';
 import ConfirmationModal from 'scripts/react/components/ConfirmationModal';
 
 type ReactPage<DataModel extends DefaultDataModel> = PageType<DataModel> & {
@@ -38,28 +35,6 @@ const defaultPages = {
   VerifyEmail: (): Promise<unknown> => import('scripts/react/pages/VerifyEmail'),
   ResetPassword: (): Promise<unknown> => import('scripts/react/pages/ResetPassword'),
 };
-
-/**
- * Router props.
- */
-export interface RouterProps<
-  DataModel extends DefaultDataModel = DefaultDataModel,
-  I18n extends BaseI18n = BaseI18n,
-  Store extends BaseStore<DataModel> = BaseStore<DataModel>,
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
-  ApiClient extends BaseApiClient<DataModel> = BaseApiClient<DataModel>,
-> extends Pick<ReactCommonProps<DataModel, I18n, Store, Model, ApiClient>, 'services'> {
-  /** App DOM container. Automatic dimensionning is enabled only if this prop is specified. */
-  container?: HTMLElement;
-
-  /** Custom components declaration. */
-  components?: ReactCommonProps<DataModel>['components'];
-
-  /** Custom pages components declaration. */
-  pages?: Partial<Record<string, (() => Promise<{
-    default: (props: ReactCommonProps<DataModel, I18n, Store, Model, ApiClient>) => React.ReactNode;
-  }>)>>;
-}
 
 /**
  * App router. Handles redirects, not founds, and pages loading.
@@ -185,6 +160,7 @@ export default React.memo(({
   // We need to wrap all components including Router inside the error handler at the highest
   // level, to be able to cleanly handle as many errors as possible, including store errors.
   return (
+    // TODO onError => services.logger.error
     <ErrorWrapper fallback={<ErrorPage services={services} components={allComponents} />}>
       <Router
         pages={allPages}

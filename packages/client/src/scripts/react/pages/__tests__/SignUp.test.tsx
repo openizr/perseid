@@ -10,7 +10,7 @@
 import SignUp from 'scripts/react/pages/SignUp';
 import { render } from '@testing-library/react';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/pages/SignUp', () => {
   vi.mock('@perseid/core');

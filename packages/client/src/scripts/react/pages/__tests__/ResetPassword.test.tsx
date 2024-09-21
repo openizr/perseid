@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import ResetPassword from 'scripts/react/pages/ResetPassword';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/pages/ResetPassword', () => {
   vi.mock('@perseid/core');

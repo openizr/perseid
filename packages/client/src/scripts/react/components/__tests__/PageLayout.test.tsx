@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import PageLayout from 'scripts/react/components/PageLayout';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/PageLayout', () => {
   vi.mock('@perseid/core');

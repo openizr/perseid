@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import PermissionsWrapper from 'scripts/react/components/PermissionsWrapper';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/PermissionsWrapper', () => {
   vi.mock('scripts/core/services/Store');

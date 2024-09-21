@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import CreateOrUpdate from 'scripts/react/pages/CreateOrUpdate';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/pages/CreateOrUpdate', () => {
   vi.mock('@perseid/core');

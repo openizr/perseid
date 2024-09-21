@@ -7,6 +7,7 @@
  * @vitest-environment jsdom
  */
 
+import type { UseSubscription } from '@perseid/store/connectors/react';
 import {
   act,
   render,
@@ -20,6 +21,9 @@ describe('react/components/LazyOptions', () => {
   vi.mock('@perseid/ui/react');
 
   const labelFn = vi.fn(() => 'LABEL');
+  const store = {
+    useSubscription: vi.fn(() => ({ users: { test: {} } })),
+  } as unknown as Store & { useSubscription: UseSubscription; };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -36,12 +40,12 @@ describe('react/components/LazyOptions', () => {
         <LazyOptions
           value="test"
           label="LABEL"
+          store={store}
           labelFn={labelFn}
           resource="users"
           loadingLabel="LOADING"
           noResultLabel="NO_RESULT"
           onChange={vi.fn(() => null)}
-          store={{ useSubscription: vi.fn(() => ({ users: { test: {} } })) } as unknown as Store}
           loadResults={async () => Promise.resolve([{ value: 'test', label: 'TEST', type: 'option' }])}
         />,
       )).container;
@@ -62,13 +66,13 @@ describe('react/components/LazyOptions', () => {
       }>)(
         <LazyOptions
           label="LABEL"
+          store={store}
           labelFn={labelFn}
           resource="users"
           loadingLabel="LOADING"
           noResultLabel="NO_RESULT"
           onChange={vi.fn(() => null)}
           loadResults={async () => Promise.resolve([])}
-          store={{ useSubscription: vi.fn(() => ({ users: { test: {} } })) } as unknown as Store}
         />,
       )).container;
     });

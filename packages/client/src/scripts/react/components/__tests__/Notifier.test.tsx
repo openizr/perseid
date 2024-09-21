@@ -10,7 +10,7 @@
 import Notifier from 'scripts/react/components/Notifier';
 import { render, fireEvent, queryByAttribute } from '@testing-library/react';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/Notifier', () => {
   vi.mock('@perseid/ui/react');

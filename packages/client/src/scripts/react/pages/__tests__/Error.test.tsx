@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import ErrorPage from 'scripts/react/pages/Error';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/pages/Error', () => {
   vi.mock('@perseid/core');

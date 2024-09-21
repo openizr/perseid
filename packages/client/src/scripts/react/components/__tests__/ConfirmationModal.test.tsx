@@ -10,7 +10,7 @@
 import { render } from '@testing-library/react';
 import ConfirmationModal from 'scripts/react/components/ConfirmationModal';
 
-type Services = CommonProps['services'];
+type Services = ReactCommonProps['services'];
 
 describe('react/components/ConfirmationModal', () => {
   vi.mock('@perseid/core');
