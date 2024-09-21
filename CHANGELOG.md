@@ -1,3 +1,12 @@
+## @perseid/ui:4.1.0 (2024-09-21)
+
+### Features
+- Add new `placeholder` prop to `UIOptions` component
+
+### Improvements
+- Improve default `UIOptions` component styling
+
+
 ## @perseid/form:4.0.1 (2024-09-19)
 
 ### Bugs
