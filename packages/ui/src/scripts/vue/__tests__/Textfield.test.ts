@@ -11,8 +11,9 @@ import UITextfield from 'scripts/vue/UITextfield.vue';
 import { render, fireEvent } from '@testing-library/vue';
 
 describe('vue/UITextfield', () => {
-  vi.mock('scripts/core/generateRandomId');
   vi.useFakeTimers();
+  vi.mock('scripts/core/index');
+  vi.mock('scripts/vue/UIIcon.vue');
 
   beforeEach(() => {
     vi.clearAllMocks();

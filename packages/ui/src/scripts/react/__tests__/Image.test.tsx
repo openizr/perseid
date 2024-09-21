@@ -11,6 +11,8 @@ import UIImage from 'scripts/react/Image';
 import { render } from '@testing-library/react';
 
 describe('react/UIImage', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

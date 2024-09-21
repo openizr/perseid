@@ -7,22 +7,24 @@
  * @vitest-environment jsdom
  */
 
-import { render, fireEvent } from '@testing-library/svelte';
 import UITooltip from 'scripts/svelte/Tooltip.svelte';
-import TestUITooltip from 'scripts/svelte/__tests__/TestTooltip.svelte';
-import TestUITooltip2 from 'scripts/svelte/__tests__/TestTooltip2.svelte';
+import { render, fireEvent } from '@testing-library/svelte';
+import TestUITooltip from 'scripts/svelte/__mocks__/TestTooltip.svelte';
+import TestUITooltip2 from 'scripts/svelte/__mocks__/TestTooltip2.svelte';
 
 describe('svelte/UITooltip', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('renders correctly - basic', () => {
-    const { container } = render(UITooltip, { props: { label: 'Test', modifiers: 'top' } });
+  test('basic', () => {
+    const { container } = render(UITooltip, { label: 'Test' });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - basic 2', async () => {
+  test('basic 2', async () => {
     const { container } = render(TestUITooltip2);
     const button = container.getElementsByTagName('button')[0];
     await fireEvent.keyPress(button);
@@ -31,7 +33,29 @@ describe('svelte/UITooltip', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - with description', async () => {
+  test('with id', async () => {
+    const { container, rerender } = render(UITooltip, { label: 'Test', id: 'test' });
+    expect(container.firstChild).toMatchSnapshot();
+    await rerender({ id: undefined });
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  test('with modifiers', async () => {
+    const { container, rerender } = render(UITooltip, { label: 'Test', modifiers: 'top' });
+    expect(container.firstChild).toMatchSnapshot();
+    await rerender({ modifiers: undefined });
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  test('with description', async () => {
+    const { container } = render(UITooltip, { label: 'Test', description: 'Test description' });
+    const div = container.getElementsByTagName('div')[0];
+    expect(container.firstChild).toMatchSnapshot();
+    await fireEvent.click(div);
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  test('with children', async () => {
     const { container } = render(TestUITooltip);
     const button = container.getElementsByTagName('button')[0];
     await fireEvent.keyPress(button);

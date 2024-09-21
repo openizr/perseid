@@ -8,8 +8,7 @@
  *
  */
 
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
+import { markdown, buildClass } from 'scripts/core/index';
 
 export let label: string;
 export let modifiers = '';
@@ -17,6 +16,8 @@ export let id: string | undefined = undefined;
 export let itemProp: string | undefined = undefined;
 
 // Enforces props default values.
+$: id = id ?? undefined;
+$: itemProp = itemProp ?? undefined;
 $: modifiers = (modifiers as string | undefined) ?? '';
 
 $: className = buildClass('ui-p', modifiers);

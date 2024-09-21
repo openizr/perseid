@@ -2,78 +2,92 @@
 
 exports[`svelte/UITitle > renders correctly - level 1 1`] = `
 <h1
-  class="ui-title ui-title--large--1"
+  class="ui-title large 1"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h1>
 `;
 
 exports[`svelte/UITitle > renders correctly - level 2 1`] = `
 <h2
-  class="ui-title ui-title--2"
+  class="ui-title  2"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h2>
 `;
 
 exports[`svelte/UITitle > renders correctly - level 3 1`] = `
 <h3
-  class="ui-title ui-title--3"
+  class="ui-title  3"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h3>
 `;
 
 exports[`svelte/UITitle > renders correctly - level 4 1`] = `
 <h4
-  class="ui-title ui-title--4"
+  class="ui-title  4"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h4>
 `;
 
 exports[`svelte/UITitle > renders correctly - level 5 1`] = `
 <h5
-  class="ui-title ui-title--5"
+  class="ui-title  5"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h5>
 `;
 
 exports[`svelte/UITitle > renders correctly - level 6 1`] = `
 <h6
-  class="ui-title ui-title--6"
+  class="ui-title  6"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h6>
 `;
 
 exports[`svelte/UITitle > renders correctly - modifier different than level 1`] = `
 <h1
-  class="ui-title ui-title--5--large"
+  class="ui-title 5 large"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h1>
 `;
 
 exports[`svelte/UITitle > renders correctly - with id 1`] = `
 <h1
-  class="ui-title ui-title--1"
+  class="ui-title  1"
   id="test"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </h1>
 `;
 
 exports[`svelte/UITitle > renders correctly - with itemprop 1`] = `
 <h1
-  class="ui-title ui-title--1"
+  class="ui-title  1"
   itemprop="name"
 >
-  <span
-    class="ui-markdown ui-markdown--emphasis"
-  >
-    Test
-  </span>
+  <strong>
+    *Test*
+  </strong>
 </h1>
 `;

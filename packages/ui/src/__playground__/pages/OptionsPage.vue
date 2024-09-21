@@ -219,6 +219,19 @@ onMounted(() => {
       <UIOptions
         name="dropdown7"
         select
+        placeholder="test"
+        :options="selectOptions"
+        label="Select with placeholder"
+      />
+      <UIOptions
+        name="dropdown8"
+        select
+        :options="selectOptions"
+        label="Select with no placeholder"
+      />
+      <UIOptions
+        name="dropdown9"
+        select
         :options="selectOptions"
         value="option4"
         expanded

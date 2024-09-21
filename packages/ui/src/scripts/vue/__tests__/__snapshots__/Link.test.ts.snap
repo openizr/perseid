@@ -2,21 +2,25 @@
 
 exports[`vue/UILink > renders correctly - basic 1`] = `
 <a
-  class="ui-link ui-link--large"
+  class="ui-link large"
   href="https://test.com"
   tabindex="0"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </a>
 `;
 
 exports[`vue/UILink > renders correctly - disabled 1`] = `
 <a
-  class="ui-link ui-link--disabled"
+  class="ui-link  disabled"
   href="https://test.com"
   tabindex="-1"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </a>
 `;
 
@@ -27,7 +31,9 @@ exports[`vue/UILink > renders correctly - with id 1`] = `
   id="test"
   tabindex="0"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </a>
 `;
 
@@ -37,7 +43,9 @@ exports[`vue/UILink > renders correctly - with listener 1`] = `
   href="https://test.com"
   tabindex="0"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </a>
 `;
 
@@ -48,7 +56,9 @@ exports[`vue/UILink > renders correctly - with rel 1`] = `
   rel="no referrer"
   tabindex="0"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </a>
 `;
 
@@ -59,6 +69,8 @@ exports[`vue/UILink > renders correctly - with target 1`] = `
   tabindex="0"
   target="_blank"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </a>
 `;

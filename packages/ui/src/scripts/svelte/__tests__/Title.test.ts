@@ -11,6 +11,8 @@ import UITitle from 'scripts/svelte/Title.svelte';
 import { render } from '@testing-library/svelte';
 
 describe('svelte/UITitle', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

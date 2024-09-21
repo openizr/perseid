@@ -2,13 +2,19 @@
 
 exports[`svelte/UIIcon > renders correctly - basic 1`] = `
 <i
-  class="ui-icon ui-icon--star--large"
+  class="ui-icon star large"
 />
 `;
 
 exports[`svelte/UIIcon > renders correctly - with id 1`] = `
 <i
-  class="ui-icon ui-icon--star"
+  class="ui-icon star "
   id="test"
+/>
+`;
+
+exports[`svelte/UIIcon > renders correctly - with id 2`] = `
+<i
+  class="ui-icon star "
 />
 `;

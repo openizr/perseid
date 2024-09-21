@@ -15,7 +15,7 @@ exports[`vue/UITooltip > renders correctly - basic 1`] = `
 exports[`vue/UITooltip > renders correctly - with description 1`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top--described"
+  class="ui-tooltip top described"
   role="tooltip"
 >
   
@@ -35,7 +35,7 @@ exports[`vue/UITooltip > renders correctly - with description 1`] = `
 exports[`vue/UITooltip > renders correctly - with description 2`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top"
+  class="ui-tooltip top"
   role="tooltip"
 >
   
@@ -50,7 +50,7 @@ exports[`vue/UITooltip > renders correctly - with description 2`] = `
 exports[`vue/UITooltip > renders correctly - with modifiers 1`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top"
+  class="ui-tooltip top"
   role="tooltip"
 >
   

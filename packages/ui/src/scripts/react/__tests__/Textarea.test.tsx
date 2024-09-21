@@ -10,10 +10,10 @@
 import UITextarea from 'scripts/react/Textarea';
 import { render, fireEvent } from '@testing-library/react';
 
-vi.useFakeTimers();
-vi.mock('scripts/core/generateRandomId');
-
 describe('react/UITextarea', () => {
+  vi.useFakeTimers();
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

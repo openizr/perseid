@@ -10,8 +10,6 @@
 import UIOptions from 'scripts/react/Options';
 import { render, fireEvent, act } from '@testing-library/react';
 
-vi.mock('scripts/core/generateRandomId');
-
 const selectOptions: Option[] = [
   { type: 'option', value: 'option1', label: 'Option 1' },
   { type: 'divider' },
@@ -29,43 +27,53 @@ const options: Option[] = [
 ];
 
 describe('react/UIOptions', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('renders correctly - basic select', () => {
+  test('basic select', () => {
     const { container } = render(<UIOptions name="test" modifiers="large" select options={selectOptions} />);
     fireEvent.mouseDown(container.getElementsByTagName('button')[0]);
     fireEvent.mouseDown(container.getElementsByTagName('li')[0]);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with id', () => {
+  test('select with id', () => {
     const { container } = render(<UIOptions name="test" id="test" select options={selectOptions} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with label', () => {
+  test('select with label', () => {
     const { container } = render(<UIOptions name="test" label="test" select options={selectOptions} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with helper', () => {
-    const { container } = render(<UIOptions name="test" helper="test" select options={selectOptions} />);
+  test('select with helper', () => {
+    const { container } = render(
+      <UIOptions
+        select
+        name="test"
+        helper="test"
+        placeholder="test2"
+        options={selectOptions}
+      />,
+    );
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with value', () => {
+  test('select with value', () => {
     const { container } = render(<UIOptions name="test" value={['option1', 'option3']} select options={selectOptions} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select disabled', () => {
+  test('select disabled', () => {
     const { container } = render(<UIOptions name="test" disabled select options={selectOptions} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with option disabled', () => {
+  test('select with option disabled', () => {
     const onChange = vi.fn();
     const { container } = render(<UIOptions
       name="test"
@@ -80,25 +88,25 @@ describe('react/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select expanded', () => {
+  test('select expanded', () => {
     const { container } = render(<UIOptions name="test" select options={selectOptions} />);
     fireEvent.mouseDown(container.getElementsByTagName('button')[0]);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select expanded with selectPosition', () => {
+  test('select expanded with selectPosition', () => {
     const { container } = render(<UIOptions name="test" select selectPosition="top" options={selectOptions} />);
     fireEvent.mouseDown(container.getElementsByTagName('button')[0]);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select changing options', () => {
+  test('select changing options', () => {
     const { container } = render(<UIOptions name="test" select options={selectOptions} />);
     fireEvent.keyDown(container.getElementsByTagName('button')[0], { key: 'End' });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select expanded with no option and small viewport', () => {
+  test('select expanded with no option and small viewport', () => {
     Object.assign(window, { innerHeight: -1 });
     const { container } = render(<UIOptions name="test" select options={[]} />);
     fireEvent.mouseDown(container.getElementsByTagName('button')[0]);
@@ -106,7 +114,7 @@ describe('react/UIOptions', () => {
     Object.assign(window, { innerHeight: 768 });
   });
 
-  test('renders correctly - select expanded with value', () => {
+  test('select expanded with value', () => {
     const { container } = render(<UIOptions name="test" select options={selectOptions} value={['option1']} />);
     fireEvent.mouseDown(container.getElementsByTagName('button')[0]);
     expect(container.firstChild).toMatchSnapshot();
@@ -132,7 +140,7 @@ describe('react/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with listeners', () => {
+  test('select with listeners', () => {
     const onChange = vi.fn();
     const onFocus = vi.fn();
     vi.useFakeTimers();
@@ -154,16 +162,26 @@ describe('react/UIOptions', () => {
     vi.useRealTimers();
   });
 
-  test('renders correctly - select with default value', () => {
+  test('select with default value', () => {
     const defaultOptions = [{ value: 'test', type: 'option' as const, label: '' }];
     const { container } = render(<UIOptions name="test" select options={defaultOptions} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - multiple select with listeners', () => {
+  test('multiple select with listeners', () => {
     const onChange = vi.fn();
     const onFocus = vi.fn();
-    const { container } = render(<UIOptions name="test" select options={selectOptions} value="option2" onChange={onChange} onFocus={onFocus} multiple />);
+    const { container } = render(
+      <UIOptions
+        select
+        multiple
+        name="test"
+        value="option2"
+        onFocus={onFocus}
+        onChange={onChange}
+        options={selectOptions}
+      />,
+    );
     const li = container.getElementsByTagName('li')[0];
     const button = container.getElementsByTagName('button')[0];
     fireEvent.focus(button);
@@ -198,44 +216,52 @@ describe('react/UIOptions', () => {
   });
 
   test('select correctly updates current value when changing value and multiple props', () => {
-    const { container, rerender } = render(<UIOptions name="test" select options={selectOptions} value={['option3']} multiple />);
+    const { container, rerender } = render(
+      <UIOptions
+        select
+        multiple
+        name="test"
+        value={['option3']}
+        options={selectOptions}
+      />,
+    );
     rerender(<UIOptions name="test" select options={selectOptions} value={['option1', 'option2']} multiple />);
     expect(container.firstChild).toMatchSnapshot();
     rerender(<UIOptions name="test" select options={selectOptions} value="option1" />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio basic', () => {
+  test('radio basic', () => {
     const { container } = render(<UIOptions name="test" options={options} modifiers="large" />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with id', () => {
+  test('radio with id', () => {
     const { container } = render(<UIOptions name="test" id="test" options={options} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with label', () => {
+  test('radio with label', () => {
     const { container } = render(<UIOptions name="test" label="test" options={options} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with helper', () => {
+  test('radio with helper', () => {
     const { container } = render(<UIOptions name="test" helper="test" options={options} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with value', () => {
+  test('radio with value', () => {
     const { container } = render(<UIOptions name="test" options={options} value={['option1']} />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio disabled', () => {
+  test('radio disabled', () => {
     const { container } = render(<UIOptions name="test" options={options} disabled />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with option disabled', () => {
+  test('radio with option disabled', () => {
     const { container } = render(<UIOptions
       name="test"
       options={[{
@@ -248,10 +274,17 @@ describe('react/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio  with listeners', () => {
+  test('radio  with listeners', () => {
     const onChange = vi.fn();
     const onFocus = vi.fn();
-    const { container } = render(<UIOptions name="test" options={options} onChange={onChange} onFocus={onFocus} />);
+    const { container } = render(
+      <UIOptions
+        name="test"
+        options={options}
+        onFocus={onFocus}
+        onChange={onChange}
+      />,
+    );
     const input = container.getElementsByTagName('input')[2];
     fireEvent.focus(input);
     fireEvent.click(input);

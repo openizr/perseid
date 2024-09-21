@@ -11,6 +11,8 @@ import UIImage from 'scripts/vue/UIImage.vue';
 import { render } from '@testing-library/vue';
 
 describe('vue/UIImage', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

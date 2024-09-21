@@ -8,7 +8,7 @@
 
 import generateRandomId from 'scripts/core/generateRandomId';
 
-describe('helpers/generateRandomId', () => {
+describe('core/generateRandomId', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.Math.random = vi.fn(() => 0.22068766900273062);

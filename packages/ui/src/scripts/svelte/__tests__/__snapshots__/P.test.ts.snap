@@ -1,27 +1,63 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`svelte/UIP > renders correctly - basic 1`] = `
+exports[`svelte/UIP > basic 1`] = `
 <p
-  class="ui-p ui-p--large"
+  class="ui-p "
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </p>
 `;
 
-exports[`svelte/UIP > renders correctly - with id 1`] = `
+exports[`svelte/UIP > with id 1`] = `
 <p
-  class="ui-p"
+  class="ui-p "
   id="test"
 >
-  Test
+  <strong>
+    Test
+  </strong>
 </p>
 `;
 
-exports[`svelte/UIP > renders correctly - with itemProp 1`] = `
+exports[`svelte/UIP > with id 2`] = `
 <p
-  class="ui-p"
+  class="ui-p "
+>
+  <strong>
+    Test
+  </strong>
+</p>
+`;
+
+exports[`svelte/UIP > with itemProp 1`] = `
+<p
+  class="ui-p "
   itemprop="description"
 >
-  Test
+  <strong>
+    Test
+  </strong>
+</p>
+`;
+
+exports[`svelte/UIP > with modifiers 1`] = `
+<p
+  class="ui-p large"
+>
+  <strong>
+    Test
+  </strong>
+</p>
+`;
+
+exports[`svelte/UIP > with modifiers 2`] = `
+<p
+  class="ui-p "
+>
+  <strong>
+    Test
+  </strong>
 </p>
 `;

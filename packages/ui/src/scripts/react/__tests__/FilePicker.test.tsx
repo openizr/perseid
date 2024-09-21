@@ -10,9 +10,10 @@
 import UIFilePicker from 'scripts/react/FilePicker';
 import { render, fireEvent } from '@testing-library/react';
 
-vi.mock('scripts/core/generateRandomId');
-
 describe('react/UIFilePicker', () => {
+  vi.mock('scripts/core/index');
+  vi.mock('scripts/react/Icon');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

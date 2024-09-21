@@ -11,6 +11,8 @@ import UILink from 'scripts/vue/UILink.vue';
 import { render, fireEvent } from '@testing-library/vue';
 
 describe('vue/UILink', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -41,7 +43,7 @@ describe('vue/UILink', () => {
   });
 
   test('renders correctly - with listener', async () => {
-    const onClick = vi.fn();
+    const onClick = vi.fn((e: Event) => { e.preventDefault(); });
     const { container } = render(UILink, { props: { label: 'Test', href: 'https://test.com', onClick } });
     const a = container.getElementsByTagName('a')[0];
     await fireEvent.click(a);

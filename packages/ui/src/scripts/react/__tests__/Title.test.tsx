@@ -11,6 +11,8 @@ import UITitle from 'scripts/react/Title';
 import { render } from '@testing-library/react';
 
 describe('react/UITitle', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

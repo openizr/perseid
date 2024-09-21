@@ -11,6 +11,8 @@ import UITooltip from 'scripts/react/Tooltip';
 import { render, fireEvent } from '@testing-library/react';
 
 describe('react/UITooltip', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

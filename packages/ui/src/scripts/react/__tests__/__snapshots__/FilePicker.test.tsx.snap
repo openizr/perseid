@@ -2,7 +2,7 @@
 
 exports[`react/UIFilePicker > renders correctly - basic 1`] = `
 <div
-  class="ui-file-picker ui-file-picker--large"
+  class="ui-file-picker large"
 >
   <div
     class="ui-file-picker__wrapper"
@@ -23,7 +23,7 @@ exports[`react/UIFilePicker > renders correctly - basic 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - disabled 1`] = `
 <div
-  class="ui-file-picker ui-file-picker--disabled"
+  class="ui-file-picker  disabled"
 >
   <div
     class="ui-file-picker__wrapper"
@@ -44,7 +44,7 @@ exports[`react/UIFilePicker > renders correctly - disabled 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - multiple 1`] = `
 <div
-  class="ui-file-picker ui-file-picker--multiple"
+  class="ui-file-picker  multiple"
 >
   <div
     class="ui-file-picker__wrapper"
@@ -66,7 +66,7 @@ exports[`react/UIFilePicker > renders correctly - multiple 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - multiple with listeners 1`] = `
 <div
-  class="ui-file-picker ui-file-picker--multiple"
+  class="ui-file-picker  multiple"
 >
   <div
     class="ui-file-picker__wrapper"
@@ -90,7 +90,7 @@ exports[`react/UIFilePicker > renders correctly - multiple with listeners 1`] = 
 
 exports[`react/UIFilePicker > renders correctly - with accept 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <div
     class="ui-file-picker__wrapper"
@@ -112,7 +112,7 @@ exports[`react/UIFilePicker > renders correctly - with accept 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - with default value 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <div
     class="ui-file-picker__wrapper"
@@ -133,7 +133,7 @@ exports[`react/UIFilePicker > renders correctly - with default value 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - with helper 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <div
     class="ui-file-picker__wrapper"
@@ -152,14 +152,16 @@ exports[`react/UIFilePicker > renders correctly - with helper 1`] = `
   <span
     class="ui-file-picker__helper"
   >
-    Helper
+    <strong>
+      Helper
+    </strong>
   </span>
 </div>
 `;
 
 exports[`react/UIFilePicker > renders correctly - with id 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
   id="test"
 >
   <div
@@ -181,13 +183,15 @@ exports[`react/UIFilePicker > renders correctly - with id 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - with label 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <label
     class="ui-file-picker__label"
     for="z8a8d7a5zad4"
   >
-    Label
+    <strong>
+      Label
+    </strong>
   </label>
   <div
     class="ui-file-picker__wrapper"
@@ -208,14 +212,16 @@ exports[`react/UIFilePicker > renders correctly - with label 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - with left icon 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <div
     class="ui-file-picker__wrapper"
   >
     <i
-      class="ui-icon ui-icon--star"
-    />
+      id="icon"
+    >
+      {"name":"star"}
+    </i>
     <input
       class="ui-file-picker__wrapper__field"
       id="z8a8d7a5zad4"
@@ -232,7 +238,7 @@ exports[`react/UIFilePicker > renders correctly - with left icon 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - with listeners 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <div
     class="ui-file-picker__wrapper"
@@ -255,7 +261,7 @@ exports[`react/UIFilePicker > renders correctly - with listeners 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - with placeholder 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <div
     class="ui-file-picker__wrapper"
@@ -278,7 +284,7 @@ exports[`react/UIFilePicker > renders correctly - with placeholder 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - with right icon 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <div
     class="ui-file-picker__wrapper"
@@ -291,8 +297,10 @@ exports[`react/UIFilePicker > renders correctly - with right icon 1`] = `
       type="file"
     />
     <i
-      class="ui-icon ui-icon--star"
-    />
+      id="icon"
+    >
+      {"name":"star"}
+    </i>
     <span
       class="ui-file-picker__wrapper__placeholder"
     />
@@ -302,7 +310,7 @@ exports[`react/UIFilePicker > renders correctly - with right icon 1`] = `
 
 exports[`react/UIFilePicker > renders correctly - with value 1`] = `
 <div
-  class="ui-file-picker"
+  class="ui-file-picker "
 >
   <div
     class="ui-file-picker__wrapper"

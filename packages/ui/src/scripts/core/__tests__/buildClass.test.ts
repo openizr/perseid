@@ -8,7 +8,7 @@
 
 import buildClass from 'scripts/core/buildClass';
 
-describe('helpers/buildClass', () => {
+describe('core/buildClass', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

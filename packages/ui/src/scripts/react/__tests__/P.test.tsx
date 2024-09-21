@@ -11,6 +11,8 @@ import UIP from 'scripts/react/P';
 import { render } from '@testing-library/react';
 
 describe('react/UIP', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

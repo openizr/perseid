@@ -11,6 +11,8 @@ import UILink from 'scripts/react/Link';
 import { render, fireEvent } from '@testing-library/react';
 
 describe('react/UILink', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

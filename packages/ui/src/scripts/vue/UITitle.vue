@@ -9,8 +9,7 @@
  */
 
 import { computed } from 'vue';
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
+import { markdown, buildClass } from 'scripts/core/index';
 
 const props = withDefaults(defineProps<{
   id?: string;

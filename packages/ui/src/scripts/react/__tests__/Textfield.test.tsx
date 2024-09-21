@@ -10,10 +10,11 @@
 import UITextfield from 'scripts/react/Textfield';
 import { render, fireEvent } from '@testing-library/react';
 
-vi.useFakeTimers();
-vi.mock('scripts/core/generateRandomId');
-
 describe('react/UITextfield', () => {
+  vi.useFakeTimers();
+  vi.mock('scripts/core/index');
+  vi.mock('scripts/react/Icon');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

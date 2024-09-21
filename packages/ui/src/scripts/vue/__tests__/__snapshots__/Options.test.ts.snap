@@ -1,8 +1,106 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`vue/UIOptions > basic select 1`] = `
+<div
+  class="ui-options large select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    >
+      <strong>
+        Option 1
+      </strong>
+    </button>
+    <ul
+      aria-activedescendant="z8a8d7a5zad40"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
 exports[`vue/UIOptions > correctly handles checkboxes keyboard navigation 1`] = `
 <div
-  class="ui-options ui-options--multiple"
+  class="ui-options  multiple"
 >
   <!--v-if-->
   <div
@@ -10,7 +108,7 @@ exports[`vue/UIOptions > correctly handles checkboxes keyboard navigation 1`] = 
   >
     
     <label
-      class="ui-options__wrapper__option ui-options__wrapper__option--checked"
+      class="ui-options__wrapper__option  checked"
     >
       <input
         checked=""
@@ -24,7 +122,9 @@ exports[`vue/UIOptions > correctly handles checkboxes keyboard navigation 1`] = 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
@@ -41,7 +141,9 @@ exports[`vue/UIOptions > correctly handles checkboxes keyboard navigation 1`] = 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
@@ -58,7 +160,9 @@ exports[`vue/UIOptions > correctly handles checkboxes keyboard navigation 1`] = 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
@@ -75,7 +179,9 @@ exports[`vue/UIOptions > correctly handles checkboxes keyboard navigation 1`] = 
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
     
@@ -86,7 +192,7 @@ exports[`vue/UIOptions > correctly handles checkboxes keyboard navigation 1`] = 
 
 exports[`vue/UIOptions > correctly handles select keyboard navigation 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <!--v-if-->
   <div
@@ -101,26 +207,30 @@ exports[`vue/UIOptions > correctly handles select keyboard navigation 1`] = `
       tabindex="0"
       type="button"
     >
-      Option 1
+      <strong>
+        Option 1
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad40"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -135,7 +245,9 @@ exports[`vue/UIOptions > correctly handles select keyboard navigation 1`] = `
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -144,7 +256,9 @@ exports[`vue/UIOptions > correctly handles select keyboard navigation 1`] = `
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -152,7 +266,9 @@ exports[`vue/UIOptions > correctly handles select keyboard navigation 1`] = `
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -161,7 +277,9 @@ exports[`vue/UIOptions > correctly handles select keyboard navigation 1`] = `
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
       
     </ul>
@@ -170,9 +288,9 @@ exports[`vue/UIOptions > correctly handles select keyboard navigation 1`] = `
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - basic select 1`] = `
+exports[`vue/UIOptions > multiple select with listeners 1`] = `
 <div
-  class="ui-options ui-options--large--select"
+  class="ui-options  select multiple"
 >
   <!--v-if-->
   <div
@@ -187,112 +305,34 @@ exports[`vue/UIOptions > renders correctly - basic select 1`] = `
       tabindex="0"
       type="button"
     >
-      Option 1
-    </button>
-    <ul
-      aria-activedescendant="z8a8d7a5zad40"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
+      <strong>
+        Option 2
+      </strong>
+      , 
+      <strong>
         Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - multiple select with listeners 1`] = `
-<div
-  class="ui-options ui-options--select--multiple"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    >
-      Option 2, Option 1
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad40"
       aria-expanded="true"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
+      class="ui-options__wrapper__list bottom expanded"
       role="listbox"
       tabindex="-1"
     >
       
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -302,12 +342,14 @@ exports[`vue/UIOptions > renders correctly - multiple select with listeners 1`] 
       />
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -316,7 +358,9 @@ exports[`vue/UIOptions > renders correctly - multiple select with listeners 1`] 
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -324,7 +368,9 @@ exports[`vue/UIOptions > renders correctly - multiple select with listeners 1`] 
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -333,7 +379,9 @@ exports[`vue/UIOptions > renders correctly - multiple select with listeners 1`] 
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
       
     </ul>
@@ -342,7 +390,7 @@ exports[`vue/UIOptions > renders correctly - multiple select with listeners 1`] 
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - radio  with listeners 1`] = `
+exports[`vue/UIOptions > radio  with listeners 1`] = `
 <div
   class="ui-options"
 >
@@ -365,7 +413,9 @@ exports[`vue/UIOptions > renders correctly - radio  with listeners 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
@@ -382,11 +432,13 @@ exports[`vue/UIOptions > renders correctly - radio  with listeners 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
-      class="ui-options__wrapper__option ui-options__wrapper__option--checked"
+      class="ui-options__wrapper__option  checked"
     >
       <input
         checked=""
@@ -400,7 +452,9 @@ exports[`vue/UIOptions > renders correctly - radio  with listeners 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
@@ -417,7 +471,9 @@ exports[`vue/UIOptions > renders correctly - radio  with listeners 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
     
@@ -426,9 +482,9 @@ exports[`vue/UIOptions > renders correctly - radio  with listeners 1`] = `
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - radio basic 1`] = `
+exports[`vue/UIOptions > radio basic 1`] = `
 <div
-  class="ui-options ui-options--large"
+  class="ui-options large"
 >
   <!--v-if-->
   <div
@@ -449,7 +505,9 @@ exports[`vue/UIOptions > renders correctly - radio basic 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
@@ -466,7 +524,9 @@ exports[`vue/UIOptions > renders correctly - radio basic 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
@@ -483,7 +543,9 @@ exports[`vue/UIOptions > renders correctly - radio basic 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
@@ -500,7 +562,9 @@ exports[`vue/UIOptions > renders correctly - radio basic 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
     
@@ -509,9 +573,9 @@ exports[`vue/UIOptions > renders correctly - radio basic 1`] = `
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - radio disabled 1`] = `
+exports[`vue/UIOptions > radio disabled 1`] = `
 <div
-  class="ui-options ui-options--disabled"
+  class="ui-options  disabled"
 >
   <!--v-if-->
   <div
@@ -532,7 +596,9 @@ exports[`vue/UIOptions > renders correctly - radio disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
@@ -549,7 +615,9 @@ exports[`vue/UIOptions > renders correctly - radio disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
@@ -566,7 +634,9 @@ exports[`vue/UIOptions > renders correctly - radio disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
@@ -583,7 +653,9 @@ exports[`vue/UIOptions > renders correctly - radio disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
     
@@ -592,7 +664,7 @@ exports[`vue/UIOptions > renders correctly - radio disabled 1`] = `
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - radio with helper 1`] = `
+exports[`vue/UIOptions > radio with helper 1`] = `
 <div
   class="ui-options"
 >
@@ -615,7 +687,9 @@ exports[`vue/UIOptions > renders correctly - radio with helper 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
@@ -632,7 +706,9 @@ exports[`vue/UIOptions > renders correctly - radio with helper 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
@@ -649,7 +725,9 @@ exports[`vue/UIOptions > renders correctly - radio with helper 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
@@ -666,7 +744,9 @@ exports[`vue/UIOptions > renders correctly - radio with helper 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
     
@@ -674,12 +754,14 @@ exports[`vue/UIOptions > renders correctly - radio with helper 1`] = `
   <span
     class="ui-options__helper"
   >
-    test
+    <strong>
+      test
+    </strong>
   </span>
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - radio with id 1`] = `
+exports[`vue/UIOptions > radio with id 1`] = `
 <div
   class="ui-options"
   id="test"
@@ -703,7 +785,9 @@ exports[`vue/UIOptions > renders correctly - radio with id 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
@@ -720,7 +804,9 @@ exports[`vue/UIOptions > renders correctly - radio with id 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
@@ -737,7 +823,9 @@ exports[`vue/UIOptions > renders correctly - radio with id 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
@@ -754,7 +842,9 @@ exports[`vue/UIOptions > renders correctly - radio with id 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
     
@@ -763,7 +853,7 @@ exports[`vue/UIOptions > renders correctly - radio with id 1`] = `
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - radio with label 1`] = `
+exports[`vue/UIOptions > radio with label 1`] = `
 <div
   class="ui-options"
 >
@@ -771,7 +861,9 @@ exports[`vue/UIOptions > renders correctly - radio with label 1`] = `
     class="ui-options__label"
     for="z8a8d7a5zad4_0"
   >
-    test
+    <strong>
+      test
+    </strong>
   </label>
   <div
     class="ui-options__wrapper"
@@ -791,7 +883,9 @@ exports[`vue/UIOptions > renders correctly - radio with label 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
@@ -808,7 +902,9 @@ exports[`vue/UIOptions > renders correctly - radio with label 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
@@ -825,7 +921,9 @@ exports[`vue/UIOptions > renders correctly - radio with label 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
@@ -842,7 +940,9 @@ exports[`vue/UIOptions > renders correctly - radio with label 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
     
@@ -851,7 +951,7 @@ exports[`vue/UIOptions > renders correctly - radio with label 1`] = `
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - radio with option disabled 1`] = `
+exports[`vue/UIOptions > radio with option disabled 1`] = `
 <div
   class="ui-options"
 >
@@ -861,7 +961,7 @@ exports[`vue/UIOptions > renders correctly - radio with option disabled 1`] = `
   >
     
     <label
-      class="ui-options__wrapper__option ui-options__wrapper__option--disabled"
+      class="ui-options__wrapper__option  disabled"
     >
       <input
         class="ui-options__wrapper__option__field"
@@ -875,7 +975,9 @@ exports[`vue/UIOptions > renders correctly - radio with option disabled 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 5
+        <strong>
+          Option 5
+        </strong>
       </span>
     </label>
     
@@ -884,7 +986,7 @@ exports[`vue/UIOptions > renders correctly - radio with option disabled 1`] = `
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - radio with value 1`] = `
+exports[`vue/UIOptions > radio with value 1`] = `
 <div
   class="ui-options"
 >
@@ -894,7 +996,7 @@ exports[`vue/UIOptions > renders correctly - radio with value 1`] = `
   >
     
     <label
-      class="ui-options__wrapper__option ui-options__wrapper__option--checked"
+      class="ui-options__wrapper__option  checked"
     >
       <input
         checked=""
@@ -908,7 +1010,9 @@ exports[`vue/UIOptions > renders correctly - radio with value 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </span>
     </label>
     <label
@@ -925,7 +1029,9 @@ exports[`vue/UIOptions > renders correctly - radio with value 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </span>
     </label>
     <label
@@ -942,7 +1048,9 @@ exports[`vue/UIOptions > renders correctly - radio with value 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </span>
     </label>
     <label
@@ -959,7 +1067,9 @@ exports[`vue/UIOptions > renders correctly - radio with value 1`] = `
       <span
         class="ui-options__wrapper__option__label"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </span>
     </label>
     
@@ -968,9 +1078,9 @@ exports[`vue/UIOptions > renders correctly - radio with value 1`] = `
 </div>
 `;
 
-exports[`vue/UIOptions > renders correctly - select changing options 1`] = `
+exports[`vue/UIOptions > select changing options 1`] = `
 <div
-  class="ui-options ui-options--select"
+  class="ui-options  select"
 >
   <!--v-if-->
   <div
@@ -985,14 +1095,16 @@ exports[`vue/UIOptions > renders correctly - select changing options 1`] = `
       tabindex="0"
       type="button"
     >
-      Option 4
+      <strong>
+        Option 4
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad45"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
@@ -1004,7 +1116,9 @@ exports[`vue/UIOptions > renders correctly - select changing options 1`] = `
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -1019,7 +1133,9 @@ exports[`vue/UIOptions > renders correctly - select changing options 1`] = `
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -1028,7 +1144,9 @@ exports[`vue/UIOptions > renders correctly - select changing options 1`] = `
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -1036,908 +1154,20 @@ exports[`vue/UIOptions > renders correctly - select changing options 1`] = `
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad45"
         role="option"
         tabindex="-1"
       >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select disabled 1`] = `
-<div
-  class="ui-options ui-options--select--disabled"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="-1"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select expanded 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="true"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select expanded with no option and small viewport 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="true"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--top--expanded"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select expanded with selectPosition 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="true"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--top--expanded"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select expanded with value 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    >
-      Option 1
-    </button>
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="true"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select with default value 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Test
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select with helper 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <span
-    class="ui-options__helper"
-  >
-    test
-  </span>
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select with id 1`] = `
-<div
-  class="ui-options ui-options--select"
-  id="test"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select with label 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <label
-    class="ui-options__label"
-    for="z8a8d7a5zad4"
-  >
-    test
-  </label>
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select with listeners 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    >
-      Option 1
-    </button>
-    <ul
-      aria-activedescendant="z8a8d7a5zad40"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select with option disabled 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    />
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--disabled"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 5
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > renders correctly - select with value 1`] = `
-<div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    >
-      Option 1, Option 3
-    </button>
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
       
     </ul>
@@ -1948,7 +1178,7 @@ exports[`vue/UIOptions > renders correctly - select with value 1`] = `
 
 exports[`vue/UIOptions > select correctly focuses last available option when narrowing options down 1`] = `
 <div
-  class="ui-options ui-options--select--multiple"
+  class="ui-options  select multiple"
 >
   <!--v-if-->
   <div
@@ -1968,7 +1198,7 @@ exports[`vue/UIOptions > select correctly focuses last available option when nar
       aria-expanded="true"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
+      class="ui-options__wrapper__list bottom expanded"
       role="listbox"
       tabindex="-1"
     >
@@ -1980,7 +1210,9 @@ exports[`vue/UIOptions > select correctly focuses last available option when nar
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -1997,7 +1229,7 @@ exports[`vue/UIOptions > select correctly focuses last available option when nar
 
 exports[`vue/UIOptions > select correctly updates current value when changing value, expanded and multiple props 1`] = `
 <div
-  class="ui-options ui-options--select--multiple"
+  class="ui-options  select multiple"
 >
   <!--v-if-->
   <div
@@ -2012,26 +1244,34 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
       tabindex="0"
       type="button"
     >
-      Option 1, Option 2
+      <strong>
+        Option 1
+      </strong>
+      , 
+      <strong>
+        Option 2
+      </strong>
     </button>
     <ul
       aria-activedescendant="z8a8d7a5zad4-1"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2041,12 +1281,14 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
       />
       <li
         aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad42"
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2055,7 +1297,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2063,7 +1307,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2072,7 +1318,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
       
     </ul>
@@ -2083,7 +1331,7 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
 
 exports[`vue/UIOptions > select correctly updates current value when changing value, expanded and multiple props 2`] = `
 <div
-  class="ui-options ui-options--select--multiple"
+  class="ui-options  select"
 >
   <!--v-if-->
   <div
@@ -2097,25 +1345,31 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
       name="test"
       tabindex="0"
       type="button"
-    />
+    >
+      <strong>
+        Option 1
+      </strong>
+    </button>
     <ul
       aria-activedescendant="z8a8d7a5zad4-1"
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
       
       <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
         id="z8a8d7a5zad40"
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2130,7 +1384,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2139,7 +1395,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2147,7 +1405,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2156,7 +1416,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
       
     </ul>
@@ -2167,93 +1429,7 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
 
 exports[`vue/UIOptions > select correctly updates current value when changing value, expanded and multiple props 3`] = `
 <div
-  class="ui-options ui-options--select"
->
-  <!--v-if-->
-  <div
-    class="ui-options__wrapper"
-  >
-    <button
-      aria-haspopup="listbox"
-      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
-      class="ui-options__wrapper__button"
-      id="z8a8d7a5zad4"
-      name="test"
-      tabindex="0"
-      type="button"
-    >
-      Option 1
-    </button>
-    <ul
-      aria-activedescendant="z8a8d7a5zad4-1"
-      aria-expanded="false"
-      aria-labelledby="z8a8d7a5zad4"
-      aria-multiselectable="false"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
-      role="listbox"
-      tabindex="-1"
-    >
-      
-      <li
-        aria-selected="true"
-        class="ui-options__wrapper__list__option ui-options__wrapper__list__option--checked"
-        id="z8a8d7a5zad40"
-        role="option"
-        tabindex="-1"
-      >
-        Option 1
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__divider"
-        id="z8a8d7a5zad41"
-        tabindex="-1"
-      />
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad42"
-        role="option"
-        tabindex="-1"
-      >
-        Option 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad43"
-        role="option"
-        tabindex="-1"
-      >
-        Option 3
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__header"
-        id="z8a8d7a5zad44"
-        tabindex="-1"
-      >
-        Group 2
-      </li>
-      <li
-        aria-selected="false"
-        class="ui-options__wrapper__list__option"
-        id="z8a8d7a5zad45"
-        role="option"
-        tabindex="-1"
-      >
-        Option 4
-      </li>
-      
-    </ul>
-  </div>
-  <!--v-if-->
-</div>
-`;
-
-exports[`vue/UIOptions > select correctly updates current value when changing value, expanded and multiple props 4`] = `
-<div
-  class="ui-options ui-options--select--multiple"
+  class="ui-options  select multiple"
 >
   <!--v-if-->
   <div
@@ -2273,7 +1449,7 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
       aria-expanded="false"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom"
+      class="ui-options__wrapper__list bottom"
       role="listbox"
       tabindex="-1"
     >
@@ -2285,7 +1461,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2300,7 +1478,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2309,7 +1489,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2317,7 +1499,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2326,7 +1510,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
       </li>
       
     </ul>
@@ -2335,9 +1521,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
 </div>
 `;
 
-exports[`vue/UIOptions > select correctly updates current value when changing value, expanded and multiple props 5`] = `
+exports[`vue/UIOptions > select correctly updates current value when changing value, expanded and multiple props 4`] = `
 <div
-  class="ui-options ui-options--select--multiple"
+  class="ui-options  select multiple"
 >
   <!--v-if-->
   <div
@@ -2357,7 +1543,7 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
       aria-expanded="true"
       aria-labelledby="z8a8d7a5zad4"
       aria-multiselectable="true"
-      class="ui-options__wrapper__list ui-options__wrapper__list--bottom--expanded"
+      class="ui-options__wrapper__list bottom expanded"
       role="listbox"
       tabindex="-1"
     >
@@ -2369,7 +1555,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 1
+        <strong>
+          Option 1
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2384,7 +1572,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 2
+        <strong>
+          Option 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2393,7 +1583,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 3
+        <strong>
+          Option 3
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2401,7 +1593,9 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         id="z8a8d7a5zad44"
         tabindex="-1"
       >
-        Group 2
+        <strong>
+          Group 2
+        </strong>
       </li>
       <li
         aria-selected="false"
@@ -2410,7 +1604,1011 @@ exports[`vue/UIOptions > select correctly updates current value when changing va
         role="option"
         tabindex="-1"
       >
-        Option 4
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select disabled 1`] = `
+<div
+  class="ui-options  select disabled"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="-1"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select expanded 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="true"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom expanded"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select expanded with no option and small viewport 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="true"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list top expanded"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select expanded with selectPosition 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="true"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list top expanded"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select expanded with value 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    >
+      <strong>
+        Option 1
+      </strong>
+    </button>
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="true"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom expanded"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select with default value 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Test
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select with helper 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    >
+      test2
+    </button>
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <span
+    class="ui-options__helper"
+  >
+    <strong>
+      test
+    </strong>
+  </span>
+</div>
+`;
+
+exports[`vue/UIOptions > select with id 1`] = `
+<div
+  class="ui-options  select"
+  id="test"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select with label 1`] = `
+<div
+  class="ui-options  select"
+>
+  <label
+    class="ui-options__label"
+    for="z8a8d7a5zad4"
+  >
+    <strong>
+      test
+    </strong>
+  </label>
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select with listeners 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    >
+      <strong>
+        Option 1
+      </strong>
+    </button>
+    <ul
+      aria-activedescendant="z8a8d7a5zad40"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select with option disabled 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    />
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option  disabled"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 5
+        </strong>
+      </li>
+      
+    </ul>
+  </div>
+  <!--v-if-->
+</div>
+`;
+
+exports[`vue/UIOptions > select with value 1`] = `
+<div
+  class="ui-options  select"
+>
+  <!--v-if-->
+  <div
+    class="ui-options__wrapper"
+  >
+    <button
+      aria-haspopup="listbox"
+      aria-labelledby="z8a8d7a5zad4 z8a8d7a5zad4"
+      class="ui-options__wrapper__button"
+      id="z8a8d7a5zad4"
+      name="test"
+      tabindex="0"
+      type="button"
+    >
+      <strong>
+        Option 1
+      </strong>
+      , 
+      <strong>
+        Option 3
+      </strong>
+    </button>
+    <ul
+      aria-activedescendant="z8a8d7a5zad4-1"
+      aria-expanded="false"
+      aria-labelledby="z8a8d7a5zad4"
+      aria-multiselectable="false"
+      class="ui-options__wrapper__list bottom"
+      role="listbox"
+      tabindex="-1"
+    >
+      
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad40"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 1
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__divider"
+        id="z8a8d7a5zad41"
+        tabindex="-1"
+      />
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad42"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 2
+        </strong>
+      </li>
+      <li
+        aria-selected="true"
+        class="ui-options__wrapper__list__option  checked"
+        id="z8a8d7a5zad43"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 3
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__header"
+        id="z8a8d7a5zad44"
+        tabindex="-1"
+      >
+        <strong>
+          Group 2
+        </strong>
+      </li>
+      <li
+        aria-selected="false"
+        class="ui-options__wrapper__list__option"
+        id="z8a8d7a5zad45"
+        role="option"
+        tabindex="-1"
+      >
+        <strong>
+          Option 4
+        </strong>
       </li>
       
     </ul>

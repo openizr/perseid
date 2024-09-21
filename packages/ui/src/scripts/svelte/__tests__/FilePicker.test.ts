@@ -10,9 +10,10 @@
 import UIFilePicker from 'scripts/svelte/FilePicker.svelte';
 import { render, fireEvent } from '@testing-library/svelte';
 
-vi.mock('scripts/core/generateRandomId');
-
 describe('svelte/UIFilePicker', () => {
+  vi.mock('scripts/core/index');
+  vi.mock('scripts/svelte/Icon.svelte');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

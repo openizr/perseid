@@ -1,19 +1,19 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`svelte/UITooltip > renders correctly - basic 1`] = `
+exports[`svelte/UITooltip > basic 1`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top"
+  class="ui-tooltip  "
   role="tooltip"
 >
    
 </div>
 `;
 
-exports[`svelte/UITooltip > renders correctly - basic 2 1`] = `
+exports[`svelte/UITooltip > basic 2 1`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip"
+  class="ui-tooltip  "
   role="tooltip"
 >
   <button>
@@ -23,10 +23,10 @@ exports[`svelte/UITooltip > renders correctly - basic 2 1`] = `
 </div>
 `;
 
-exports[`svelte/UITooltip > renders correctly - basic 2 2`] = `
+exports[`svelte/UITooltip > basic 2 2`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip"
+  class="ui-tooltip  "
   role="tooltip"
 >
   <button>
@@ -36,10 +36,10 @@ exports[`svelte/UITooltip > renders correctly - basic 2 2`] = `
 </div>
 `;
 
-exports[`svelte/UITooltip > renders correctly - with description 1`] = `
+exports[`svelte/UITooltip > with children 1`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top"
+  class="ui-tooltip top "
   role="tooltip"
 >
   <button>
@@ -49,15 +49,82 @@ exports[`svelte/UITooltip > renders correctly - with description 1`] = `
 </div>
 `;
 
-exports[`svelte/UITooltip > renders correctly - with description 2`] = `
+exports[`svelte/UITooltip > with children 2`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top"
+  class="ui-tooltip top "
   role="tooltip"
 >
   <button>
     i
   </button>
+   
+</div>
+`;
+
+exports[`svelte/UITooltip > with description 1`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip  "
+  role="tooltip"
+>
+   
+</div>
+`;
+
+exports[`svelte/UITooltip > with description 2`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip  described"
+  role="tooltip"
+>
+   
+  <span
+    class="ui-tooltip__description"
+    role="status"
+  >
+    Test description
+  </span>
+</div>
+`;
+
+exports[`svelte/UITooltip > with id 1`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip  "
+  id="test"
+  role="tooltip"
+>
+   
+</div>
+`;
+
+exports[`svelte/UITooltip > with id 2`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip  "
+  role="tooltip"
+>
+   
+</div>
+`;
+
+exports[`svelte/UITooltip > with modifiers 1`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip top "
+  role="tooltip"
+>
+   
+</div>
+`;
+
+exports[`svelte/UITooltip > with modifiers 2`] = `
+<div
+  aria-label="Test"
+  class="ui-tooltip  "
+  role="tooltip"
+>
    
 </div>
 `;

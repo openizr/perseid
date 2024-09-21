@@ -25,7 +25,7 @@ exports[`vue/UITextarea > renders correctly - autocomplete off 1`] = `
 
 exports[`vue/UITextarea > renders correctly - basic 1`] = `
 <div
-  class="ui-textarea ui-textarea--large"
+  class="ui-textarea large"
 >
   <!--v-if-->
   <div
@@ -48,7 +48,7 @@ exports[`vue/UITextarea > renders correctly - basic 1`] = `
 
 exports[`vue/UITextarea > renders correctly - disabled 1`] = `
 <div
-  class="ui-textarea ui-textarea--disabled"
+  class="ui-textarea  disabled"
 >
   <!--v-if-->
   <div
@@ -187,11 +187,9 @@ exports[`vue/UITextarea > renders correctly - with helper 1`] = `
   <span
     class="ui-textarea__helper"
   >
-    <span
-      class="ui-markdown ui-markdown--emphasis"
-    >
-      Helper
-    </span>
+    <strong>
+      *Helper*
+    </strong>
   </span>
 </div>
 `;
@@ -228,11 +226,9 @@ exports[`vue/UITextarea > renders correctly - with label 1`] = `
     class="ui-textarea__label"
     for="z8a8d7a5zad4"
   >
-    <span
-      class="ui-markdown ui-markdown--emphasis"
-    >
-      Label
-    </span>
+    <strong>
+      *Label*
+    </strong>
   </label>
   <div
     class="ui-textarea__wrapper"

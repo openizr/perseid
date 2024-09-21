@@ -11,6 +11,8 @@ import UITooltip from 'scripts/vue/UITooltip.vue';
 import { render, fireEvent } from '@testing-library/vue';
 
 describe('vue/UITooltip', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

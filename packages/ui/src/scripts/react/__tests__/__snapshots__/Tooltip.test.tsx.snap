@@ -3,7 +3,7 @@
 exports[`react/UITooltip > renders correctly - basic 1`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top"
+  class="ui-tooltip top "
   role="tooltip"
 >
   <button
@@ -17,7 +17,7 @@ exports[`react/UITooltip > renders correctly - basic 1`] = `
 exports[`react/UITooltip > renders correctly - with description 1`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top--described"
+  class="ui-tooltip top described"
   role="tooltip"
 >
   <button
@@ -37,7 +37,7 @@ exports[`react/UITooltip > renders correctly - with description 1`] = `
 exports[`react/UITooltip > renders correctly - with description 2`] = `
 <div
   aria-label="Test"
-  class="ui-tooltip ui-tooltip--top"
+  class="ui-tooltip top "
   role="tooltip"
 >
   <button

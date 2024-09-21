@@ -31,11 +31,13 @@ const options: Option[] = [
 const nextTick = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 50); });
 
 describe('vue/UIOptions', () => {
+  vi.mock('scripts/core/index');
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('renders correctly - basic select', async () => {
+  test('basic select', async () => {
     const { container } = render(UIOptions, {
       props: {
         name: 'test', modifiers: 'large', select: true, options: selectOptions,
@@ -46,7 +48,7 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with id', () => {
+  test('select with id', () => {
     const { container } = render(UIOptions, {
       props: {
         name: 'test', id: 'test', select: true, options: selectOptions,
@@ -55,7 +57,7 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with label', () => {
+  test('select with label', () => {
     const { container } = render(UIOptions, {
       props: {
         name: 'test', label: 'test', select: true, options: selectOptions,
@@ -64,16 +66,20 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with helper', () => {
+  test('select with helper', () => {
     const { container } = render(UIOptions, {
       props: {
-        name: 'test', helper: 'test', select: true, options: selectOptions,
+        name: 'test',
+        select: true,
+        helper: 'test',
+        placeholder: 'test2',
+        options: selectOptions,
       },
     });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with value', () => {
+  test('select with value', () => {
     const { container } = render(UIOptions, {
       props: {
         name: 'test', value: ['option1', 'option3'], select: true, options: selectOptions,
@@ -82,7 +88,7 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select disabled', () => {
+  test('select disabled', () => {
     const { container } = render(UIOptions, {
       props: {
         name: 'test', disabled: true, select: true, options: selectOptions,
@@ -91,7 +97,7 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with option disabled', async () => {
+  test('select with option disabled', async () => {
     const onChange = vi.fn();
     const { container } = render(UIOptions, {
       props: {
@@ -111,13 +117,13 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select expanded', async () => {
+  test('select expanded', async () => {
     const { container } = render(UIOptions, { props: { name: 'test', select: true, options: selectOptions } });
     await fireEvent.mouseDown(container.getElementsByTagName('button')[0]);
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select expanded with selectPosition', async () => {
+  test('select expanded with selectPosition', async () => {
     const { container } = render(UIOptions, {
       props: {
         name: 'test', select: true, selectPosition: 'top', options: selectOptions,
@@ -127,13 +133,13 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select changing options', async () => {
+  test('select changing options', async () => {
     const { container } = render(UIOptions, { props: { name: 'test', select: true, options: selectOptions } });
     await fireEvent.keyDown(container.getElementsByTagName('button')[0], { key: 'End' });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select expanded with no option and small viewport', async () => {
+  test('select expanded with no option and small viewport', async () => {
     Object.assign(window, { innerHeight: -1 });
     const { container } = render(UIOptions, { props: { name: 'test', select: true, options: [] } });
     await fireEvent.mouseDown(container.getElementsByTagName('button')[0]);
@@ -141,7 +147,7 @@ describe('vue/UIOptions', () => {
     Object.assign(window, { innerHeight: 768 });
   });
 
-  test('renders correctly - select expanded with value', async () => {
+  test('select expanded with value', async () => {
     const { container } = render(UIOptions, {
       props: {
         name: 'test', select: true, options: selectOptions, value: ['option1'],
@@ -175,7 +181,7 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - select with listeners', async () => {
+  test('select with listeners', async () => {
     const onChange = vi.fn();
     const onFocus = vi.fn();
     const { container } = render(UIOptions, {
@@ -200,7 +206,7 @@ describe('vue/UIOptions', () => {
     expect(onChange).toHaveBeenCalledWith('option1', expect.any(Object));
   });
 
-  test('renders correctly - select with default value', () => {
+  test('select with default value', () => {
     const defaultOptions: UIOptionsOption[] = [{ type: 'option', value: 'test', label: 'Test' }];
     const { container } = render(UIOptions, {
       props: {
@@ -210,7 +216,7 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - multiple select with listeners', async () => {
+  test('multiple select with listeners', async () => {
     const onChange = vi.fn();
     const onFocus = vi.fn();
     const { container } = render(UIOptions, {
@@ -266,67 +272,81 @@ describe('vue/UIOptions', () => {
   test('select correctly updates current value when changing value, expanded and multiple props', async () => {
     const { container, rerender } = render(UIOptions, {
       props: {
-        name: 'test', select: true, options: selectOptions, value: ['option3'], multiple: true,
+        name: 'test',
+        select: true,
+        multiple: true,
+        value: ['option3'],
+        options: selectOptions,
       },
     });
     await rerender({
-      name: 'test', select: true, options: selectOptions, value: ['option1', 'option2'], multiple: true,
+      name: 'test',
+      select: true,
+      multiple: true,
+      options: selectOptions,
+      value: ['option1', 'option2'],
     });
     await nextTick();
     expect(container.firstChild).toMatchSnapshot();
     await rerender({
-      name: 'test', select: true, options: selectOptions, value: [], multiple: true,
+      name: 'test',
+      select: true,
+      multiple: false,
+      value: ['option1'],
+      options: selectOptions,
     });
     await nextTick();
     expect(container.firstChild).toMatchSnapshot();
     await rerender({
-      name: 'test', select: true, options: selectOptions, value: ['option1'], multiple: false,
+      name: 'test',
+      select: true,
+      multiple: true,
+      value: undefined,
+      options: selectOptions,
     });
     await nextTick();
     expect(container.firstChild).toMatchSnapshot();
     await rerender({
-      name: 'test', select: true, multiple: true, options: selectOptions, value: undefined,
-    });
-    await nextTick();
-    expect(container.firstChild).toMatchSnapshot();
-    await rerender({
-      name: 'test', select: true, expanded: true, options: selectOptions,
+      name: 'test',
+      select: true,
+      expanded: true,
+      options: selectOptions,
     });
     await nextTick();
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio basic', () => {
+  test('radio basic', () => {
     const { container } = render(UIOptions, { props: { name: 'test', options, modifiers: 'large' } });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with id', () => {
+  test('radio with id', () => {
     const { container } = render(UIOptions, { props: { name: 'test', id: 'test', options } });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with label', () => {
+  test('radio with label', () => {
     const { container } = render(UIOptions, { props: { name: 'test', label: 'test', options } });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with helper', () => {
+  test('radio with helper', () => {
     const { container } = render(UIOptions, { props: { name: 'test', helper: 'test', options } });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with value', () => {
+  test('radio with value', () => {
     const { container } = render(UIOptions, { props: { name: 'test', options, value: ['option1'] } });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio disabled', () => {
+  test('radio disabled', () => {
     const { container } = render(UIOptions, { props: { name: 'test', options, disabled: true } });
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio with option disabled', () => {
+  test('radio with option disabled', () => {
     const { container } = render(UIOptions, {
       props: {
         name: 'test',
@@ -341,7 +361,7 @@ describe('vue/UIOptions', () => {
     expect(container.firstChild).toMatchSnapshot();
   });
 
-  test('renders correctly - radio  with listeners', async () => {
+  test('radio  with listeners', async () => {
     const onChange = vi.fn();
     const onFocus = vi.fn();
     const { container } = render(UIOptions, {

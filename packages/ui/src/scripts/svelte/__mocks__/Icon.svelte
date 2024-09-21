@@ -1,4 +1,4 @@
-<!-- Basic icon. -->
+<!-- `scripts/svelte/Icon.svelte` mock. -->
 <script lang="ts">
 /**
  * Copyright (c) Openizr. All Rights Reserved.
@@ -8,20 +8,9 @@
  *
  */
 
-import { buildClass } from 'scripts/core/index';
-
 export let name: string;
 export let modifiers = '';
 export let id: string | undefined = undefined;
-
-// Enforces props default values.
-$: id = id ?? undefined;
-$: modifiers = (modifiers as string | undefined) ?? '';
-
-$: className = buildClass('ui-icon', `${name} ${modifiers}`);
 </script>
 
-<i
-  id={id}
-  class={className}
-/>
+<i id="icon">{JSON.stringify({ name, modifiers, id })}</i>

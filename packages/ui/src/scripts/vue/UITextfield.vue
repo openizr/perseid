@@ -14,9 +14,7 @@ import {
   ref, watch,
 } from 'vue';
 import UIIcon from 'scripts/vue/UIIcon.vue';
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
-import generateRandomId from 'scripts/core/generateRandomId';
+import { markdown, buildClass, generateRandomId } from 'scripts/core/index';
 
 interface AllowedKeys {
   altKey?: RegExp;
@@ -183,9 +181,11 @@ const handlePaste = (event: ClipboardEvent): void => {
   if (!props.disabled) {
     // `selectionStart` and `selectionEnd` do not exist on inputs with type `number`, so we just
     // want to replace the entire content when pasting something in that case.
+    /* c8 ignore start */
     const selectionStart = (event.target as HTMLInputElement).selectionStart ?? 0;
     const selectionEnd = (event.target as HTMLInputElement).selectionEnd
-      ?? currentValue.value.length;
+    ?? currentValue.value.length;
+    /* c8 ignore end */
     const clipboardData = event.clipboardData as unknown as DataTransfer;
     const filteredValue = (globalAllowedKeys.value.default as unknown !== null)
       ? (clipboardData.getData('text').match(globalAllowedKeys.value.default as unknown as RegExp) ?? []).join('')

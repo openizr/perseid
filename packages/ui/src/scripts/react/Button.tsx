@@ -8,7 +8,7 @@
 
 import * as React from 'react';
 import UIIcon from 'scripts/react/Icon';
-import buildClass from 'scripts/core/buildClass';
+import { buildClass } from 'scripts/core/index';
 
 /**
  * Button.

@@ -27,7 +27,7 @@ exports[`vue/UITextfield > renders correctly - autocomplete off 1`] = `
 
 exports[`vue/UITextfield > renders correctly - basic 1`] = `
 <div
-  class="ui-textfield ui-textfield--large"
+  class="ui-textfield large"
 >
   <!--v-if-->
   <div
@@ -104,7 +104,7 @@ exports[`vue/UITextfield > renders correctly - with autofocus 1`] = `
 
 exports[`vue/UITextfield > renders correctly - with disabled 1`] = `
 <div
-  class="ui-textfield ui-textfield--disabled"
+  class="ui-textfield  disabled"
 >
   <!--v-if-->
   <div
@@ -152,11 +152,9 @@ exports[`vue/UITextfield > renders correctly - with helper 1`] = `
   <span
     class="ui-textfield__helper"
   >
-    <span
-      class="ui-markdown ui-markdown--emphasis"
-    >
-      Helper
-    </span>
+    <strong>
+      *Helper*
+    </strong>
   </span>
 </div>
 `;
@@ -195,11 +193,9 @@ exports[`vue/UITextfield > renders correctly - with label 1`] = `
     class="ui-textfield__label"
     for="z8a8d7a5zad4"
   >
-    <span
-      class="ui-markdown ui-markdown--emphasis"
-    >
-      Label
-    </span>
+    <strong>
+      *Label*
+    </strong>
   </label>
   <div
     class="ui-textfield__wrapper"
@@ -235,8 +231,10 @@ exports[`vue/UITextfield > renders correctly - with left icon 1`] = `
       tabindex="0"
     >
       <i
-        class="ui-icon ui-icon--star"
-      />
+        id="icon"
+      >
+        {"name":"star","modifiers":""}
+      </i>
     </span>
     <input
       autocomplete="off"
@@ -268,8 +266,10 @@ exports[`vue/UITextfield > renders correctly - with listeners and debounce 1`] =
       tabindex="0"
     >
       <i
-        class="ui-icon ui-icon--star"
-      />
+        id="icon"
+      >
+        {"name":"star","modifiers":""}
+      </i>
     </span>
     <input
       autocomplete="off"
@@ -338,8 +338,10 @@ exports[`vue/UITextfield > renders correctly - with right icon 1`] = `
       tabindex="0"
     >
       <i
-        class="ui-icon ui-icon--star"
-      />
+        id="icon"
+      >
+        {"name":"star","modifiers":""}
+      </i>
     </span>
   </div>
   <!--v-if-->
