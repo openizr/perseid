@@ -7,9 +7,7 @@
  */
 
 import * as React from 'react';
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
-import generateRandomId from 'scripts/core/generateRandomId';
+import { markdown, buildClass, generateRandomId } from 'scripts/core/index';
 
 const toArray = (value: string | string[]): string[] => (Array.isArray(value) ? value : [value]);
 
@@ -22,8 +20,8 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
   const { id, modifiers = '', label } = props;
   const { multiple, select, onFocus } = props;
   const { options, name, expanded = false } = props;
-  const { selectPosition, disabled = false } = props;
   const { helper, value = defaultValue, onChange } = props;
+  const { selectPosition, disabled = false, placeholder = '' } = props;
 
   const mounted = React.useRef(false);
   const wrapperRef = React.useRef(null);
@@ -303,7 +301,11 @@ function UIOptions(props: UIOptionsProps): JSX.Element {
             className="ui-options__wrapper__button"
             aria-labelledby={`${randomId} ${randomId}`}
             onFocus={handleFocus('', firstSelectedOption.current)}
-            dangerouslySetInnerHTML={{ __html: currentValue.map((optionValue) => optionParsedLabels[optionValue]).join(', ') }}
+            dangerouslySetInnerHTML={{
+              __html: (currentValue.length === 0)
+                ? placeholder
+                : currentValue.map((optionValue) => optionParsedLabels[optionValue]).join(', '),
+            }}
           />
           <ul
             tabIndex={-1}

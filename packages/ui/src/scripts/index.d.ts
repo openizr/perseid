@@ -268,6 +268,9 @@ interface UIOptionsProps {
    */
   disabled?: boolean;
 
+  /** Element's placeholder. */
+  placeholder?: string;
+
   /**
    * Whether user can select several options. Determines how the component will be displayed.
    * `false` will display options as radio buttons, `true` will display them as check-boxes,
@@ -363,7 +366,7 @@ interface UITextfieldProps {
   /** `autofocus` HTML attribute to set to the element. Defaults to `false`. */
   autofocus?: boolean;
 
-  /** `placeholder` HTML attribute to set to the element. Defaults to `false`. */
+  /** `placeholder` HTML attribute to set to the element. */
   placeholder?: string;
 
   /** `autocomplete` HTML attribute to set to the element. Defaults to `off`. */

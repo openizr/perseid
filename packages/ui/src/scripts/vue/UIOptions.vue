@@ -9,9 +9,7 @@
  */
 
 import { ref, computed, watch } from 'vue';
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
-import generateRandomId from 'scripts/core/generateRandomId';
+import { markdown, buildClass, generateRandomId } from 'scripts/core/index';
 
 interface UIOptionsOption {
   type: 'option';
@@ -46,6 +44,7 @@ const props = withDefaults(defineProps<{
   multiple?: boolean;
   modifiers?: string;
   disabled?: boolean;
+  placeholder?: string;
   value?: string | string[];
   selectPosition?: 'top' | 'bottom';
   onFocus?: FocusEventHandler;
@@ -59,6 +58,7 @@ const props = withDefaults(defineProps<{
   helper: undefined,
   disabled: false,
   expanded: false,
+  placeholder: '',
   onFocus: undefined,
   onChange: undefined,
   selectPosition: undefined,
@@ -331,7 +331,10 @@ watch([isDisplayed, mounted, () => props.select], () => {
         @keydown="handleKeydown"
         @focus="handleFocus('', firstSelectedOption, $event)"
         @mousedown="displayList"
-        v-html="currentValue.map((optionValue) => optionParsedLabels[optionValue]).join(', ')"
+        v-html="(currentValue.length === 0)
+          ? placeholder
+          : currentValue.map((optionValue) => optionParsedLabels[optionValue]).join(', ')
+        "
       />
       <ul
         ref="wrapperRef"

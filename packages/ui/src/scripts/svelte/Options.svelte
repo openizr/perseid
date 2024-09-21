@@ -8,9 +8,7 @@
  *
  */
 
-import markdown from 'scripts/core/markdown';
-import buildClass from 'scripts/core/buildClass';
-import generateRandomId from 'scripts/core/generateRandomId';
+import { markdown, buildClass, generateRandomId } from 'scripts/core/index';
 
 interface UIOptionsOption {
   type: 'option';
@@ -42,6 +40,7 @@ export let select = false;
 export let multiple = false;
 export let expanded = false;
 export let options: Option[];
+export let placeholder = '';
 export let value: string | string[] = [];
 export let id: string | undefined = undefined;
 export let label: string | undefined = undefined;
@@ -312,7 +311,10 @@ $: onlyOptions = options.filter((option) => option.type === 'option');
         on:mousedown={displayList}
         on:focus={handleFocus('', firstSelectedOption)}
       >
-        {@html currentValue.map((optionValue) => optionParsedLabels[optionValue]).join(', ')}
+        {@html (currentValue.length === 0)
+          ? placeholder
+          : currentValue.map((optionValue) => optionParsedLabels[optionValue]).join(', ')
+        }
       </button>
       <svelte:element
         this={'ul'}
