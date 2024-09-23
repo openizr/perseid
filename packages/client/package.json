@@ -1,6 +1,6 @@
 {
   "name": "@perseid/client",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
@@ -220,6 +220,6 @@
   "peerDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "vue": "^3.5.7"
+    "vue": "^3.5.8"
   }
 }

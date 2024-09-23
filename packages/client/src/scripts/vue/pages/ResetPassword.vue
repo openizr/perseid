@@ -67,7 +67,7 @@ const pageData = props.services.store.useSubscription<FormDefinition | null>('pa
   <main v-else class="reset-password-page">
     <div class="reset-password-page__card">
       <Form
-        :Field-component="FormField as DefineComponent<FormFieldProps<Engine>>"
+        :Field="FormField as DefineComponent<FormFieldProps<Engine>>"
         :configuration="pageData.configuration as unknown as Record<string, unknown>"
         :additional-props="{ fieldProps: pageData.fieldProps, context: { prefix, services } }"
       />

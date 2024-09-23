@@ -17,7 +17,6 @@ import {
   watch,
   type Ref,
   onUnmounted,
-  useTemplateRef,
   type DefineComponent,
 } from 'vue';
 import {
@@ -76,7 +75,7 @@ export interface ActionsWrapperProps<
 }
 
 const displayActions = ref(false);
-const actionsRef = useTemplateRef('actionsRef');
+const actionsRef = ref<HTMLElement | null>(null);
 const props = defineProps<ActionsWrapperProps>();
 const snakeCasedResource = toSnakeCase(String(props.resource));
 const resourceUpdateRoute = props.services.store.getRoute(`${String(props.resource)}.update`);
@@ -86,7 +85,7 @@ const canUserDeleteResource = permissions.value?.has(`DELETE_${snakeCasedResourc
 const canUserUpdateResource = permissions.value?.has(`UPDATE_${snakeCasedResource}`) && resourceUpdateRoute !== null;
 
 const handleBlur = (event: MouseEvent): void => {
-  if (!(actionsRef.value as HTMLElement).contains(event.target as HTMLElement)) {
+  if (!(actionsRef.value as unknown as HTMLElement).contains(event.target as HTMLElement)) {
     displayActions.value = false;
   }
 };
