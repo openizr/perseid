@@ -1,7 +1,13 @@
+## @perseid/client:2.1.0 (2024-09-23)
+
+### Bugs
+- Fix `ResetPassword` page Vue implementation
+
+
 ## @perseid/client:2.1.0 (2024-09-21)
 
 ### Features
-- Implement support for VueJS in `@perseid/client/vue`
+- Implement support for Vue in `@perseid/client/vue`
 
 ### Improvements
 - Improve types definitions
