@@ -16,7 +16,6 @@ import {
   ref,
   watch,
   computed,
-  useTemplateRef,
 } from 'vue';
 import {
   UIOptions,
@@ -137,9 +136,9 @@ const noResultOption = computed<UIOptionsOption>(() => ({
 
 const selectedValue = ref('');
 const showResults = ref(false);
-const results = ref<UIOptionsOption[]>([loadingOption.value]);
-const elementRef = useTemplateRef('elementRef');
+const elementRef = ref<HTMLElement | null>(null);
 const currentValue = ref({ value: 'null', label: '' });
+const results = ref<UIOptionsOption[]>([loadingOption.value]);
 const registry = props.store.useSubscription<Partial<Registry<DefaultDataModel>>>('registry');
 const className = computed(() => (
   buildClass('lazy-options', `${props.modifiers} ${showResults.value ? ' visible' : ''}`)
@@ -167,7 +166,7 @@ const handleFocus = async () => {
 // Automatically focuses the first autocomplete result when user presses the arrow down key.
 const handleKeyDown = (_value: string, event: KeyboardEvent) => {
   if (event.key === 'ArrowDown') {
-    const domElement = elementRef.value as HTMLElement;
+    const domElement = elementRef.value as unknown as HTMLElement;
     const firstOption = domElement.children[1].children[0].children[1].children[0] as HTMLElement;
     firstOption.focus();
   }
@@ -209,7 +208,7 @@ watch(() => props.value, forceChange);
 // Focuses input field whenever suggestions are loaded to enable keyboard navigation.
 watch([results, showResults], () => {
   if (showResults.value && results.value.length > 0) {
-    const container = elementRef.value as HTMLElement;
+    const container = elementRef.value as unknown as HTMLElement;
     const input = container.querySelector('.ui-textfield__wrapper__field') as unknown as HTMLElement;
     input.focus();
   }
