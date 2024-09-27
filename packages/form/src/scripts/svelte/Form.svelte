@@ -60,17 +60,17 @@
     return `_${String(key)}`;
   }
 
-  export let activeStep: FormProps['activeStep'];
   export let configuration: FormProps['configuration'];
   export let Step: FormProps['Step'] | null = null;
   export let Field: FormProps['Field'] | null = null;
   export let Loader: FormProps['Loader'] | null = null;
   export let Layout: FormProps['Layout'] | null = null;
   export let engineClass: FormProps['engineClass'] | null = null;
+  export let activeStep: FormProps['activeStep'] | undefined = undefined;
 
   let isWindowFocused = true;
-  let currentActiveStep: string;
   let ActualLoader: typeof SvelteComponent;
+  let currentActiveStep: string | undefined;
   let FieldComponent: typeof SvelteComponent;
   const keys: Partial<Record<string, string>> = {};
   const handleBlur = (): void => { isWindowFocused = false; };
@@ -98,6 +98,7 @@
   $: Step = Step ?? DefaultStep;
   $: Field = Field ?? DefaultField;
   $: Layout = Layout ?? DefaultLayout;
+  $: activeStep = activeStep ?? undefined;
   $: ActualLoader = Loader as unknown as typeof SvelteComponent;
   $: FieldComponent = Field as unknown as typeof SvelteComponent;
   $: Loader = Loader ?? DefaultLoader as unknown as typeof SvelteComponent;
@@ -109,12 +110,12 @@
     newState.steps.forEach((step) => { keys[step.path] ??= generateId(); });
     return newState;
   });
-  const lastStep = $state.steps[$state.steps.length - 1];
+  const lastStep = $state.steps.at(-1);
 
   // Updates current step whenever `activeStep` prop or last step change.
   // Be careful: last step path may not change although `lastStep` has (e.g. because it has been
   // re-created or updated), so we need to react to this value instead.
-  $: currentActiveStep = activeStep ?? lastStep.path;
+  $: currentActiveStep = activeStep ?? lastStep?.path;
 
   // When focus gets out of and in back to the current window, the `focus` event gets triggered once
   // again on the step, which leads to unwanted visual effects when displaying only current active

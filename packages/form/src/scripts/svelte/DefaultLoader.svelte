@@ -1,4 +1,7 @@
-<!-- Default form step loader. -->
+<!--
+  Default form step loader.
+-->
+
 <script lang="ts">
   /**
    * Copyright (c) Openizr. All Rights Reserved.
