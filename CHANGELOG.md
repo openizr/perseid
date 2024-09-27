@@ -1,3 +1,9 @@
+## @perseid/form:4.0.2 (2024-09-27)
+
+### Bugs
+- Fix error on form start-up in Svelte implementation
+
+
 ## @perseid/client:2.1.0 (2024-09-23)
 
 ### Bugs
