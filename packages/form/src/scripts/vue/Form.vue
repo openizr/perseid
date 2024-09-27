@@ -97,7 +97,7 @@ const setActiveStep = (newActiveStep: string | undefined) => {
   }
 };
 
-const handleFocus = (newActiveStep: string) => {
+const handleFocus = (newActiveStep: string) => () => {
   if (isWindowFocused.value) { setActiveStep(newActiveStep); }
   isWindowFocused.value = true;
 };
@@ -136,7 +136,7 @@ onBeforeUnmount(() => {
         :key="step.path"
         name="step"
         :step="step"
-        :engine="engine"
+        :engine="engine as unknown as Engine"
         :on-focus="handleFocus"
         :set-active-step="setActiveStep"
         :use-subscription="useSubscription"

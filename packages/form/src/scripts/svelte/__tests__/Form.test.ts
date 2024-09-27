@@ -12,10 +12,10 @@ import Engine from 'scripts/core/Engine';
 import { type SvelteComponent } from 'svelte';
 import Form from 'scripts/svelte/Form.svelte';
 import Step from 'scripts/svelte/__mocks__/Step.svelte';
-import { render, fireEvent, createEvent } from '@testing-library/svelte';
 import DefaultField from 'scripts/svelte/DefaultField.svelte';
 import DefaultLayout from 'scripts/svelte/DefaultLayout.svelte';
 import DefaultLoader from 'scripts/svelte/DefaultLoader.svelte';
+import { render, fireEvent, createEvent } from '@testing-library/svelte';
 
 describe('svelte/Form', () => {
   vi.mock('scripts/core/Engine', () => ({
@@ -54,50 +54,39 @@ describe('svelte/Form', () => {
   });
 
   test('renders correctly', () => {
-    const { container } = render(Form, {
-      props: {
-        configuration,
-        Step: undefined,
-        Field: undefined,
-        Layout: undefined,
-        Loader: undefined,
-        activeStep: undefined,
-        engineClass: undefined,
-      },
-    });
+    const { container } = render(Form, { configuration });
     expect(container.firstChild).toMatchSnapshot();
   });
 
   test('renders correctly - with active step', async () => {
+    process.env.LOADING = 'true';
     const { container } = render(Form, {
-      props: {
-        configuration,
-        activeStep: 'start',
-        Step,
-        Field: DefaultField,
-        Layout: DefaultLayout,
-        engineClass: CustomEngine as unknown as typeof Engine,
-        Loader: DefaultLoader as unknown as typeof SvelteComponent,
-      },
+      configuration,
+      Step,
+      Field: DefaultField,
+      Layout: DefaultLayout,
+      engineClass: CustomEngine as unknown as typeof Engine,
+      Loader: DefaultLoader as unknown as typeof SvelteComponent,
     });
+    delete process.env.LOADING;
     expect(container.firstChild).toMatchSnapshot();
-    const step = container.querySelector('#step');
+    const { container: newContainer } = render(Form, {
+      configuration,
+      activeStep: 'start',
+      Step,
+      Field: DefaultField,
+      Layout: DefaultLayout,
+      engineClass: CustomEngine as unknown as typeof Engine,
+      Loader: DefaultLoader as unknown as typeof SvelteComponent,
+    });
+    expect(newContainer.firstChild).toMatchSnapshot();
+    const step = newContainer.querySelector('#step');
     await fireEvent.focus(step as HTMLElement);
-    expect(container.firstChild).toMatchSnapshot();
+    expect(newContainer.firstChild).toMatchSnapshot();
   });
 
   test('prevents native form submission', async () => {
-    const { container } = render(Form, {
-      props: {
-        configuration,
-        Step: undefined,
-        Field: undefined,
-        Layout: undefined,
-        Loader: undefined,
-        activeStep: undefined,
-        engineClass: undefined,
-      },
-    });
+    const { container } = render(Form, { configuration });
     const form = container.getElementsByTagName('form')[0];
     const event = createEvent.submit(form);
     event.preventDefault = vi.fn();

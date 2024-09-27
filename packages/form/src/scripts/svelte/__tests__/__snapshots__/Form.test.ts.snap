@@ -9,6 +9,20 @@ exports[`svelte/Form > renders correctly - with active step 1`] = `
     class="perseid-form__steps"
   >
     
+     
+  </div>
+</form>
+`;
+
+exports[`svelte/Form > renders correctly - with active step 2`] = `
+<form
+  class="perseid-form"
+  id="test"
+>
+  <div
+    class="perseid-form__steps"
+  >
+    
     <div
       id="step"
     >
@@ -28,7 +42,7 @@ exports[`svelte/Form > renders correctly - with active step 1`] = `
 </form>
 `;
 
-exports[`svelte/Form > renders correctly - with active step 2`] = `
+exports[`svelte/Form > renders correctly - with active step 3`] = `
 <form
   class="perseid-form"
   id="test"
