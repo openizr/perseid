@@ -13,7 +13,6 @@ function main(): void {
   app = new Form({
     props: {
       Field: Field as typeof SvelteComponent | null | undefined,
-      activeStep: 'root',
       configuration: {
         root: 'root',
         fields: {
