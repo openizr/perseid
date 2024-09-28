@@ -348,7 +348,6 @@ describe('mongodb/services/MongoDatabaseClient', () => {
           },
         },
       });
-
       expect(databaseClient.parseFields('otherTest', new Set([
         '_id',
         'data.optionalFlatArray',
@@ -406,6 +405,30 @@ describe('mongodb/services/MongoDatabaseClient', () => {
             optionalRelation: { _id: 1, indexedString: 1 },
           },
         },
+      });
+      expect(databaseClient.parseFields('otherTest', new Set([]), 10, {
+        query: null,
+        filters: {
+          _id: ['66cde49fc4a9e45137dazd6fa14', '66cde49fc4a9e45137dazd6fa14'],
+          'data.optionalRelation': ['66cde49fc4a9e45137dazd6fa14'],
+        },
+      })).toEqual({
+        formattedQuery: {
+          structure: 'otherTest',
+          lookups: {},
+          sort: null,
+          match: {
+            query: [],
+            filters: [
+              { _id: { $in: ['66cde49fc4a9e45137dazd6fa14', '66cde49fc4a9e45137dazd6fa14'] } },
+              { 'data.optionalRelation': { $eq: '66cde49fc4a9e45137dazd6fa14' } },
+            ],
+          },
+          localField: null,
+          foreignField: null,
+          fields: { _id: '$_id', data: '$data' },
+        },
+        projections: { _id: 1, data: { optionalRelation: 1 } },
       });
       databaseClient.parseFields('otherTest', new Set([]), 10, {
         query: null,
