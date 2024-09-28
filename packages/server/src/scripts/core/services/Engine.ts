@@ -605,6 +605,7 @@ export default class Engine<
     parsedFields.permissions.add(`LIST_${toSnakeCase(resource)}`);
     await this.rbac(parsedFields.permissions, null, null, context);
     return this.databaseClient.list(resource, {
+      ...options,
       fields: parsedFields.fields,
       maximumDepth: options.maximumDepth,
     });
@@ -638,6 +639,7 @@ export default class Engine<
     parsedFields.permissions.add(`SEARCH_${toSnakeCase(resource)}`);
     await this.rbac(parsedFields.permissions, null, null, context);
     return this.databaseClient.search(resource, searchBody, {
+      ...options,
       fields: parsedFields.fields,
       maximumDepth: options.maximumDepth,
     });
