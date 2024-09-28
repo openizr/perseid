@@ -35,7 +35,7 @@ declare module '@perseid/server/fastify' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/fastify/services/FastifyController.ts
    */
-  export class FastifyController<
+  export default class FastifyController<
     /** Data model types definitions. */
     DataModel extends DefaultDataModel = DefaultDataModel,
 
