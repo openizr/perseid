@@ -1,7 +1,18 @@
+## @perseid/server:2.0.5 (2024-09-28)
+
+### Bugs
+- Fix `@perseid/server/fastify` types definitions
+- Fix unhandled error thrown when passing invalid ids in search filters
+- Correctly pass `Engine.list` and `Engine.search` command options to database client
+
+
 ## @perseid/form:4.0.2 (2024-09-27)
 
 ### Bugs
 - Fix error on form start-up in Svelte implementation
+
+### Improvements
+- Minor NPM dependencies update
 
 
 ## @perseid/client:2.1.1 (2024-09-23)
