@@ -301,8 +301,16 @@ export default class MongoDatabaseClient<
         }
         if (currentSchema.type === 'id') {
           formattedFilters[finalSearchPath] = Array.isArray(value)
-            ? { $in: (value as unknown[]).map((id) => new ObjectId(String(id))) }
-            : { $eq: new ObjectId(String(value)) };
+            ? {
+              $in: (value as unknown[]).map((id) => (/^[0-9a-fA-F]{24}$/.test(String(id))
+                ? new ObjectId(String(id))
+                : String(id))),
+            }
+            : {
+              $eq: /^[0-9a-fA-F]{24}$/.test(String(value))
+                ? new ObjectId(String(value))
+                : String(value),
+            };
         } else if (currentSchema.type === 'date') {
           if (Array.isArray(value) && value.length === 2) {
             formattedFilters[finalSearchPath] = {
