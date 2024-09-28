@@ -457,18 +457,34 @@ describe('core/services/Engine', () => {
   test('[list]', async () => {
     vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
     vi.spyOn(engine, 'parseFields').mockImplementation(() => ({ fields: new Set(['_id']), permissions: new Set() }));
-    await engine.list('test', {}, context);
-    expect(databaseClient.list).toHaveBeenCalledOnce();
-    expect(databaseClient.list).toHaveBeenCalledWith('test', { fields: new Set(['_id']) });
+    await engine.list('test', { limit: 10, offset: 2 }, context);
+    await engine.list('test', { sortBy: { _id: 1 } }, context);
+    expect(databaseClient.list).toHaveBeenCalledTimes(2);
+    expect(databaseClient.list).toHaveBeenCalledWith('test', {
+      limit: 10,
+      offset: 2,
+      fields: new Set(['_id']),
+    });
+    expect(databaseClient.list).toHaveBeenCalledWith('test', {
+      sortBy: { _id: 1 },
+      fields: new Set(['_id']),
+    });
   });
 
   test('[search]', async () => {
     const searchBody = { query: { on: new Set(['indexedString']), text: 'test' }, filters: null };
     vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
     vi.spyOn(engine, 'parseFields').mockImplementation(() => ({ fields: new Set(['_id']), permissions: new Set() }));
-    await engine.search('test', searchBody, {}, context);
-    expect(databaseClient.search).toHaveBeenCalledOnce();
+    await engine.search('test', searchBody, { limit: 10, offset: 2 }, context);
+    await engine.search('test', searchBody, { sortBy: { _id: 1 } }, context);
+    expect(databaseClient.search).toHaveBeenCalledTimes(2);
     expect(databaseClient.search).toHaveBeenCalledWith('test', searchBody, {
+      offset: 2,
+      limit: 10,
+      fields: new Set(['_id']),
+    });
+    expect(databaseClient.search).toHaveBeenCalledWith('test', searchBody, {
+      sortBy: { _id: 1 },
       fields: new Set(['_id']),
     });
     // Covers other specific cases.
