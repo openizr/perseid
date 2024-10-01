@@ -56,7 +56,7 @@ const props = withDefaults(defineProps<FormStepProps>(), {
 const isActive = computed(() => props.activeStep === props.step.path);
 const cssPath = computed(() => props.step.path.replace(/\./g, '__'));
 const className = computed(() => {
-  const modifiers = [props.step.status, cssPath].concat(isActive.value ? ['active'] : []);
+  const modifiers = [props.step.status, cssPath.value].concat(isActive.value ? ['active'] : []);
   return `perseid-form__step perseid-form__step--${[...new Set(modifiers)].join('--')}`;
 });
 </script>
@@ -70,10 +70,10 @@ const className = computed(() => {
     -->
       <component
         :is="field"
-        v-for="currentField of props.step.fields.filter((f) => f !== null)"
+        v-for="currentField of step.fields.filter((f) => f !== null)"
         :key="currentField.path"
         name="currentField"
-        :engine="props.engine"
+        :engine="engine"
         :is-active="isActive"
         :path="currentField.path"
         :type="currentField.type"
@@ -81,10 +81,10 @@ const className = computed(() => {
         :value="currentField.value"
         :status="currentField.status"
         :fields="currentField.fields"
-        :active-step="props.activeStep"
+        :active-step="activeStep"
         :is-required="currentField.isRequired"
-        :set-active-step="props.setActiveStep"
-        :use-subscription="props.useSubscription"
+        :set-active-step="setActiveStep"
+        :use-subscription="useSubscription"
       />
     </div>
   </div>

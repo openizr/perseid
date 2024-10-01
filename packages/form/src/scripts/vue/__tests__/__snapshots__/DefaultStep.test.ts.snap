@@ -2,7 +2,7 @@
 
 exports[`vue/DefaultStep > renders correctly - active step 1`] = `
 <div
-  class="perseid-form__step perseid-form__step--initial--[object Object]--active"
+  class="perseid-form__step perseid-form__step--initial--root__0--active"
   id="root__0"
 >
   <div
@@ -21,7 +21,7 @@ exports[`vue/DefaultStep > renders correctly - active step 1`] = `
 
 exports[`vue/DefaultStep > renders correctly - inactive step 1`] = `
 <div
-  class="perseid-form__step perseid-form__step--initial--[object Object]"
+  class="perseid-form__step perseid-form__step--initial--root__0"
   id="root__0"
 >
   <div
