@@ -105,7 +105,7 @@ const handleFocus = (newActiveStep: string) => () => {
 // Updates current step whenever `activeStep` prop or last step change.
 // Be careful: last step path may not change although `lastStep` has (e.g. because it has been
 // re-created or updated), so we need to react to this value instead.
-watch(() => [props.activeStep, lastStep], () => {
+watch([() => props.activeStep, lastStep], () => {
   setActiveStep(props.activeStep ?? lastStep.value?.path);
 });
 
@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <form :id="props.configuration.id as string" class="perseid-form" @submit="onSubmit">
+  <form :id="configuration.id as string" class="perseid-form" @submit="onSubmit">
     <component
       :is="layoutComponent"
       :state="state"
@@ -134,8 +134,9 @@ onBeforeUnmount(() => {
         :is="stepComponent"
         v-for="step of state.steps"
         :key="step.path"
-        name="step"
-        :step="step"
+        :step="{...step}"
+        :field="fieldComponent"
+        :active-step="currentActiveStep"
         :engine="engine as unknown as Engine"
         :on-focus="handleFocus"
         :set-active-step="setActiveStep"
