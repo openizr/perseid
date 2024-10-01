@@ -14,7 +14,7 @@ declare module '@perseid/form/svelte' {
     type Configuration,
   } from '@perseid/form';
   import { type SvelteComponent } from 'svelte';
-  import { type UseSubscription } from '@perseid/store/connectors/react';
+  import { type UseSubscription } from '@perseid/store/connectors/svelte';
 
   export * from '@perseid/form';
 
@@ -122,20 +122,20 @@ declare module '@perseid/form/svelte' {
     engineClass?: typeof Engine;
 
     /** Default Layout component to use. */
-    Layout?: typeof SvelteComponent<FormLayoutProps>;
+    Layout?: typeof SvelteComponent<Partial<FormLayoutProps>>;
 
     /** Default Step component to use. */
-    Step?: typeof SvelteComponent<FormStepProps>;
+    Step?: typeof SvelteComponent<Partial<FormStepProps>>;
 
     /** Default Field component to use. */
-    Field?: typeof SvelteComponent<FormFieldProps>;
+    Field?: typeof SvelteComponent<Partial<FormFieldProps>>;
 
     /** Default Loader component to use. */
     Loader?: typeof SvelteComponent;
   }
 
   /**
-   * Default form step.
+   * Default form field.
    */
   export class DefaultField extends SvelteComponent<FormFieldProps> { }
 
