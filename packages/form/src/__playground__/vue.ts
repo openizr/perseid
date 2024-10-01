@@ -10,7 +10,7 @@ const { log } = console;
 
 function main(): void {
   app = createApp(Form as unknown as Component, {
-    Step,
+    stepComponent: Step,
     configuration: {
       root: 'root',
       fields: {
