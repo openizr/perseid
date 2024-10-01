@@ -1,0 +1,26 @@
+{
+  "name": "svelte-feedback-form",
+  "type": "module",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@perseid/dev-kit": "^10.0.0"
+  },
+  "devKitConfig": {
+    "target": "web",
+    "splitChunks": true,
+    "devServer": {
+      "host": "0.0.0.0",
+      "port": "FRONTEND_PORT"
+    },
+    "html": "index.html",
+    "srcPath": "src",
+    "distPath": "dist"
+  },
+  "scripts": {
+    "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js"
+  },
+  "dependencies": {
+    "@perseid/form": "^4.0.3",
+    "svelte": "4.2.19"
+  }
+}

@@ -1,0 +1,23 @@
+services:
+
+  frontend:
+    tty: true
+    user: node:node
+    image: openizr/node:7.0.0-dev
+    container_name: ${PROJECT_NAME}_frontend
+    env_file:
+      - .env
+    command: sh -c "yarn run dev"
+    volumes:
+      - ./frontend:/var/www/html
+    ports:
+      - "${HOST_IP}:${FRONTEND_PORT}:${FRONTEND_PORT}"
+
+
+# For people that use a VPN
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET}
