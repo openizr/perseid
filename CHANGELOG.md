@@ -1,3 +1,14 @@
+## @perseid/form:4.0.3 (2024-10-01)
+
+### Bugs
+- Fix `Form` active step reactivity in Vue implementation
+- Fix `Form` active step reactivity in Svelte implementation
+- Fix `DefaultStep` class name generation in Vue implementation
+
+### Improvements
+- Improve types definitions
+
+
 ## @perseid/server:2.0.5 (2024-09-28)
 
 ### Bugs
