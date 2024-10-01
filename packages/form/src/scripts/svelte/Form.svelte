@@ -110,11 +110,11 @@
     newState.steps.forEach((step) => { keys[step.path] ??= generateId(); });
     return newState;
   });
-  const lastStep = $state.steps.at(-1);
 
   // Updates current step whenever `activeStep` prop or last step change.
   // Be careful: last step path may not change although `lastStep` has (e.g. because it has been
   // re-created or updated), so we need to react to this value instead.
+  $: lastStep = $state.steps.at(-1);
   $: currentActiveStep = activeStep ?? lastStep?.path;
 
   // When focus gets out of and in back to the current window, the `focus` event gets triggered once
@@ -136,7 +136,7 @@
     setActiveStep={setActiveStep}
     activeStep={currentActiveStep}
     useSubscription={useSubscription}
-    >
+  >
     {#each $state.steps as step (step.path)}
     <svelte:component
       step={step}
