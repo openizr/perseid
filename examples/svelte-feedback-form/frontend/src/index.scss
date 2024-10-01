@@ -1,0 +1,199 @@
+// A few animations for fun...
+
+@keyframes swipe-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  75% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes swipe-in-one {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  75% {
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes swipe-in-two {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  75% {
+    transform: translateX(-100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes bubble-in {
+  0% {
+    transform: scale(0.5);
+  }
+  75% {
+    transform: scale(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+// Some global basic styling...
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  display: grid;
+  height: 100vh;
+  color: #aaaaaa;
+  align-items: center;
+  font-family: 'Helvetica', sans-serif;
+}
+
+// And form-specific styling.
+
+.perseid-form {
+  width: 100%;
+  margin: auto;
+
+  &__steps {
+    display: flex;
+    overflow: hidden;
+  }
+
+  &__step {
+    min-width: 100%;
+    padding: 1rem 3rem;
+    animation: 500ms ease-in-out forwards swipe-out;
+
+    &__fields {
+      display: grid;
+      row-gap: 2rem;
+    }
+  }
+
+  &__step[class*='active']:first-child {
+    animation: 500ms ease-in-out forwards swipe-in-one;
+  }
+  &__step[class*='active']:last-child:not(:first-child) {
+    animation: 500ms ease-in-out forwards swipe-in-two;
+  }
+}
+
+.submit {
+  border: none;
+  cursor: pointer;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  color: #fefefe;
+  font-size: 1.25rem;
+  background: #46c0b0;
+  justify-self: flex-end;
+  transition: all 250ms ease-in-out;
+
+  &:hover {
+    background: #4cccbb;
+  }
+}
+
+.rating {
+  position: relative;
+  padding: 0.25rem 0;
+
+  &__star {
+    cursor: pointer;
+    display: inline-block;
+    font-size: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
+
+    &::after {
+      content: '⚪️';
+    }
+
+    &--active {
+      animation: 250ms ease-in-out forwards bubble-in;
+      &::after {
+        content: '🌟';
+      }
+    }
+  }
+
+  &[class*='error'] {
+    &::after {
+      left: 0;
+      bottom: -1.5rem;
+      color: #f13232;
+      position: absolute;
+      font-size: 0.75rem;
+      content: '👆 This field is required';
+      animation: 250ms ease-in-out forwards fade-in;
+    }
+  }
+}
+
+.review {
+  display: grid;
+  row-gap: 1rem;
+  position: relative;
+  animation: 250ms ease-in-out forwards fade-in;
+
+  label {
+    font-size: 1.25rem;
+  }
+
+  textarea {
+    resize: none;
+    min-height: 5rem;
+    border-radius: 8px;
+    border: 1px solid #46c0b0;
+    transition: all 250ms ease-in-out;
+  }
+
+  &[class*='error'] {
+    &::after {
+      left: 0;
+      bottom: -1.5rem;
+      color: #f13232;
+      position: absolute;
+      font-size: 0.75rem;
+      content: '👆 This field is required';
+      animation: 250ms ease-in-out forwards fade-in;
+    }
+  }
+}
+
+@media screen and (min-width: 30rem) {
+  .perseid-form {
+    max-width: 30rem;
+  }
+}
