@@ -11,16 +11,16 @@ exports[`vue/Form > renders correctly - with active step 1`] = `
     
     
     <div
+      field="[object Object]"
       id="default-step"
-      name="step"
     >
-      {"step":{"path":"start","fields":[]},"engine":"&lt;Engine&gt;","setActiveStep":"&lt;Function&gt;","useSubscription":"&lt;Function&gt;"}
+      {"step":{"path":"start","fields":[]},"activeStep":"end","engine":"&lt;Engine&gt;","setActiveStep":"&lt;Function&gt;","useSubscription":"&lt;Function&gt;"}
     </div>
     <div
+      field="[object Object]"
       id="default-step"
-      name="step"
     >
-      {"step":{"path":"end","fields":[]},"engine":"&lt;Engine&gt;","setActiveStep":"&lt;Function&gt;","useSubscription":"&lt;Function&gt;"}
+      {"step":{"path":"end","fields":[]},"activeStep":"end","engine":"&lt;Engine&gt;","setActiveStep":"&lt;Function&gt;","useSubscription":"&lt;Function&gt;"}
     </div>
     
     
@@ -40,9 +40,8 @@ exports[`vue/Form > renders correctly 1`] = `
     
     
     <div
-      class="perseid-form__step perseid-form__step----[object Object]"
+      class="perseid-form__step perseid-form__step----start--active"
       id="start"
-      name="step"
     >
       <div
         class="perseid-form__step__fields"
@@ -56,9 +55,8 @@ exports[`vue/Form > renders correctly 1`] = `
       </div>
     </div>
     <div
-      class="perseid-form__step perseid-form__step----[object Object]"
+      class="perseid-form__step perseid-form__step----end"
       id="end"
-      name="step"
     >
       <div
         class="perseid-form__step__fields"
