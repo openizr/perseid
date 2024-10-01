@@ -1,4 +1,4 @@
-<!-- The actual React component, used to build the UI! -->
+<!-- The actual Svelte component, used to build the UI! -->
 <script lang="ts" context="module">
 import type { FormFieldProps } from "@perseid/form/svelte";
 </script>
