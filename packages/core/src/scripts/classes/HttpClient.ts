@@ -24,7 +24,8 @@ export interface RequestSettings {
 }
 
 /**
- * Provides a cleaner `fetch` API with a better errors handling.
+ * Class to use as a base for all services that need to perform HTTP requests.
+ * Provides a cleaner `fetch` API with better error handling.
  */
 export default class HttpClient {
   /** Maximum request duration (in ms) before generating a timeout. */
@@ -32,12 +33,13 @@ export default class HttpClient {
 
   /**
    * Performs a new HTTP request with `settings`.
+   * Automatically handles request body serialization and `Content-Type` headers.
    *
    * @param settings Request settings (URL, method, body, ...).
    *
    * @returns Raw HTTP response.
    *
-   * @throws If request fails.
+   * @throws If request fails, either because of a network error, or if HTTP status is >= 400.
    */
   protected async rawRequest(settings: RequestSettings): Promise<Response> {
     let { body } = settings;
@@ -79,7 +81,9 @@ export default class HttpClient {
   }
 
   /**
-   * Performs a new HTTP request with `settings` and parses the response.
+   * Performs a new HTTP request with `settings`.
+   * Automatically handles request body serialization, `Content-Type` headers and response body
+   * parsing.
    *
    * @param settings Request settings (URL, method, body, ...).
    *

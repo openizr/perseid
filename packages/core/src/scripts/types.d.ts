@@ -138,7 +138,7 @@ export interface StringSchema extends GenericFieldSchema {
   enum?: string[];
 
   /**
-   * Whether field's value should be unique across the whole collection (e.g. an email address).
+   * Whether field value should be unique across all resources of that type (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
@@ -172,7 +172,7 @@ export interface NumberSchema extends GenericFieldSchema {
   enum?: number[];
 
   /**
-   * Whether field's value should be unique across the whole collection (e.g. an email address).
+   * Whether field value should be unique across all resources of that type (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
@@ -227,13 +227,13 @@ export interface IdSchema<DataModel> extends GenericFieldSchema {
   isIndexed?: boolean;
 
   /**
-   * Whether field's value should be unique across the whole collection (e.g. an email address).
+   * Whether field value should be unique across all resources of that type (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
   isUnique?: boolean;
 
-  /** Name of the collection the id refers to. See it as a foreign key. */
+  /** Name of the resource type the id refers to. See it as a foreign key. */
   relation?: keyof DataModel;
 }
 
@@ -255,7 +255,7 @@ export interface DateSchema extends GenericFieldSchema {
   isIndexed?: boolean;
 
   /**
-   * Whether field's value should be unique across the whole collection (e.g. an email address).
+   * Whether field value should be unique across all resources of that type (e.g. an email address).
    * A unique database index will be created, and user will be able to use that field for sorting,
    * searching, and filtering in queries.
    */
@@ -642,7 +642,8 @@ export interface RequestSettings {
 }
 
 /**
- * Provides a cleaner `fetch` API with a better errors handling.
+ * Class to use as a base for all services that need to perform HTTP requests.
+ * Provides a cleaner `fetch` API with better error handling.
  */
 export class HttpClient {
   /** Maximum request duration (in ms) before generating a timeout. */
@@ -650,17 +651,20 @@ export class HttpClient {
 
   /**
    * Performs a new HTTP request with `settings`.
+   * Automatically handles request body serialization and `Content-Type` headers.
    *
    * @param settings Request settings (URL, method, body, ...).
    *
    * @returns Raw HTTP response.
    *
-   * @throws If request fails.
+   * @throws If request fails, either because of a network error, or if HTTP status is >= 400.
    */
   protected rawRequest(settings: RequestSettings): Promise<Response>;
 
   /**
-   * Performs a new HTTP request with `settings` and parses the response.
+   * Performs a new HTTP request with `settings`.
+   * Automatically handles request body serialization, `Content-Type` headers and response body
+   * parsing.
    *
    * @param settings Request settings (URL, method, body, ...).
    *
