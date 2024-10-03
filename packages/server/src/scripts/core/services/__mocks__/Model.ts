@@ -35,7 +35,7 @@ export default class Model {
 
   public getResources = vi.fn(() => ['test', 'otherTest']);
 
-  public getPublicSchema = vi.fn((collection) => (collection === 'unknown' ? null : {}));
+  public getPublicSchema = vi.fn((resource) => (resource === 'unknown' ? null : {}));
 
   public get(path: string): DataModelMetadata<Document> | null {
     if (path === 'otherTest') {
