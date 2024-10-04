@@ -618,7 +618,7 @@ declare module '@perseid/client/vue' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/vue/pages/CreateOrUpdate.vue
    */
-  export const CreateOrUpdate: DefineComponent<CreateOrUpdateProps>;
+  export const CreateOrUpdatePage: DefineComponent<CreateOrUpdateProps>;
 
   /**
    * Error page props.
@@ -663,42 +663,42 @@ declare module '@perseid/client/vue' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/vue/pages/List.vue
    */
-  export const List: DefineComponent<ListProps>;
+  export const ListPage: DefineComponent<ListProps>;
 
   /**
    * Reset password page.
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/vue/pages/ResetPassword.vue
    */
-  export const ResetPassword: DefineComponent<VueCommonProps>;
+  export const ResetPasswordPage: DefineComponent<VueCommonProps>;
 
   /**
    * Sign-in page.
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/vue/pages/SignIn.vue
    */
-  export const SignIn: DefineComponent<VueCommonProps>;
+  export const SignInPage: DefineComponent<VueCommonProps>;
 
   /**
    * Sign-up page.
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/vue/pages/SignUp.vue
    */
-  export const SignUp: DefineComponent<VueCommonProps>;
+  export const SignUpPage: DefineComponent<VueCommonProps>;
 
   /**
    * Connected user update page.
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/vue/pages/UpdateUser.vue
    */
-  export const UpdateUser: DefineComponent<VueCommonProps>;
+  export const UpdateUserPage: DefineComponent<VueCommonProps>;
 
   /**
    * Verify email page.
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/vue/pages/VerifyEmail.vue
    */
-  export const VerifyEmail: DefineComponent<VueCommonProps>;
+  export const VerifyEmailPage: DefineComponent<VueCommonProps>;
 
   /**
    * Resource view page props.
@@ -719,5 +719,5 @@ declare module '@perseid/client/vue' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/vue/pages/View.vue
    */
-  export const View: DefineComponent<ViewProps>;
+  export const ViewPage: DefineComponent<ViewProps>;
 }
