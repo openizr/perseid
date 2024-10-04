@@ -373,6 +373,9 @@ declare module '@perseid/client' {
     /** Decoder for binary downloads. */
     protected decoder: TextDecoder;
 
+    /** Used to deduplicate `refreshToken` calls, when performing multiple API calls at once. */
+    protected refreshTokenPromise: Promise<Credentials> | null;
+
     /**
      * Formats `input` into an HTTP request body.
      *

@@ -1,13 +1,15 @@
 /* c8 ignore start */
 
 import {
-  Grid,
   Model,
   Store,
   Logger,
-  Router,
   ApiClient,
   FormBuilder,
+} from 'scripts/core/index';
+import {
+  Grid,
+  Router,
 } from 'scripts/react/index';
 import {
   type Ids,
@@ -15,13 +17,14 @@ import {
   type Version,
   type Deletion,
   type Timestamps,
+  type DefaultDataModel, I18n,
 } from '@perseid/core';
 import * as React from 'react';
 import '__playground__/style.scss';
 import labels from '__playground__/labels';
-import { createRoot, Root } from 'react-dom/client';
-import { DefaultDataModel, I18n } from '@perseid/core';
+import { createRoot, type Root } from 'react-dom/client';
 import { type StoreSettings } from 'scripts/core/services/Store';
+import type { UseSubscription } from '@perseid/store/connectors/react';
 
 let app: Root;
 
@@ -44,14 +47,11 @@ function main(): void {
       verifyEmail: { route: '/verify-email' },
       resetPassword: { route: '/reset-password' },
     },
-    collections: {
+    resources: {
       users: {
         list: {
           route: '/users',
           pageProps: {
-            // fields: ['roles._createdBy._updatedBy'],
-            // fields: ['roles._createdBy.email'],
-            // fields: ['_devices'],
             searchFields: ['email'],
             fields: [
               '_createdAt',
@@ -90,6 +90,29 @@ function main(): void {
           },
         },
       },
+      roles: {
+        list: {
+          route: '/roles',
+          pageProps: {
+            fields: ['name'],
+            searchFields: ['name'],
+          },
+        },
+        view: {
+          route: '/roles/:id',
+          pageProps: {
+            fields: ['_createdAt', '_createdBy', 'name', 'permissions'],
+          },
+        },
+        update: {
+          route: '/roles/:id/edit',
+          pageProps: {},
+        },
+        create: {
+          route: '/roles/create',
+          pageProps: {},
+        },
+      },
       tests: {
         list: {
           route: '/tests',
@@ -126,36 +149,47 @@ function main(): void {
       },
     },
   };
-  const endpoints = {
-    auth: {
-      refreshToken: { route: '/auth/refresh-token' },
-    },
-    collections: {
-      users: {
-        list: { route: '/users' },
-        create: { route: '/users' },
-        view: { route: '/users/:id' },
-        update: { route: '/users/:id' },
-        search: { route: '/users/search' },
-      },
-      roles: {
-        list: { route: '/roles' },
-        search: { route: '/roles/search' },
-      },
-      tests: {
-        list: { route: '/tests' },
-        create: { route: '/tests' },
-        view: { route: '/tests/:id' },
-        update: { route: '/tests/:id' },
-        delete: { route: '/tests/:id' },
-        search: { route: '/tests/search' },
-      },
-    },
-  };
   const model = new Model<DataModel>();
   const apiClient = new ApiClient<DataModel>(model, logger, {
-    endpoints,
+    endpoints: {
+      auth: {
+        viewMe: { route: '/auth/me' },
+        signUp: { route: '/auth/sign-up' },
+        signIn: { route: '/auth/sign-in' },
+        signOut: { route: '/auth/sign-out' },
+        verifyEmail: { route: '/auth/verify-email' },
+        refreshToken: { route: '/auth/refresh-token' },
+        resetPassword: { route: '/auth/reset-password' },
+        requestPasswordReset: { route: '/auth/reset-password' },
+        requestEmailVerification: { route: '/auth/verify-email' },
+      },
+      resources: {
+        users: {
+          list: { route: '/users' },
+          create: { route: '/users' },
+          view: { route: '/users/:id' },
+          update: { route: '/users/:id' },
+          search: { route: '/users/search' },
+        },
+        roles: {
+          list: { route: '/roles' },
+          create: { route: '/roles' },
+          view: { route: '/roles/:id' },
+          update: { route: '/roles/:id' },
+          search: { route: '/roles/search' },
+        },
+        tests: {
+          list: { route: '/tests' },
+          create: { route: '/tests' },
+          view: { route: '/tests/:id' },
+          update: { route: '/tests/:id' },
+          delete: { route: '/tests/:id' },
+          search: { route: '/tests/search' },
+        },
+      },
+    },
     mockedResponses: {},
+    connectTimeout: 3000,
     baseUrl: 'http://localhost:5070/perseid',
   });
   const formBuilder = new FormBuilder<DataModel>(model, logger);
@@ -176,16 +210,15 @@ function main(): void {
     visibility: 'PUBLIC_ONLY',
   });
   store.createRoutes();
-  // import('scripts/Translations').then((a) => a.default(store, model, pages));
   const container = document.querySelector('#root') as unknown as HTMLElement;
   app = createRoot(container);
   app.render(
     <React.StrictMode>
-      <Router
+      <Router<DataModel>
         services={{
           i18n,
           model,
-          store,
+          store: store as Store<DataModel> & { useSubscription: UseSubscription; },
           apiClient,
         }}
         pages={{
