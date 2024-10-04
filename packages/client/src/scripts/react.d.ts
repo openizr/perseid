@@ -769,7 +769,7 @@ declare module '@perseid/client/react' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/CreateOrUpdate.tsx
    */
-  export function CreateOrUpdate({
+  export function CreateOrUpdatePage({
     services,
     resource,
     components,
@@ -823,7 +823,7 @@ declare module '@perseid/client/react' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/List.tsx
    */
-  export function List({
+  export function ListPage({
     services,
     resource,
     components,
@@ -834,7 +834,7 @@ declare module '@perseid/client/react' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/ResetPassword.tsx
    */
-  export function ResetPassword({
+  export function ResetPasswordPage({
     services,
     components,
   }: ReactCommonProps): JSX.Element;
@@ -844,7 +844,7 @@ declare module '@perseid/client/react' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/SignIn.tsx
    */
-  export function SignIn({
+  export function SignInPage({
     services,
     components,
   }: ReactCommonProps): JSX.Element;
@@ -854,7 +854,7 @@ declare module '@perseid/client/react' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/SignUp.tsx
    */
-  export function SignUp({
+  export function SignUpPage({
     services,
     components,
   }: ReactCommonProps): JSX.Element;
@@ -864,7 +864,7 @@ declare module '@perseid/client/react' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/UpdateUser.tsx
    */
-  export function UpdateUser({
+  export function UpdateUserPage({
     services,
     components,
   }: ReactCommonProps): JSX.Element;
@@ -874,7 +874,7 @@ declare module '@perseid/client/react' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/VerifyEmail.tsx
    */
-  export function VerifyEmail({
+  export function VerifyEmailPage({
     services,
     components,
   }: ReactCommonProps): JSX.Element;
@@ -898,7 +898,7 @@ declare module '@perseid/client/react' {
    *
    * @linkcode https://github.com/openizr/perseid/blob/main/packages/client/src/scripts/react/pages/View.tsx
    */
-  export function View({
+  export function ViewPage({
     services,
     resource,
     components,
