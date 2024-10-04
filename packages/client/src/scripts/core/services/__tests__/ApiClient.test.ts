@@ -152,14 +152,22 @@ describe('core/services/ApiClient', () => {
         refreshToken: '17ccb9807475814d733812b9',
         accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDM1ODUyMjcsImV4cCI6M',
       }));
-      await apiClient.request({
-        body: {},
-        headers: {},
-        method: 'POST',
-        endpoint: '/test',
-      }, true);
+      await Promise.all([
+        apiClient.request({
+          body: {},
+          headers: {},
+          method: 'POST',
+          endpoint: '/test',
+        }, true),
+        apiClient.request({
+          body: {},
+          headers: {},
+          method: 'POST',
+          endpoint: '/test',
+        }, true),
+      ]);
       expect(apiClient.refreshToken).toHaveBeenCalledOnce();
-      expect(httpClientRequest).toHaveBeenCalledOnce();
+      expect(httpClientRequest).toHaveBeenCalledTimes(2);
       expect(httpClientRequest).toHaveBeenCalledWith({
         body: {},
         method: 'POST',

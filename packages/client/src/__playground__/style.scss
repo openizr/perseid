@@ -4,6 +4,8 @@
 @import 'styles/pages/index.scss';
 @import 'styles/components/index.scss';
 
+@include init();
+
 body {
   height: 100vh;
   overflow: hidden; // Prevents reloading page when scrolling down on mobile.

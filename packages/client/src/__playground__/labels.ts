@@ -27,12 +27,19 @@ export default {
     SIGN_OUT: 'Se déconnecter',
     USERS: 'Utilisateurs',
     TESTS: 'Tests',
+    ROLES: 'Roles',
   },
   CONFIRM: {
     DELETE: {
       TESTS: {
         TITLE: 'Confirmer la suppression',
-        SUBTITLE: 'Êtes-vous sûr de vouloir supprimer cette resource ?',
+        SUBTITLE: 'Êtes-vous sûr de vouloir supprimer cette ressource ?',
+        CONFIRM: 'Confirmer',
+        CANCEL: 'Annuler',
+      },
+      ROLES: {
+        TITLE: 'Confirmer la suppression',
+        SUBTITLE: 'Êtes-vous sûr de vouloir supprimer cette ressource ?',
         CONFIRM: 'Confirmer',
         CANCEL: 'Annuler',
       },
@@ -303,6 +310,84 @@ export default {
           },
         },
         SEARCH_PLACEHOLDER: 'Recherche...',
+      },
+    },
+    ROLES: {
+      LIST: {
+        TITLE: 'Roles',
+        TABLE: {
+          LOADING: 'Chargement',
+          ACTIONS: 'Actions',
+          NO_RESULT: 'Aucun résultat',
+        },
+        FIELDS: {
+          NAME: {
+            LABEL: 'Nom',
+          },
+        },
+        SEARCH_PLACEHOLDER: 'Recherche...',
+      },
+      VIEW: {
+        FIELDS: {
+          _CREATED_AT: {
+            LABEL: 'Créé à',
+          },
+          _CREATED_BY: {
+            LABEL: 'Créateur',
+          },
+          NAME: {
+            LABEL: 'Nom',
+          },
+          PERMISSIONS: {
+            LABEL: 'Permissions',
+          },
+        },
+      },
+      UPDATE: {
+        FIELDS: {
+          NAME: {
+            LABEL: 'Nom',
+            ERRORS: {
+              REQUIRED: 'Champ requis',
+            },
+          },
+          PERMISSIONS: {
+            LABEL: 'Permissions',
+            FIELDS: {
+              LABEL: 'Nom de la permission',
+              ERRORS: {
+                REQUIRED: 'Champ requis',
+                PATTERN_VIOLATION: 'Nom invalide',
+              },
+            },
+          },
+          SUBMIT: {
+            LABEL: 'Soumettre',
+          },
+        },
+      },
+      CREATE: {
+        FIELDS: {
+          NAME: {
+            LABEL: 'Nom',
+            ERRORS: {
+              REQUIRED: 'Champ requis',
+            },
+          },
+          PERMISSIONS: {
+            LABEL: 'Permissions',
+            FIELDS: {
+              LABEL: 'Nom de la permission',
+              ERRORS: {
+                REQUIRED: 'Champ requis',
+                PATTERN_VIOLATION: 'Nom invalide',
+              },
+            },
+          },
+          SUBMIT: {
+            LABEL: 'Soumettre',
+          },
+        },
       },
     },
     TESTS: {
