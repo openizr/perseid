@@ -161,6 +161,9 @@ export default class ApiClient<
   /** Decoder for binary downloads. */
   protected decoder = new TextDecoder();
 
+  /** Used to deduplicate `refreshToken` calls, when performing multiple API calls at once. */
+  protected refreshTokenPromise: Promise<Credentials> | null;
+
   /**
    * Formats `input` into an HTTP request body.
    *
@@ -335,7 +338,9 @@ export default class ApiClient<
         && credentials.expiration < Date.now()
         && settings.endpoint !== this.endpoints.auth.refreshToken?.route
       ) {
-        credentials = await this.refreshToken();
+        this.refreshTokenPromise ??= this.refreshToken();
+        credentials = await this.refreshTokenPromise;
+        this.refreshTokenPromise = null;
       }
       if (credentials !== undefined) {
         updatedSettings = {
@@ -399,6 +404,7 @@ export default class ApiClient<
     this.model = model;
     this.logger = logger;
     this.baseUrl = settings.baseUrl;
+    this.refreshTokenPromise = null;
     this.endpoints = settings.endpoints;
     this.mockedResponses = settings.mockedResponses;
     this.formatInput = this.formatInput.bind(this);
