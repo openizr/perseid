@@ -1,3 +1,9 @@
+## @perseid/core:2.0.2 (2024-10-09)
+
+### Bugs
+- Fix `toSnakeCase` function when dealing with multiple uppercase letters
+
+
 ## @perseid/form:4.0.3 (2024-10-01)
 
 ### Bugs
