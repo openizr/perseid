@@ -3,6 +3,9 @@
 ### Bugs
 - Fix `toSnakeCase` function when dealing with multiple uppercase letters
 
+### Improvements
+- Improve types definitions
+
 
 ## @perseid/form:4.0.3 (2024-10-01)
 
