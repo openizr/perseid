@@ -375,7 +375,7 @@ export function toSnakeCase(text: string): string;
  *
  * @returns `true` if variable is a plain object, `false` otherwise.
  */
-export function isPlainObject<T>(variable: T): boolean;
+export function isPlainObject(variable: unknown): boolean;
 
 /**
  * Performs a deep copy of a variable. Only plain objects and arrays are deeply copied.
