@@ -15,6 +15,6 @@
  */
 export default function toSnakeCase(text: string): string {
   return (text.match(/([A-Z])/g) ?? [] as string[]).reduce((match, char: string) => (
-    match.replace(new RegExp(char), `_${char}`)
+    match.replace(new RegExp(char), `_${char.toLowerCase()}`)
   ), text).toUpperCase();
 }
