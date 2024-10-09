@@ -48,7 +48,7 @@
     "@perseid/dev-kit": "^10.0.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.0.1",
-    "@types/react": "^18.3.8",
+    "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "coveralls": "^3.1.1"
   },
@@ -169,8 +169,8 @@
     ]
   },
   "dependencies": {
-    "@perseid/core": "^2.0.1",
-    "@perseid/form": "^4.0.1",
+    "@perseid/core": "^2.0.2",
+    "@perseid/form": "^4.0.3",
     "@perseid/store": "^8.0.1",
     "@perseid/ui": "^4.1.0",
     "idb-keyval": "^6.2.0"
@@ -220,6 +220,6 @@
   "peerDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "vue": "^3.5.8"
+    "vue": "^3.5.11"
   }
 }
