@@ -42,7 +42,7 @@ exports[`scripts/react/components/FormField > renders correctly - LazyOptions 1`
 <div
   id="lazy-options"
 >
-  {"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","value":"null","modifiers":"test","store":{},"loadingLabel":"loading...","noResultLabel":"no result..."}
+  {"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","store":{},"loadingLabel":"loading...","noResultLabel":"no result..."}
 </div>
 `;
 
@@ -66,7 +66,7 @@ exports[`scripts/react/components/FormField > renders correctly - Object, option
 <div
   id="optional-field"
 >
-  {"type":"null","path":"root.0.field","error":null,"value":null,"engine":{},"status":"initial","isActive":true,"isRequired":false,"modifiers":"object","showLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.SHOW.LABEL","hideLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.HIDE.LABEL"}
+  {"type":"null","path":"root.0.field","error":null,"value":null,"engine":{},"status":"initial","isActive":true,"isRequired":false,"_canonicalPath":"field","modifiers":"object","showLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.SHOW.LABEL","hideLabel":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.HIDE.LABEL"}
 </div>
 `;
 
