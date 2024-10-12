@@ -140,7 +140,7 @@ function LazyOptions<DataModel extends DefaultDataModel = DefaultDataModel>({
   const [selectedValue, setSelectedValue] = React.useState('');
   const [results, setResults] = React.useState<UIOptionsOption[]>([loadingOption]);
   const registry = store.useSubscription<Partial<Registry<DataModel>>>('registry');
-  const [currentValue, setCurrentValue] = React.useState<Value>({ value: 'null', label: '' });
+  const [currentValue, setCurrentValue] = React.useState<Value>({ value: '', label: '' });
   const className = buildClass('lazy-options', `${modifiers} ${showResults ? ' visible' : ''}`);
   const entity = registry[resource]?.[String(currentValue.value)] ?? null;
 

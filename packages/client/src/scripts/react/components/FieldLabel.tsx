@@ -41,7 +41,7 @@ export default function FieldLabel({
   resource,
 }: FieldLabelProps): JSX.Element {
   const label = React.useMemo(() => {
-    const path = toSnakeCase(field.replace(/\./g, '__'));
+    const path = toSnakeCase(field.replace(/\./g, '.fields.'));
     return services.i18n.t(`PAGES.${toSnakeCase(String(resource))}.${page}.FIELDS.${path}.LABEL`);
   }, [services, resource, field, page]);
 
