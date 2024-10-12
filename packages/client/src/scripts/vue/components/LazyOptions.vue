@@ -137,7 +137,7 @@ const noResultOption = computed<UIOptionsOption>(() => ({
 const selectedValue = ref('');
 const showResults = ref(false);
 const elementRef = ref<HTMLElement | null>(null);
-const currentValue = ref({ value: 'null', label: '' });
+const currentValue = ref({ value: '', label: '' });
 const results = ref<UIOptionsOption[]>([loadingOption.value]);
 const registry = props.store.useSubscription<Partial<Registry<DefaultDataModel>>>('registry');
 const className = computed(() => (

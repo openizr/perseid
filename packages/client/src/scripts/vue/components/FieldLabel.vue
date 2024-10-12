@@ -60,7 +60,7 @@ export interface FieldLabelProps<
 
 const props = defineProps<FieldLabelProps>();
 const label = computed(() => {
-  const path = toSnakeCase(props.field.replace(/\./g, '__'));
+  const path = toSnakeCase(props.field.replace(/\./g, '.fields.'));
   return props.services.i18n.t(`PAGES.${toSnakeCase(String(props.resource))}.${props.page}.FIELDS.${path}.LABEL`);
 });
 </script>
