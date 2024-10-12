@@ -529,6 +529,11 @@ declare module '@perseid/client/react' {
 
     /** Additional modifiers to apply to the optional field. */
     modifiers?: string;
+
+    /** Field component to use for rendering. */
+    Field: (props: FormFieldProps & { _canonicalPath?: string; }) => JSX.Element;
+
+    _canonicalPath?: string;
   }
 
   /**

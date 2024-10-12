@@ -230,6 +230,15 @@ declare module '@perseid/client' {
     DataModel extends DefaultDataModel = DefaultDataModel,
   > extends BaseModel<DataModel> {
     /**
+     * Deserializes `schema` received from the API.
+     *
+     * @param schema Serialized schema.
+     *
+     * @returns Data model field schema.
+     */
+    private deserializeSchema(schema: Record<string, unknown>): FieldSchema<DataModel>;
+
+    /**
      * Updates data model with `schemaFragment`.
      *
      * @param schemaFragment Fragment of data model schema. Contains a subset of resources schemas.
