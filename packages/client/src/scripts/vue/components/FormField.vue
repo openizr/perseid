@@ -121,7 +121,15 @@ const context = computed(() => additionalProps.value.context);
 const fieldConfiguration = computed<Record<string, unknown> | undefined>(() => (
   additionalProps.value.fieldProps[props.path] ?? additionalProps.value.fieldProps[shortPath]
 ));
-const componentProps = computed<Record<string, unknown>>(() => (
+const componentProps = computed<Record<string, unknown>>(() => {
+  const finalProps = (fieldConfiguration.value?.componentProps ?? {}) as Record<string, unknown>;
+  const { options, placeholder, ...rest } = finalProps;
+  if (options || placeholder) {
+    // No-op.
+  }
+  return rest;
+});
+const allComponentProps = computed<Record<string, unknown>>(() => (
   (fieldConfiguration.value?.componentProps ?? {}) as Record<string, unknown>
 ));
 const modifiers = computed(() => {
@@ -131,17 +139,16 @@ const modifiers = computed(() => {
   return `${props.status} ${props.isRequired ? 'required' : ''} ${baseModifiers}`;
 });
 
-const fieldPath = computed(() => toSnakeCase(shortPath.replace(/\$n/g, 'fields')));
+const fieldPath = computed(() => toSnakeCase(shortPath.replace(/\./g, '.fields.').replace(/\.\$n/g, '')));
 const labels = computed(() => ({
   label: context.value.services.i18n.t(`${context.value.prefix}.FIELDS.${fieldPath.value}.LABEL`),
   helper: !props.error ? undefined : context.value.services.i18n.t(`${context.value.prefix}.FIELDS.${fieldPath.value}.ERRORS.${props.error}`),
-  placeholder: !componentProps.value.placeholder ? undefined : context.value.services.i18n.t(`${context.value.prefix}.FIELDS.${fieldPath.value}.${String(componentProps.value.placeholder)}`),
-  options: (componentProps.value.options as UIOptionsOption[] | undefined)?.map((option) => ({
+  placeholder: !allComponentProps.value.placeholder ? undefined : context.value.services.i18n.t(`${context.value.prefix}.FIELDS.${fieldPath.value}.${String(allComponentProps.value.placeholder)}`),
+  options: (allComponentProps.value.options as UIOptionsOption[] | undefined)?.map((option) => ({
     ...option,
     label: context.value.services.i18n.t(`${context.value.prefix}.FIELDS.${fieldPath.value}.OPTIONS.${option.label}`),
   })),
 }));
-
 </script>
 
 <template>
@@ -222,6 +229,7 @@ const labels = computed(() => ({
     :label="labels.label"
     :modifiers="modifiers"
     :helper="labels.helper"
+    :placeholder="labels.placeholder"
     :options="labels.options as UIOptionsOption[]"
     :value="(value as string | undefined) ?? undefined"
     :on-change="(newValue): void => {
@@ -249,17 +257,16 @@ const labels = computed(() => ({
     :isActive="isActive"
     :isRequired="isRequired"
     :activeStep="activeStep"
+    :_canonicalPath="shortPath"
     :setActiveStep="setActiveStep"
     :useSubscription="useSubscription"
     :additionalProps="additionalProps"
     :modifiers="fieldConfiguration.component.toLowerCase()"
     :showLabel="additionalProps.context.services.i18n.t(
-      `${additionalProps.context.prefix}.FIELDS.${
-        toSnakeCase(shortPath.replace(/\$n/g, 'fields'))}.SHOW.LABEL`
+      `${additionalProps.context.prefix}.FIELDS.${fieldPath}.SHOW.LABEL`
     )"
     :hideLabel="additionalProps.context.services.i18n.t(
-      `${additionalProps.context.prefix}.FIELDS.${
-        toSnakeCase(shortPath.replace(/\$n/g, 'fields'))}.HIDE.LABEL`
+      `${additionalProps.context.prefix}.FIELDS.${fieldPath}.HIDE.LABEL`
     )"
     v-bind="componentProps"
   />
@@ -290,13 +297,13 @@ const labels = computed(() => ({
   <LazyOptions
     v-else-if="fieldConfiguration?.component === 'LazyOptions'"
     :label="labels.label"
-    :value="String(value)"
     :modifiers="modifiers"
     :store="context.services.store"
     :helper="labels.helper"
     loadingLabel="loading..."
     noResultLabel="no result..."
     :placeholder="labels.placeholder"
+    :value="(value !== null && value !== undefined) ? String(value) : undefined"
     :resource="componentProps.resource as LazyOptionsProps<DefaultDataModel>['resource']"
     :labelFn="componentProps.labelFn as LazyOptionsProps<DefaultDataModel>['labelFn']"
     :loadResults="componentProps.loadResults as LazyOptionsProps<DefaultDataModel>['loadResults']"
