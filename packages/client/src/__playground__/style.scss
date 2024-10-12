@@ -25,6 +25,7 @@ body {
 /** Form fields. */
 
 .ui-textfield,
+.ui-options,
 .ui-textarea {
   @include modifiers(error, &) {
     &__helper {
