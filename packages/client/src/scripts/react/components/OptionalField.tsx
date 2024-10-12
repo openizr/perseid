@@ -22,6 +22,11 @@ export interface OptionalFieldProps extends FormFieldProps {
 
   /** Additional modifiers to apply to the optional field. */
   modifiers?: string;
+
+  /** Field component to use for rendering. */
+  Field: (props: FormFieldProps & { _canonicalPath?: string; }) => JSX.Element;
+
+  _canonicalPath?: string;
 }
 
 /**
@@ -33,6 +38,7 @@ function OptionalField({
   showLabel,
   hideLabel,
   modifiers = '',
+  _canonicalPath,
   ...field
 }: OptionalFieldProps): JSX.Element {
   const {
@@ -55,7 +61,11 @@ function OptionalField({
         label={(value !== null) ? hideLabel : showLabel}
       />
       {(value !== null) && (
-        <Field {...field} isRequired />
+        <Field
+          {...field}
+          isRequired
+          _canonicalPath={_canonicalPath}
+        />
       )}
     </div>
   );

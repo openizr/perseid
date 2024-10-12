@@ -57,18 +57,19 @@ export default function FormField(
     let modifiers = (fieldConfiguration?.componentProps?.modifiers as string | undefined) ?? '';
     modifiers = `${status} ${isRequired ? 'required' : ''} ${modifiers}`;
 
-    const labels = React.useMemo(() => {
-      const fieldPath = toSnakeCase(shortPath.replace(/\$n/g, 'fields'));
-      return {
-        label: services.i18n.t(`${prefix}.FIELDS.${fieldPath}.LABEL`),
-        helper: !error ? undefined : services.i18n.t(`${prefix}.FIELDS.${fieldPath}.ERRORS.${error}`),
-        placeholder: !placeholder ? undefined : services.i18n.t(`${prefix}.FIELDS.${fieldPath}.${String(placeholder)}`),
-        options: (options as UIOptionsOption[] | undefined)?.map((option) => ({
-          ...option,
-          label: services.i18n.t(`${prefix}.FIELDS.${fieldPath}.OPTIONS.${option.label}`),
-        })),
-      };
-    }, [services, options, prefix, error, placeholder, shortPath]);
+    const fieldPath = React.useMemo(() => (
+      toSnakeCase(shortPath.replace(/\./g, '.fields.').replace(/\.\$n/g, ''))
+    ), [shortPath]);
+
+    const labels = React.useMemo(() => ({
+      label: services.i18n.t(`${prefix}.FIELDS.${fieldPath}.LABEL`),
+      helper: !error ? undefined : services.i18n.t(`${prefix}.FIELDS.${fieldPath}.ERRORS.${error}`),
+      placeholder: !placeholder ? undefined : services.i18n.t(`${prefix}.FIELDS.${fieldPath}.${String(placeholder)}`),
+      options: (options as UIOptionsOption[] | undefined)?.map((option) => ({
+        ...option,
+        label: services.i18n.t(`${prefix}.FIELDS.${fieldPath}.OPTIONS.${option.label}`),
+      })),
+    }), [services, fieldPath, options, prefix, error, placeholder]);
 
     if (fieldConfiguration?.component === 'Button') {
       return (
@@ -168,6 +169,7 @@ export default function FormField(
           label={labels.label}
           modifiers={modifiers}
           helper={labels.helper}
+          placeholder={labels.placeholder}
           options={labels.options as UIOptionsOption[]}
           value={(value as string | undefined) ?? undefined}
           onChange={(newValue): void => {
@@ -189,12 +191,10 @@ export default function FormField(
 
     if (fieldConfiguration?.component === 'Array' || fieldConfiguration?.component === 'Object') {
       if (!isRequired) {
-        const resource = toSnakeCase(shortPath.replace(/\$n/g, 'fields'));
         return (
           <OptionalField
             type={type}
             path={path}
-            Field={Field}
             error={error}
             value={value}
             fields={fields}
@@ -202,10 +202,12 @@ export default function FormField(
             status={status}
             isActive={isActive}
             isRequired={isRequired}
+            _canonicalPath={shortPath}
             useSubscription={useSubscription}
             modifiers={fieldConfiguration.component.toLowerCase()}
-            showLabel={services.i18n.t(`${prefix}.FIELDS.${resource}.SHOW.LABEL`)}
-            hideLabel={services.i18n.t(`${prefix}.FIELDS.${resource}.HIDE.LABEL`)}
+            Field={Field as unknown as (props: FormFieldProps) => JSX.Element}
+            showLabel={services.i18n.t(`${prefix}.FIELDS.${fieldPath}.SHOW.LABEL`)}
+            hideLabel={services.i18n.t(`${prefix}.FIELDS.${fieldPath}.HIDE.LABEL`)}
             {...rest}
           />
         );
@@ -237,13 +239,13 @@ export default function FormField(
       return (
         <LazyOptions
           label={labels.label}
-          value={String(value)}
           modifiers={modifiers}
           store={services.store}
           helper={labels.helper}
           loadingLabel="loading..."
           noResultLabel="no result..."
           placeholder={labels.placeholder}
+          value={(value !== null && value !== undefined) ? String(value) : undefined}
           resource={componentProps.resource as LazyOptionsProps<DefaultDataModel>['resource']}
           labelFn={componentProps.labelFn as LazyOptionsProps<DefaultDataModel>['labelFn']}
           loadResults={componentProps.loadResults as LazyOptionsProps<DefaultDataModel>['loadResults']}
