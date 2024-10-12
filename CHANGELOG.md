@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-## @perseid/core:2.0.2 (2024-10-09)
-
-### Bugs
-- Fix `toSnakeCase` function when dealing with multiple uppercase letters
-
-### Improvements
-- Improve types definitions
-=======
 ## @perseid/client:2.1.2 (2024-10-12)
 
 ### Bugs
@@ -24,7 +15,6 @@
 - Automatically set value to `false` for boolean form fields in Vue implementation
 - Automatically set value to `false` for boolean form fields in React implementation
 - Replace default `null` option by a proper placeholder in form configurations
->>>>>>> bd5f5e1 ([all] Update CHANGELOG.md)
 
 
 ## @perseid/core:2.0.2 (2024-10-09)
