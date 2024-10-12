@@ -35,7 +35,6 @@ import {
   type IntegerConfiguration,
 } from '@perseid/form';
 import type Engine from '@perseid/form';
-import { type Option } from '@perseid/ui';
 import Store from 'scripts/core/services/Store';
 
 /**
@@ -104,16 +103,13 @@ export default class FormBuilder<
               component: 'Options',
               componentProps: {
                 select: true,
-                options: [{
-                  type: 'option',
-                  value: 'null',
-                  label: 'PLACEHOLDER',
-                }].concat(enumerations.map((option) => ({
+                placeholder: 'PLACEHOLDER',
+                options: enumerations.map((option) => ({
                   type: 'option',
                   value: String(option),
                   // Don't snakecase here, otherwise options like "TOTO" become "T_O_T_O"
                   label: String(option).toUpperCase(),
-                }))),
+                })),
               },
             },
           },
@@ -129,7 +125,7 @@ export default class FormBuilder<
           return value ? String(value) : '';
         };
         return {
-          configuration: { type: 'string', isRequired },
+          configuration: { type: 'string', required: isRequired },
           fieldProps: {
             [path]: {
               component: 'LazyOptions',
@@ -213,16 +209,13 @@ export default class FormBuilder<
               component: 'Options',
               componentProps: {
                 select: true,
-                options: [{
-                  type: 'option',
-                  value: 'null',
-                  label: 'PLACEHOLDER',
-                }].concat(enumerations.map((option) => ({
+                placeholder: 'PLACEHOLDER',
+                options: enumerations.map((option) => ({
                   type: 'option',
                   value: String(option),
                   // Don't snakecase here, otherwise options like "TOTO" become "T_O_T_O"
                   label: String(option).toUpperCase(),
-                }))),
+                })),
               },
             },
           },
@@ -266,16 +259,13 @@ export default class FormBuilder<
               component: 'Options',
               componentProps: {
                 select: true,
-                options: [{
-                  type: 'option',
-                  value: 'null',
-                  label: 'PLACEHOLDER',
-                } as Option].concat(enumerations.map((option) => ({
+                placeholder: 'PLACEHOLDER',
+                options: enumerations.map((option) => ({
                   type: 'option',
                   value: String(option),
                   // Don't snakecase here, otherwise options like "TOTO" become "T_O_T_O"
                   label: String(option).toUpperCase(),
-                }))),
+                })),
               },
             },
           },
@@ -336,16 +326,13 @@ export default class FormBuilder<
               component: 'Options',
               componentProps: {
                 select: true,
-                options: [{
-                  type: 'option',
-                  value: 'null',
-                  label: 'PLACEHOLDER',
-                } as Option].concat(enumerations.map((option) => ({
+                placeholder: 'PLACEHOLDER',
+                options: enumerations.map((option) => ({
                   type: 'option',
                   value: String(option),
                   // Don't snakecase here, otherwise options like "TOTO" become "T_O_T_O"
                   label: String(option).toUpperCase(),
-                }))),
+                })),
               },
             },
           },
@@ -404,16 +391,13 @@ export default class FormBuilder<
               component: 'Options',
               componentProps: {
                 select: true,
-                options: [{
-                  type: 'option',
-                  value: 'null',
-                  label: 'PLACEHOLDER',
-                }].concat(enumerations.map((option) => ({
+                placeholder: 'PLACEHOLDER',
+                options: enumerations.map((option) => ({
                   type: 'option',
                   value: String(option),
                   // Don't snakecase here, otherwise options like "TOTO" become "T_O_T_O"
                   label: String(option).toUpperCase(),
-                }))),
+                })),
               },
             },
           },
