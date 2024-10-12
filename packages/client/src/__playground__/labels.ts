@@ -380,6 +380,7 @@ export default {
             LABEL: 'Nom',
             ERRORS: {
               REQUIRED: 'Champ requis',
+              PATTERN_VIOLATION: 'Nom invalide',
             },
           },
           PERMISSIONS: {
@@ -403,6 +404,7 @@ export default {
             LABEL: 'Nom',
             ERRORS: {
               REQUIRED: 'Champ requis',
+              PATTERN_VIOLATION: 'Nom invalide',
             },
           },
           PERMISSIONS: {

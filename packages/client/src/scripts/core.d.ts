@@ -243,7 +243,7 @@ declare module '@perseid/client' {
      *
      * @param schemaFragment Fragment of data model schema. Contains a subset of resources schemas.
      */
-    public update(schemaFragment: Partial<DataModel>): void;
+    public update(schemaFragment: Partial<DataModelSchema<DataModel>>): void;
   }
 
   /** API request settings. */

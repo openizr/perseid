@@ -14,11 +14,12 @@ import {
   type IdSchema,
   type FieldSchema,
   type ArraySchema,
+  type ObjectSchema,
   type ResourceSchema,
   type RequestSettings,
+  type DataModelSchema,
   type DefaultDataModel,
   type DataModelMetadata,
-  type ObjectSchema,
 } from '@perseid/core';
 import * as idb from 'idb-keyval';
 import Model from 'scripts/core/services/Model';
@@ -421,7 +422,7 @@ export default class ApiClient<
     resource: Resource,
   ): Promise<DataModelMetadata<ResourceSchema<DataModel>>> {
     if (!this.loadedResources.has(resource)) {
-      const modelFragment = await this.request<Partial<DataModel>>({
+      const modelFragment = await this.request<Partial<DataModelSchema<DataModel>>>({
         method: 'GET',
         endpoint: `/_model?resource=${resource}`,
       });
