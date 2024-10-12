@@ -57,7 +57,7 @@ const props = defineProps<MenuProps>();
 const { store, i18n } = props.services;
 const updateUserRoute = store.getRoute('auth.updateUser');
 const auth = props.services.store.useSubscription<AuthState>('auth');
-const className = buildClass('menu', isDisplayed.value ? 'visible' : '');
+const className = computed(() => buildClass('menu', isDisplayed.value ? 'visible' : ''));
 const route = store.useSubscription('router', (newState: RoutingContext) => newState.route);
 
 const signOut = async () => {
