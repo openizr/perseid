@@ -839,7 +839,7 @@ export default class Store<
         engine.on('submit', async (data, next) => {
           if (data !== null) {
             const response = (id !== null)
-              ? await this.update(resource, id, data, { fields: [...fields] })
+              ? await this.update(resource, id, data, { fields: [...requestedFields] })
               : await this.create(resource, data);
             if (response !== null) {
               const [updatedResource] = this.normalizeResources(resource, [response]);
