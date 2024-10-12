@@ -29,10 +29,10 @@ import {
   type UIOptionsOption,
 } from '@perseid/ui/vue';
 import type Engine from '@perseid/form';
-import { computed, type DefineComponent } from 'vue';
 import { type Field as FormField } from '@perseid/form';
 import type BaseModel from 'scripts/core/services/Model';
 import type BaseStore from 'scripts/core/services/Store';
+import { computed, onMounted, type DefineComponent } from 'vue';
 import type BaseApiClient from 'scripts/core/services/ApiClient';
 import NestedFields from 'scripts/vue/components/NestedFields.vue';
 import { type UseSubscription } from '@perseid/store/connectors/vue';
@@ -149,6 +149,13 @@ const labels = computed(() => ({
     label: context.value.services.i18n.t(`${context.value.prefix}.FIELDS.${fieldPath.value}.OPTIONS.${option.label}`),
   })),
 }));
+
+// Sets default value to `false` for boolean fields.
+onMounted(() => {
+  if (fieldConfiguration.value?.component === 'Options' && props.type === 'boolean') {
+    props.engine.userAction({ type: 'input', path: props.path, data: false });
+  }
+});
 </script>
 
 <template>
