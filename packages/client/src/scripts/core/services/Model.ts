@@ -10,8 +10,8 @@ import {
   Id,
   type FieldSchema,
   Model as BaseModel,
-  type ResourceSchema,
   type DefaultDataModel,
+  type DataModelSchema,
 } from '@perseid/core';
 
 /**
@@ -34,7 +34,10 @@ export default class Model<
     const formattedSchema: Record<string, unknown> = { ...schema };
     const { fields } = formattedSchema;
     if (formattedSchema.pattern !== undefined) {
-      formattedSchema.pattern = new RegExp(formattedSchema.pattern as string);
+      formattedSchema.pattern = new RegExp(
+        (formattedSchema.pattern as { source: string; }).source,
+        (formattedSchema.pattern as { flags: string; }).flags,
+      );
     }
     if (formattedSchema.enum !== undefined && formattedSchema.type === 'date') {
       formattedSchema.enum = (formattedSchema.enum as string[]).map((date) => new Date(date));
@@ -58,16 +61,13 @@ export default class Model<
    *
    * @param schemaFragment Fragment of data model schema. Contains a subset of resources schemas.
    */
-  public update(schemaFragment: Partial<DataModel>): void {
+  public update(schemaFragment: Partial<DataModelSchema<DataModel>>): void {
     const resources = (Object.keys(schemaFragment) as (keyof DataModel)[]);
     Object.assign(this.schema, resources.reduce((model, resource) => {
-      const resourceDataModel = (schemaFragment)[resource] as ResourceSchema<DataModel>;
+      const resourceDataModel = schemaFragment[resource] as unknown as Record<string, unknown>;
       return {
         ...model,
-        [resource]: {
-          ...resourceDataModel,
-          fields: this.deserializeSchema(resourceDataModel.fields),
-        },
+        [resource]: this.deserializeSchema(resourceDataModel),
       };
     }, {}));
   }

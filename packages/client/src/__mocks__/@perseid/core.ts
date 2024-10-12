@@ -17,7 +17,11 @@ export class HttpClient {
     await this.mock();
   }
 }
-export class Model { protected mocked = vi.fn(); }
+export class Model {
+  protected mocked = vi.fn();
+
+  protected schema = {};
+}
 export class Logger { protected mocked = vi.fn(); }
 export class Id { public toString = vi.fn(() => '000000000000000000000001'); }
 export const toSnakeCase = vi.fn((variable: string) => `TO_SNAKE_CASE_${variable}`);

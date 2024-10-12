@@ -249,9 +249,9 @@ describe('scripts/react/components/FormField', () => {
       <Field
         isActive
         isRequired
-        type="null"
         error={null}
         value={null}
+        type="boolean"
         status="initial"
         engine={engine}
         Field={SubField}
@@ -261,7 +261,8 @@ describe('scripts/react/components/FormField', () => {
       />,
     );
     expect(container.firstChild).toMatchSnapshot();
-    expect(engine.userAction).toHaveBeenCalledOnce();
+    expect(engine.userAction).toHaveBeenCalledTimes(2);
+    expect(engine.userAction).toHaveBeenCalledWith({ data: false, path: 'root.0.field', type: 'input' });
     expect(engine.userAction).toHaveBeenCalledWith({ data: 'test', path: 'root.0.field', type: 'input' });
   });
 

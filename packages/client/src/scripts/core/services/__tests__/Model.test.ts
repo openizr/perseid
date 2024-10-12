@@ -6,22 +6,81 @@
  *
  */
 
+import { Id, type IdSchema } from '@perseid/core';
 import Model from 'scripts/core/services/Model';
-import { type DefaultDataModel, deepMerge } from '@perseid/core';
+
+type TestModel = Model & {
+  schema: Model['schema'];
+};
 
 describe('core/services/Model', () => {
   vi.mock('@perseid/core');
 
-  let model: Model;
+  let model: TestModel;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    model = new Model();
+    model = new Model() as TestModel;
   });
 
   test('[update]', () => {
-    model.update({ users: { test: { type: 'string' } } } as unknown as Partial<DefaultDataModel>);
-    expect(deepMerge).toHaveBeenCalledOnce();
-    expect(deepMerge).toHaveBeenCalledWith(undefined, { users: { test: { type: 'string' } } });
+    model.update({
+      users: {
+        fields: {
+          test: {
+            type: 'string',
+            pattern: {
+              source: 'test',
+              flags: 'ig',
+            } as unknown as RegExp,
+          },
+          date: {
+            type: 'date',
+            enum: ['2023-01-01T00:00:00.000Z' as unknown as Date],
+          },
+          id: {
+            type: 'id',
+            enum: ['000000000000000000000001' as unknown as Id],
+          },
+          array: {
+            type: 'array',
+            fields: {
+              type: 'object',
+              fields: {
+                test: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(model.schema).toEqual({
+      users: {
+        fields: {
+          test: {
+            type: 'string',
+            pattern: /test/ig,
+          },
+          date: {
+            type: 'date',
+            enum: [new Date('2023-01-01T00:00:00.000Z')],
+          },
+          id: {
+            type: 'id',
+            enum: [expect.any(Id)],
+          },
+          array: {
+            type: 'array',
+            fields: {
+              type: 'object',
+              fields: {
+                test: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect((model.schema.users.fields.id as IdSchema<DataModel>).enum?.[0].toString()).toEqual('000000000000000000000001');
   });
 });

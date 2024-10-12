@@ -90,11 +90,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: '000000000000000000000001',
               label: '000000000000000000000001',
@@ -115,11 +112,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: '000000000000000000000001',
               label: '000000000000000000000001',
@@ -257,11 +251,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: 'Sun Jan 01 2023 00:00:00 GMT+0000 (Coordinated Universal Time)',
               label: 'SUN JAN 01 2023 00:00:00 GMT+0000 (COORDINATED UNIVERSAL TIME)',
@@ -282,11 +273,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: 'Sun Jan 01 2023 00:00:00 GMT+0000 (Coordinated Universal Time)',
               label: 'SUN JAN 01 2023 00:00:00 GMT+0000 (COORDINATED UNIVERSAL TIME)',
@@ -357,11 +345,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: '1',
               label: '1',
@@ -381,11 +366,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: '1',
               label: '1',
@@ -456,11 +438,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: '1',
               label: '1',
@@ -480,11 +459,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: '1',
               label: '1',
@@ -540,11 +516,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: 'test',
               label: 'TEST',
@@ -564,11 +537,8 @@ describe('core/services/FormBuilder', () => {
           component: 'Options',
           componentProps: {
             select: true,
+            placeholder: 'PLACEHOLDER',
             options: [{
-              type: 'option',
-              value: 'null',
-              label: 'PLACEHOLDER',
-            }, {
               type: 'option',
               value: 'test',
               label: 'TEST',
