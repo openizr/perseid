@@ -6,23 +6,89 @@
  *
  */
 
+import { Id } from '@perseid/core';
 import Model from 'scripts/core/services/Model';
 import schema, { type DataModel } from 'scripts/core/services/__mocks__/schema';
 
 type TestModel = Model<DataModel> & {
   relationsPerResource: Model['relationsPerResource'];
+  generatePublicSchemaFrom: Model['generatePublicSchemaFrom'];
 };
 
 describe('core/services/Model', () => {
   vi.mock('@perseid/core');
+  let model: TestModel;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    model = new Model(schema) as TestModel;
+  });
+
+  test('[generatePublicSchemaFrom]', () => {
+    expect(model.generatePublicSchemaFrom({
+      type: 'object',
+      fields: {
+        test: {
+          type: 'string',
+          pattern: {
+            source: 'test',
+            flags: 'ig',
+          } as unknown as RegExp,
+        },
+        date: {
+          type: 'date',
+          enum: [new Date('2023-01-01T00:00:00.000Z')],
+        },
+        id: {
+          type: 'id',
+          enum: [new Id('000000000000000000000001')],
+        },
+        array: {
+          type: 'array',
+          fields: {
+            type: 'object',
+            fields: {
+              test: { type: 'string' },
+            },
+          },
+        },
+      },
+    })).toEqual({
+      type: 'object',
+      fields: {
+        test: {
+          type: 'string',
+          isIndexed: false,
+          pattern: {
+            source: 'test',
+            flags: 'ig',
+          },
+        },
+        date: {
+          type: 'date',
+          isIndexed: false,
+          enum: ['2023-01-01T00:00:00.000Z'],
+        },
+        id: {
+          type: 'id',
+          isIndexed: false,
+          enum: ['000000000000000000000001'],
+        },
+        array: {
+          type: 'array',
+          fields: {
+            type: 'object',
+            fields: {
+              test: { type: 'string', isIndexed: false },
+            },
+          },
+        },
+      },
+    });
   });
 
   test('[constructor]', () => {
-    const otherModel = new Model<DataModel>(schema) as TestModel;
-    expect(otherModel.relationsPerResource).toEqual({
+    expect(model.relationsPerResource).toEqual({
       test: new Set(['test', 'otherTest']),
       otherTest: new Set(['test', 'otherTest']),
     });
@@ -153,13 +219,11 @@ describe('core/services/Model', () => {
 
   describe('[getPublicSchema]', () => {
     test('collection does not exist', () => {
-      const otherModel = new Model<DataModel>(schema) as TestModel;
-      expect(otherModel.getPublicSchema('unknown' as unknown as 'test')).toBeNull();
+      expect(model.getPublicSchema('unknown' as unknown as 'test')).toBeNull();
     });
 
     test('collection exists', () => {
-      const otherModel = new Model(schema) as unknown as TestModel;
-      expect(otherModel.getPublicSchema('test')).toEqual({
+      expect(model.getPublicSchema('test')).toEqual({
         otherTest: {
           type: 'object',
           fields: {
@@ -177,6 +241,16 @@ describe('core/services/Model', () => {
               isIndexed: false,
               isRequired: true,
               type: 'binary',
+            },
+            enum: {
+              enum: [
+                'ONE',
+                'TWO',
+                'THREE',
+              ],
+              isIndexed: false,
+              isRequired: true,
+              type: 'string',
             },
             optionalRelation: {
               type: 'id',

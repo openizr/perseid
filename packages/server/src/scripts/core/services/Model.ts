@@ -7,11 +7,13 @@
  */
 
 import {
-  Model as BaseModel,
+  Id,
+  type IdSchema,
   type ArraySchema,
   type FieldSchema,
   type StringSchema,
   type ObjectSchema,
+  Model as BaseModel,
   type ResourceSchema,
   type DataModelSchema,
   type DefaultDataModel,
@@ -124,6 +126,37 @@ export default class Model<
   };
 
   /**
+   * Serializes `schema` to send it through HTTP.
+   *
+   * @param schema Data model field schema to serialize.
+   *
+   * @returns Serialized schema.
+   */
+  private serializeSchema(schema: FieldSchema<DataModel>): Record<string, unknown> {
+    const serializedSchema: Record<string, unknown> = { ...schema };
+    const { fields } = serializedSchema;
+    const { pattern } = schema as StringSchema;
+    if (pattern !== undefined) {
+      serializedSchema.pattern = { source: pattern.source, flags: pattern.flags };
+    }
+    if (serializedSchema.enum !== undefined && serializedSchema.type === 'date') {
+      serializedSchema.enum = (serializedSchema.enum as Date[]).map((date) => date.toISOString());
+    } else if (serializedSchema.enum !== undefined && serializedSchema.type === 'id') {
+      serializedSchema.enum = (serializedSchema.enum as Id[]).map((id) => String(id));
+    }
+    if (serializedSchema.type === 'array') {
+      serializedSchema.fields = this.serializeSchema(fields as ArraySchema<DataModel>['fields']);
+    } else if (fields !== undefined) {
+      const objectFields = fields as ObjectSchema<DataModel>['fields'];
+      serializedSchema.fields = Object.keys(objectFields).reduce((subFields, key) => ({
+        ...subFields,
+        [key]: this.serializeSchema(objectFields[key]),
+      }), {});
+    }
+    return serializedSchema;
+  }
+
+  /**
    * Generates public data schema from `schema`.
    *
    * @param schema Data model schema from which to generate public schema.
@@ -139,12 +172,12 @@ export default class Model<
     schema: FieldSchema<DataModel>,
     relations = new Set<string>(),
   ): FieldSchema<DataModel> {
-    const { errorMessages, type, ...rest } = schema;
+    const { errorMessages, type, ...rest } = this.serializeSchema(schema);
     if (errorMessages) {
       // No-op.
     }
     if (type === 'array') {
-      const { fields } = schema;
+      const { fields } = schema as ArraySchema<DataModel>;
       return {
         type,
         ...rest,
@@ -152,19 +185,20 @@ export default class Model<
       } as ArraySchema<DataModel>;
     }
     if (type === 'object') {
+      const { fields } = schema as ObjectSchema<DataModel>;
       return {
         type,
         ...rest,
-        fields: Object.keys(schema.fields).reduce((fields, key) => ({
-          ...fields,
-          [key]: this.generatePublicSchemaFrom(schema.fields[key], relations),
+        fields: Object.keys(fields).reduce((subFields, key) => ({
+          ...subFields,
+          [key]: this.generatePublicSchemaFrom(fields[key], relations),
         }), {}),
       } as FieldSchema<DataModel>;
     }
-    if (type === 'id' && schema.relation !== undefined) {
-      const relation = schema.relation as string;
+    const relation = (schema as IdSchema<DataModel>).relation as string | undefined;
+    if (type === 'id' && relation !== undefined) {
       const isRelationAlreadyProcessed = relations.has(relation);
-      const data = this.get(schema.relation) as DataModelMetadata<ResourceSchema<DataModel>>;
+      const data = this.get(relation) as DataModelMetadata<ResourceSchema<DataModel>>;
       if (!isRelationAlreadyProcessed) {
         relations.add(relation);
         this.generatePublicSchemaFrom({ type: 'object', fields: data.schema.fields }, relations);
