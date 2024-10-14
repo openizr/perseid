@@ -46,6 +46,9 @@ declare module '@perseid/server/mysql' {
     /** MySQL client instance. */
     protected client: mysql.Pool;
 
+    /** MySQL database connection settings. Necessary to reset pool after dropping database. */
+    protected databaseSettings: DatabaseClientSettings;
+
     /** Used to format ArrayBuffers into strings. */
     protected textDecoder: TextDecoder;
 
