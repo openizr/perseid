@@ -25,9 +25,9 @@ export const forEach = async (
 export class Model {
   protected schema: Record<string, unknown>;
 
-  public get = vi.fn((collection: string) => ({
-    schema: this.schema[collection],
-    canonicalPath: [collection],
+  public get = vi.fn((resource: string) => ({
+    schema: this.schema[resource],
+    canonicalPath: [resource],
   }));
 
   constructor(schema: Record<string, unknown>) {

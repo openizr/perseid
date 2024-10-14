@@ -41,6 +41,7 @@ export interface DataModel extends DefaultDataModel {
   otherTest: Ids & {
     _createdAt: Date;
     binary: ArrayBuffer;
+    enum: 'ONE' | 'TWO' | 'THREE';
     optionalRelation: Id | DataModel['test'] | null;
     data: {
       optionalRelation: Id | DataModel['test'] | null;
@@ -169,6 +170,11 @@ export default {
         type: 'id',
         isIndexed: true,
         relation: 'test',
+      },
+      enum: {
+        type: 'string',
+        isRequired: true,
+        enum: ['ONE', 'TWO', 'THREE'],
       },
       data: {
         type: 'object',

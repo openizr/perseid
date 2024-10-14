@@ -197,6 +197,7 @@ describe('core/services/Engine', () => {
           'objectOne.optionalRelations._createdAt',
           'objectOne.optionalRelations.binary',
           'objectOne.optionalRelations.optionalRelation',
+          'objectOne.optionalRelations.enum',
           'objectOne.optionalRelations.data.optionalRelation',
           'objectOne.optionalRelations.data.optionalFlatArray',
         ]),
