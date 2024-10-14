@@ -90,14 +90,14 @@ const collection = vi.fn((name: string) => {
                 {
                   _id: new ObjectId('000000000000000000000008'),
                   optionalRelation: [{ _id: new ObjectId('000000000000000000000001') }],
-                  'data.optionalRelation': [{ _id: new ObjectId('000000000000000000000001') }],
+                  data_optionalRelation: [{ _id: new ObjectId('000000000000000000000001') }],
                 },
               ]
               : [
                 {
                   _id: new ObjectId('000000000000000000000008'),
                   optionalRelation: [{ _id: new ObjectId('000000000000000000000002') }],
-                  'data.optionalRelation': [
+                  data_optionalRelation: [
                     { _id: new ObjectId('000000000000000000000001') },
                     { _id: new ObjectId('000000000000000000000002') },
                   ],

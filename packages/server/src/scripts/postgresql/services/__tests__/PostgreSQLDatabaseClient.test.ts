@@ -135,6 +135,7 @@ describe('postgresql/services/PostgreSQLDatabaseClient', () => {
           binary: { type: 'BYTEA', isRequired: true },
           optionalRelation: { type: 'CHAR(24)', isRequired: false },
           data: { type: 'BOOLEAN', isRequired: true },
+          enum: { type: 'VARCHAR(5)', isRequired: true },
           data_optionalRelation: { type: 'CHAR(24)', isRequired: false },
           data_optionalFlatArray: { type: 'BOOLEAN', isRequired: false },
         },
@@ -1075,6 +1076,7 @@ WHERE
         _createdAt: new Date('2023-01-01'),
         binary: new ArrayBuffer(10),
         optionalRelation: null,
+        enum: 'ONE',
         data: {
           optionalFlatArray: null,
           optionalRelation: new Id('000000000000000000000002'),
@@ -1085,6 +1087,7 @@ WHERE
           {
             _id: '000000000000000000000001',
             optionalRelation: null,
+            enum: 'ONE',
             _createdAt: new Date('2023-01-01'),
             binary: expect.any(String) as string,
             data: true,
@@ -1846,6 +1849,13 @@ WHERE
     test('no error', async () => {
       await databaseClient.handleError(async () => Promise.resolve(null));
       expect(pg.Pool).toHaveBeenCalledOnce();
+      expect(pg.Pool).toHaveBeenCalledWith({
+        connectionTimeoutMillis: 0,
+        database: 'test',
+        host: 'localhost',
+        idleTimeoutMillis: 0,
+        max: 0,
+      });
       expect(logger.debug).toHaveBeenCalledOnce();
       expect(logger.debug).toHaveBeenCalledWith('[PostgreSQLDatabaseClient][handleError] Connecting to database test...');
     });
