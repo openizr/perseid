@@ -1,6 +1,6 @@
 {
   "name": "@perseid/server",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",
@@ -146,7 +146,7 @@
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
     "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts",
     "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv dist/dist.js dist/core.js && mv dist/dist.js.map dist/core.js.map",
-    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer mysql2 pg mongodb fastify express"
+    "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer mysql2@^3.11.0 pg@^8.12.0 mongodb@^6.8.0 fastify@^4.28.1 express@^4.19.2"
   },
   "peerDependencies": {
     "express": "^4.19.2",
