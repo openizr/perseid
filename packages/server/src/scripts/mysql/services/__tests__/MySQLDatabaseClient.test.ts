@@ -50,9 +50,9 @@ describe('mysql/services/MySQLDatabaseClient', () => {
     databaseClient = new MySQLDatabaseClient<DataModel>(model, logger, cacheClient, {
       protocol: 'http',
       host: 'localhost',
-      port: 3306,
-      user: 'test',
-      password: 'test',
+      port: null,
+      user: null,
+      password: null,
       database: 'test',
       connectTimeout: 0,
       connectionLimit: 0,
@@ -132,6 +132,7 @@ describe('mysql/services/MySQLDatabaseClient', () => {
           _id: { type: 'CHAR(24)', isRequired: true },
           _createdAt: { type: 'TIMESTAMP', isRequired: true },
           binary: { type: 'MEDIUMBLOB', isRequired: true },
+          enum: { type: 'VARCHAR(5)', isRequired: true },
           optionalRelation: { type: 'CHAR(24)', isRequired: false },
           data: { type: 'BIT', isRequired: true },
           data_optionalRelation: { type: 'CHAR(24)', isRequired: false },
@@ -1071,6 +1072,7 @@ WHERE
         _createdAt: new Date('2023-01-01'),
         binary: new ArrayBuffer(10),
         optionalRelation: null,
+        enum: 'ONE',
         data: {
           optionalFlatArray: null,
           optionalRelation: new Id('000000000000000000000002'),
@@ -1081,6 +1083,7 @@ WHERE
           {
             _id: '000000000000000000000001',
             optionalRelation: null,
+            enum: 'ONE',
             _createdAt: new Date('2023-01-01'),
             binary: expect.any(String) as string,
             data: true,
@@ -1839,7 +1842,14 @@ WHERE
 
     test('no error', async () => {
       await databaseClient.handleError(async () => Promise.resolve(null));
-      expect(databaseClient.client.query).toHaveBeenCalledOnce();
+      expect(mysql.createPool).toHaveBeenCalledTimes(2);
+      expect(mysql.createPool).toHaveBeenCalledWith({
+        maxIdle: 0,
+        idleTimeout: 0,
+        host: 'localhost',
+        database: 'test',
+        connectionLimit: 0,
+      });
       expect(logger.debug).toHaveBeenCalledOnce();
       expect(logger.debug).toHaveBeenCalledWith('[MySQLDatabaseClient][handleError] Connecting to database test...');
     });

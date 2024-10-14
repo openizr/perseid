@@ -63,6 +63,9 @@ export default class MySQLDatabaseClient<
   /** MySQL client instance. */
   protected client: mysql.Pool;
 
+  /** MySQL database connection settings. Necessary to reset pool after dropping database. */
+  protected databaseSettings: DatabaseClientSettings;
+
   /** Used to format ArrayBuffers into strings. */
   protected textDecoder = new TextDecoder('utf-8');
 
@@ -718,7 +721,16 @@ export default class MySQLDatabaseClient<
   protected async handleError<T>(callback: () => Promise<T>): Promise<T> {
     if (!this.isConnected) {
       this.logger.debug(`[MySQLDatabaseClient][handleError] Connecting to database ${this.database}...`);
-      await this.client.query(`USE ${this.database};`);
+      this.client = mysql.createPool({
+        host: this.databaseSettings.host,
+        database: this.database,
+        maxIdle: this.databaseSettings.connectionLimit,
+        port: this.databaseSettings.port ?? undefined,
+        user: this.databaseSettings.user ?? undefined,
+        idleTimeout: this.databaseSettings.connectTimeout,
+        password: this.databaseSettings.password ?? undefined,
+        connectionLimit: this.databaseSettings.connectionLimit,
+      });
       this.isConnected = true;
     }
     try {
@@ -760,6 +772,7 @@ export default class MySQLDatabaseClient<
     const { host } = settings;
     super(model, logger, cache, settings);
 
+    this.databaseSettings = settings;
     this.client = mysql.createPool({
       host,
       maxIdle: settings.connectionLimit,
