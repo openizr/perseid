@@ -8,7 +8,7 @@ import {
   UsersEngine,
 } from 'scripts/core/index';
 import FastifyController from 'scripts/fastify/index';
-import MongoDatabaseClient from 'scripts/mongodb/index';
+import MySQLDatabaseClient from 'scripts/mysql/index';
 import fastify, { type FastifyBaseLogger } from 'fastify';
 import { Id, deepMerge, isPlainObject } from '@perseid/core';
 import schema, { type DataModel } from 'scripts/core/services/__mocks__/schema';
@@ -24,19 +24,19 @@ const cacheClient = new CacheClient({
   connectTimeout: 0,
 });
 
-const databaseClient = new MongoDatabaseClient<DataModel>(model, logger, cacheClient, {
-  host: 'mongodb',
-  port: 27017,
-  user: null,
-  password: null,
-  protocol: 'mongodb:',
-  database: 'test',
-  // host: 'mysql',
-  // port: 3306,
-  // user: 'root',
-  // password: 'Test123!',
-  // protocol: 'mysql:',
+const databaseClient = new MySQLDatabaseClient<DataModel>(model, logger, cacheClient, {
+  // host: 'mongodb',
+  // port: 27017,
+  // user: null,
+  // password: null,
+  // protocol: 'mongodb:',
   // database: 'test',
+  host: 'mysql',
+  port: 3306,
+  user: 'root',
+  password: 'Test123!',
+  protocol: 'mysql:',
+  database: 'test',
   // host: 'postgresql',
   // port: 5432,
   // user: 'root',
@@ -47,7 +47,29 @@ const databaseClient = new MongoDatabaseClient<DataModel>(model, logger, cacheCl
   connectionLimit: 10,
 });
 
-const engine = new UsersEngine<DataModel>(
+class TestEngine extends UsersEngine<DataModel> {
+  protected async withAutomaticFields<Resource extends keyof DataModel>(
+    resource: Resource,
+    existingResource: DataModel[Resource] | null,
+    payload: Payload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]>> {
+    const fullPayload = await super.withAutomaticFields(
+      resource,
+      existingResource,
+      payload,
+      context,
+    );
+
+    if (resource === 'otherTest' && existingResource === null) {
+      (fullPayload as Payload<DataModel['otherTest']>)._createdAt = new Date();
+    }
+
+    return fullPayload;
+  }
+}
+
+const engine = new TestEngine(
   model,
   logger,
   databaseClient,
@@ -96,6 +118,22 @@ const controller = new FastifyController<DataModel>(model, logger, engine, {
         update: { path: '/users/:id' },
         delete: { path: '/users/:id' },
         search: { path: '/users/search' },
+      },
+      test: {
+        list: { path: '/test' },
+        create: { path: '/test' },
+        view: { path: '/test/:id' },
+        update: { path: '/test/:id' },
+        delete: { path: '/test/:id' },
+        search: { path: '/test/search' },
+      },
+      otherTest: {
+        list: { path: '/otherTest' },
+        create: { path: '/otherTest' },
+        view: { path: '/otherTest/:id' },
+        update: { path: '/otherTest/:id' },
+        delete: { path: '/otherTest/:id' },
+        search: { path: '/otherTest/search' },
       },
     },
   },
@@ -272,6 +310,7 @@ async function main(): Promise<void> {
       _createdAt: new Date('2023-01-01'),
       binary: new ArrayBuffer(0),
       optionalRelation: null,
+      enum: 'ONE',
       data: {
         optionalFlatArray: null,
         optionalRelation: newTest1._id,
@@ -282,6 +321,7 @@ async function main(): Promise<void> {
       _id: new Id('6672a3e15169f0ba5b26d4e2'),
       _createdAt: new Date('2023-01-01'),
       optionalRelation: null,
+      enum: 'TWO',
       binary: new ArrayBuffer(0),
       data: {
         optionalFlatArray: ['test1', 'test2'],
@@ -293,6 +333,7 @@ async function main(): Promise<void> {
       _id: new Id('6672a3e15169f0ba5b26d4e3'),
       _createdAt: new Date('2023-01-01'),
       optionalRelation: null,
+      enum: 'THREE',
       binary: new ArrayBuffer(0),
       data: {
         optionalFlatArray: ['test4'],
@@ -304,6 +345,7 @@ async function main(): Promise<void> {
       _id: new Id('6672a3e15169f0ba5b26d4e4'),
       _createdAt: new Date('2023-01-01'),
       optionalRelation: null,
+      enum: 'ONE',
       binary: new ArrayBuffer(0),
       data: {
         optionalFlatArray: ['test5'],
