@@ -294,6 +294,7 @@ export default class UsersEngine<
     this.logger.info('[UsersEngine][reset] Updating root user...');
     await this.databaseClient.update('users', _id, {
       roles: [newRole._id],
+      _verifiedAt: new Date(),
     } as Payload<DataModel['users']>);
   }
 
