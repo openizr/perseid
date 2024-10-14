@@ -623,6 +623,15 @@ declare module '@perseid/server' {
     public static readonly DEFAULT_MODEL: DataModelSchema<DefaultDataModel>;
 
     /**
+     * Serializes `schema` to send it through HTTP.
+     *
+     * @param schema Data model field schema to serialize.
+     *
+     * @returns Serialized schema.
+     */
+    private serializeSchema(schema: FieldSchema<DataModel>): Record<string, unknown>;
+
+    /**
      * Generates public data schema from `schema`.
      *
      * @param schema Data model schema from which to generate public schema.
