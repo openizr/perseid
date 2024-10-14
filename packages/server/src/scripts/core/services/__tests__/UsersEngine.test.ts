@@ -544,6 +544,7 @@ describe('core/services/UsersEngine', () => {
     expect(databaseClient.update).toHaveBeenCalledOnce();
     expect(databaseClient.update).toHaveBeenCalledWith('users', new Id('000000000000000000000001'), {
       roles: [new Id('000000000000000000000001')],
+      _verifiedAt: new Date('2023-01-01T00:00:00.000Z'),
     });
   });
 });
