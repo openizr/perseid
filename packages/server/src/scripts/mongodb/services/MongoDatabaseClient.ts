@@ -795,10 +795,11 @@ export default class MongoDatabaseClient<
       const pipeline: Document[] = [{ $limit: 1 }, { $project: {} }];
       foreignIds.forEach((value, path) => {
         const allFilters = { ...value.filters };
+        const flattenedPath = path.replace(/\./g, '_');
         const metadata = this.model.get(value.resource);
         const { schema } = metadata as DataModelMetadata<ResourceSchema<DataModel>>;
         if (!schema.enableDeletion) { allFilters._isDeleted = false; }
-        (pipeline[1].$project as Document)[path] = (allFilters._id as Id[]).map((id) => {
+        (pipeline[1].$project as Document)[flattenedPath] = (allFilters._id as Id[]).map((id) => {
           missingIds.add(`${String(id)}:${path}`);
           return new ObjectId(String(id));
         });
@@ -808,9 +809,9 @@ export default class MongoDatabaseClient<
         pipeline.push({
           $lookup: {
             from: value.resource,
-            as: path,
+            as: flattenedPath,
             foreignField: '_id',
-            localField: path,
+            localField: flattenedPath,
             pipeline: this.generateQuery(value.resource, formattedQuery),
           },
         });
@@ -822,7 +823,8 @@ export default class MongoDatabaseClient<
         const [response] = await connection.aggregate(pipeline).toArray();
 
         foreignIds.forEach((_, path) => {
-          const results = response[path] as Document[];
+          const flattenedPath = path.replace(/\./g, '_');
+          const results = response[flattenedPath] as Document[];
           for (let index = 0, { length } = results; index < length; index += 1) {
             const row = results[index];
             missingIds.delete(`${String(row._id)}:${String(path)}`);
