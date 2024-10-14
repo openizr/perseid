@@ -178,6 +178,7 @@ describe('mongodb/services/MongoDatabaseClient', () => {
             _createdAt: { bsonType: ['date'] },
             binary: { bsonType: ['binData'] },
             optionalRelation: { bsonType: ['objectId', 'null'] },
+            enum: { bsonType: ['string'] },
             data: {
               properties: {
                 optionalRelation: { bsonType: ['objectId', 'null'] },
@@ -192,7 +193,7 @@ describe('mongodb/services/MongoDatabaseClient', () => {
             },
           },
           additionalProperties: false,
-          required: ['_id', '_createdAt', 'binary', 'optionalRelation', 'data'],
+          required: ['_id', '_createdAt', 'binary', 'optionalRelation', 'enum', 'data'],
           bsonType: ['object'],
         },
       },
@@ -735,6 +736,7 @@ describe('mongodb/services/MongoDatabaseClient', () => {
         _id: new Id('000000000000000000000001'),
         _createdAt: new Date('2023-01-01'),
         binary: new ArrayBuffer(10),
+        enum: 'ONE',
         optionalRelation: null,
         data: {
           optionalFlatArray: null,
@@ -746,6 +748,7 @@ describe('mongodb/services/MongoDatabaseClient', () => {
             _id: new ObjectId('000000000000000000000001'),
             _createdAt: new Date('2023-01-01'),
             binary: new Binary(),
+            enum: 'ONE',
             optionalRelation: null,
             data: {
               optionalFlatArray: null,
@@ -1236,7 +1239,7 @@ describe('mongodb/services/MongoDatabaseClient', () => {
         resource: keyof DataModel;
         filters: SearchFilters;
       }>([
-        ['data.optionalRelation', {
+        ['data_optionalRelation', {
           resource: 'test',
           filters: {
             'objectOne.objectTwo.optionalIndexedString': 'test',
@@ -1291,7 +1294,7 @@ describe('mongodb/services/MongoDatabaseClient', () => {
         { $limit: 1 },
         {
           $project: {
-            'data.optionalRelation': [
+            data_optionalRelation: [
               new ObjectId('000000000000000000000001'),
               new ObjectId('000000000000000000000002'),
             ],
@@ -1302,10 +1305,10 @@ describe('mongodb/services/MongoDatabaseClient', () => {
         },
         {
           $lookup: {
-            as: 'data.optionalRelation',
+            as: 'data_optionalRelation',
             foreignField: '_id',
             from: 'test',
-            localField: 'data.optionalRelation',
+            localField: 'data_optionalRelation',
             pipeline: [{ pipeline: true }],
           },
         },
