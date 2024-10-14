@@ -28,11 +28,11 @@ import multiparty from 'multiparty';
 import { createWriteStream } from 'fs';
 import { type IncomingMessage } from 'http';
 import Logger from 'scripts/core/services/Logger';
+import Ajv, { type KeywordDefinition } from 'ajv';
 import NotFound from 'scripts/core/errors/NotFound';
 import Conflict from 'scripts/core/errors/Conflict';
 import EngineError from 'scripts/core/errors/Engine';
 import Forbidden from 'scripts/core/errors/Forbidden';
-import Ajv, { type KeywordDefinition } from 'ajv';
 import BadRequest from 'scripts/core/errors/BadRequest';
 import type BaseModel from 'scripts/core/services/Model';
 import DatabaseError from 'scripts/core/errors/Database';
@@ -968,7 +968,7 @@ export default class Controller<
         throw new Conflict('DUPLICATE_RESOURCE', message);
       }
       if (error instanceof DatabaseError && error.code === 'RESOURCE_REFERENCED') {
-        const message = `Resource is still referenced in collection "${error.details.collection as string}".`;
+        const message = `Resource is still referenced in "${error.details.path as string}".`;
         throw new BadRequest('RESOURCE_REFERENCED', message);
       }
       if (error instanceof DatabaseError && error.code === 'NO_RESOURCE') {

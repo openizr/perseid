@@ -817,9 +817,9 @@ describe('core/services/Controller', () => {
     test('RESOURCE_REFERENCED error', async () => {
       await expect(async () => {
         await controller.catchErrors(() => {
-          throw new DatabaseError('RESOURCE_REFERENCED', { collection: 'collection' });
+          throw new DatabaseError('RESOURCE_REFERENCED', { path: 'resource.path.to.field' });
         });
-      }).rejects.toThrow(new BadRequest('RESOURCE_REFERENCED', 'Resource is still referenced in collection "collection".'));
+      }).rejects.toThrow(new BadRequest('RESOURCE_REFERENCED', 'Resource is still referenced in "resource.path.to.field".'));
     });
 
     test('MAXIMUM_DEPTH_EXCEEDED error', async () => {
