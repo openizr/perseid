@@ -131,22 +131,28 @@ declare module '@perseid/server' {
   /**
    * Resource creation payload (excluding all its automatic fields).
    */
-  export type CreatePayload<Resource> = {
-    [K in keyof Resource as Exclude<K, `_${string}`>]: CreatePayload<Resource[K]>;
+  export type CreatePayload<ResourceDataModel> = {
+    [K in keyof Omit<ResourceDataModel, `_${string}`>]: Resource[K] extends object
+    ? CreatePayload<ResourceDataModel[K]>
+    : ResourceDataModel[K];
   };
 
   /**
    * Resource update payload (excluding all its automatic fields).
    */
-  export type UpdatePayload<Resource> = Partial<{
-    [K in keyof Resource as Exclude<K, `_${string}`>]: UpdatePayload<Resource[K]>;
+  export type UpdatePayload<ResourceDataModel> = Partial<{
+    [K in keyof Omit<ResourceDataModel, `_${string}`>]: Resource[K] extends object
+    ? UpdatePayload<ResourceDataModel[K]>
+    : ResourceDataModel[K];
   }>;
 
   /**
    * Resource creation / update payload.
    */
-  export type Payload<Resource> = Partial<{
-    [K in keyof Resource]: Payload<Resource[K]>;
+  export type Payload<ResourceDataModel> = Partial<{
+    [K in keyof ResourceDataModel]: Resource[K] extends object
+    ? UpdatePayload<ResourceDataModel[K]>
+    : ResourceDataModel[K];
   }>;
 
   /**

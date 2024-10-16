@@ -183,8 +183,7 @@ describe('core/services/UsersEngine', () => {
 
   describe('[create]', () => {
     test('users resource', async () => {
-      const payload = { email: 'test@test.io', password: 'test' } as DataModel['users'];
-      await engine.create('users', payload, {}, context);
+      await engine.create('users', { email: 'test@test.io', password: 'test', roles: [] }, {}, context);
       expect(emailClient.sendInviteEmail).toHaveBeenCalledOnce();
       expect(emailClient.sendInviteEmail).toHaveBeenCalledWith(
         'test@test.io',
@@ -194,7 +193,7 @@ describe('core/services/UsersEngine', () => {
     });
 
     test('other resource', async () => {
-      await engine.create('roles', {} as DataModel['roles'], {}, context);
+      await engine.create('roles', {} as CreatePayload<DataModel['roles']>, {}, context);
       expect(emailClient.sendInviteEmail).not.toHaveBeenCalled();
     });
   });
