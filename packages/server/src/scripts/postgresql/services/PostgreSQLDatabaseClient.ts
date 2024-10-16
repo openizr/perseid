@@ -400,7 +400,7 @@ export default class PostgreSQLDatabaseClient<
       joinClauses += `${prefix}LEFT JOIN (\n${subQuery}\n${textIndent}) AS "${joinedTables[index]}"\n${onClause}`;
     }
 
-    const fieldsClause = formattedQuery.match !== null
+    const fieldsClause = (formattedQuery.match !== null || sort !== null)
       ? [`DISTINCT "${table}"."_id"`].concat(sort !== null ? Object.keys(sort).map((path) => `"${path}"`) : []).join(', ')
       : Object.keys(formattedQuery.fields).map((fieldName) => (
         `"${table}"."${fieldName}" AS "${formattedQuery.fields[fieldName]}"`
@@ -408,11 +408,11 @@ export default class PostgreSQLDatabaseClient<
     const selectClause = `${textIndent}SELECT\n${newIndent}${fieldsClause}\n${textIndent}FROM\n${newIndent}"${table}"`;
 
     let groupClause = '';
-    if (formattedQuery.match !== null && sort !== null) {
+    if (sort !== null) {
       const sortClause = `\n${textIndent}ORDER BY\n${newIndent}${Object.keys(sort).map((path) => (
         `"${path}" ${this.SQL_SORT_MAPPING[sort[path]]}`
       )).join(`,\n${newIndent}`)}`;
-      groupClause += `\n${textIndent}GROUP BY "${table}"."_id"${sortClause}`;
+      groupClause += `\n${textIndent}GROUP BY "${table}"."_id", ${Object.keys(sort).map((path) => `"${path}"`).join(', ')}${sortClause}`;
     }
 
     const whereClause = [];
@@ -1167,9 +1167,9 @@ export default class PostgreSQLDatabaseClient<
     const searchQuery = this.generateQuery(resource, searchMetaData.formattedQuery, '  ');
     let fullSQLQuery = `WITH searchResults AS (\n${searchQuery}\n),`;
     fullSQLQuery += '\ncount AS (\n  SELECT\n    COUNT(_id) AS total\n  FROM\n    searchResults\n),';
-    fullSQLQuery += `\npagination AS (\n  SELECT\n    _id\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
+    fullSQLQuery += `\npagination AS (\n  SELECT\n    _id,\n    ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
     fullSQLQuery += '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1';
-    fullSQLQuery += `\nLEFT JOIN (\n${sqlQuery}\n) AS results\nON results._id = pagination._id;`;
+    fullSQLQuery += `\nLEFT JOIN (\n${sqlQuery}\n) AS results\nON results._id = pagination._id\nORDER BY pagination.row_num;`;
 
     searchMetaData.formattedQuery.match?.query.forEach((filter) => {
       values.push(Object.values(filter)[0]);
@@ -1235,9 +1235,9 @@ export default class PostgreSQLDatabaseClient<
     const searchQuery = this.generateQuery(resource, searchMetaData.formattedQuery, '  ');
     let fullSQLQuery = `WITH searchResults AS (\n${searchQuery}\n),`;
     fullSQLQuery += '\ncount AS (\n  SELECT\n    COUNT(_id) AS total\n  FROM\n    searchResults\n),';
-    fullSQLQuery += `\npagination AS (\n  SELECT\n    _id\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
+    fullSQLQuery += `\npagination AS (\n  SELECT\n    _id,\n    ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
     fullSQLQuery += '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1';
-    fullSQLQuery += `\nLEFT JOIN (\n${sqlQuery}\n) AS results\nON results._id = pagination._id;`;
+    fullSQLQuery += `\nLEFT JOIN (\n${sqlQuery}\n) AS results\nON results._id = pagination._id\nORDER BY pagination.row_num;`;
 
     return this.handleError(async () => {
       this.logger.debug('[PostgreSQLDatabaseClient][list] Performing the following SQL query on database:');
