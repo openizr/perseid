@@ -2173,21 +2173,23 @@ WHERE
           { key: 'test', _id: '000000000000000000000002' },
         ],
         otherTest: [{ otherKey: 'test2' }],
+        _test_objectOne_optionalRelations: [{ value: 'test' }],
       })));
       const payload = { indexedString: 'test' } as DataModel['test'];
       await databaseClient.update('test', new Id('000000000000000000000001'), payload);
       expect(connection.beginTransaction).toHaveBeenCalledOnce();
-      const query1 = 'UPDATE `test` SET\n  `_id` = ?,\n  `key` = ?,\n  `_id` = ?,\n  `key` = ?\nWHERE\n  _id = ?\n  AND `_isDeleted` = false;';
+      const query1 = 'DELETE FROM `_test_1` WHERE `_resourceId` = ?;';
       const query2 = 'DELETE FROM `otherTest` WHERE `_resourceId` = ?;';
-      const query3 = 'INSERT INTO `otherTest` (\n  `otherKey`\n)\nVALUES\n  (?);';
+      const query3 = 'UPDATE `test` SET\n  `_id` = ?,\n  `key` = ?,\n  `_id` = ?,\n  `key` = ?\nWHERE\n  _id = ?\n  AND `_isDeleted` = false;';
+      const query4 = 'INSERT INTO `otherTest` (\n  `otherKey`\n)\nVALUES\n  (?);';
       const log1 = '[MySQLDatabaseClient][update] Performing the following SQL query on database:';
       const log2 = `[MySQLDatabaseClient][update]\n\n${query1}\n`;
       const log3 = '[MySQLDatabaseClient][update] [\n  000000000000000000000001\n]\n';
       const log4 = `[MySQLDatabaseClient][update]\n\n${query2}\n`;
       const log5 = '[MySQLDatabaseClient][update] [\n  000000000000000000000001\n]\n';
-      const log6 = `[MySQLDatabaseClient][update]\n\n${query3}\n`;
+      const log6 = `[MySQLDatabaseClient][update]\n\n${query4}\n`;
       const log7 = '[MySQLDatabaseClient][update] [\n  test2\n]\n';
-      expect(logger.debug).toHaveBeenCalledTimes(9);
+      expect(logger.debug).toHaveBeenCalledTimes(15);
       expect(logger.debug).toHaveBeenCalledWith(log1);
       expect(logger.debug).toHaveBeenCalledWith(log2);
       expect(logger.debug).toHaveBeenCalledWith(log3);
@@ -2195,18 +2197,21 @@ WHERE
       expect(logger.debug).toHaveBeenCalledWith(log5);
       expect(logger.debug).toHaveBeenCalledWith(log6);
       expect(logger.debug).toHaveBeenCalledWith(log7);
-      expect(connection.execute).toHaveBeenCalledTimes(3);
-      expect(connection.execute).toHaveBeenCalledWith(query1, [
+      expect(connection.execute).toHaveBeenCalledTimes(5);
+      expect(connection.execute).toHaveBeenNthCalledWith(1, query1, [
+        '000000000000000000000001',
+      ]);
+      expect(connection.execute).toHaveBeenNthCalledWith(2, query2, [
+        '000000000000000000000001',
+      ]);
+      expect(connection.execute).toHaveBeenNthCalledWith(3, query3, [
         '000000000000000000000001',
         'test',
         '000000000000000000000002',
         'test',
         '000000000000000000000001',
       ]);
-      expect(connection.execute).toHaveBeenCalledWith(query2, [
-        '000000000000000000000001',
-      ]);
-      expect(connection.execute).toHaveBeenCalledWith(query3, [
+      expect(connection.execute).toHaveBeenNthCalledWith(4, query4, [
         'test2',
       ]);
       expect(connection.commit).toHaveBeenCalledOnce();
