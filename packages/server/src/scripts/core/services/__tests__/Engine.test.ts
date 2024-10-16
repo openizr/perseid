@@ -382,7 +382,7 @@ describe('core/services/Engine', () => {
     vi.spyOn(engine, 'withAutomaticFields').mockImplementation(mockedCheckAndUpdatePayload);
     vi.spyOn(engine, 'checkAndUpdatePayload').mockImplementation(mockedCheckAndUpdatePayload);
     const updatedPayload = { indexedString: 'test', updated: true };
-    const payload = { indexedString: 'test' } as CreatePayload<DataModel['test']>;
+    const payload = { indexedString: 'test' } as unknown as CreatePayload<DataModel['test']>;
     await engine.create('test', payload, {}, context);
     expect(engine.rbac).toHaveBeenCalledOnce();
     expect(engine.rbac).toHaveBeenCalledWith(permissions, null, payload, context);
