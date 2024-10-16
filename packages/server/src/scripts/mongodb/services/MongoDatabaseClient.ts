@@ -660,7 +660,7 @@ export default class MongoDatabaseClient<
     } catch (error) {
       const mongoError = error as MongoServerError;
       if (mongoError.code === 11000) {
-        const matches = /dup key: { ([^:]+): ([^:]+) }/.exec(mongoError.message) as string[];
+        const matches = /dup key: { ([^:]+): "([^:]+)" }/.exec(mongoError.message) as string[];
         throw new DatabaseError('DUPLICATE_RESOURCE', {
           path: matches[1],
           value: matches[2],
