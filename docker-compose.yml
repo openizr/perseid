@@ -190,7 +190,7 @@ services:
     container_name: ${PROJECT_NAME}_postgresql
     environment:
       POSTGRES_PORT: 5432
-      POSTGRES_DB: root
+      POSTGRES_DB: test
       POSTGRES_USER: root
       POSTGRES_PASSWORD: Test123!
     ports:
