@@ -1,3 +1,21 @@
+## @perseid/server:2.0.6 (2024-10-16)
+
+### Bugs
+- Fix typo in `RESOURCE_REFERENCED` error handling
+- Correctly serialize data model schema for API client
+- Fix `MySQLDatabaseClient.handleError` connection pool issue
+- Fix foreign key errors in `MySQLDatabaseClient.update` method
+- Fix foreign key errors in `PostgreSQLDatabaseClient.update` method
+- Fix `MongoDatabaseClient.checkForeignIds` aggregate pipeline for nested relations
+- Fix results sorting in MySQL `list` and `search` methods implementation
+- Fix results sorting in PostgreSQL `list` and `search` methods implementation
+
+### Improvements
+- Improve types definitions
+- Automatically verify root user email on reset
+- Uniformize `RESOURCE_EXISTS` error message across implementations
+
+
 ## @perseid/client:2.1.2 (2024-10-12)
 
 ### Bugs
