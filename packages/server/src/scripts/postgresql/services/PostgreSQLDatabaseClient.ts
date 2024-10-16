@@ -1023,19 +1023,24 @@ export default class PostgreSQLDatabaseClient<
       const connection = await this.client.connect();
       await connection.query('BEGIN');
       try {
-        await Promise.all(Object.keys(newDocuments).map(async (table) => {
-          const sqlFields: string[] = [];
-          const documents = newDocuments[table];
-          const { structure } = this.resourcesMetadata[table];
-
+        const tables = Object.keys(newDocuments);
+        // We need to sort tables from the most specific to the root resource before deletion, in
+        // order to prevent foreign keys constraints issues on nested fields deletion.
+        await Promise.all([...tables].sort((a, b) => b.length - a.length).map(async (table) => {
           if (table !== resource) {
+            const { structure } = this.resourcesMetadata[table];
             const sqlQuery = `DELETE FROM "${structure}" WHERE "_resourceId" = $1;`;
             this.logger.debug('[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:');
             this.logger.debug(`[PostgreSQLDatabaseClient][update]\n\n${sqlQuery}\n`);
             this.logger.debug(`[PostgreSQLDatabaseClient][update] [\n  ${resourceId}\n]\n`);
             await connection.query(sqlQuery, [resourceId]);
           }
+        }));
 
+        await Promise.all(tables.map(async (table) => {
+          const sqlFields: string[] = [];
+          const documents = newDocuments[table];
+          const { structure } = this.resourcesMetadata[table];
           if (documents.length > 0) {
             const values: unknown[] = [];
             const fieldPlaceholders: string[] = [];

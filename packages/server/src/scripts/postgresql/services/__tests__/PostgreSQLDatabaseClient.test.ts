@@ -2150,7 +2150,7 @@ WHERE
         const payload = { indexedString: 'test' } as DataModel['test'];
         await databaseClient.update('test', new Id('000000000000000000000001'), payload);
       }).rejects.toEqual(new Error('ERROR'));
-      expect(connection.query).toHaveBeenCalledTimes(4);
+      expect(connection.query).toHaveBeenCalledTimes(3);
       expect(connection.query).toHaveBeenCalledWith('ROLLBACK');
       expect(connection.release).toHaveBeenCalledOnce();
     });
@@ -2166,12 +2166,14 @@ WHERE
           { key: 'test', _id: '000000000000000000000002' },
         ],
         otherTest: [{ otherKey: 'test2' }],
+        _test_objectOne_optionalRelations: [{ value: 'test' }],
       })));
       const payload = { indexedString: 'test' } as DataModel['test'];
       await databaseClient.update('test', new Id('000000000000000000000001'), payload);
-      const query1 = 'UPDATE "test" SET\n  "_id" = $1,\n  "key" = $2,\n  "_id" = $3,\n  "key" = $4\nWHERE\n  _id = $5\n  AND "_isDeleted" = false;';
+      const query1 = 'DELETE FROM "_test_1" WHERE "_resourceId" = $1;';
       const query2 = 'DELETE FROM "otherTest" WHERE "_resourceId" = $1;';
-      const query3 = 'INSERT INTO "otherTest" (\n  "otherKey"\n)\nVALUES\n  ($1);';
+      const query3 = 'UPDATE "test" SET\n  "_id" = $1,\n  "key" = $2,\n  "_id" = $3,\n  "key" = $4\nWHERE\n  _id = $5\n  AND "_isDeleted" = false;';
+      const query4 = 'INSERT INTO "otherTest" (\n  "otherKey"\n)\nVALUES\n  ($1);';
       const log1 = '[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:';
       const log2 = `[PostgreSQLDatabaseClient][update]\n\n${query1}\n`;
       const log3 = '[PostgreSQLDatabaseClient][update] [\n  000000000000000000000001\n]\n';
@@ -2179,20 +2181,21 @@ WHERE
       const log5 = '[PostgreSQLDatabaseClient][update] [\n  000000000000000000000001\n]\n';
       const log6 = `[PostgreSQLDatabaseClient][update]\n\n${query3}\n`;
       const log7 = '[PostgreSQLDatabaseClient][update] [\n  test2\n]\n';
-      expect(connection.query).toHaveBeenCalledTimes(5);
-      expect(connection.query).toHaveBeenCalledWith('BEGIN');
-      expect(connection.query).toHaveBeenCalledWith('COMMIT');
-      expect(connection.query).not.toHaveBeenCalledWith('ROLLBACK');
-      expect(connection.query).toHaveBeenCalledWith(query1, [
+      expect(connection.query).toHaveBeenCalledTimes(7);
+      expect(connection.query).toHaveBeenNthCalledWith(1, 'BEGIN');
+      expect(connection.query).toHaveBeenNthCalledWith(2, query1, ['000000000000000000000001']);
+      expect(connection.query).toHaveBeenNthCalledWith(3, query2, ['000000000000000000000001']);
+      expect(connection.query).toHaveBeenNthCalledWith(4, query3, [
         '000000000000000000000001',
         'test',
         '000000000000000000000002',
         'test',
         '000000000000000000000001',
       ]);
-      expect(connection.query).toHaveBeenCalledWith(query2, ['000000000000000000000001']);
-      expect(connection.query).toHaveBeenCalledWith(query3, ['test2']);
-      expect(logger.debug).toHaveBeenCalledTimes(9);
+      expect(connection.query).toHaveBeenNthCalledWith(5, query4, ['test2']);
+      expect(connection.query).toHaveBeenNthCalledWith(7, 'COMMIT');
+      expect(connection.query).not.toHaveBeenCalledWith('ROLLBACK');
+      expect(logger.debug).toHaveBeenCalledTimes(15);
       expect(logger.debug).toHaveBeenCalledWith(log1);
       expect(logger.debug).toHaveBeenCalledWith(log2);
       expect(logger.debug).toHaveBeenCalledWith(log3);
