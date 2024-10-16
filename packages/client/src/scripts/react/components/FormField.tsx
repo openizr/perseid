@@ -73,10 +73,10 @@ export default function FormField(
 
     // Sets default value to `false` for boolean fields.
     React.useEffect(() => {
-      if (fieldConfiguration?.component === 'Options' && type === 'boolean') {
-        engine.userAction({ type: 'input', path, data: false });
+      if (fieldConfiguration?.component === 'Options' && type === 'boolean' && value === null) {
+        engine.userAction({ type: 'input', path, data: value });
       }
-    }, [engine, fieldConfiguration?.component, path, type]);
+    }, [engine, fieldConfiguration?.component, path, type, value]);
 
     if (fieldConfiguration?.component === 'Button') {
       return (
@@ -178,9 +178,10 @@ export default function FormField(
           helper={labels.helper}
           placeholder={labels.placeholder}
           options={labels.options as UIOptionsOption[]}
-          value={(value as string | undefined) ?? undefined}
+          value={(type === 'boolean') ? String(value) : (value as string | undefined) ?? undefined}
           onChange={(newValue): void => {
-            engine.userAction({ type: 'input', path, data: newValue });
+            const data = (type === 'boolean' && componentProps.multiple) ? newValue[1] === 'true' : newValue;
+            engine.userAction({ type: 'input', path, data });
           }}
           {...componentProps}
         />

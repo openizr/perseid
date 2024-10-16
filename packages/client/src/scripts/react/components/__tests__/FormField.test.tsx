@@ -262,8 +262,8 @@ describe('scripts/react/components/FormField', () => {
     );
     expect(container.firstChild).toMatchSnapshot();
     expect(engine.userAction).toHaveBeenCalledTimes(2);
-    expect(engine.userAction).toHaveBeenCalledWith({ data: false, path: 'root.0.field', type: 'input' });
     expect(engine.userAction).toHaveBeenCalledWith({ data: 'test', path: 'root.0.field', type: 'input' });
+    expect(engine.userAction).toHaveBeenCalledWith({ data: null, path: 'root.0.field', type: 'input' });
   });
 
   test('renders correctly - Message', () => {

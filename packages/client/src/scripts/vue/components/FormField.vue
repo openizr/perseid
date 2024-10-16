@@ -152,7 +152,7 @@ const labels = computed(() => ({
 
 // Sets default value to `false` for boolean fields.
 onMounted(() => {
-  if (fieldConfiguration.value?.component === 'Options' && props.type === 'boolean') {
+  if (fieldConfiguration.value?.component === 'Options' && props.type === 'boolean' && props.value === null) {
     props.engine.userAction({ type: 'input', path: props.path, data: false });
   }
 });
@@ -238,9 +238,12 @@ onMounted(() => {
     :helper="labels.helper"
     :placeholder="labels.placeholder"
     :options="labels.options as UIOptionsOption[]"
-    :value="(value as string | undefined) ?? undefined"
-    :on-change="(newValue): void => {
-      (engine as Engine).userAction({ type: 'input', path, data: newValue });
+    :value="(type === 'boolean') ? String(value) : (value as string | undefined) ?? undefined"
+    :on-change="(newValue: string[]): void => {
+      const data = (type === 'boolean' && componentProps.multiple)
+        ? newValue[1] === 'true'
+        : newValue;
+      (engine as Engine).userAction({ type: 'input', path, data });
     }"
     v-bind="componentProps"
   />

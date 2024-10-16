@@ -74,7 +74,7 @@ exports[`scripts/react/components/FormField > renders correctly - Options 1`] = 
 <div
   id="ui-options"
 >
-  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","options":[{"type":"option","value":"test","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.OPTIONS.undefined"}]}
+  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","options":[{"type":"option","value":"test","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.OPTIONS.undefined"}],"value":"null"}
   <span>
     <span />
     <span>
