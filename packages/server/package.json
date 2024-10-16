@@ -7,28 +7,28 @@
   "types": "./core.d.ts",
   "exports": {
     ".": {
-      "default": "./core.js",
-      "types": "./core.d.ts"
+      "types": "./core.d.ts",
+      "default": "./core.js"
     },
     "./mongodb": {
-      "default": "./mongodb.js",
-      "types": "./mongodb.d.ts"
+      "types": "./mongodb.d.ts",
+      "default": "./mongodb.js"
     },
     "./mysql": {
-      "default": "./mysql.js",
-      "types": "./mysql.d.ts"
+      "types": "./mysql.d.ts",
+      "default": "./mysql.js"
     },
     "./postgresql": {
-      "default": "./postgresql.js",
-      "types": "./postgresql.d.ts"
+      "types": "./postgresql.d.ts",
+      "default": "./postgresql.js"
     },
     "./express": {
-      "default": "./express.js",
-      "types": "./express.d.ts"
+      "types": "./express.d.ts",
+      "default": "./express.js"
     },
     "./fastify": {
-      "default": "./fastify.js",
-      "types": "./fastify.d.ts"
+      "types": "./fastify.d.ts",
+      "default": "./fastify.js"
     }
   },
   "description": "Dynamic, data model-based REST APIs generator",
