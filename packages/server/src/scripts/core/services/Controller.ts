@@ -964,7 +964,7 @@ export default class Controller<
         throw new BadRequest('MAXIMUM_DEPTH_EXCEEDED', message);
       }
       if (error instanceof DatabaseError && error.code === 'DUPLICATE_RESOURCE') {
-        const message = `Resource with field "${error.details.path as string}" set to "${error.details.value as string}" already exists.`;
+        const message = `Resource with field value "${error.details.value as string}" already exists.`;
         throw new Conflict('DUPLICATE_RESOURCE', message);
       }
       if (error instanceof DatabaseError && error.code === 'RESOURCE_REFERENCED') {

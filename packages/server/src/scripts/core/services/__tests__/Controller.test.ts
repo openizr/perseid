@@ -723,7 +723,7 @@ describe('core/services/Controller', () => {
         await controller.catchErrors(() => {
           throw new DatabaseError('DUPLICATE_RESOURCE', { path: 'test', value: 'value' });
         });
-      }).rejects.toThrow(new Conflict('RESOURCE_EXISTS', 'Resource with field "test" set to "value" already exists.'));
+      }).rejects.toThrow(new Conflict('RESOURCE_EXISTS', 'Resource with field value "value" already exists.'));
     });
 
     test('NO_USER error', async () => {
