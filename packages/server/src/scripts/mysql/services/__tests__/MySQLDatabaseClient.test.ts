@@ -804,7 +804,7 @@ WHERE
   AND \`objectOne_objectTwo_optionalNestedArray_value_data_optionalInteger\` = ?
   AND \`objectOne_optionalRelations_value\` = ?
   AND \`objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo_optionalIndexedString\` = ?
-GROUP BY \`test\`.\`_id\`
+GROUP BY \`test\`.\`_id\`, \`indexedString\`
 ORDER BY
   \`indexedString\` DESC`,
     );
@@ -2277,10 +2277,11 @@ WHERE
       filters: { _id: new Id('000000000000000000000001'), _isDeleted: false },
     }, undefined);
     const query = 'WITH searchResults AS (\nSQL_QUERY\n),\ncount AS (\n  SELECT\n    COUNT(_id)'
-      + ' AS total\n  FROM\n    searchResults\n),\npagination AS (\n  SELECT\n    _id\n  FROM\n'
-      + '    searchResults\n  LIMIT 20\n  OFFSET 0\n)\nSELECT\n  count.total AS __total,\n  results.*'
-      + '\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1\nLEFT JOIN (\nSQL_QUERY\n) AS results'
-      + '\nON results._id = pagination._id;';
+      + ' AS total\n  FROM\n    searchResults\n),\npagination AS (\n  SELECT\n    _id,\n    '
+      + 'ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT 20\n  OFFSET 0\n)'
+      + '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination'
+      + '\nON 1 = 1\nLEFT JOIN (\nSQL_QUERY\n) AS results\nON results._id = pagination._id'
+      + '\nORDER BY pagination.row_num;';
     const log1 = '[MySQLDatabaseClient][search] Performing the following SQL query on database:';
     const log2 = `[MySQLDatabaseClient][search]\n\n${query}\n`;
     const log3 = '[MySQLDatabaseClient][search] [\n  test,\n  000000000000000000000001,\n  1,\n  2,\n  false\n]\n';
@@ -2322,10 +2323,11 @@ WHERE
     expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set(), 3);
     expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set(), 3);
     const query = 'WITH searchResults AS (\nSQL_QUERY\n),\ncount AS (\n  SELECT\n    COUNT(_id)'
-      + ' AS total\n  FROM\n    searchResults\n),\npagination AS (\n  SELECT\n    _id\n  FROM\n'
-      + '    searchResults\n  LIMIT 20\n  OFFSET 0\n)\nSELECT\n  count.total AS __total,\n  results.*'
-      + '\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1\nLEFT JOIN (\nSQL_QUERY\n) AS results'
-      + '\nON results._id = pagination._id;';
+      + ' AS total\n  FROM\n    searchResults\n),\npagination AS (\n  SELECT\n    _id,\n    '
+      + 'ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT 20\n  OFFSET 0\n)'
+      + '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination'
+      + '\nON 1 = 1\nLEFT JOIN (\nSQL_QUERY\n) AS results\nON results._id = pagination._id'
+      + '\nORDER BY pagination.row_num;';
     const log1 = '[MySQLDatabaseClient][list] Performing the following SQL query on database:';
     const log2 = `[MySQLDatabaseClient][list]\n\n${query}\n`;
     const log3 = '[MySQLDatabaseClient][list] [\n  false\n]\n';
