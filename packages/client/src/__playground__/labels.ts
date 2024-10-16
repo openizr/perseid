@@ -726,6 +726,9 @@ export default {
               TWO: 'Option 2',
               THREE: 'Option 3',
             },
+            ERRORS: {
+              REQUIRED: 'Champ requis',
+            },
           },
           OPTIONAL_RELATION: {
             LABEL: 'Relation optionnelle',
@@ -778,6 +781,9 @@ export default {
               ONE: 'Option 1',
               TWO: 'Option 2',
               THREE: 'Option 3',
+            },
+            ERRORS: {
+              REQUIRED: 'Champ requis',
             },
           },
           OPTIONAL_RELATION: {
