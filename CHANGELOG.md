@@ -1,3 +1,10 @@
+## @perseid/client:2.1.3 (2024-10-16)
+
+### Bugs
+- Fix `boolean` form fields value on update in Vue implementation
+- Fix `boolean` form fields value on update in React implementation
+
+
 ## @perseid/server:2.0.6 (2024-10-16)
 
 ### Bugs
