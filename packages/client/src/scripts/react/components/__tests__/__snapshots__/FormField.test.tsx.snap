@@ -46,6 +46,14 @@ exports[`scripts/react/components/FormField > renders correctly - LazyOptions 1`
 </div>
 `;
 
+exports[`scripts/react/components/FormField > renders correctly - LazyOptions 2`] = `
+<div
+  id="lazy-options"
+>
+  {"label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","store":{},"loadingLabel":"loading...","noResultLabel":"no result...","value":"test"}
+</div>
+`;
+
 exports[`scripts/react/components/FormField > renders correctly - Message 1`] = `
 <section
   class="ui-message initial required test"
@@ -74,7 +82,7 @@ exports[`scripts/react/components/FormField > renders correctly - Options 1`] = 
 <div
   id="ui-options"
 >
-  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"test","options":[{"type":"option","value":"test","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.OPTIONS.undefined"}],"value":"null"}
+  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"initial required ","options":[{"type":"option","value":"test","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.OPTIONS.undefined"}],"multiple":true}
   <span>
     <span />
     <span>
@@ -111,6 +119,20 @@ exports[`scripts/react/components/FormField > renders correctly - Textfield, upd
   <span
     class="ui-textfield__wrapper__field"
   />
+</div>
+`;
+
+exports[`scripts/react/components/FormField > renders correctly - boolean Options 1`] = `
+<div
+  id="ui-options"
+>
+  {"name":"root.0.field","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.LABEL","modifiers":"initial required ","options":[{"type":"option","value":"test","label":"TEST_PREFIX.FIELDS.TO_SNAKE_CASE_field.OPTIONS.undefined"}],"value":"null","multiple":true}
+  <span>
+    <span />
+    <span>
+      <span />
+    </span>
+  </span>
 </div>
 `;
 

@@ -1,6 +1,6 @@
 {
   "name": "@perseid/client",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "license": "MIT",
   "type": "module",
   "main": "./core.js",

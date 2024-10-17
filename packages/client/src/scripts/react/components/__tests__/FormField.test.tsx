@@ -242,7 +242,32 @@ describe('scripts/react/components/FormField', () => {
     const Field = FormField({
       'root.0.field': {
         component: 'Options',
-        componentProps: { modifiers: 'test', options: [{ type: 'option', value: 'test' }] },
+        componentProps: { multiple: true, options: [{ type: 'option', value: 'test' }] },
+      },
+    }, context);
+    const { container } = render(
+      <Field
+        isActive
+        isRequired
+        error={null}
+        value={null}
+        type="string"
+        status="initial"
+        engine={engine}
+        Field={SubField}
+        path="root.0.field"
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
+      />,
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  test('renders correctly - boolean Options', () => {
+    const Field = FormField({
+      'root.0.field': {
+        component: 'Options',
+        componentProps: { multiple: true, options: [{ type: 'option', value: 'test' }] },
       },
     }, context);
     const { container } = render(
@@ -262,8 +287,7 @@ describe('scripts/react/components/FormField', () => {
     );
     expect(container.firstChild).toMatchSnapshot();
     expect(engine.userAction).toHaveBeenCalledTimes(2);
-    expect(engine.userAction).toHaveBeenCalledWith({ data: 'test', path: 'root.0.field', type: 'input' });
-    expect(engine.userAction).toHaveBeenCalledWith({ data: null, path: 'root.0.field', type: 'input' });
+    expect(engine.userAction).toHaveBeenCalledWith({ data: false, path: 'root.0.field', type: 'input' });
   });
 
   test('renders correctly - Message', () => {
@@ -318,7 +342,7 @@ describe('scripts/react/components/FormField', () => {
 
   test('renders correctly - Object, optional', () => {
     const Field = FormField({
-      'root.0.field': {
+      field: {
         component: 'Object',
         componentProps: { modifiers: 'test' },
       },
@@ -348,13 +372,29 @@ describe('scripts/react/components/FormField', () => {
         componentProps: { modifiers: 'test' },
       },
     }, context);
-    const { container } = render(
+    const { container, rerender } = render(
       <Field
         isActive
         isRequired
         type="null"
         error={null}
         value={null}
+        status="initial"
+        engine={engine}
+        Field={SubField}
+        path="root.0.field"
+        setActiveStep={vi.fn()}
+        useSubscription={vi.fn()}
+      />,
+    );
+    expect(container.firstChild).toMatchSnapshot();
+    rerender(
+      <Field
+        isActive
+        isRequired
+        type="null"
+        error={null}
+        value="test"
         status="initial"
         engine={engine}
         Field={SubField}
