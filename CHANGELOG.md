@@ -1,3 +1,9 @@
+## @perseid/client:2.1.4 (2024-10-17)
+
+### Bugs
+- Fix `boolean` form fields initial value in React implementation
+
+
 ## @perseid/client:2.1.3 (2024-10-16)
 
 ### Bugs
