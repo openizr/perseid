@@ -109,7 +109,7 @@
   "devKitConfig": {
     "target": "node",
     "runInDev": true,
-    "splitChunks": false,
+    "splitChunks": true,
     "entries": {
       "core": "./__playground__/index.ts",
       "dist": "./scripts/core/index.ts",

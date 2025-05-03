@@ -55,6 +55,7 @@
   "dependencies": {},
   "devKitConfig": {
     "target": "node",
+    "splitChunks": true,
     "entries": {
       "main": "./scripts/main.ts"
     },

@@ -27,7 +27,7 @@ export default abstract class Logger {
 
   /**
    * Anything that can potentially cause application oddities, but which is not a serious concern
-   * (Such as switching from a primary to backup server, retrying an operation, missing secondary
+   * (such as switching from a primary to backup server, retrying an operation, missing secondary
    * data, etc.). Not much to worry about, but it is still important to analyze warnings on a
    * regular basis to identify potential issues.
    */

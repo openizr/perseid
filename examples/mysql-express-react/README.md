@@ -1,4 +1,4 @@
-# mongodb-express-react
+# mysql-express-react
 
 Example of a full-stack web app running on Perseid, using [MySQL](https://www.mysql.com/), [ExpressJS](https://expressjs.com/) and [React](https://reactjs.org/).
 

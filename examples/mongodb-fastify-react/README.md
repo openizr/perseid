@@ -1,4 +1,4 @@
-# mongodb-express-react
+# mongodb-fastify-react
 
 Example of a full-stack web app running on Perseid, using [MongoDB](https://mongodb.com/), [ExpressJS](https://expressjs.com/) and [React](https://reactjs.org/).
 

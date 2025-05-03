@@ -7,20 +7,20 @@
   "types": "./core.d.ts",
   "exports": {
     ".": {
-      "default": "./core.js",
-      "types": "./core.d.ts"
+      "types": "./core.d.ts",
+      "default": "./core.js"
     },
     "./react": {
-      "default": "./react.js",
-      "types": "./react.d.ts"
+      "types": "./react.d.ts",
+      "default": "./react.js"
     },
     "./vue": {
-      "default": "./vue.js",
-      "types": "./vue.d.ts"
+      "types": "./vue.d.ts",
+      "default": "./vue.js"
     },
     "./svelte": {
-      "default": "./svelte.js",
-      "types": "./svelte.d.ts"
+      "types": "./svelte.d.ts",
+      "default": "./svelte.js"
     },
     "./core/*.scss": {
       "default": "./core/*.scss"
