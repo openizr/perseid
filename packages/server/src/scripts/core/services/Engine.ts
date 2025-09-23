@@ -412,50 +412,6 @@ export default class Engine<
   }
 
   /**
- * Generates full command context.
- *
- * @param userId Id of the user to populate context with.
- *
- * @param deviceId Device id to add to the context.
- *
- * @param userAgent User agent to add to the context.
- *
- * @returns Generated command context.
- *
- * @throws If user does not exist.
- */
-  public async generateContext(
-    userId: Id,
-    deviceId?: string,
-    userAgent?: string,
-  ): Promise<CommandContext<DataModel>> {
-    const user = await this.databaseClient.view('users', userId, {
-      fields: new Set([
-        'email',
-        'roles',
-        'roles.name',
-        'roles.permissions',
-        '_apiKeys',
-        '_verifiedAt',
-        '_devices._id',
-        '_devices._userAgent',
-        '_devices._expiration',
-        '_devices._refreshToken',
-      ]),
-    });
-
-    if (user === null) {
-      throw new EngineError('NO_RESOURCE', { id: userId });
-    }
-
-    user._permissions = new Set((user.roles as DataModel['roles'][]).reduce<string[]>((permissions, role) => (
-      permissions.concat(role.permissions)
-    ), []));
-
-    return { user, deviceId, userAgent };
-  }
-
-  /**
    * Creates a new resource.
    *
    * @param resource Type of resource to create.
