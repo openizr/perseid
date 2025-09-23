@@ -403,15 +403,6 @@ export default class Engine<
   }
 
   /**
- * Resets the whole system, including database.
- */
-  public async reset(...args: unknown[]): Promise<void> {
-    this.telemetry.warn('[Engine][reset] 🕐 Resetting system in 5 seconds, it\'s still time to abort...');
-    await new Promise<unknown>((resolve) => { setTimeout(() => { resolve(args.at(0)); }, 5000); });
-    await this.databaseClient.reset();
-  }
-
-  /**
    * Creates a new resource.
    *
    * @param resource Type of resource to create.
