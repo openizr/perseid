@@ -12,20 +12,19 @@ import {
   toSnakeCase,
   type Results,
   type Authors,
-  type Version,
   type IdSchema,
   type Deletion,
   type Timestamps,
   type FieldSchema,
   type ObjectSchema,
-  type ResourceSchema,
   type DefaultDataModel,
-  type DataModelMetadata,
 } from '@perseid/core';
-import Logger from 'scripts/core/services/Logger';
 import EngineError from 'scripts/core/errors/Engine';
+import Telemetry from 'scripts/core/services/Telemetry';
 import type BaseModel from 'scripts/core/services/Model';
 import type BaseDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
+
+const noop = (...args: unknown[]): unknown => args;
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
@@ -42,13 +41,24 @@ export default class Engine<
   /** Database client types definition. */
   DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
 > {
-  /** Data model. */
+  /**
+   * Used to prevent false positives in linting.
+   */
+  private noop = noop;
+
+  /**
+   * Data model.
+   */
   protected model: Model;
 
-  /** Logging system. */
-  protected logger: Logger;
+  /**
+   * Telemetry system.
+   */
+  protected telemetry: Telemetry;
 
-  /** Database client. */
+  /**
+   * Database client.
+   */
   protected databaseClient: DatabaseClient;
 
   /**
@@ -74,8 +84,9 @@ export default class Engine<
     payload: unknown,
     context: CommandContext<DataModel>,
   ): Promise<void> {
-    const { _verifiedAt, _permissions } = context.user;
-    const isMe = String((existingResource as DataModel['users'] | null)?._id) === String(context.user._id);
+    const user = context.user as unknown as DataModel['users'];
+    const { _verifiedAt, _permissions } = user;
+    const isMe = String((existingResource as DataModel['users'] | null)?._id) === String(user._id);
 
     // Users can always update their own information.
     if (isMe) {
@@ -141,7 +152,7 @@ export default class Engine<
     const finalFields = new Set<string>();
     const requiredPermissions = new Set<string>();
     const allFields = [...fields].concat(['_id']);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    const metaData = this.model.get(resource);
 
     while (allFields.length > 0) {
       let currentDepth = 1;
@@ -163,7 +174,7 @@ export default class Engine<
           currentPath.push(fieldName);
           canonicalPath.push(fieldName);
           const subFields = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields;
-          currentSchema = subFields?.[fieldName];
+          currentSchema = subFields?.[fieldName] as unknown as FieldSchema<DataModel>;
 
           if (fieldName === 'roles') {
             requiredPermissions.add('VIEW_USERS_ROLES');
@@ -173,12 +184,12 @@ export default class Engine<
             requiredPermissions.add('VIEW_USERS_AUTH_DETAILS');
           }
 
-          if (currentSchema?.type === 'array') {
+          if (currentSchema.type === 'array') {
             currentSchema = currentSchema.fields;
           }
 
-          const type = currentSchema?.type;
-          const relation = (currentSchema as IdSchema<DataModel> | undefined)?.relation;
+          const { type } = currentSchema;
+          const { relation } = currentSchema as IdSchema<DataModel>;
 
           if (type === 'object') {
             const { fields: objectFields } = currentSchema as unknown as ObjectSchema<DataModel>;
@@ -194,7 +205,7 @@ export default class Engine<
             currentResource = relation;
             const relationMetaData = this.model.get(relation);
             requiredPermissions.add(`VIEW_${toSnakeCase(currentResource as string)}`);
-            const { schema } = relationMetaData as DataModelMetadata<ResourceSchema<DataModel>>;
+            const { schema } = relationMetaData;
             currentSchema = { type: 'object', fields: schema.fields };
             if ((splittedPath.length === 1 && splittedPath[0] === '*')) {
               Object.keys(schema.fields).forEach((subField) => {
@@ -226,83 +237,77 @@ export default class Engine<
   }
 
   /**
-   * Returns the list of fields to fetch when retrieving an existing resource for update.
-   *
-   * @param resource Type of resource for which to get existing fields.
-   *
-   * @returns Fields list.
-   */
-  protected getResourceFields<Resource extends keyof DataModel & string>(
-    resource: Resource,
-  ): Set<string> {
-    this.logger.silent(resource);
-    return new Set();
-  }
-
-  /**
-   * Returns filters to apply when checking foreign ids referencing other relations.
+   * Returns filters to apply when checking foreign IDs referencing other relations.
+   * If `null` is returned, foreign IDs will not be checked.
    *
    * @param resource Type of resource for which to return filters.
    *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
-   *
    * @param path Path to the relation reference in data model.
    *
-   * @param ids List of foreign ids to check.
+   * @param ids List of foreign IDs to check.
    *
    * @param payload Payload for updating or creating resource.
    *
    * @param context Command context.
    *
-   * @returns Filters to apply to check foreign ids.
+   * @returns Filters to apply to check foreign IDs, or `null` if they should not be checked.
    */
-  protected getRelationFilters<Resource extends keyof DataModel & string>(
+  protected getRelationFilters<Resource extends keyof DataModel>(
     resource: Resource,
-    existingResource: DataModel[Resource] | null,
     path: string,
     ids: Id[],
-    payload: UpdatePayload<DataModel[Resource]>,
+    payload: UpdatePayload<DataModel[Resource]> | DataModel[Resource],
     context: CommandContext<DataModel>,
-  ): SearchFilters {
-    this.logger.silent(resource, existingResource, path, payload, context);
+  ): SearchFilters | null {
+    this.noop(resource, path, ids, payload, context);
     return { _id: ids };
   }
 
   /**
-   * Returns updated `payload` with automatic fields.
+   * Performs business checks against `payload`, and prepares it for database insertion/update.
    *
-   * @param resource Type of resource for which to generate automatic fields.
+   * @param resource Type of resource for which to validate payload.
    *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
+   * @param operation Operation to perform.
    *
-   * @param payload Payload to update.
+   * @param payload Payload to validate and update.
    *
    * @param context Command context.
-   *
-   * @returns Payload with automatic fields.
    */
-  protected async withAutomaticFields<Resource extends keyof DataModel & string>(
+  protected async validate<Resource extends keyof DataModel & string>(
     resource: Resource,
-    existingResource: DataModel[Resource] | null,
-    payload: Payload<DataModel[Resource]>,
+    operation: 'UPDATE',
+    payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
-  ): Promise<Payload<DataModel[Resource]>> {
-    const isCreation = (existingResource === null);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
-    const fullPayload: Payload<Ids & Authors & Version & Deletion & Timestamps> = { ...payload };
+  ): Promise<Payload<DataModel[Resource]>>;
 
-    if (metaData.schema.enableAuthors) {
-      if (isCreation) {
+  protected async validate<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    operation: 'CREATE',
+    payload: CreatePayload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Ids & DataModel[Resource]>;
+
+  protected async validate<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    operation: 'CREATE' | 'UPDATE',
+    payload: CreatePayload<DataModel[Resource]> | UpdatePayload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]> | Ids & DataModel[Resource]> {
+    const metaData = this.model.get(resource);
+    const fullPayload = { ...payload } as Ids & Timestamps & Deletion & Authors;
+
+    if (metaData.schema.enableAuthors && context.user !== undefined) {
+      if (operation === 'CREATE') {
         fullPayload._updatedBy = null;
-        // A null creator happens when a new user signs-up.
-        (fullPayload as DataModel['users'])._createdBy = (context as { user?: DataModel['users']; }).user?._id ?? null;
+        fullPayload._createdBy = context.user._id;
       } else {
-        fullPayload._updatedBy = (context as { user?: DataModel['users']; }).user?._id ?? null;
+        fullPayload._updatedBy = context.user._id;
       }
     }
 
     if (metaData.schema.enableTimestamps) {
-      if (isCreation) {
+      if (operation === 'CREATE') {
         fullPayload._updatedAt = null;
         fullPayload._createdAt = new Date();
       } else {
@@ -310,42 +315,19 @@ export default class Engine<
       }
     }
 
-    if (isCreation) {
+    if (metaData.schema.enableDeletion === false) {
+      if (operation === 'CREATE') {
+        fullPayload._isDeleted = false;
+      }
+    }
+
+    if (operation === 'CREATE') {
       fullPayload._id = new Id();
     }
 
-    if (isCreation && metaData.schema.enableDeletion === false) {
-      fullPayload._isDeleted = false;
-    }
-
-    if (isCreation && metaData.schema.version !== undefined) {
-      fullPayload._version = metaData.schema.version;
-    }
-
-    return Promise.resolve(fullPayload as Payload<DataModel[Resource]>);
-  }
-
-  /**
-   * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
-   *
-   * @param resource Type of resource for which to check and update payload.
-   *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
-   *
-   * @param payload Payload to validate and update.
-   *
-   * @param context Command context.
-   */
-  protected async checkAndUpdatePayload<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    existingResource: DataModel[Resource] | null,
-    payload: Payload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
-  ): Promise<Payload<DataModel[Resource]>> {
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
-    const foreignIds = new Map<string, {
-      resource: keyof DataModel & string;
-      filters: SearchFilters;
+    const relations = new Map<string, {
+      resource: keyof DataModel;
+      filters: SearchFilters | null;
     }>();
 
     const checkPartialPayload = (
@@ -357,32 +339,31 @@ export default class Engine<
       const { type } = currentSchema;
       const { relation } = currentSchema as IdSchema<DataModel>;
 
-      if (type === 'array' && partialPayload !== null) {
-        (partialPayload as unknown[]).forEach((value) => {
+      if (type === 'array' && Array.isArray(partialPayload)) {
+        partialPayload.forEach((value) => {
           checkPartialPayload(value, currentSchema.fields, currentPath);
         });
       } else if (type === 'object' && partialPayload !== null) {
-        const { fields } = currentSchema;
-        Object.keys(partialPayload as Record<string, unknown>).forEach((fieldName) => {
+        const objectPayload = partialPayload as Record<string, unknown>;
+        Object.keys(objectPayload).forEach((fieldName) => {
           checkPartialPayload(
-            (partialPayload as Record<string, unknown>)[fieldName],
-            fields[fieldName],
+            objectPayload[fieldName],
+            currentSchema.fields[fieldName],
             currentPath.concat([fieldName]),
           );
         });
-      } else if (type === 'id' && relation !== undefined && partialPayload !== null) {
-        const existingFilters = foreignIds.get(path);
-        if (existingFilters !== undefined) {
-          (existingFilters.filters._id as Id[]).push(partialPayload as Id);
-          foreignIds.set(path, existingFilters);
+      } else if (type === 'id' && relation !== undefined && partialPayload instanceof Id) {
+        const existingFilters = relations.get(path);
+        if (existingFilters && existingFilters.filters !== null) {
+          (existingFilters.filters._id as Id[]).push(partialPayload);
+          relations.set(path, existingFilters);
         } else {
-          foreignIds.set(currentPath.join('.'), {
-            resource: relation as keyof DataModel & string,
+          relations.set(currentPath.join('.'), {
+            resource: relation,
             filters: this.getRelationFilters(
               resource,
-              existingResource,
               currentPath.join('.'),
-              [partialPayload as Id],
+              [partialPayload],
               payload,
               context,
             ),
@@ -391,10 +372,15 @@ export default class Engine<
       }
     };
 
-    checkPartialPayload(payload, { type: 'object', isRequired: true, fields: metaData.schema.fields });
+    checkPartialPayload(payload, {
+      type: 'object',
+      isRequired: true,
+      fields: metaData.schema.fields,
+    });
 
-    await this.databaseClient.checkForeignIds(resource, foreignIds);
-    return payload;
+    await this.databaseClient.checkRelations(resource, relations);
+
+    return fullPayload as DataModel[Resource];
   }
 
   /**
@@ -402,42 +388,42 @@ export default class Engine<
    *
    * @param model Data model to use.
    *
-   * @param logger Logging system to use.
+   * @param telemetry Telemetry system to use.
    *
    * @param databaseClient Database client to use.
    */
   constructor(
     model: Model,
-    logger: Logger,
+    telemetry: Telemetry,
     databaseClient: DatabaseClient,
   ) {
     this.model = model;
-    this.logger = logger;
+    this.telemetry = telemetry;
     this.databaseClient = databaseClient;
   }
 
   /**
-   * Resets the whole system, including database.
-   */
+ * Resets the whole system, including database.
+ */
   public async reset(...args: unknown[]): Promise<void> {
-    this.logger.warn('[Engine][reset] 🕐 Resetting system in 5 seconds, it\'s still time to abort...');
+    this.telemetry.warn('[Engine][reset] 🕐 Resetting system in 5 seconds, it\'s still time to abort...');
     await new Promise<unknown>((resolve) => { setTimeout(() => { resolve(args.at(0)); }, 5000); });
     await this.databaseClient.reset();
   }
 
   /**
-   * Generates full command context.
-   *
-   * @param userId Id of the user to populate context with.
-   *
-   * @param deviceId Device id to add to the context.
-   *
-   * @param userAgent User agent to add to the context.
-   *
-   * @returns Generated command context.
-   *
-   * @throws If user does not exist.
-   */
+ * Generates full command context.
+ *
+ * @param userId Id of the user to populate context with.
+ *
+ * @param deviceId Device id to add to the context.
+ *
+ * @param userAgent User agent to add to the context.
+ *
+ * @returns Generated command context.
+ *
+ * @throws If user does not exist.
+ */
   public async generateContext(
     userId: Id,
     deviceId?: string,
@@ -492,11 +478,9 @@ export default class Engine<
     const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
     parsedFields.permissions.add(`CREATE_${toSnakeCase(resource)}`);
     await this.rbac(parsedFields.permissions, null, payload, context);
-    const newPayload = payload as unknown as Payload<DataModel[Resource]>;
-    let fullPayload = await this.checkAndUpdatePayload(resource, null, newPayload, context);
-    fullPayload = await this.withAutomaticFields(resource, null, fullPayload, context);
-    await this.databaseClient.create(resource, fullPayload as DataModel[Resource]);
-    return this.view(resource, (fullPayload as Ids)._id, { fields: parsedFields.fields }, context);
+    const fullPayload = await this.validate(resource, 'CREATE', payload, context);
+    await this.databaseClient.create(resource, fullPayload);
+    return this.view(resource, fullPayload._id, { fields: parsedFields.fields }, context);
   }
 
   /**
@@ -524,22 +508,11 @@ export default class Engine<
     context: CommandContext<DataModel>,
   ): Promise<DataModel[Resource]> {
     const fields = options.fields ?? new Set<string>();
-    const resourceFields = this.getResourceFields(resource);
-    const currentResource = (resourceFields.size === 0)
-      ? { _id: id } as DataModel[Resource]
-      : await this.databaseClient.view(resource, id, { fields: resourceFields });
-
-    if (currentResource === null) {
-      throw new EngineError('NO_RESOURCE', { id });
-    }
-
     const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
     parsedFields.permissions.add(`UPDATE_${toSnakeCase(resource)}`);
-    await this.rbac(parsedFields.permissions, currentResource, payload, context);
+    await this.rbac(parsedFields.permissions, null, payload, context);
     if (Object.keys(payload).length > 0) {
-      let newPayload = payload as unknown as Payload<DataModel[Resource]>;
-      newPayload = await this.checkAndUpdatePayload(resource, currentResource, newPayload, context);
-      newPayload = await this.withAutomaticFields(resource, currentResource, newPayload, context);
+      const newPayload = await this.validate(resource, 'UPDATE', payload, context);
       await this.databaseClient.update(resource, id, newPayload);
     }
 
@@ -584,34 +557,6 @@ export default class Engine<
   }
 
   /**
-   * Fetches a paginated list of resources.
-   *
-   * @param resource Type of resources to fetch.
-   *
-   * @param options Command options.
-   *
-   * @param context Command context.
-   *
-   * @returns Paginated list of resources.
-   */
-  public async list<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    options: ListCommandOptions,
-    context: CommandContext<DataModel>,
-  ): Promise<Results<DataModel[Resource]>> {
-    const sortFields = Object.keys(options.sortBy ?? {});
-    const fields = new Set([...options.fields ?? []].concat(sortFields));
-    const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
-    parsedFields.permissions.add(`LIST_${toSnakeCase(resource)}`);
-    await this.rbac(parsedFields.permissions, null, null, context);
-    return this.databaseClient.list(resource, {
-      ...options,
-      fields: parsedFields.fields,
-      maximumDepth: options.maximumDepth,
-    });
-  }
-
-  /**
    * Fetches a paginated list of resources matching `searchBody` constraints.
    *
    * @param resource Type of resources to fetch.
@@ -624,7 +569,7 @@ export default class Engine<
    *
    * @returns Paginated list of resources.
    */
-  public async search<Resource extends keyof DataModel & string>(
+  public async list<Resource extends keyof DataModel & string>(
     resource: Resource,
     searchBody: SearchBody,
     options: SearchCommandOptions,
@@ -636,7 +581,7 @@ export default class Engine<
     const searchFields = queryFields.concat(filterFields).concat(sortFields);
     const fields = new Set([...options.fields ?? []].concat(searchFields));
     const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
-    parsedFields.permissions.add(`SEARCH_${toSnakeCase(resource)}`);
+    parsedFields.permissions.add(`LIST_${toSnakeCase(resource)}`);
     await this.rbac(parsedFields.permissions, null, null, context);
     return this.databaseClient.search(resource, searchBody, {
       ...options,
@@ -665,18 +610,14 @@ export default class Engine<
   ): Promise<void> {
     let resourceExists = false;
     await this.rbac(new Set([`DELETE_${toSnakeCase(resource)}`]), null, null, context);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    const metaData = this.model.get(resource);
 
     if (metaData.schema.enableDeletion) {
       resourceExists = await this.databaseClient.delete(resource, id);
     } else {
-      const payload = await this.withAutomaticFields(
-        resource,
-        { _id: id } as DataModel[Resource],
-        { _isDeleted: true } as Payload<DataModel[Resource]>,
-        context,
-      );
-      resourceExists = await this.databaseClient.update(resource, id, payload);
+      const payload = { _isDeleted: true } as UpdatePayload<DataModel[Resource]>;
+      const fullPayload = await this.validate(resource, 'UPDATE', payload, context);
+      resourceExists = await this.databaseClient.update(resource, id, fullPayload);
     }
 
     if (!resourceExists) {
