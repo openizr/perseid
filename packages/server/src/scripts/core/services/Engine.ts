@@ -120,23 +120,23 @@ export default class Engine<
     const metaData = this.model.get(resource);
     const fullPayload = { ...payload } as Ids & Timestamps & Deletion & Authors;
 
-    if (metaData.schema.enableTimestamps) {
-      if (operation === 'CREATE') {
+    if (operation === 'CREATE') {
+      fullPayload._id = new Id();
+
+      if (metaData.schema.enableTimestamps) {
         fullPayload._updatedAt = null;
         fullPayload._createdAt = new Date();
-      } else {
-        fullPayload._updatedAt = new Date();
       }
-    }
 
-    if (metaData.schema.enableDeletion === false) {
-      if (operation === 'CREATE') {
+      if (metaData.schema.enableDeletion === false) {
         fullPayload._isDeleted = false;
       }
     }
 
-    if (operation === 'CREATE') {
-      fullPayload._id = new Id();
+    if (operation === 'UPDATE') {
+      if (metaData.schema.enableTimestamps) {
+        fullPayload._updatedAt = new Date();
+      }
     }
 
     const relations = new Map<string, {
