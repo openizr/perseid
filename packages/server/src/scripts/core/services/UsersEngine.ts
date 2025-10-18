@@ -8,37 +8,48 @@
 
 import {
   Id,
-  toSnakeCase,
-  type DefaultDataModel,
+  type Ids,
+  type Results,
+  type UsersDataModel,
 } from '@perseid/core';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import Engine from 'scripts/core/services/Engine';
-import Logger from 'scripts/core/services/Logger';
-import BaseModel from 'scripts/core/services/Model';
 import EngineError from 'scripts/core/errors/Engine';
-import EmailClient from 'scripts/core/services/EmailClient';
-import type CacheClient from 'scripts/core/services/CacheClient';
-import type BaseDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
+import DefaultModel from 'scripts/core/services/Model';
+import Telemetry from 'scripts/core/services/Telemetry';
+import type BaseCacheClient from 'scripts/core/services/CacheClient';
+import type BaseEmailClient from 'scripts/core/services/EmailClient';
+import type DefaultDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
 
 /**
  * Generated credentials.
  */
 export interface Credentials {
-  /** Id of the device for which these credentials are valid. */
+  /**
+   * Id of the device for which these credentials are valid.
+   */
   deviceId: string;
 
-  /** Access token expiration period, in seconds. */
+  /**
+   * Access token expiration period, in seconds.
+   */
   expiresIn: number;
 
-  /** Access token. */
+  /**
+   * Access token.
+   */
   accessToken: string;
 
-  /** Refresh token, used to generate a new access token. */
+  /**
+   * Refresh token, used to generate a new access token.
+   */
   refreshToken: string;
 
-  /** Refresh token expiration date. */
+  /**
+   * Refresh token expiration date.
+   */
   refreshTokenExpiration: Date;
 }
 
@@ -46,53 +57,104 @@ export interface Credentials {
  * Users engine settings.
  */
 export interface UsersEngineSettings {
-  /** Application base URL. */
+  /**
+   * Application base URL.
+   */
   baseUrl: string;
 
-  /** Auth configuration. */
+  /**
+   * Auth configuration.
+   */
   auth: {
-    /** Access tokens issuer name (usually the companie's name). */
+    /**
+     * Access tokens issuer name (usually the companie's name).
+     */
     issuer: string;
 
-    /** Algorithm to use for access tokens generation. */
+    /**
+     * Algorithm to use for access tokens generation.
+     */
     algorithm: 'RS256';
 
-    /** Client id to store in access tokens (usually the application's name). */
+    /**
+     * Client id to store in access tokens (usually the application's name).
+     */
     clientId: string;
 
-    /** Private key to use for access tokens generation. */
+    /**
+     * Private key to use for access tokens generation.
+     */
     privateKey: string;
 
-    /** Public key to use for access tokens generation. */
+    /**
+     * Public key to use for access tokens generation.
+     */
     publicKey: string;
   };
 }
 
 /**
- * Perseid engine extended with auth-related methods.
+ * Perseid engine extended with users-related methods.
  *
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/core/services/UsersEngine.ts
  */
 export default class UsersEngine<
-  /** Data model types definitions. */
-  DataModel extends DefaultDataModel = DefaultDataModel,
+  /**
+   * Data model type definition.
+   */
+  DataModel extends UsersDataModel = UsersDataModel,
 
-  /** Model class types definitions. */
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  /**
+   * Query results type definition.
+   */
+  QueryResults extends Record<string, Ids> = Record<string, Ids>,
 
-  /** Database client types definition. */
-  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
-> extends Engine<DataModel, Model, DatabaseClient> {
-  /** Default duration before a refresh token expires. */
-  protected readonly REFRESH_TOKEN_DURATION = 30 * 24 * 3600 * 1000; // 30 days.
+  /**
+   * Model class type definition.
+   */
+  Model extends DefaultModel<DataModel> = DefaultModel<DataModel>,
 
-  /** Email client to use. */
+  /**
+   * Database client type definition.
+   */
+  DatabaseClient extends DefaultDatabaseClient<
+    DataModel,
+    QueryResults
+  > = DefaultDatabaseClient<DataModel, QueryResults>,
+
+  /**
+   * Email client type definition.
+   */
+  EmailClient extends BaseEmailClient = BaseEmailClient,
+
+  /**
+   * Cache client type definition.
+   */
+  CacheClient extends BaseCacheClient = BaseCacheClient,
+> extends Engine<DataModel, QueryResults, Model, DatabaseClient> {
+  /**
+   * Default duration before an access token expires.
+   */
+  protected readonly ACCESS_TOKEN_DURATION: number;
+
+  /**
+   * Default duration before a refresh token expires.
+   */
+  protected readonly REFRESH_TOKEN_DURATION: number;
+
+  /**
+   * Email client to use.
+   */
   protected emailClient: EmailClient;
 
-  /** Cache client to use. */
+  /**
+   * Cache client to use.
+   */
   protected cacheClient: CacheClient;
 
-  /** Auth engine settings. */
+  /**
+   * Auth engine settings.
+   */
   protected settings: UsersEngineSettings;
 
   /**
@@ -127,36 +189,154 @@ export default class UsersEngine<
   }
 
   /**
-   * Returns updated `payload` with automatic fields.
+   * Verifies that user has the right permissions to perform `operation` on `resource`, using given
+   * payload and options. This method should return any additional information that is relevant
+   * to perform the operation in granted scope, such as filtered options, updated payload,
+   * sub-resources for narrowing down the scope, etc.
    *
-   * @param resource Type of resource for which to generate automatic fields.
+   * @param resource Type of resource for which to check permissions.
    *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
+   * @param operation Type of operation to perform.
    *
-   * @param payload Payload to update.
+   * @param payload Operation payload.
+   *
+   * @param options Command options.
+   *
+   * @param context Command context. If not provided, RBAC checks will not be performed.
+   *
+   * @returns Additional information that is relevant to perform the operation in granted scope.
+   *
+   * @throws If field path does not exist in data model.
+   *
+   * @throws If maximum level of resources depth is exceeded.
+   *
+   * @throws If user does not have sufficient permissions to perform the operation.
+   */
+  protected async checkUserPermissions<Resource extends keyof DataModel>(
+    resource: Resource,
+    _operation: 'CREATE' | 'UPDATE' | 'DELETE' | 'VIEW' | 'LIST',
+    _payload: UpdatePayload<DataModel[Resource]> | CreatePayload<DataModel[Resource]> | SearchBody,
+    options: CommandOptions,
+    context?: CommandContext<DataModel>,
+  ): Promise<{ fields: string[]; }> {
+    const allFields = [...options.fields ?? []].concat(['_id']);
+
+    // If no context is provided, we don't even make sure that all fields exist, as the database
+    // client will take care of that.
+    if (context === undefined) {
+      return Promise.resolve({ fields: allFields });
+    }
+
+    const filteredFields = new Set<string>();
+    const metaData = this.model.get(resource);
+    const permissions = context.user._permissions;
+    const requestedFields = new Set(allFields);
+
+    while (allFields.length > 0) {
+      const path = String(allFields.shift());
+      const isWildcard = path.at(-1) === '*';
+      const pathWithoutWildcard = isWildcard ? path.slice(0, -2) : path;
+      const getFullPath = (field: string): string => `${pathWithoutWildcard}.${field}`;
+
+      if (path === '*') {
+        allFields.push(...Object.keys(metaData.schema.fields));
+      } else {
+        const fieldMetaData = this.model.get(`${String(resource)}.${pathWithoutWildcard}`);
+
+        if (fieldMetaData === null) {
+          throw new EngineError('UNKNOWN_FIELD', { path });
+        }
+
+        if (fieldMetaData.depth > (options.maximumDepth ?? 3)) {
+          throw new EngineError('MAXIMUM_DEPTH_EXCEEDED', { path });
+        }
+
+        if (fieldMetaData.schema.type === 'object') {
+          allFields.push(...Object.keys(fieldMetaData.schema.fields).map(getFullPath));
+        } else if (fieldMetaData.schema.type === 'id' && isWildcard) {
+          if (fieldMetaData.schema.relation === undefined) {
+            throw new EngineError('UNKNOWN_FIELD', { path });
+          }
+          const relationMetaData = this.model.get(fieldMetaData.schema.relation);
+          allFields.push(...Object.keys(relationMetaData.schema.fields).map(getFullPath));
+        } else {
+          const missingPermission = fieldMetaData.permissions.find((p) => !permissions.has(p));
+          if (missingPermission === undefined) {
+            filteredFields.add(path);
+          } else if (requestedFields.has(path)) {
+            throw new EngineError('MISSING_PERMISSION', { permission: missingPermission });
+          }
+        }
+      }
+    }
+
+    return Promise.resolve({ fields: [...filteredFields] });
+  }
+
+  /**
+   * Prepares `payload` for database insertion/update, adding automatic fields and such.
+   * Business logic checks should be implemented here as well.
+   *
+   * @param resource Type of resource for which to validate payload.
+   *
+   * @param operation Type of operation to perform.
+   *
+   * @param payload Payload to validate and update.
    *
    * @param context Command context.
    *
-   * @returns Payload with automatic fields.
+   * @returns Prepared and validated payload, containing automatic fields.
    */
-  protected async withAutomaticFields<Resource extends keyof DataModel & string>(
+  protected async prepareCreatePayload<Resource extends keyof DataModel>(
     resource: Resource,
-    existingResource: DataModel[Resource] | null,
-    payload: Payload<DataModel[Resource]>,
+    payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
-  ): Promise<Payload<DataModel[Resource]>> {
-    const { user, credentials, userAgent } = context as Partial<CommandContext<DataModel> & {
-      credentials: Credentials | null;
-    }>;
-    const fullPayload = await super.withAutomaticFields(
-      resource,
-      existingResource,
-      payload,
-      context,
-    );
+  ): Promise<DataModel[Resource]> {
+    const metaData = this.model.get(resource);
+    const fullPayload = await super.prepareCreatePayload(resource, payload, context);
+    const userPayload = this.defineCreatePayload<UsersDataModel['users']>(fullPayload);
+
+    if (metaData.schema.enableAuthors) {
+      userPayload._updatedBy = null;
+      userPayload._createdBy = context.user._id;
+    }
 
     if (resource === 'users') {
-      const userPayload = fullPayload as Partial<DataModel['users']>;
+      userPayload._devices = [];
+      userPayload._verifiedAt = new Date();
+      userPayload.password = await bcrypt.hash(userPayload.password, 10);
+    }
+
+    return fullPayload;
+  }
+
+  /**
+   * Prepares update `payload` for database insertion/update, adding automatic fields and such.
+   * Business logic checks should be implemented here as well.
+   *
+   * @param resource Type of resource for which to validate payload.
+   *
+   * @param payload Payload to validate and update.
+   *
+   * @param context Command context.
+   *
+   * @returns Prepared and validated payload, containing automatic fields.
+   */
+  protected async prepareUpdatePayload<Resource extends keyof DataModel>(
+    resource: Resource,
+    payload: UpdatePayload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]>> {
+    const metaData = this.model.get(resource);
+    const fullPayload = await super.prepareUpdatePayload(resource, payload, context);
+
+    if (metaData.schema.enableAuthors) {
+      const authorsPayload = this.defineUpdatePayload<UsersDataModel['users']>(fullPayload);
+      authorsPayload._updatedBy = context.user._id;
+    }
+
+    if (resource === 'users') {
+      const userPayload = this.defineUpdatePayload<UsersDataModel['users']>(fullPayload);
 
       if (userPayload.email !== undefined) {
         userPayload._verifiedAt = null;
@@ -167,63 +347,7 @@ export default class UsersEngine<
       // their email at the same time.
       if (userPayload.password !== undefined) {
         userPayload._devices = [];
-        userPayload._verifiedAt = user?._verifiedAt ?? new Date();
-      }
-
-      if (existingResource === null) {
-        userPayload._apiKeys = [];
-        userPayload._devices = [];
-        userPayload._verifiedAt = (user !== undefined) ? new Date() : null;
-      }
-
-      // When credentials are passed in context, it means that we must either revoke or update them.
-      if (credentials !== undefined) {
-        const _devices = user?._devices ?? [];
-        const deviceId = credentials?.deviceId ?? (context as { deviceId: string; }).deviceId;
-        const deviceIndex = _devices.findIndex((device) => device._id === deviceId);
-        const [device] = _devices.splice(deviceIndex, deviceIndex >= 0 ? 1 : 0);
-        if (credentials !== null) {
-          _devices.push({
-            _id: deviceId,
-            _refreshToken: credentials.refreshToken,
-            _expiration: credentials.refreshTokenExpiration,
-            _userAgent: userAgent ?? (device as undefined | { _userAgent: string; })?._userAgent ?? 'UNKNOWN',
-          });
-        }
-        userPayload._devices = _devices;
-      }
-    }
-
-    return fullPayload;
-  }
-
-  /**
-   * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
-   *
-   * @param resource Type of resource for which to check and update payload.
-   *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
-   *
-   * @param payload Payload to validate and update.
-   *
-   * @param context Command context.
-   */
-  protected async checkAndUpdatePayload<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    existingResource: DataModel[Resource] | null,
-    payload: Payload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
-  ): Promise<Payload<DataModel[Resource]>> {
-    const fullPayload = await super.checkAndUpdatePayload(
-      resource,
-      existingResource,
-      payload,
-      context,
-    );
-
-    if (resource === 'users') {
-      const userPayload = fullPayload as Partial<DataModel['users']>;
-      if (userPayload.password !== undefined) {
+        userPayload._verifiedAt = context.user._verifiedAt ?? new Date();
         userPayload.password = await bcrypt.hash(userPayload.password, 10);
       }
     }
@@ -248,7 +372,7 @@ export default class UsersEngine<
    */
   constructor(
     model: Model,
-    logger: Logger,
+    logger: Telemetry,
     databaseClient: DatabaseClient,
     emailClient: EmailClient,
     cacheClient: CacheClient,
@@ -258,44 +382,8 @@ export default class UsersEngine<
     this.settings = settings;
     this.emailClient = emailClient;
     this.cacheClient = cacheClient;
-  }
-
-  /**
-   * Resets the whole system, including database, and re-creates root role and user.
-   *
-   * @param rootEmail Email to use for root user.
-   *
-   * @param rootPassword Password to use for root user.
-   */
-  public async reset(rootEmail: string, rootPassword: string): Promise<void> {
-    await super.reset();
-
-    this.logger.info('[UsersEngine][reset] Creating root user...');
-    await this.signUp(rootEmail, rootPassword, rootPassword, {} as CommandContext<DataModel>);
-
-    this.logger.info('[UsersEngine][reset] Creating root role...');
-    const { results: [{ _id }] } = await this.databaseClient.list('users', { limit: 1 });
-    const newRole = await this.create('roles', {
-      name: 'ROOT',
-      permissions: this.model.getResources().reduce<string[]>((permissions, resource) => (
-        permissions.concat([
-          `VIEW_${toSnakeCase(resource)}`,
-          `LIST_${toSnakeCase(resource)}`,
-          `SEARCH_${toSnakeCase(resource)}`,
-          `CREATE_${toSnakeCase(resource)}`,
-          `UPDATE_${toSnakeCase(resource)}`,
-          `DELETE_${toSnakeCase(resource)}`,
-        ])
-      ), ['VIEW_USERS_ROLES', 'UPDATE_USERS_ROLES', 'VIEW_USERS_AUTH_DETAILS']),
-    } as CreatePayload<DataModel['roles']>, {}, {
-      user: { _id, _permissions: new Set(['CREATE_ROLES', 'VIEW_ROLES']) },
-    } as CommandContext<DataModel>);
-
-    this.logger.info('[UsersEngine][reset] Updating root user...');
-    await this.databaseClient.update('users', _id, {
-      roles: [newRole._id],
-      _verifiedAt: new Date(),
-    } as Payload<DataModel['users']>);
+    this.ACCESS_TOKEN_DURATION = 20 * 60; // 20 minutes.
+    this.REFRESH_TOKEN_DURATION = 30 * 24 * 3600 * 1000; // 30 days.
   }
 
   /**
@@ -311,21 +399,177 @@ export default class UsersEngine<
    *
    * @returns Newly created resource.
    */
-  public async create<Resource extends keyof DataModel & string>(
+  public async create<Resource extends keyof DataModel, Key extends keyof QueryResults>(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions,
+    options: ViewCommandOptions<Key>,
     context: CommandContext<DataModel>,
-  ): Promise<DataModel[Resource]> {
-    const newResource = await super.create(resource, payload, options, context);
+  ): Promise<QueryResults[Key]>;
+
+  public async create<Resource extends keyof DataModel>(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    options: ViewCommandOptionsWithoutKey,
+    context: CommandContext<DataModel>,
+  ): Promise<Ids>;
+
+  public async create<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
+    context: CommandContext<DataModel>,
+  ): Promise<QueryResults[Key] | Ids> {
+    const { fields } = await this.checkUserPermissions(resource, 'CREATE', payload, options, context);
+    const result = await super.create(resource, payload, { ...options, fields }, context);
 
     if (resource === 'users') {
-      // Sending invite...
-      const { email, password } = payload as DataModel['users'];
+      const { email, password } = this.defineCreatePayload<UsersDataModel['users']>(payload);
       await this.emailClient.sendInviteEmail(email, `${this.settings.baseUrl}/sign-in`, password);
     }
 
-    return newResource;
+    return result;
+  }
+
+  /**
+   * Updates resource with id `id`.
+   *
+   * @param resource Type of resource to update.
+   *
+   * @param id Resource id.
+   *
+   * @param payload Updated resource payload.
+   *
+   * @param options Command options.
+   *
+   * @param context Command context.
+   *
+   * @returns Updated resource.
+   *
+   * @throws If resource does not exist or does not match criteria.
+   */
+  public async update<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    options: ViewCommandOptions<Key>,
+    context: CommandContext<DataModel>,
+  ): Promise<QueryResults[Key]>;
+
+  public async update<Resource extends keyof DataModel>(
+    resource: Resource,
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    options: ViewCommandOptionsWithoutKey,
+    context: CommandContext<DataModel>,
+  ): Promise<Ids>;
+
+  public async update<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
+    context: CommandContext<DataModel>,
+  ): Promise<QueryResults[Key] | Ids> {
+    const { fields } = await this.checkUserPermissions(resource, 'UPDATE', payload, options, context);
+    return super.update(resource, id, payload, { ...options, fields }, context);
+  }
+
+  /**
+   * Fetches resource with id `id`.
+   *
+   * @param resource Type of resource to fetch.
+   *
+   * @param id Resource id.
+   *
+   * @param options Command options.
+   *
+   * @param context Command context. If not provided, no RBAC nor options checks will be performed.
+   * This can be especially useful when calling `view` methods from other methods like `create` or
+   * `update`, to improve performance by avoiding duplicated checks.
+   *
+   * @returns Resource, if it exists.
+   *
+   * @throws If resource does not exist or does not match criteria.
+   */
+  public async view<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    id: Id,
+    options: ViewCommandOptions<Key>,
+    context?: CommandContext<DataModel>,
+  ): Promise<QueryResults[Key]>;
+
+  public async view<Resource extends keyof DataModel>(
+    resource: Resource,
+    id: Id,
+    options: ViewCommandOptionsWithoutKey,
+    context?: CommandContext<DataModel>,
+  ): Promise<Ids>;
+
+  public async view<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    id: Id,
+    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
+    context?: CommandContext<DataModel>,
+  ): Promise<QueryResults[Key] | Ids> {
+    const { fields } = await this.checkUserPermissions(resource, 'VIEW', {}, options, context);
+    return super.view(resource, id, { ...options, fields });
+  }
+
+  /**
+   * Fetches a paginated list of resources matching `searchBody` constraints.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param searchBody Search body (filters, text query) to filter resources with.
+   *
+   * @param options Command options.
+   *
+   * @param context Command context.
+   *
+   * @returns Paginated list of resources.
+   */
+  public async list<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    searchBody: SearchBody,
+    options: ListCommandOptions<Key>,
+    context: CommandContext<DataModel>,
+  ): Promise<Results<QueryResults[Key]>>;
+
+  public async list<Resource extends keyof DataModel>(
+    resource: Resource,
+    searchBody: SearchBody,
+    options: ListCommandOptionsWithoutKey,
+    context: CommandContext<DataModel>,
+  ): Promise<Results<Ids>>;
+
+  public async list<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    searchBody: SearchBody,
+    options: ListCommandOptionsWithoutKey | ListCommandOptions<Key>,
+    context: CommandContext<DataModel>,
+  ): Promise<Results<QueryResults[Key] | Ids>> {
+    const { fields } = await this.checkUserPermissions(resource, 'LIST', searchBody, options, context);
+    return super.list(resource, searchBody, { ...options, fields });
+  }
+
+  /**
+   * Deletes resource with id `id`.
+   *
+   * @param resource Type of resource to delete.
+   *
+   * @param id Resource id.
+   *
+   * @param context Command context.
+   *
+   * @throws If resource does not exist or does not match criteria.
+   */
+  public async delete<Resource extends keyof DataModel>(
+    resource: Resource,
+    id: Id,
+    context?: CommandContext<DataModel>,
+  ): Promise<void> {
+    await this.checkUserPermissions(resource, 'DELETE', {}, {}, context);
+    return super.delete(resource, id);
   }
 
   /**
@@ -336,9 +580,9 @@ export default class UsersEngine<
    * @returns User information.
    */
   public async viewMe(context: CommandContext<DataModel>): Promise<DataModel['users']> {
-    return (await this.databaseClient.view('users', context.user._id, {
+    const user = await this.databaseClient.view('users', context.user._id, {
       maximumDepth: 2,
-      fields: new Set([
+      fields: [
         '_id',
         'email',
         '_createdAt',
@@ -346,8 +590,9 @@ export default class UsersEngine<
         'roles.name',
         '_verifiedAt',
         'roles.permissions',
-      ]),
-    })) as unknown as DataModel['users'];
+      ],
+    });
+    return this.defineCreatePayload<DataModel['users']>(user);
   }
 
   /**
@@ -376,7 +621,7 @@ export default class UsersEngine<
       audience: this.settings.auth.clientId,
       algorithms: [this.settings.auth.algorithm],
     });
-    const subject = (tokenInfo as { sub: string; }).sub.split('_');
+    const subject = String(tokenInfo.sub).split('_');
     [userId] = subject;
 
     // Making sure that device ids from token and header match...
@@ -412,17 +657,24 @@ export default class UsersEngine<
       throw new EngineError('PASSWORDS_MISMATCH');
     }
 
-    const newId = new Id();
-    const credentials = this.generateCredentials(newId);
-    const fullContext = { ...context, credentials };
-    let fullPayload = { email, password, roles: [] } as Payload<DataModel['users']>;
-    fullPayload = await this.checkAndUpdatePayload('users', null, fullPayload, fullContext);
-    fullPayload = await this.withAutomaticFields('users', null, fullPayload, fullContext);
-    (fullPayload as DataModel['users'])._id = newId;
-    await this.databaseClient.create('users', fullPayload as DataModel['users']);
+    // Preparing payload...
+    const payload: CreatePayload<UsersDataModel['users']> = { email, password, roles: [] };
+    const fullPayload = await this.prepareCreatePayload('users', payload, context);
+    const credentials = this.generateCredentials(fullPayload._id);
+    fullPayload._createdBy = fullPayload._id;
+    fullPayload._devices.push({
+      _id: credentials.deviceId,
+      _refreshToken: credentials.refreshToken,
+      _userAgent: context.userAgent ?? 'UNKNOWN',
+      _expiration: credentials.refreshTokenExpiration,
+    });
 
+    // Creating user...
+    await this.databaseClient.create('users', fullPayload);
+
+    // Sending verification email...
     const newVerificationToken = randomBytes(12).toString('hex');
-    const cacheKey = `verify_${String(newId)}`;
+    const cacheKey = `verify_${String(fullPayload._id)}`;
     const verificationUrl = `${this.settings.baseUrl}/verify-email?verificationToken=${newVerificationToken}`;
     await this.cacheClient.set(cacheKey, newVerificationToken, 3600 * 2); // In 2 hours.
     await this.emailClient.sendVerificationEmail(email, verificationUrl);
@@ -450,32 +702,48 @@ export default class UsersEngine<
     password: string,
     context: Omit<CommandContext<DataModel>, 'user'>,
   ): Promise<Credentials> {
+    const user = this.defineCreatePayload<UsersDataModel['users']>({});
     const searchBody = { filters: { email }, query: null };
-    const commandOptions = {
+    const { results, total } = await this.databaseClient.list('users', searchBody, {
       limit: 1,
-      fields: new Set([
+      fields: [
         'password',
         '_devices._id',
         '_devices._userAgent',
         '_devices._expiration',
         '_devices._refreshToken',
-      ]),
-    };
-    const { results, total } = await this.databaseClient.search('users', searchBody, commandOptions);
+      ],
+    });
 
     if (total === 0) {
       throw new EngineError('NO_USER');
     }
 
-    const [user] = results;
+    Object.assign(user, { ...results[0] });
     if (!await bcrypt.compare(password, user.password)) {
       throw new EngineError('INVALID_CREDENTIALS');
     }
 
+    const now = Date.now();
+    const fullContext = { ...context, user };
     const deviceId = /^[0-9a-fA-F]{24}$/.test(String(context.deviceId)) ? context.deviceId : undefined;
     const credentials = this.generateCredentials(user._id, deviceId);
-    const fullContext = { ...context, user, credentials };
-    const fullPayload = await this.withAutomaticFields('users', user, {}, fullContext);
+    const fullPayload = await this.prepareUpdatePayload('users', {}, fullContext);
+    const newDevices = [{
+      _id: credentials.deviceId,
+      _refreshToken: credentials.refreshToken,
+      _userAgent: context.userAgent ?? 'UNKNOWN',
+      _expiration: credentials.refreshTokenExpiration,
+    }];
+
+    user._devices.forEach((device, index) => {
+      const expiration = device._expiration.getTime();
+      if (device._id !== context.deviceId && expiration > now) {
+        newDevices.push(user._devices[index]);
+      }
+    });
+
+    this.defineCreatePayload<UsersDataModel['users']>(fullPayload)._devices = newDevices;
     await this.databaseClient.update('users', user._id, fullPayload);
 
     return credentials;
@@ -523,8 +791,8 @@ export default class UsersEngine<
     }
 
     // Updating user credentials...
-    const payload = { _verifiedAt: new Date() } as Payload<DataModel['users']>;
-    const fullPayload = await this.withAutomaticFields('users', user, payload, context);
+    const fullPayload = await this.prepareUpdatePayload('users', {}, context);
+    this.defineUpdatePayload<UsersDataModel['users']>(fullPayload)._verifiedAt = new Date();
     await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
   }
@@ -533,12 +801,10 @@ export default class UsersEngine<
    * Sends a new password reset email to user with email `email`.
    *
    * @param email Email of the user to whom to send password reset email.
-   *
-   * @param context
    */
   public async requestPasswordReset(email: string): Promise<void> {
     const searchBody = { filters: { email }, query: null };
-    const { total } = await this.databaseClient.search('users', searchBody, { limit: 1 });
+    const { total } = await this.databaseClient.list('users', searchBody, { limit: 1 });
     if (total > 0) {
       const newResetToken = randomBytes(12).toString('hex');
       const resetUrl = `${this.settings.baseUrl}/reset-password?resetToken=${newResetToken}`;
@@ -546,7 +812,7 @@ export default class UsersEngine<
       await this.emailClient.sendPasswordResetEmail(email, resetUrl);
     } else {
       // Delaying API response prevents giving any hint about whether user actually exists.
-      this.logger.info(`User with email "${email}" does not exist, skipping email sending...`);
+      this.telemetry.info(`User with email "${email}" does not exist, skipping email sending...`);
       await new Promise((resolve) => { setTimeout(resolve, 100); });
     }
   }
@@ -569,6 +835,9 @@ export default class UsersEngine<
     passwordConfirmation: DataModel['users']['password'],
     resetToken: string,
   ): Promise<void> {
+    const payload = {};
+    const context = {} as CommandContext<DataModel>;
+
     if (passwordConfirmation !== password) {
       throw new EngineError('PASSWORDS_MISMATCH');
     }
@@ -576,17 +845,19 @@ export default class UsersEngine<
     const cacheKey = `reset_${resetToken}`;
     const email = await this.cacheClient.get(cacheKey);
     const searchBody = { filters: { email }, query: null };
-    const commandOptions = { limit: 1, fields: new Set(['_verifiedAt']) };
-    const response = await this.databaseClient.search('users', searchBody, commandOptions);
+    const response = await this.databaseClient.list('users', searchBody, {
+      limit: 1,
+      fields: ['_verifiedAt'],
+    });
 
     if (response.total === 0) {
       throw new EngineError('INVALID_RESET_TOKEN');
     }
 
     const [user] = response.results;
-    const payload = { password } as Payload<DataModel['users']>;
-    let fullPayload = await this.checkAndUpdatePayload('users', user, payload, { user });
-    fullPayload = await this.withAutomaticFields('users', user, fullPayload, { user });
+    Object.assign(context, { user });
+    Object.assign(payload, { password });
+    const fullPayload = await this.prepareUpdatePayload('users', payload, context);
     await this.databaseClient.update('users', user._id, fullPayload);
     await this.cacheClient.delete(cacheKey);
   }
@@ -606,20 +877,31 @@ export default class UsersEngine<
     refreshToken: string,
     context: CommandContext<DataModel>,
   ): Promise<Credentials> {
-    const { user } = context;
-    const credentials = this.generateCredentials(user._id, context.deviceId);
-    const deviceIndex = user._devices.findIndex((device) => device._id === context.deviceId);
+    const deviceIndex = 0;
+    const now = Date.now();
+    const newDevices: UsersDataModel['users']['_devices'] = [];
+    const credentials = this.generateCredentials(context.user._id, context.deviceId);
 
-    if (
-      user._devices[deviceIndex]?._refreshToken !== refreshToken
-      || user._devices[deviceIndex]._expiration.getTime() <= Date.now()
-    ) {
-      throw new EngineError('INVALID_REFRESH_TOKEN');
-    }
+    context.user._devices.forEach((device, index) => {
+      const expiration = device._expiration.getTime();
+      if (device._id !== context.deviceId && expiration > now) {
+        newDevices.push(context.user._devices[index]);
+      } else if (device._id === context.deviceId) {
+        if (context.user._devices[index]?._refreshToken !== refreshToken || expiration <= now) {
+          throw new EngineError('INVALID_REFRESH_TOKEN');
+        }
+        newDevices.push({
+          _id: context.user._devices[deviceIndex]._id,
+          _refreshToken: credentials.refreshToken,
+          _expiration: credentials.refreshTokenExpiration,
+          _userAgent: context.userAgent ?? context.user._devices[deviceIndex]._userAgent,
+        });
+      }
+    });
 
-    const fullContext = { ...context, credentials };
-    const fullPayload = await this.withAutomaticFields('users', user, {}, fullContext);
-    await this.databaseClient.update('users', user._id, fullPayload);
+    const fullPayload = await this.prepareUpdatePayload('users', {}, context);
+    this.defineUpdatePayload<UsersDataModel['users']>(fullPayload)._devices = newDevices;
+    await this.databaseClient.update('users', context.user._id, fullPayload);
     return credentials;
   }
 
@@ -629,9 +911,18 @@ export default class UsersEngine<
    * @param context Command context.
    */
   public async signOut(context: CommandContext<DataModel>): Promise<void> {
-    const { user } = context;
-    const fullContext = { ...context, credentials: null };
-    const fullPayload = await this.withAutomaticFields('users', user, {}, fullContext);
-    await this.databaseClient.update('users', user._id, fullPayload);
+    const now = Date.now();
+    const newDevices: UsersDataModel['users']['_devices'] = [];
+
+    context.user._devices.forEach((device, index) => {
+      const expiration = device._expiration.getTime();
+      if (device._id !== context.deviceId && expiration > now) {
+        newDevices.push(context.user._devices[index]);
+      }
+    });
+
+    const fullPayload = await this.prepareUpdatePayload('users', {}, context);
+    this.defineUpdatePayload<UsersDataModel['users']>(fullPayload)._devices = newDevices;
+    await this.databaseClient.update('users', context.user._id, fullPayload);
   }
 }
