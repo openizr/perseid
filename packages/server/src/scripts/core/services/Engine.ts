@@ -9,8 +9,10 @@
 import {
   Id,
   type Ids,
+  deepCopy,
   type Results,
   type Authors,
+  isPlainObject,
   type IdSchema,
   type Deletion,
   type Timestamps,
@@ -18,8 +20,8 @@ import {
 } from '@perseid/core';
 import EngineError from 'scripts/core/errors/Engine';
 import Telemetry from 'scripts/core/services/Telemetry';
-import type BaseModel from 'scripts/core/services/Model';
-import type BaseDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
+import type DefaultModel from 'scripts/core/services/Model';
+import type DefaultDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
 
 const noop = (...args: unknown[]): unknown => args;
 
@@ -35,19 +37,27 @@ export default class Engine<
   DataModel,
 
   /**
+   * Query results type definition.
+   */
+  QueryResults extends Record<string, Ids> = Record<string, Ids>,
+
+  /**
    * Model class type definition.
    */
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  Model extends DefaultModel<DataModel> = DefaultModel<DataModel>,
 
   /**
    * Database client type definition.
    */
-  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
+  DatabaseClient extends DefaultDatabaseClient<
+    DataModel,
+    QueryResults
+  > = DefaultDatabaseClient<DataModel, QueryResults>,
 > {
   /**
-   * Used to prevent false positives in linting.
+   * Used to prevent false positives in linting. Don't use directly.
    */
-  private noop = noop;
+  protected noop = noop;
 
   /**
    * Data model.
@@ -63,6 +73,117 @@ export default class Engine<
    * Database client.
    */
   protected databaseClient: DatabaseClient;
+
+  /**
+   * Type guard method that forces type inference on `payload`, right before update
+   * in database, to overcome TypeScript limitations with conditional types inference in
+   * generic contexts. Does not perform any special operations.
+   *
+   * @param payload Payload to force type inference on.
+   *
+   * @returns Payload with type inference forced.
+   */
+  protected defineCreatePayload<PayloadType>(
+    payload: unknown,
+  ): PayloadType {
+    this.noop(payload);
+    return payload as PayloadType;
+  }
+
+  /**
+   * Type guard method that forces type inference on `payload`, right before insertion
+   * in database, to overcome TypeScript limitations with conditional types inference in
+   * generic contexts. Does not perform any special operations.
+   *
+   * @param payload Payload to force type inference on.
+   *
+   * @returns Payload with type inference forced.
+   */
+  protected defineUpdatePayload<PayloadType>(
+    payload: unknown,
+  ): Payload<PayloadType> {
+    this.noop(payload);
+    return payload as Payload<PayloadType>;
+  }
+
+  /**
+   * Extracts all relations to other resources from `partialPayload`.
+   * Internal method, do not use directly.
+   *
+   * @param resource Type of resource payload.
+   *
+   * @param partialPayload Payload to extract relations from.
+   *
+   * @param currentSchema Payload data model schema.
+   *
+   * @param payload Full payload that needs to be walked through.
+   *
+   * @param currentPath Path to the current payload in the data model.
+   *
+   * @param relations Final relations map. Defaults to an empty map.
+   *
+   * @returns List of relations to other resources, along with their filters.
+   */
+  private extractRelationsFromPayload<Resource extends keyof DataModel>(
+    resource: Resource,
+    partialPayload: unknown,
+    currentSchema: FieldSchema<DataModel>,
+    payload: UpdatePayload<DataModel[Resource]> | CreatePayload<DataModel[Resource]>,
+    currentPath: string[] = [],
+    relations = new Map<string, {
+      resource: keyof DataModel;
+      filters: SearchFilters & { _id: Id[]; } | null;
+    }>(),
+  ): Map<string, {
+    resource: keyof DataModel;
+    filters: SearchFilters & { _id: Id[]; } | null;
+  }> {
+    const path = currentPath.join('.');
+    const { type } = currentSchema;
+    const { relation } = currentSchema as IdSchema<DataModel>;
+
+    if (type === 'array' && Array.isArray(partialPayload)) {
+      partialPayload.forEach((value) => {
+        this.extractRelationsFromPayload(
+          resource,
+          value,
+          currentSchema.fields,
+          payload,
+          currentPath,
+          relations,
+        );
+      });
+    } else if (type === 'object' && isPlainObject(partialPayload)) {
+      Object.keys(partialPayload).forEach((fieldName) => {
+        this.extractRelationsFromPayload(
+          resource,
+          partialPayload[fieldName],
+          currentSchema.fields[fieldName],
+          payload,
+          currentPath.concat([fieldName]),
+          relations,
+        );
+      });
+    } else if (type === 'id' && relation !== undefined && partialPayload instanceof Id) {
+      const existingFilters = relations.get(path);
+      if (existingFilters && existingFilters.filters !== null) {
+        (existingFilters.filters._id).push(partialPayload);
+        relations.set(path, existingFilters);
+      } else {
+        relations.set(currentPath.join('.'), {
+          resource: relation,
+          filters: this.getRelationFilters(
+            resource,
+            currentPath.join('.'),
+            [partialPayload],
+            payload,
+          ),
+        });
+      }
+    }
+
+    return relations;
+  }
 
   /**
    * Returns filters to apply when checking foreign IDs referencing other relations.
@@ -82,118 +203,88 @@ export default class Engine<
     resource: Resource,
     path: string,
     ids: Id[],
-    payload: UpdatePayload<DataModel[Resource]> | DataModel[Resource],
-  ): SearchFilters | null {
+    payload: UpdatePayload<DataModel[Resource]> | CreatePayload<DataModel[Resource]>,
+  ): SearchFilters & { _id: Id[]; } | null {
     this.noop(resource, path, ids, payload);
     return { _id: ids };
   }
 
   /**
-   * Prepares `payload` for database insertion/update, adding automatic fields and such.
+   * Prepares creation `payload` for database insertion/update, adding automatic fields and such.
    * Business logic checks should be implemented here as well.
    *
    * @param resource Type of resource for which to validate payload.
-   *
-   * @param operation Type of operation to perform.
    *
    * @param payload Payload to validate and update.
    *
    * @returns Prepared and validated payload, containing automatic fields.
    */
-  protected async preparePayload<Resource extends keyof DataModel & string>(
+  protected async prepareCreatePayload<Resource extends keyof DataModel>(
     resource: Resource,
-    operation: 'UPDATE',
-    payload: UpdatePayload<DataModel[Resource]>,
-  ): Promise<Payload<DataModel[Resource]>>;
-
-  protected async preparePayload<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    operation: 'CREATE',
     payload: CreatePayload<DataModel[Resource]>,
-  ): Promise<Ids & DataModel[Resource]>;
-
-  protected async preparePayload<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    operation: 'CREATE' | 'UPDATE',
-    payload: CreatePayload<DataModel[Resource]> | UpdatePayload<DataModel[Resource]>,
-  ): Promise<Payload<DataModel[Resource]> | Ids & DataModel[Resource]> {
+    context?: unknown,
+  ): Promise<DataModel[Resource]> {
+    this.noop(context);
     const metaData = this.model.get(resource);
-    const fullPayload = { ...payload } as Ids & Timestamps & Deletion & Authors;
+    let fullPayload = this.defineCreatePayload<Ids & Timestamps & Deletion & Authors>(payload);
+    fullPayload = deepCopy(fullPayload);
 
-    if (operation === 'CREATE') {
-      fullPayload._id = new Id();
+    fullPayload._id = new Id();
 
-      if (metaData.schema.enableTimestamps) {
-        fullPayload._updatedAt = null;
-        fullPayload._createdAt = new Date();
-      }
-
-      if (metaData.schema.enableDeletion === false) {
-        fullPayload._isDeleted = false;
-      }
+    if (metaData.schema.enableTimestamps) {
+      fullPayload._updatedAt = null;
+      fullPayload._createdAt = new Date();
     }
 
-    if (operation === 'UPDATE') {
-      if (metaData.schema.enableTimestamps) {
-        fullPayload._updatedAt = new Date();
-      }
+    if (metaData.schema.enableDeletion === false) {
+      fullPayload._isDeleted = false;
     }
 
-    const relations = new Map<string, {
-      resource: keyof DataModel;
-      filters: SearchFilters | null;
-    }>();
+    await this.databaseClient.checkRelations(
+      resource,
+      this.extractRelationsFromPayload(resource, payload, {
+        type: 'object',
+        isRequired: true,
+        fields: metaData.schema.fields,
+      }, payload),
+    );
 
-    const checkPartialPayload = (
-      partialPayload: unknown,
-      currentSchema: FieldSchema<DataModel>,
-      currentPath: string[] = [],
-    ): void => {
-      const path = currentPath.join('.');
-      const { type } = currentSchema;
-      const { relation } = currentSchema as IdSchema<DataModel>;
+    return this.defineCreatePayload<DataModel[Resource]>(fullPayload);
+  }
 
-      if (type === 'array' && Array.isArray(partialPayload)) {
-        partialPayload.forEach((value) => {
-          checkPartialPayload(value, currentSchema.fields, currentPath);
-        });
-      } else if (type === 'object' && partialPayload !== null) {
-        const objectPayload = partialPayload as Record<string, unknown>;
-        Object.keys(objectPayload).forEach((fieldName) => {
-          checkPartialPayload(
-            objectPayload[fieldName],
-            currentSchema.fields[fieldName],
-            currentPath.concat([fieldName]),
-          );
-        });
-      } else if (type === 'id' && relation !== undefined && partialPayload instanceof Id) {
-        const existingFilters = relations.get(path);
-        if (existingFilters && existingFilters.filters !== null) {
-          (existingFilters.filters._id as Id[]).push(partialPayload);
-          relations.set(path, existingFilters);
-        } else {
-          relations.set(currentPath.join('.'), {
-            resource: relation,
-            filters: this.getRelationFilters(
-              resource,
-              currentPath.join('.'),
-              [partialPayload],
-              payload,
-            ),
-          });
-        }
-      }
-    };
+  /**
+   * Prepares update `payload` for database insertion/update, adding automatic fields and such.
+   * Business logic checks should be implemented here as well.
+   *
+   * @param resource Type of resource for which to validate payload.
+   *
+   * @param payload Payload to validate and update.
+   *
+   * @returns Prepared and validated payload, containing automatic fields.
+   */
+  protected async prepareUpdatePayload<Resource extends keyof DataModel>(
+    resource: Resource,
+    payload: UpdatePayload<DataModel[Resource]>,
+    context?: unknown,
+  ): Promise<Payload<DataModel[Resource]>> {
+    this.noop(context);
+    const metaData = this.model.get(resource);
+    const fullPayload = deepCopy(this.defineUpdatePayload<Timestamps>(payload));
 
-    checkPartialPayload(payload, {
-      type: 'object',
-      isRequired: true,
-      fields: metaData.schema.fields,
-    });
+    if (metaData.schema.enableTimestamps) {
+      fullPayload._updatedAt = new Date();
+    }
 
-    await this.databaseClient.checkRelations(resource, relations);
+    await this.databaseClient.checkRelations(
+      resource,
+      this.extractRelationsFromPayload(resource, payload, {
+        type: 'object',
+        isRequired: true,
+        fields: metaData.schema.fields,
+      }, payload),
+    );
 
-    return fullPayload as DataModel[Resource];
+    return this.defineUpdatePayload<DataModel[Resource]>(fullPayload);
   }
 
   /**
@@ -226,14 +317,30 @@ export default class Engine<
    *
    * @returns Newly created resource.
    */
-  public async create<Resource extends keyof DataModel & string>(
+  public async create<Resource extends keyof DataModel, Key extends keyof QueryResults>(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions,
-  ): Promise<DataModel[Resource]> {
-    const fullPayload = await this.preparePayload(resource, 'CREATE', payload);
+    options: ViewCommandOptions<Key>,
+    context?: unknown,
+  ): Promise<QueryResults[Key]>;
+
+  public async create<Resource extends keyof DataModel>(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    options: ViewCommandOptionsWithoutKey,
+    context?: unknown,
+  ): Promise<Ids>;
+
+  public async create<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
+    context?: unknown,
+  ): Promise<QueryResults[Key] | Ids> {
+    this.noop(context);
+    const fullPayload = await this.prepareCreatePayload(resource, payload);
     await this.databaseClient.create(resource, fullPayload);
-    return this.view(resource, fullPayload._id, options);
+    return this.view(resource, this.defineCreatePayload<Ids>(fullPayload)._id, options);
   }
 
   /**
@@ -251,15 +358,39 @@ export default class Engine<
    *
    * @throws If resource does not exist or does not match criteria.
    */
-  public async update<Resource extends keyof DataModel & string>(
+  public async update<Resource extends keyof DataModel, Key extends keyof QueryResults>(
     resource: Resource,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions,
-  ): Promise<DataModel[Resource]> {
+    options: ViewCommandOptions<Key>,
+    context?: unknown,
+  ): Promise<QueryResults[Key]>;
+
+  public async update<Resource extends keyof DataModel>(
+    resource: Resource,
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    options: ViewCommandOptionsWithoutKey,
+    context?: unknown,
+  ): Promise<Ids>;
+
+  public async update<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
+    context?: unknown,
+  ): Promise<QueryResults[Key] | Ids> {
+    this.noop(context);
+    let resourceExists = false;
+
     if (Object.keys(payload).length > 0) {
-      const newPayload = await this.preparePayload(resource, 'UPDATE', payload);
-      await this.databaseClient.update(resource, id, newPayload);
+      const newPayload = await this.prepareUpdatePayload(resource, payload);
+      resourceExists = await this.databaseClient.update(resource, id, newPayload);
+
+      if (!resourceExists) {
+        throw new EngineError('NO_RESOURCE', { id });
+      }
     }
 
     return this.view(resource, id, options);
@@ -278,11 +409,27 @@ export default class Engine<
    *
    * @throws If resource does not exist or does not match criteria.
    */
-  public async view<Resource extends keyof DataModel & string>(
+  public async view<Resource extends keyof DataModel, Key extends keyof QueryResults>(
     resource: Resource,
     id: Id,
-    options: ViewCommandOptions,
-  ): Promise<DataModel[Resource]> {
+    options: ViewCommandOptions<Key>,
+    context?: unknown,
+  ): Promise<QueryResults[Key]>;
+
+  public async view<Resource extends keyof DataModel>(
+    resource: Resource,
+    id: Id,
+    options: ViewCommandOptionsWithoutKey,
+    context?: unknown,
+  ): Promise<Ids>;
+
+  public async view<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    id: Id,
+    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
+    context?: unknown,
+  ): Promise<QueryResults[Key] | Ids> {
+    this.noop(context);
     const result = await this.databaseClient.view(resource, id, options);
 
     if (result === null) {
@@ -303,12 +450,28 @@ export default class Engine<
    *
    * @returns Paginated list of resources.
    */
-  public async list<Resource extends keyof DataModel & string>(
+  public async list<Resource extends keyof DataModel, Key extends keyof QueryResults>(
     resource: Resource,
     searchBody: SearchBody,
-    options: SearchCommandOptions,
-  ): Promise<Results<DataModel[Resource]>> {
-    return this.databaseClient.search(resource, searchBody, options);
+    options: ListCommandOptions<Key>,
+    context?: unknown,
+  ): Promise<Results<QueryResults[Key]>>;
+
+  public async list<Resource extends keyof DataModel>(
+    resource: Resource,
+    searchBody: SearchBody,
+    options: ListCommandOptionsWithoutKey,
+    context?: unknown,
+  ): Promise<Results<Ids>>;
+
+  public async list<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+    resource: Resource,
+    searchBody: SearchBody,
+    options: ListCommandOptionsWithoutKey | ListCommandOptions<Key>,
+    context?: unknown,
+  ): Promise<Results<QueryResults[Key] | Ids>> {
+    this.noop(context);
+    return this.databaseClient.list(resource, searchBody, options);
   }
 
   /**
@@ -320,18 +483,20 @@ export default class Engine<
    *
    * @throws If resource does not exist or does not match criteria.
    */
-  public async delete<Resource extends keyof DataModel & string>(
+  public async delete<Resource extends keyof DataModel>(
     resource: Resource,
     id: Id,
+    context?: unknown,
   ): Promise<void> {
+    this.noop(context);
     let resourceExists = false;
     const metaData = this.model.get(resource);
 
     if (metaData.schema.enableDeletion) {
       resourceExists = await this.databaseClient.delete(resource, id);
     } else {
-      const payload = { _isDeleted: true } as UpdatePayload<DataModel[Resource]>;
-      const fullPayload = await this.preparePayload(resource, 'UPDATE', payload);
+      const fullPayload = await this.prepareUpdatePayload(resource, {});
+      this.defineUpdatePayload<Deletion>(fullPayload)._isDeleted = true;
       resourceExists = await this.databaseClient.update(resource, id, fullPayload);
     }
 
