@@ -8,8 +8,8 @@
 
 import {
   Id,
-  type Ids,
   deepCopy,
+  type Ids,
   type Results,
   type Authors,
   isPlainObject,
@@ -34,7 +34,7 @@ export default class Engine<
   /**
    * Data model type definition.
    */
-  DataModel,
+  DataModel extends object,
 
   /**
    * Query results type definition.
@@ -338,6 +338,12 @@ export default class Engine<
     context?: unknown,
   ): Promise<QueryResults[Key] | Ids> {
     this.noop(context);
+    const metaData = this.model.get(resource);
+
+    if (!metaData.schema.allowedOperations?.includes('CREATE')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'CREATE' });
+    }
+
     const fullPayload = await this.prepareCreatePayload(resource, payload);
     await this.databaseClient.create(resource, fullPayload);
     return this.view(resource, this.defineCreatePayload<Ids>(fullPayload)._id, options);
@@ -383,6 +389,11 @@ export default class Engine<
   ): Promise<QueryResults[Key] | Ids> {
     this.noop(context);
     let resourceExists = false;
+    const metaData = this.model.get(resource);
+
+    if (!metaData.schema.allowedOperations?.includes('UPDATE')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'UPDATE' });
+    }
 
     if (Object.keys(payload).length > 0) {
       const newPayload = await this.prepareUpdatePayload(resource, payload);
@@ -430,6 +441,12 @@ export default class Engine<
     context?: unknown,
   ): Promise<QueryResults[Key] | Ids> {
     this.noop(context);
+    const metaData = this.model.get(resource);
+
+    if (!metaData.schema.allowedOperations?.includes('VIEW')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
+    }
+
     const result = await this.databaseClient.view(resource, id, options);
 
     if (result === null) {
@@ -471,6 +488,13 @@ export default class Engine<
     context?: unknown,
   ): Promise<Results<QueryResults[Key] | Ids>> {
     this.noop(context);
+
+    const metaData = this.model.get(resource);
+
+    if (!metaData.schema.allowedOperations?.includes('LIST')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'LIST' });
+    }
+
     return this.databaseClient.list(resource, searchBody, options);
   }
 
@@ -491,6 +515,10 @@ export default class Engine<
     this.noop(context);
     let resourceExists = false;
     const metaData = this.model.get(resource);
+
+    if (!metaData.schema.allowedOperations?.includes('DELETE')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'DELETE' });
+    }
 
     if (metaData.schema.enableDeletion) {
       resourceExists = await this.databaseClient.delete(resource, id);
