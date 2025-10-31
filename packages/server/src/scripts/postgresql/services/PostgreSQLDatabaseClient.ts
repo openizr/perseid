@@ -114,6 +114,11 @@ export default class PostgreSQLDatabaseClient<
   protected textEncoder = new TextEncoder();
 
   /**
+   * Allows to provide a custom SQL table name for specific resources and sub-resources.
+   */
+  protected tablesMapping: Record<string, string>;
+
+  /**
    * Generates metadata for `resource`, including fields, indexes, and constraints, necessary to
    * generate the database structure and handle resources deletion.
    *
@@ -816,6 +821,7 @@ export default class PostgreSQLDatabaseClient<
     settings: PostgreSQLDatabaseClientSettings,
   ) {
     super(model, telemetry, cache, settings);
+    this.tablesMapping = {};
     this.client = null as unknown as pg.Pool;
     this.databaseSettings = settings;
     this.model.getResources().forEach((resource) => {
@@ -1176,16 +1182,17 @@ export default class PostgreSQLDatabaseClient<
     id: Id,
     options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null> {
-    const values: unknown[] = [String(id)];
+    const values: unknown[] = [];
     const fields = new Set([...(options.fields ?? [])]);
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const { formattedQuery, projections } = this.parseFields(resource, fields, maximumDepth);
-    const metaData = this.model.get(resource);
-    const excludeDeletedResources = (options.excludeDeletedResources !== false);
-    const deletionClause = !metaData.schema.enableDeletion && excludeDeletedResources
-      ? ` AND "${String(resource)}"."_isDeleted" = false`
-      : '';
-    const whereClause = `\nWHERE "${String(resource)}"."_id" = $1${deletionClause}`;
+    const filters = this.getResourceFilters(resource, id, options);
+    const where = Object.keys(filters).map((key, index) => {
+      values.push(filters[key]);
+      return `\n  "${key}" = $${String(index + 1)}`;
+    }).join('\n  AND ');
+
+    const whereClause = `\nWHERE ${where}`;
     return this.handleError(async () => {
       const sqlQuery = `${this.generateQuery(resource, formattedQuery)}${whereClause};`;
       this.telemetry.debug('[PostgreSQLDatabaseClient][view] Performing the following SQL query on database:');
