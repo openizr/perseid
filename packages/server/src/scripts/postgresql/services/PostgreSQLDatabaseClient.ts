@@ -742,9 +742,6 @@ export default class PostgreSQLDatabaseClient<
           } else if (splittedPath.length === 0) {
             if (type === 'id') {
               currentResource[fieldName] ??= new Id(result[key] as string);
-            } else if (type === 'binary') {
-              const { buffer } = this.textEncoder.encode((result[key] as string));
-              currentResource[fieldName] = buffer;
             } else {
               currentResource[fieldName] = result[key];
             }
