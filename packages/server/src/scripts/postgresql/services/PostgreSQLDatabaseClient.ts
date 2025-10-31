@@ -1020,7 +1020,11 @@ export default class PostgreSQLDatabaseClient<
     options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<void> {
     const resourceId = (payload as { _id: Id; })._id;
-    const newDocuments = this.structurePayload(resource, resourceId, payload as Payload<DataModel[Resource]>, 'CREATE');
+    const newDocuments = this.updatePayload(
+      String(resource),
+      this.structurePayload(resource, resourceId, payload as Payload<DataModel[Resource]>, 'CREATE'),
+      options,
+    );
 
     await this.handleError(async () => {
       const connection = await this.client.connect();

@@ -567,6 +567,27 @@ export default abstract class AbstractDatabaseClient<
   }
 
   /**
+   * Updates `documents` right before creation in database. This can be especially useful to set
+   * additional database fields that do not exist in the data model, in multi-tenancy for instance.
+   *
+   * @param resource Type of resource to update payload for.
+   *
+   * @param documents Structured payload to update.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Updated structured payload.
+   */
+  protected updatePayload(
+    _resource: string,
+    documents: StructuredPayload,
+    options?: QueryOptions,
+  ): StructuredPayload {
+    this.telemetry.debug('');
+    return options?.excludeDeletedResources ? documents : documents;
+  }
+
+  /**
    * Class constructor.
    *
    * @param model Data model to use.
