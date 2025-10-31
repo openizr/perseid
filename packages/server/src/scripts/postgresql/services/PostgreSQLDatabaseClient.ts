@@ -542,8 +542,8 @@ export default class PostgreSQLDatabaseClient<
         this.VALIDATORS[type](path, partialPayload, currentSchema);
       }
 
-      if (type === 'binary' && partialPayload !== null) {
-        rootFormattedPayload[npath] = this.textDecoder.decode(partialPayload as ArrayBuffer);
+      if (type === 'date' && partialPayload instanceof Date) {
+        rootFormattedPayload[npath] = partialPayload.toISOString();
       } else if (type === 'id' && partialPayload !== null) {
         rootFormattedPayload[npath] = String(partialPayload);
       } else if (type === 'array') {
