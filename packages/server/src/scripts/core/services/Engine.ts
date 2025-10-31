@@ -18,6 +18,16 @@ import {
   type Timestamps,
   type FieldSchema,
 } from '@perseid/core';
+import type {
+  Payload,
+  SearchBody,
+  UpdatePayload,
+  CreatePayload,
+  SearchFilters,
+  CommandOptions,
+  ViewCommandOptions,
+  ListCommandOptions,
+} from 'scripts/core/types';
 import EngineError from 'scripts/core/errors/Engine';
 import Telemetry from 'scripts/core/services/Telemetry';
 import type DefaultModel from 'scripts/core/services/Model';
@@ -316,32 +326,29 @@ export default class Engine<
    * @param options Command options.
    *
    * @returns Newly created resource.
+   *
+   * @throws If the `CREATE` operation is not allowed for this resource.
+   *
+   * @throws If the `VIEW` operation is not allowed for this resource.
    */
-  public async create<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+  public async create<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel = keyof DataModel
+  >(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions<Key>,
+    options: ViewCommandOptions,
     context?: unknown,
-  ): Promise<QueryResults[Key]>;
-
-  public async create<Resource extends keyof DataModel>(
-    resource: Resource,
-    payload: CreatePayload<DataModel[Resource]>,
-    options: ViewCommandOptionsWithoutKey,
-    context?: unknown,
-  ): Promise<Ids>;
-
-  public async create<Resource extends keyof DataModel, Key extends keyof QueryResults>(
-    resource: Resource,
-    payload: CreatePayload<DataModel[Resource]>,
-    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
-    context?: unknown,
-  ): Promise<QueryResults[Key] | Ids> {
+  ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
     this.noop(context);
     const metaData = this.model.get(resource);
 
     if (!metaData.schema.allowedOperations?.includes('CREATE')) {
       throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'CREATE' });
+    }
+
+    if (!metaData.schema.allowedOperations.includes('VIEW')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
     }
 
     const fullPayload = await this.prepareCreatePayload(resource, payload);
@@ -363,36 +370,31 @@ export default class Engine<
    * @returns Updated resource.
    *
    * @throws If resource does not exist or does not match criteria.
+   *
+   * @throws If the `UPDATE` operation is not allowed for this resource.
+   *
+   * @throws If the `VIEW` operation is not allowed for this resource.
    */
-  public async update<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+  public async update<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel = keyof DataModel
+  >(
     resource: Resource,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions<Key>,
+    options: ViewCommandOptions,
     context?: unknown,
-  ): Promise<QueryResults[Key]>;
-
-  public async update<Resource extends keyof DataModel>(
-    resource: Resource,
-    id: Id,
-    payload: UpdatePayload<DataModel[Resource]>,
-    options: ViewCommandOptionsWithoutKey,
-    context?: unknown,
-  ): Promise<Ids>;
-
-  public async update<Resource extends keyof DataModel, Key extends keyof QueryResults>(
-    resource: Resource,
-    id: Id,
-    payload: UpdatePayload<DataModel[Resource]>,
-    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
-    context?: unknown,
-  ): Promise<QueryResults[Key] | Ids> {
+  ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
     this.noop(context);
     let resourceExists = false;
     const metaData = this.model.get(resource);
 
     if (!metaData.schema.allowedOperations?.includes('UPDATE')) {
       throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'UPDATE' });
+    }
+
+    if (!metaData.schema.allowedOperations.includes('VIEW')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
     }
 
     if (Object.keys(payload).length > 0) {
@@ -419,27 +421,15 @@ export default class Engine<
    * @returns Resource, if it exists.
    *
    * @throws If resource does not exist or does not match criteria.
+   *
+   * @throws If the `VIEW` operation is not allowed for this resource.
    */
-  public async view<Resource extends keyof DataModel, Key extends keyof QueryResults>(
-    resource: Resource,
+  public async view<Key extends keyof QueryResults>(
+    resource: keyof DataModel,
     id: Id,
-    options: ViewCommandOptions<Key>,
+    options: ViewCommandOptions,
     context?: unknown,
-  ): Promise<QueryResults[Key]>;
-
-  public async view<Resource extends keyof DataModel>(
-    resource: Resource,
-    id: Id,
-    options: ViewCommandOptionsWithoutKey,
-    context?: unknown,
-  ): Promise<Ids>;
-
-  public async view<Resource extends keyof DataModel, Key extends keyof QueryResults>(
-    resource: Resource,
-    id: Id,
-    options: ViewCommandOptionsWithoutKey | ViewCommandOptions<Key>,
-    context?: unknown,
-  ): Promise<QueryResults[Key] | Ids> {
+  ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
     this.noop(context);
     const metaData = this.model.get(resource);
 
@@ -447,7 +437,7 @@ export default class Engine<
       throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
     }
 
-    const result = await this.databaseClient.view(resource, id, options);
+    const result = await this.databaseClient.view<Key>(resource, id, options);
 
     if (result === null) {
       throw new EngineError('NO_RESOURCE', { id });
@@ -466,27 +456,18 @@ export default class Engine<
    * @param options Command options.
    *
    * @returns Paginated list of resources.
+   *
+   * @throws If the `LIST` operation is not allowed for this resource.
    */
-  public async list<Resource extends keyof DataModel, Key extends keyof QueryResults>(
+  public async list<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel = keyof DataModel
+  >(
     resource: Resource,
     searchBody: SearchBody,
-    options: ListCommandOptions<Key>,
+    options: ListCommandOptions,
     context?: unknown,
-  ): Promise<Results<QueryResults[Key]>>;
-
-  public async list<Resource extends keyof DataModel>(
-    resource: Resource,
-    searchBody: SearchBody,
-    options: ListCommandOptionsWithoutKey,
-    context?: unknown,
-  ): Promise<Results<Ids>>;
-
-  public async list<Resource extends keyof DataModel, Key extends keyof QueryResults>(
-    resource: Resource,
-    searchBody: SearchBody,
-    options: ListCommandOptionsWithoutKey | ListCommandOptions<Key>,
-    context?: unknown,
-  ): Promise<Results<QueryResults[Key] | Ids>> {
+  ): Promise<Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>> {
     this.noop(context);
 
     const metaData = this.model.get(resource);
@@ -505,11 +486,16 @@ export default class Engine<
    *
    * @param id Resource id.
    *
+   * @param options Command options.
+   *
    * @throws If resource does not exist or does not match criteria.
+   *
+   * @throws If the `DELETE` operation is not allowed for this resource.
    */
   public async delete<Resource extends keyof DataModel>(
     resource: Resource,
     id: Id,
+    options: CommandOptions,
     context?: unknown,
   ): Promise<void> {
     this.noop(context);
@@ -521,7 +507,7 @@ export default class Engine<
     }
 
     if (metaData.schema.enableDeletion) {
-      resourceExists = await this.databaseClient.delete(resource, id);
+      resourceExists = await this.databaseClient.delete(resource, id, options);
     } else {
       const fullPayload = await this.prepareUpdatePayload(resource, {});
       this.defineUpdatePayload<Deletion>(fullPayload)._isDeleted = true;
