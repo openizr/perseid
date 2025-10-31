@@ -503,7 +503,7 @@ export default abstract class AbstractDatabaseClient<
   protected abstract structurePayload<Resource extends keyof DataModel & string>(
     resource: Resource,
     resourceId: Id,
-    payload: Partial<DataModel[Resource]>,
+    payload: Payload<DataModel[Resource]>,
     mode: 'CREATE' | 'UPDATE',
   ): StructuredPayload;
 

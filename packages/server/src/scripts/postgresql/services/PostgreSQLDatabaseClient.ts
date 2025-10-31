@@ -436,7 +436,8 @@ export default class PostgreSQLDatabaseClient<
     let joinClauses = '';
     const { sort } = formattedQuery;
     const newIndent = `${textIndent}  `;
-    const table = this.resourcesMetadata[formattedQuery.structure].structure;
+    const { structure } = formattedQuery;
+    const table = this.tablesMapping[structure] ?? this.resourcesMetadata[structure].structure;
     const joinedTables = Object.keys(formattedQuery.lookups);
     for (let index = 0, { length } = joinedTables; index < length; index += 1) {
       const join = formattedQuery.lookups[joinedTables[index]];
@@ -446,8 +447,11 @@ export default class PostgreSQLDatabaseClient<
       joinClauses += `${prefix}LEFT JOIN (\n${subQuery}\n${textIndent}) AS "${joinedTables[index]}"\n${onClause}`;
     }
 
+    const sortFields = Object.keys(sort ?? {}).reduce<string[]>((finalFields, path) => (
+      (path === '_id') ? finalFields : finalFields.concat([`"${path}"`])
+    ), []);
     const fieldsClause = (formattedQuery.match !== null || sort !== null)
-      ? [`DISTINCT "${table}"."_id"`].concat(sort !== null ? Object.keys(sort).map((path) => `"${path}"`) : []).join(', ')
+      ? [`DISTINCT "${table}"."_id"`].concat(sort !== null ? sortFields : []).join(', ')
       : Object.keys(formattedQuery.fields).map((fieldName) => (
         `"${table}"."${fieldName}" AS "${formattedQuery.fields[fieldName]}"`
       )).concat(joinedTables.map((path) => `"${path}".*`)).join(`,\n${newIndent}`);
@@ -456,9 +460,9 @@ export default class PostgreSQLDatabaseClient<
     let groupClause = '';
     if (sort !== null) {
       const sortClause = `\n${textIndent}ORDER BY\n${newIndent}${Object.keys(sort).map((path) => (
-        `"${path}" ${this.SQL_SORT_MAPPING[sort[path]]}`
+        `${(path === '_id') ? `"${table}"."${path}"` : `"${path}"`} ${this.SQL_SORT_MAPPING[sort[path]]}`
       )).join(`,\n${newIndent}`)}`;
-      groupClause += `\n${textIndent}GROUP BY "${table}"."_id", ${Object.keys(sort).map((path) => `"${path}"`).join(', ')}${sortClause}`;
+      groupClause += `\n${textIndent}GROUP BY ${[`"${table}"."_id"`].concat(sortFields).join(', ')}${sortClause}`;
     }
 
     const whereClause = [];
@@ -476,14 +480,17 @@ export default class PostgreSQLDatabaseClient<
       }
       if (filters.length > 0) {
         whereClause.push(filters.map((filter) => {
-          const clause = `"${String(Object.keys(filter)[0])}" ${Array.isArray(Object.values(filter)[0])
-            ? `IN (${(Object.values(filter)[0] as unknown[]).map(() => {
+          let clause = '';
+          if (Array.isArray(Object.values(filter)[0])) {
+            clause = `"${String(Object.keys(filter)[0])}" IN (${(Object.values(filter)[0] as unknown[]).map(() => {
               const p = `$${String(placeholderIndex)}`;
               placeholderIndex += 1;
               return p;
-            }).join(', ')})`
-            : `= $${String(placeholderIndex)}`}`;
-          if (!Array.isArray(Object.values(filter)[0])) {
+            }).join(', ')})`;
+          } else if (Object.values(filter)[0] === null) {
+            clause = `"${String(Object.keys(filter)[0])}" IS NULL`;
+          } else {
+            clause = `"${String(Object.keys(filter)[0])}" = $${String(placeholderIndex)}`;
             placeholderIndex += 1;
           }
           return clause;
@@ -514,7 +521,7 @@ export default class PostgreSQLDatabaseClient<
   protected structurePayload<Resource extends keyof DataModel>(
     resource: Resource,
     resourceId: Id,
-    payload: Partial<DataModel[Resource]>,
+    payload: Payload<DataModel[Resource]>,
     mode: 'CREATE' | 'UPDATE',
   ): StructuredPayload {
     const structuredPayload: StructuredPayload = { [resource]: [] };
@@ -1013,7 +1020,7 @@ export default class PostgreSQLDatabaseClient<
     options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<void> {
     const resourceId = (payload as { _id: Id; })._id;
-    const newDocuments = this.structurePayload(resource, resourceId, payload, 'CREATE');
+    const newDocuments = this.structurePayload(resource, resourceId, payload as Payload<DataModel[Resource]>, 'CREATE');
 
     await this.handleError(async () => {
       const connection = await this.client.connect();
