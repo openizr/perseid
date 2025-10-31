@@ -1098,6 +1098,14 @@ export default class PostgreSQLDatabaseClient<
       try {
         const tables = Object.keys(newDocuments);
 
+        // If only the main resource is being updated, we don't need to use any lock as
+        // the operation will be atomic anyway.
+        if (tables.length > 1) {
+          const mainStructure = this.tablesMapping[String(resource)]
+            ?? this.resourcesMetadata[String(resource)].structure;
+          await connection.query(`SELECT * FROM "${mainStructure}" WHERE "_id" = $1 FOR UPDATE;`, [resourceId]);
+        }
+
         // We need to sort tables from the most specific to the root resource before deletion, in
         // order to prevent foreign keys constraints issues on nested fields deletion.
         await Promise.all([...tables].sort((a, b) => b.length - a.length).map(async (table) => {
