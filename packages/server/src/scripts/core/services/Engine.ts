@@ -227,11 +227,14 @@ export default class Engine<
    *
    * @param payload Payload to validate and update.
    *
+   * @param options Command options.
+   *
    * @returns Prepared and validated payload, containing automatic fields.
    */
   protected async prepareCreatePayload<Resource extends keyof DataModel>(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
+    options: CommandOptions,
     context?: unknown,
   ): Promise<DataModel[Resource]> {
     this.noop(context);
@@ -257,6 +260,7 @@ export default class Engine<
         isRequired: true,
         fields: metaData.schema.fields,
       }, payload),
+      options,
     );
 
     return this.defineCreatePayload<DataModel[Resource]>(fullPayload);
@@ -270,11 +274,14 @@ export default class Engine<
    *
    * @param payload Payload to validate and update.
    *
+   * @param options Command options.
+   *
    * @returns Prepared and validated payload, containing automatic fields.
    */
   protected async prepareUpdatePayload<Resource extends keyof DataModel>(
     resource: Resource,
     payload: UpdatePayload<DataModel[Resource]>,
+    options: CommandOptions,
     context?: unknown,
   ): Promise<Payload<DataModel[Resource]>> {
     this.noop(context);
@@ -292,6 +299,7 @@ export default class Engine<
         isRequired: true,
         fields: metaData.schema.fields,
       }, payload),
+      options,
     );
 
     return this.defineUpdatePayload<DataModel[Resource]>(fullPayload);
@@ -351,7 +359,7 @@ export default class Engine<
       throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
     }
 
-    const fullPayload = await this.prepareCreatePayload(resource, payload);
+    const fullPayload = await this.prepareCreatePayload(resource, payload, options);
     await this.databaseClient.create(resource, fullPayload);
     return this.view(resource, this.defineCreatePayload<Ids>(fullPayload)._id, options);
   }
@@ -398,7 +406,7 @@ export default class Engine<
     }
 
     if (Object.keys(payload).length > 0) {
-      const newPayload = await this.prepareUpdatePayload(resource, payload);
+      const newPayload = await this.prepareUpdatePayload(resource, payload, options);
       resourceExists = await this.databaseClient.update(resource, id, newPayload);
 
       if (!resourceExists) {
@@ -509,7 +517,7 @@ export default class Engine<
     if (metaData.schema.enableDeletion) {
       resourceExists = await this.databaseClient.delete(resource, id, options);
     } else {
-      const fullPayload = await this.prepareUpdatePayload(resource, {});
+      const fullPayload = await this.prepareUpdatePayload(resource, {}, options);
       this.defineUpdatePayload<Deletion>(fullPayload)._isDeleted = true;
       resourceExists = await this.databaseClient.update(resource, id, fullPayload);
     }

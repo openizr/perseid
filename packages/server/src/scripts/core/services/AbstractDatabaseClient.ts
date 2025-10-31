@@ -646,15 +646,20 @@ export default abstract class AbstractDatabaseClient<
   public abstract reset(): Promise<void>;
 
   /**
-   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
+   * Makes sure that `relations` reference existing resources that match specific conditions.
    *
-   * @param foreignIds Foreign ids to check in database.
+   * @param resource Type of resource to check relations for.
+   *
+   * @param relations Foreign ids to check in database.
+   *
+   * @param options Query options. Defaults to `{}`.
    *
    * @throws If any foreign id does not exist.
    */
   public abstract checkRelations<Resource extends keyof DataModel>(
-    resource: Resource,
+    _resource: Resource,
     relations: Map<string, { resource: keyof DataModel; filters: SearchFilters | null; }>,
+    options?: QueryOptions,
   ): Promise<void>;
 
   /**
