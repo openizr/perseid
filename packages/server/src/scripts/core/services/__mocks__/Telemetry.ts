@@ -7,7 +7,7 @@
  */
 
 /**
- * `core/services/Logger` mock.
+ * `core/services/Telemetry` mock.
  */
 
 export default class {
