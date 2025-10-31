@@ -37,23 +37,45 @@ import type Telemetry from 'scripts/core/services/Telemetry';
 import type CacheClient from 'scripts/core/services/CacheClient';
 
 /**
+ * PostgreSQL database client settings.
+ */
+export interface PostgreSQLDatabaseClientSettings extends DatabaseClientSettings {
+  /**
+   * SSL configuration to use for database connection.
+   */
+  ssl: {
+    ca?: string;
+    rejectUnauthorized?: boolean;
+  } | false;
+}
+
+/**
  * PostgreSQL database client.
  *
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/postgresql/services/PostgreSQLDatabaseClient.ts
  */
 export default class PostgreSQLDatabaseClient<
-  /** Data model types definitions. */
+  /**
+   * Data model types definitions.
+   */
   DataModel extends UsersDataModel = UsersDataModel,
 
+  /**
+   * Query results types definitions.
+   */
   QueryResults extends Record<string, Ids> = Record<string, Ids>,
 
-  /** Model class types definitions. */
+  /**
+   * Model class types definitions.
+   */
   Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 > extends DatabaseClient<DataModel, QueryResults, Model> {
-  /** Data model types <> SQL types mapping, for tables creation. */
+  /**
+   * Data model types <> SQL types mapping, for tables creation.
+   */
   protected readonly SQL_TYPES_MAPPING: Record<string, string> = {
     null: 'BOOLEAN',
-    id: 'CHAR(24)',
+    id: (Id.FORMAT === 'SNOWFLAKE') ? 'CHAR(24)' : 'UUID',
     integer: 'INT',
     boolean: 'BOOLEAN',
     float: 'FLOAT8',
@@ -63,22 +85,32 @@ export default class PostgreSQLDatabaseClient<
     object: 'BOOLEAN',
   };
 
-  /** SQL sorting keywords. */
+  /**
+   * SQL sorting keywords.
+   */
   protected readonly SQL_SORT_MAPPING: Record<1 | -1, string> = {
     1: 'ASC',
     '-1': 'DESC',
   };
 
-  /** PostgreSQL client instance. */
+  /**
+   * PostgreSQL client instance.
+   */
   protected client: pg.Pool;
 
-  /** PostgreSQL database connection settings. Necessary to reset pool after dropping database. */
-  protected databaseSettings: DatabaseClientSettings;
+  /**
+   * PostgreSQL database connection settings. Necessary to reset pool after dropping database.
+   */
+  protected databaseSettings: PostgreSQLDatabaseClientSettings;
 
-  /** Used to format ArrayBuffers into strings. */
+  /**
+   * Used to format ArrayBuffers into strings.
+   */
   protected textDecoder = new TextDecoder('utf-8');
 
-  /** Used to format strings into ArrayBuffers. */
+  /**
+   * Used to format strings into ArrayBuffers.
+   */
   protected textEncoder = new TextEncoder();
 
   /**
@@ -739,12 +771,13 @@ export default class PostgreSQLDatabaseClient<
       this.telemetry.debug(`[PostgreSQLDatabaseClient][handleError] Connecting to database ${this.database}...`);
       this.client = new pg.Pool({
         database: this.database,
+        ssl: this.databaseSettings.ssl,
         host: this.databaseSettings.host,
         max: this.databaseSettings.connectionLimit,
         port: this.databaseSettings.port ?? undefined,
         user: this.databaseSettings.user ?? undefined,
-        idleTimeoutMillis: this.databaseSettings.connectTimeout,
         password: this.databaseSettings.password ?? undefined,
+        idleTimeoutMillis: this.databaseSettings.connectTimeout,
         connectionTimeoutMillis: this.databaseSettings.connectTimeout,
       });
       this.isConnected = true;
@@ -783,7 +816,7 @@ export default class PostgreSQLDatabaseClient<
     model: Model,
     telemetry: Telemetry,
     cache: CacheClient,
-    settings: DatabaseClientSettings,
+    settings: PostgreSQLDatabaseClientSettings,
   ) {
     super(model, telemetry, cache, settings);
     this.client = null as unknown as pg.Pool;
