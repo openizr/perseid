@@ -14,9 +14,8 @@ import {
   type DateSchema,
   type FieldSchema,
   type ObjectSchema,
-  type ResourceSchema,
-  type DefaultDataModel,
-  type DataModelMetadata,
+  type UsersDataModel,
+  type Ids,
 } from '@perseid/core';
 import pg from 'pg';
 import DatabaseClient, {
@@ -24,9 +23,17 @@ import DatabaseClient, {
   type StructuredPayload,
   type DatabaseClientSettings,
 } from 'scripts/core/services/AbstractDatabaseClient';
-import type Logger from 'scripts/core/services/Logger';
+import type {
+  Payload,
+  SearchBody,
+  QueryOptions,
+  SearchFilters,
+  ViewQueryOptions,
+  ListQueryOptions,
+} from 'scripts/core';
 import type BaseModel from 'scripts/core/services/Model';
 import DatabaseError from 'scripts/core/errors/Database';
+import type Telemetry from 'scripts/core/services/Telemetry';
 import type CacheClient from 'scripts/core/services/CacheClient';
 
 /**
@@ -36,11 +43,13 @@ import type CacheClient from 'scripts/core/services/CacheClient';
  */
 export default class PostgreSQLDatabaseClient<
   /** Data model types definitions. */
-  DataModel extends DefaultDataModel = DefaultDataModel,
+  DataModel extends UsersDataModel = UsersDataModel,
+
+  QueryResults extends Record<string, Ids> = Record<string, Ids>,
 
   /** Model class types definitions. */
   Model extends BaseModel<DataModel> = BaseModel<DataModel>,
-> extends DatabaseClient<DataModel, Model> {
+> extends DatabaseClient<DataModel, QueryResults, Model> {
   /** Data model types <> SQL types mapping, for tables creation. */
   protected readonly SQL_TYPES_MAPPING: Record<string, string> = {
     null: 'BOOLEAN',
@@ -83,7 +92,7 @@ export default class PostgreSQLDatabaseClient<
   protected generateResourceMetadata<Resource extends keyof DataModel & string>(
     resource: Resource,
   ): void {
-    const metadata = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    const metadata = this.model.get(resource);
     const resourceSchema = { type: 'object', isRequired: true, fields: metadata.schema.fields };
 
     const generateMetadata = (
@@ -156,8 +165,8 @@ export default class PostgreSQLDatabaseClient<
           let max = (enumerations !== undefined) ? enumerations.reduce((m, value) => (
             Math.max(m, value.length)
           ), 0) : maxLength;
-          max = (!!isIndexed || !!isUnique) ? Math.min(max ?? 255, 255) : max;
-          const newType = (max !== undefined && max < 256) ? `VARCHAR(${String(max)})` : 'TEXT';
+          max = (!!isIndexed || !!isUnique) ? Math.min(max, 255) : max;
+          const newType = (max < 256) ? `VARCHAR(${String(max)})` : 'TEXT';
           fields[scopedPath] = { type: newType, isRequired };
         } else if (type === 'id' && currentSchema.relation !== undefined) {
           const relation = String(currentSchema.relation);
@@ -202,7 +211,7 @@ export default class PostgreSQLDatabaseClient<
    *
    * @throws If maximum level of resources depth is exceeded.
    */
-  protected parseFields<Resource extends keyof DataModel & string>(
+  protected parseFields<Resource extends keyof DataModel>(
     resource: Resource,
     fields: Set<string>,
     maximumDepth: number,
@@ -212,7 +221,7 @@ export default class PostgreSQLDatabaseClient<
     let index = 0;
     const projections = new Map([['_id', '_id']]);
     const formattedQuery: FormattedQuery = {
-      structure: resource,
+      structure: String(resource),
       sort: null,
       match: null,
       lookups: {},
@@ -225,7 +234,7 @@ export default class PostgreSQLDatabaseClient<
     const processedFiltersFields = new Set();
     const queryFields = [...(searchBody?.query?.on ?? [])];
     const filterFields = Object.keys(searchBody?.filters ?? {});
-    const model = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    const model = this.model.get(resource);
     const allFields = [...fields].concat(sortByFields).concat(filterFields).concat(queryFields);
     const formattedMatch: {
       query: Record<string, unknown>[];
@@ -241,7 +250,7 @@ export default class PostgreSQLDatabaseClient<
       }
       const existingMappedPath = projections.get(path);
       if (existingMappedPath === undefined) {
-        const mappedPath = `${resource}_${String(index)}`;
+        const mappedPath = `${String(resource)}_${String(index)}`;
         index += 1;
         projections.set(path, mappedPath);
         return mappedPath;
@@ -252,10 +261,10 @@ export default class PostgreSQLDatabaseClient<
     allFields.forEach((path) => {
       let currentDepth = 1;
       let isInArray = false;
-      let currentTable = resource;
       let scopedPath: string[] = [];
       const currentPath: string[] = [];
       let pathInRelation: string[] = [];
+      let currentTable = String(resource);
       const splittedPath = path.split('.');
       let currentFormattedQuery = formattedQuery;
       let currentSchema = model.schema as FieldSchema<DataModel> | undefined;
@@ -298,7 +307,7 @@ export default class PostgreSQLDatabaseClient<
           currentFormattedQuery.fields[flattenedScopedPath] = getMappedField(flattenedFullPath);
         } else if (type === 'id' && relation !== undefined && splittedPath.length > 0) {
           currentDepth += 1;
-          currentTable = relation as Resource;
+          currentTable = relation;
           currentFormattedQuery.fields[flattenedScopedPath] = getMappedField(flattenedFullPath);
           currentFormattedQuery.lookups[flattenedScopedPath] ??= {
             lookups: {},
@@ -313,7 +322,7 @@ export default class PostgreSQLDatabaseClient<
           pathInRelation = [];
           currentFormattedQuery = currentFormattedQuery.lookups[flattenedScopedPath];
           const relationMetadata = this.model.get(relation);
-          const { schema } = relationMetadata as DataModelMetadata<ResourceSchema<DataModel>>;
+          const { schema } = relationMetadata;
           currentSchema = { type: 'object', fields: schema.fields };
         } else if (splittedPath.length === 0) {
           currentFormattedQuery.fields[flattenedScopedPath] = getMappedField(flattenedFullPath);
@@ -465,14 +474,14 @@ export default class PostgreSQLDatabaseClient<
    *
    * @returns Structured format for database storage.
    */
-  protected structurePayload<Resource extends keyof DataModel & string>(
+  protected structurePayload<Resource extends keyof DataModel>(
     resource: Resource,
     resourceId: Id,
-    payload: Payload<DataModel[Resource]>,
+    payload: Partial<DataModel[Resource]>,
     mode: 'CREATE' | 'UPDATE',
   ): StructuredPayload {
     const structuredPayload: StructuredPayload = { [resource]: [] };
-    const model = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    const model = this.model.get(resource);
 
     const structurePartialPayload = (
       currentTable: string,
@@ -507,7 +516,7 @@ export default class PostgreSQLDatabaseClient<
         rootFormattedPayload[npath] = String(partialPayload);
       } else if (type === 'array') {
         const fpath = currentPath.rootArray.join('_');
-        const subTables = this.resourcesMetadata[resource].subStructuresPerPath[fpath];
+        const subTables = this.resourcesMetadata[String(resource)].subStructuresPerPath[fpath];
         subTables.forEach((subTable) => {
           structuredPayload[subTable] ??= [];
         });
@@ -519,7 +528,7 @@ export default class PostgreSQLDatabaseClient<
             const newId = new Id();
             const newPayload = {};
             structurePartialPayload(
-              `_${resource}_${fpath}`,
+              `_${String(resource)}_${fpath}`,
               {
                 _id: newId,
                 _parentId: parentId ?? resourceId,
@@ -542,7 +551,7 @@ export default class PostgreSQLDatabaseClient<
               newId,
               skipValidation,
             );
-            structuredPayload[`_${resource}_${fpath}`].push(newPayload);
+            structuredPayload[`_${String(resource)}_${fpath}`].push(newPayload);
           });
         }
       } else if (type === 'object') {
@@ -599,13 +608,13 @@ export default class PostgreSQLDatabaseClient<
 
     const formattedPayload = {};
     structurePartialPayload(
-      resource,
+      String(resource),
       payload,
       mode === 'CREATE',
       { type: 'object', isRequired: true, fields: model.schema.fields },
       formattedPayload,
     );
-    structuredPayload[resource][0] = formattedPayload;
+    structuredPayload[String(resource)][0] = formattedPayload;
 
     return structuredPayload;
   }
@@ -623,7 +632,7 @@ export default class PostgreSQLDatabaseClient<
    *
    * @returns Formatted results.
    */
-  protected formatResources<Resource extends keyof DataModel & string>(
+  protected formatResources<Resource extends keyof DataModel>(
     resource: Resource,
     results: unknown[],
     fields: unknown,
@@ -631,7 +640,7 @@ export default class PostgreSQLDatabaseClient<
   ): DataModel[Resource][] {
     const arraysMapping = new Map<string, number>();
     const finalResources: Record<string, Record<string, unknown>> = {};
-    const model = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    const model = this.model.get(resource);
 
     (results as Record<string, unknown>[]).forEach((result) => {
       finalResources[result._id as string] ??= {
@@ -693,7 +702,7 @@ export default class PostgreSQLDatabaseClient<
             }
             currentResource = currentResource[fieldName] as Record<string, unknown>;
             const relationMetadata = this.model.get(relation);
-            const { schema } = relationMetadata as DataModelMetadata<ResourceSchema<DataModel>>;
+            const { schema } = relationMetadata;
             currentSchema = { type: 'object', fields: schema.fields };
           } else if (currentSchema?.type === 'object') {
             currentResource[fieldName] ??= {};
@@ -727,7 +736,7 @@ export default class PostgreSQLDatabaseClient<
    */
   protected async handleError<T>(callback: () => Promise<T>): Promise<T> {
     if (!this.isConnected) {
-      this.logger.debug(`[PostgreSQLDatabaseClient][handleError] Connecting to database ${this.database}...`);
+      this.telemetry.debug(`[PostgreSQLDatabaseClient][handleError] Connecting to database ${this.database}...`);
       this.client = new pg.Pool({
         database: this.database,
         host: this.databaseSettings.host,
@@ -764,7 +773,7 @@ export default class PostgreSQLDatabaseClient<
    *
    * @param model Data model to use.
    *
-   * @param logger Logging system to use.
+   * @param telemetry Logging system to use.
    *
    * @param cache Cache client instance to use for results caching.
    *
@@ -772,11 +781,11 @@ export default class PostgreSQLDatabaseClient<
    */
   public constructor(
     model: Model,
-    logger: Logger,
+    telemetry: Telemetry,
     cache: CacheClient,
     settings: DatabaseClientSettings,
   ) {
-    super(model, logger, cache, settings);
+    super(model, telemetry, cache, settings);
     this.client = null as unknown as pg.Pool;
     this.databaseSettings = settings;
     this.model.getResources().forEach((resource) => {
@@ -794,7 +803,7 @@ export default class PostgreSQLDatabaseClient<
     const message = '[PostgreSQLDatabaseClient][dropDatabase] PostgreSQL does not support database'
       + ' dropping while being connected to this database. You must perform this operation directly'
       + ' on database.';
-    await (this.logger.warn as unknown as (_: string) => Promise<void>)(message);
+    await (this.telemetry.warn as unknown as (_: string) => Promise<void>)(message);
   }
 
   /**
@@ -804,7 +813,7 @@ export default class PostgreSQLDatabaseClient<
     this.isConnected = false;
     const message = '[PostgreSQLDatabaseClient][createDatabase] Database is already created - '
       + 'skipping creation.';
-    await (this.logger.warn as unknown as (_: string) => Promise<void>)(message);
+    await (this.telemetry.warn as unknown as (_: string) => Promise<void>)(message);
   }
 
   /**
@@ -829,16 +838,16 @@ export default class PostgreSQLDatabaseClient<
             return `"${fieldName}" ${type}${isRequired ? ' NOT NULL' : ''}`;
           }).join(',\n  ');
           const sqlQuery = `CREATE TABLE "${structure}" (\n  ${fieldsClause},\n  PRIMARY KEY ("_id")\n);`;
-          this.logger.info(`[PostgreSQLDatabaseClient][createMissingStructures] Creating table ${structure}...`);
-          this.logger.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
-          this.logger.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${sqlQuery}\n`);
+          this.telemetry.info(`[PostgreSQLDatabaseClient][createMissingStructures] Creating table ${structure}...`);
+          this.telemetry.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
+          this.telemetry.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${sqlQuery}\n`);
           await this.client.query(sqlQuery);
           await forEach(indexes, async (currentIndex, index) => {
             const { unique, path } = currentIndex;
             const uniqueClause = unique ? ' UNIQUE' : '';
             const indexSqlQuery = `CREATE${uniqueClause} INDEX index_${structure}_${String(index)} ON "${structure}" ("${path}");`;
-            this.logger.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
-            this.logger.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${indexSqlQuery}\n`);
+            this.telemetry.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${indexSqlQuery}\n`);
             await this.client.query(indexSqlQuery);
           });
         }
@@ -851,14 +860,14 @@ export default class PostgreSQLDatabaseClient<
             const { path, relation } = constraint;
             const foreignTable = this.resourcesMetadata[relation].structure;
             const constraintSqlQuery = `ALTER TABLE "${structure}" ADD CONSTRAINT fk_${structure}_${String(index)} FOREIGN KEY ("${path}") REFERENCES "${foreignTable}"("_id")`;
-            this.logger.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
-            this.logger.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${constraintSqlQuery}\n`);
+            this.telemetry.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${constraintSqlQuery}\n`);
             await this.client.query(constraintSqlQuery);
           });
         }
       });
 
-      this.logger.info('[PostgreSQLDatabaseClient][createMissingStructures] Creating table _config...');
+      this.telemetry.info('[PostgreSQLDatabaseClient][createMissingStructures] Creating table _config...');
       await this.client.query('DROP TABLE IF EXISTS "_config";');
       await this.client.query(
         'CREATE TABLE "_config" ("key" VARCHAR(255) NOT NULL PRIMARY KEY, "value" TEXT NOT NULL);',
@@ -873,33 +882,33 @@ export default class PostgreSQLDatabaseClient<
     await this.dropDatabase();
     await this.createDatabase();
     await this.handleError(async () => {
-      this.logger.info('[PostgreSQLDatabaseClient][reset] Initializing tables...');
+      this.telemetry.info('[PostgreSQLDatabaseClient][reset] Initializing tables...');
       await this.createMissingStructures();
-      this.logger.info('[PostgreSQLDatabaseClient][reset] Successfully initialized tables.');
+      this.telemetry.info('[PostgreSQLDatabaseClient][reset] Successfully initialized tables.');
     });
   }
 
   /**
-   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
+   * Makes sure that `relations` reference existing resources that match specific conditions.
    *
-   * @param foreignIds Foreign ids to check in database.
+   * @param relations Foreign ids to check in database.
    *
    * @throws If any foreign id does not exist.
    */
-  public async checkForeignIds<Resource extends keyof DataModel & string>(
+  public async checkRelations<Resource extends keyof DataModel>(
     _resource: Resource,
-    foreignIds: Map<string, { resource: keyof DataModel & string; filters: SearchFilters; }>,
+    relations: Map<string, { resource: keyof DataModel; filters: SearchFilters | null; }>,
   ): Promise<void> {
-    if (foreignIds.size > 0) {
+    if (relations.size > 0) {
       let placeholderIndex = 1;
       const values: unknown[] = [];
       const sqlSubQueries: string[] = [];
       const missingIds = new Set<string>();
-      foreignIds.forEach((value, path) => {
+      relations.forEach((value, path) => {
         const table = String(value.resource);
         const allFilters = { ...value.filters };
         const metadata = this.model.get(value.resource);
-        const { schema } = metadata as DataModelMetadata<ResourceSchema<DataModel>>;
+        const { schema } = metadata;
         if (!schema.enableDeletion) {
           allFilters._isDeleted = false;
         }
@@ -923,9 +932,9 @@ export default class PostgreSQLDatabaseClient<
 
       await this.handleError(async () => {
         const sqlQuery = sqlSubQueries.join('\nUNION\n');
-        this.logger.debug('[PostgreSQLDatabaseClient][checkForeignIds] Performing the following SQL query on database:');
-        this.logger.debug(`[PostgreSQLDatabaseClient][checkForeignIds]\n\n${sqlQuery}\n`);
-        this.logger.debug(`[PostgreSQLDatabaseClient][checkForeignIds] [\n  ${values.join(',\n  ')}\n]\n`);
+        this.telemetry.debug('[PostgreSQLDatabaseClient][checkForeignIds] Performing the following SQL query on database:');
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][checkForeignIds]\n\n${sqlQuery}\n`);
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][checkForeignIds] [\n  ${values.join(',\n  ')}\n]\n`);
         const response = await this.client.query<Record<string, string>>(sqlQuery, values);
 
         for (let index = 0, { length } = response.rows; index < length; index += 1) {
@@ -947,10 +956,13 @@ export default class PostgreSQLDatabaseClient<
    * @param resource Type of resource to create.
    *
    * @param payload New resource payload.
+   *
+   * @param options Query options. Defaults to `{}`.
    */
-  public async create<Resource extends keyof DataModel & string>(
+  public async create<Resource extends keyof DataModel>(
     resource: Resource,
     payload: DataModel[Resource],
+    options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<void> {
     const resourceId = (payload as { _id: Id; })._id;
     const newDocuments = this.structurePayload(resource, resourceId, payload, 'CREATE');
@@ -981,9 +993,9 @@ export default class PostgreSQLDatabaseClient<
             const placeholders = fieldPlaceholders.join(',\n  ');
             const { structure } = this.resourcesMetadata[table];
             const sqlQuery = `INSERT INTO "${structure}" (\n  ${sqlFields.join(',\n  ')}\n)\nVALUES\n  ${placeholders};`;
-            this.logger.debug('[PostgreSQLDatabaseClient][create] Performing the following SQL query on database:');
-            this.logger.debug(`[PostgreSQLDatabaseClient][create]\n\n${sqlQuery}\n`);
-            this.logger.debug(`[PostgreSQLDatabaseClient][create] [\n  ${values.join(',\n  ')}\n]\n`);
+            this.telemetry.debug('[PostgreSQLDatabaseClient][create] Performing the following SQL query on database:');
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][create]\n\n${sqlQuery}${String(options.maximumDepth ?? '')}\n`);
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][create] [\n  ${values.join(',\n  ')}\n]\n`);
             return connection.query(sqlQuery, values);
           }
           return null;
@@ -1007,17 +1019,20 @@ export default class PostgreSQLDatabaseClient<
    *
    * @param payload Updated resource payload.
    *
+   * @param options Query options. Defaults to `{}`.
+   *
    * @returns `true` if resource has been successfully updated, `false` otherwise.
    */
-  public async update<Resource extends keyof DataModel & string>(
+  public async update<Resource extends keyof DataModel>(
     resource: Resource,
     id: Id,
     payload: Payload<DataModel[Resource]>,
+    options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<boolean> {
     let resourceExists = false;
     const resourceId = String(id);
-    const newDocuments = this.structurePayload(resource, id, payload, 'UPDATE');
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    const newDocuments = this.structurePayload(resource, id, payload as Partial<DataModel[Resource]>, 'UPDATE');
+    const metaData = this.model.get(resource);
 
     return this.handleError(async () => {
       const connection = await this.client.connect();
@@ -1030,9 +1045,9 @@ export default class PostgreSQLDatabaseClient<
           if (table !== resource) {
             const { structure } = this.resourcesMetadata[table];
             const sqlQuery = `DELETE FROM "${structure}" WHERE "_resourceId" = $1;`;
-            this.logger.debug('[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:');
-            this.logger.debug(`[PostgreSQLDatabaseClient][update]\n\n${sqlQuery}\n`);
-            this.logger.debug(`[PostgreSQLDatabaseClient][update] [\n  ${resourceId}\n]\n`);
+            this.telemetry.debug('[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:');
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][update]\n\n${sqlQuery}\n`);
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][update] [\n  ${resourceId}\n]\n`);
             await connection.query(sqlQuery, [resourceId]);
           }
         }));
@@ -1069,14 +1084,18 @@ export default class PostgreSQLDatabaseClient<
               values.push(resourceId);
             }
 
-            const where = `\n  _id = $${String(fieldPlaceholders.length + 1)}${!metaData.schema.enableDeletion ? '\n  AND "_isDeleted" = false' : ''}`;
+            const excludeDeletedResources = (options.excludeDeletedResources !== false);
+            const deletionClause = !metaData.schema.enableDeletion && excludeDeletedResources
+              ? '\n  AND "_isDeleted" = false'
+              : '';
+            const where = `\n  _id = $${String(fieldPlaceholders.length + 1)}${deletionClause}`;
             const placeholders = fieldPlaceholders.join(',\n  ');
             const sqlQuery = (table === resource)
               ? `UPDATE "${structure}" SET\n  ${placeholders}\nWHERE${where};`
               : `INSERT INTO "${structure}" (\n  ${sqlFields.join(',\n  ')}\n)\nVALUES\n  ${placeholders};`;
-            this.logger.debug('[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:');
-            this.logger.debug(`[PostgreSQLDatabaseClient][update]\n\n${sqlQuery}\n`);
-            this.logger.debug(`[PostgreSQLDatabaseClient][update] [\n  ${values.join(',\n  ')}\n]\n`);
+            this.telemetry.debug('[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:');
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][update]\n\n${sqlQuery}\n`);
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][update] [\n  ${values.join(',\n  ')}\n]\n`);
             const response = await connection.query(sqlQuery, values);
             if (table === resource) {
               resourceExists = response.rowCount === 1;
@@ -1109,26 +1128,34 @@ export default class PostgreSQLDatabaseClient<
    *
    * @returns Resource if it exists, `null` otherwise.
    */
-  public async view<Resource extends keyof DataModel & string>(
+  public async view<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel = keyof DataModel
+  >(
     resource: Resource,
     id: Id,
-    options: ViewCommandOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
-  ): Promise<DataModel[Resource] | null> {
+    options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
+  ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null> {
     const values: unknown[] = [String(id)];
-    const fields = options.fields ?? new Set();
+    const fields = new Set([...(options.fields ?? [])]);
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const { formattedQuery, projections } = this.parseFields(resource, fields, maximumDepth);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
-    const deletionClause = !metaData.schema.enableDeletion ? ` AND "${resource}"."_isDeleted" = false` : '';
-    const whereClause = `\nWHERE "${resource}"."_id" = $1${deletionClause}`;
+    const metaData = this.model.get(resource);
+    const excludeDeletedResources = (options.excludeDeletedResources !== false);
+    const deletionClause = !metaData.schema.enableDeletion && excludeDeletedResources
+      ? ` AND "${String(resource)}"."_isDeleted" = false`
+      : '';
+    const whereClause = `\nWHERE "${String(resource)}"."_id" = $1${deletionClause}`;
     return this.handleError(async () => {
       const sqlQuery = `${this.generateQuery(resource, formattedQuery)}${whereClause};`;
-      this.logger.debug('[PostgreSQLDatabaseClient][view] Performing the following SQL query on database:');
-      this.logger.debug(`[PostgreSQLDatabaseClient][view]\n\n${sqlQuery}\n`);
-      this.logger.debug(`[PostgreSQLDatabaseClient][view] [\n  ${values.join(',\n  ')}\n]\n`);
+      this.telemetry.debug('[PostgreSQLDatabaseClient][view] Performing the following SQL query on database:');
+      this.telemetry.debug(`[PostgreSQLDatabaseClient][view]\n\n${sqlQuery}\n`);
+      this.telemetry.debug(`[PostgreSQLDatabaseClient][view] [\n  ${values.join(',\n  ')}\n]\n`);
       const response = await this.client.query<Record<string, unknown>>(sqlQuery, values);
       const mapping = projections as Map<string, string>;
-      return this.formatResources(resource, response.rows, fields, mapping)[0] ?? null;
+      return (
+        this.formatResources(resource, response.rows, fields, mapping)[0] ?? null
+      ) as unknown as (Key extends keyof QueryResults ? QueryResults[Key] : Ids);
     });
   }
 
@@ -1143,26 +1170,30 @@ export default class PostgreSQLDatabaseClient<
    *
    * @returns Paginated list of resources.
    */
-  public async search<Resource extends keyof DataModel & string>(
+  public async list<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel = keyof DataModel
+  >(
     resource: Resource,
-    body: SearchBody,
-    options: SearchCommandOptions = this.DEFAULT_SEARCH_COMMAND_OPTIONS,
-  ): Promise<Results<DataModel[Resource]>> {
+    searchBody: SearchBody,
+    options: ListQueryOptions = this.DEFAULT_LIST_COMMAND_OPTIONS,
+  ): Promise<Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>> {
     const { sortBy } = options;
     const values: unknown[] = [];
-    const query = body.query ?? null;
-    const filters = body.filters ?? {};
+    const query = searchBody.query ?? null;
+    const filters = searchBody.filters ?? {};
     const filterFields = Object.keys(filters);
     const queryFields = [...(query?.on ?? [])];
-    const fields = options.fields ?? new Set();
+    const fields = new Set([...options.fields ?? []]);
     const sortingFields = Object.keys(sortBy ?? {});
     const limit = options.limit ?? this.DEFAULT_LIMIT;
     const offset = options.offset ?? this.DEFAULT_OFFSET;
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const searchFields = new Set([...queryFields, ...sortingFields, ...filterFields]);
     const allFields = new Set([...fields, ...searchFields]);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
-    if (!metaData.schema.enableDeletion) { filters._isDeleted = false; }
+    const metaData = this.model.get(resource);
+    const excludeDeletedResources = (options.excludeDeletedResources !== false);
+    if (!metaData.schema.enableDeletion && excludeDeletedResources) { filters._isDeleted = false; }
     const { formattedQuery, projections } = this.parseFields(resource, allFields, maximumDepth);
     const searchMetaData = this.parseFields(resource, searchFields, maximumDepth, {
       query,
@@ -1188,74 +1219,25 @@ export default class PostgreSQLDatabaseClient<
     });
 
     return this.handleError(async () => {
-      this.logger.debug('[PostgreSQLDatabaseClient][search] Performing the following SQL query on database:');
-      this.logger.debug(`[PostgreSQLDatabaseClient][search]\n\n${fullSQLQuery}\n`);
-      this.logger.debug(`[PostgreSQLDatabaseClient][search] [\n  ${values.join(',\n  ')}\n]\n`);
-      const response = await this.client.query<Record<string, unknown>>(fullSQLQuery, values);
+      this.telemetry.debug('[PostgreSQLDatabaseClient][search] Performing the following SQL query on database:');
+      this.telemetry.debug(`[PostgreSQLDatabaseClient][search]\n\n${fullSQLQuery}\n`);
+      this.telemetry.debug(`[PostgreSQLDatabaseClient][search] [\n  ${values.join(',\n  ')}\n]\n`);
+      const response = await this.client.query<QueryResults[Key] & {
+        __total: string;
+        __id: null | string;
+      }>(fullSQLQuery, values);
       const mapping = projections as Map<string, string>;
       return {
-        total: parseInt(response.rows[0].__total as string, 10),
-        results: response.rows[0]._id === null
+        total: parseInt(response.rows[0]?.__total ?? '0', 10),
+        results: (response.rows[0]?.__id ?? null) === null
           ? []
-          : this.formatResources(resource, response.rows, allFields, mapping),
-      };
-    });
-  }
-
-  /**
-   * Fetches a paginated list of resources from database.
-   *
-   * @param resource Type of resources to fetch.
-   *
-   * @param options Query options. Defaults to `{}`.
-   *
-   * @returns Paginated list of resources.
-   */
-  public async list<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    options: ListCommandOptions = this.DEFAULT_LIST_COMMAND_OPTIONS,
-  ): Promise<Results<DataModel[Resource]>> {
-    const { sortBy } = options;
-    const values: unknown[] = [];
-    const filters: SearchBody['filters'] = {};
-    const filterFields = Object.keys(filters);
-    const fields = options.fields ?? new Set();
-    const sortingFields = Object.keys(sortBy ?? {});
-    const limit = options.limit ?? this.DEFAULT_LIMIT;
-    const offset = options.offset ?? this.DEFAULT_OFFSET;
-    const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
-    const searchFields = new Set([...sortingFields, ...filterFields]);
-    const allFields = new Set([...fields, ...searchFields]);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
-    if (!metaData.schema.enableDeletion) {
-      filters._isDeleted = false;
-      values.push(false);
-    }
-    const { formattedQuery, projections } = this.parseFields(resource, allFields, maximumDepth);
-    const searchMetaData = this.parseFields(resource, searchFields, maximumDepth, {
-      query: null,
-      filters,
-    }, sortBy);
-    const sqlQuery = this.generateQuery(resource, formattedQuery, '  ');
-    const searchQuery = this.generateQuery(resource, searchMetaData.formattedQuery, '  ');
-    let fullSQLQuery = `WITH searchResults AS (\n${searchQuery}\n),`;
-    fullSQLQuery += '\ncount AS (\n  SELECT\n    COUNT(_id) AS total\n  FROM\n    searchResults\n),';
-    fullSQLQuery += `\npagination AS (\n  SELECT\n    _id,\n    ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
-    fullSQLQuery += '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1';
-    fullSQLQuery += `\nLEFT JOIN (\n${sqlQuery}\n) AS results\nON results._id = pagination._id\nORDER BY pagination.row_num;`;
-
-    return this.handleError(async () => {
-      this.logger.debug('[PostgreSQLDatabaseClient][list] Performing the following SQL query on database:');
-      this.logger.debug(`[PostgreSQLDatabaseClient][list]\n\n${fullSQLQuery}\n`);
-      this.logger.debug(`[PostgreSQLDatabaseClient][list] [\n  ${values.join(',\n  ')}\n]\n`);
-      const response = await this.client.query<Record<string, unknown>>(fullSQLQuery, values);
-      const mapping = projections as Map<string, string>;
-      return {
-        total: parseInt(response.rows[0].__total as string, 10),
-        results: response.rows[0]._id === null
-          ? []
-          : this.formatResources(resource, response.rows, allFields, mapping),
-      };
+          : this.formatResources(
+            resource,
+            response.rows,
+            allFields,
+            mapping,
+          ),
+      } as unknown as Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>;
     });
   }
 
@@ -1266,14 +1248,18 @@ export default class PostgreSQLDatabaseClient<
    *
    * @param id Resource id.
    *
+   * @param options Query options. Defaults to `{}`.
+   *
    * @returns `true` if resource has been successfully deleted, `false` otherwise.
    */
-  public async delete<Resource extends keyof DataModel & string>(
+  public async delete<Resource extends keyof DataModel>(
     resource: Resource,
     id: Id,
+    options: QueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<boolean> {
     let resourceExists = false;
     const resourceId = String(id);
+    const metaData = this.model.get(resource);
     const subTables = this.resourcesMetadata[String(resource)].subStructures;
 
     return this.handleError(async () => {
@@ -1283,12 +1269,16 @@ export default class PostgreSQLDatabaseClient<
         const values = [resourceId];
         await Promise.all(subTables.concat([resource as string]).map(async (table) => {
           const { structure } = this.resourcesMetadata[table];
+          const excludeDeletedResources = (options.excludeDeletedResources !== false);
+          const deletionClause = (!metaData.schema.enableDeletion && excludeDeletedResources)
+            ? ` AND "${structure}"."_isDeleted" = false`
+            : '';
           const sqlQuery = (table !== resource)
             ? `DELETE FROM "${structure}" WHERE "_resourceId" = $1;`
-            : `DELETE FROM "${structure}" WHERE "_id" = $1;`;
-          this.logger.debug('[PostgreSQLDatabaseClient][delete] Performing the following SQL query on database:');
-          this.logger.debug(`[PostgreSQLDatabaseClient][delete]\n\n${sqlQuery}\n`);
-          this.logger.debug(`[PostgreSQLDatabaseClient][delete] [\n  ${values.join(',\n  ')}\n]\n`);
+            : `DELETE FROM "${structure}" WHERE "_id" = $1${deletionClause};`;
+          this.telemetry.debug('[PostgreSQLDatabaseClient][delete] Performing the following SQL query on database:');
+          this.telemetry.debug(`[PostgreSQLDatabaseClient][delete]\n\n${sqlQuery}\n`);
+          this.telemetry.debug(`[PostgreSQLDatabaseClient][delete] [\n  ${values.join(',\n  ')}\n]\n`);
           const response = await connection.query(sqlQuery, values);
           if (table === resource) {
             resourceExists = response.rowCount === 1;
