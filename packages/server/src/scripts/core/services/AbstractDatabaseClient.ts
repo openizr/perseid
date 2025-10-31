@@ -540,6 +540,33 @@ export default abstract class AbstractDatabaseClient<
   protected abstract handleError<T>(callback: () => Promise<T>): Promise<T>;
 
   /**
+   * Returns the additional filters to apply in queries for `resource`.
+   *
+   * @param resource Type of resource to return additional filters for.
+   *
+   * @param id Id of the related resource, if any.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Additional filters to apply in queries for `resource`.
+   */
+  protected getResourceFilters(
+    resource: keyof DataModel,
+    id: Id | null,
+    options?: QueryOptions,
+  ): SearchFilters {
+    const filters: SearchFilters = {};
+    const { schema } = this.model.get(resource);
+    if (id !== null) {
+      filters._id = String(id);
+    }
+    if (!schema.enableDeletion && options?.excludeDeletedResources !== false) {
+      filters._isDeleted = false;
+    }
+    return filters;
+  }
+
+  /**
    * Class constructor.
    *
    * @param model Data model to use.

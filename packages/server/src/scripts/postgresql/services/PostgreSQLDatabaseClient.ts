@@ -921,13 +921,18 @@ export default class PostgreSQLDatabaseClient<
   /**
    * Makes sure that `relations` reference existing resources that match specific conditions.
    *
+   * @param resource Type of resource to check relations for.
+   *
    * @param relations Foreign ids to check in database.
+   *
+   * @param options Query options. Defaults to `{}`.
    *
    * @throws If any foreign id does not exist.
    */
   public async checkRelations<Resource extends keyof DataModel>(
     _resource: Resource,
     relations: Map<string, { resource: keyof DataModel; filters: SearchFilters | null; }>,
+    options?: QueryOptions,
   ): Promise<void> {
     if (relations.size > 0) {
       let placeholderIndex = 1;
@@ -937,14 +942,21 @@ export default class PostgreSQLDatabaseClient<
       relations.forEach((value, path) => {
         const table = String(value.resource);
         const allFilters = { ...value.filters };
-        const metadata = this.model.get(value.resource);
-        const { schema } = metadata;
-        if (!schema.enableDeletion) {
-          allFilters._isDeleted = false;
-        }
         const fields = new Set(Object.keys(allFilters));
         const searchBody = { query: null, filters: allFilters };
         const { formattedQuery } = this.parseFields(value.resource, fields, Infinity, searchBody);
+        const extraFilters = this.getResourceFilters(value.resource, null, options);
+        if (Object.keys(extraFilters).length > 0) {
+          formattedQuery.match ??= {
+            filters: [],
+            query: [],
+          };
+        }
+        Object.keys(extraFilters).forEach((key) => {
+          if (formattedQuery.match) {
+            formattedQuery.match.filters.push({ [key]: extraFilters[key] });
+          }
+        });
         sqlSubQueries.push(this.generateQuery(value.resource, formattedQuery, '', placeholderIndex).replace(`DISTINCT "${table}"."_id"`, `DISTINCT "${table}"."_id", '${path}' as path`));
         (formattedQuery.match as unknown as Exclude<FormattedQuery['match'], null>).filters.forEach((filter) => {
           if (Object.keys(filter)[0] === '_id') {
@@ -962,9 +974,9 @@ export default class PostgreSQLDatabaseClient<
 
       await this.handleError(async () => {
         const sqlQuery = sqlSubQueries.join('\nUNION\n');
-        this.telemetry.debug('[PostgreSQLDatabaseClient][checkForeignIds] Performing the following SQL query on database:');
-        this.telemetry.debug(`[PostgreSQLDatabaseClient][checkForeignIds]\n\n${sqlQuery}\n`);
-        this.telemetry.debug(`[PostgreSQLDatabaseClient][checkForeignIds] [\n  ${values.join(',\n  ')}\n]\n`);
+        this.telemetry.debug('[PostgreSQLDatabaseClient][checkRelations] Performing the following SQL query on database:');
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][checkRelations]\n\n${sqlQuery}\n`);
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][checkRelations] [\n  ${values.join(',\n  ')}\n]\n`);
         const response = await this.client.query<Record<string, string>>(sqlQuery, values);
 
         for (let index = 0, { length } = response.rows; index < length; index += 1) {
@@ -973,7 +985,7 @@ export default class PostgreSQLDatabaseClient<
         }
 
         if (missingIds.size > 0) {
-          const id = (missingIds.values().next().value as string).slice(0, 24);
+          const id = (missingIds.values().next().value as unknown as string).split(':')[0];
           throw new DatabaseError('NO_RESOURCE', { id });
         }
       });
@@ -1021,10 +1033,10 @@ export default class PostgreSQLDatabaseClient<
               fieldPlaceholders.push(`(${placeholders.join(', ')})`);
             });
             const placeholders = fieldPlaceholders.join(',\n  ');
-            const { structure } = this.resourcesMetadata[table];
+            const structure = this.tablesMapping[table] ?? this.resourcesMetadata[table].structure;
             const sqlQuery = `INSERT INTO "${structure}" (\n  ${sqlFields.join(',\n  ')}\n)\nVALUES\n  ${placeholders};`;
             this.telemetry.debug('[PostgreSQLDatabaseClient][create] Performing the following SQL query on database:');
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][create]\n\n${sqlQuery}${String(options.maximumDepth ?? '')}\n`);
+            this.telemetry.debug(`[PostgreSQLDatabaseClient][create]\n\n${sqlQuery}\n`);
             this.telemetry.debug(`[PostgreSQLDatabaseClient][create] [\n  ${values.join(',\n  ')}\n]\n`);
             return connection.query(sqlQuery, values);
           }
@@ -1061,19 +1073,19 @@ export default class PostgreSQLDatabaseClient<
   ): Promise<boolean> {
     let resourceExists = false;
     const resourceId = String(id);
-    const newDocuments = this.structurePayload(resource, id, payload as Partial<DataModel[Resource]>, 'UPDATE');
-    const metaData = this.model.get(resource);
+    const newDocuments = this.structurePayload(resource, id, payload, 'UPDATE');
 
     return this.handleError(async () => {
       const connection = await this.client.connect();
       await connection.query('BEGIN');
       try {
         const tables = Object.keys(newDocuments);
+
         // We need to sort tables from the most specific to the root resource before deletion, in
         // order to prevent foreign keys constraints issues on nested fields deletion.
         await Promise.all([...tables].sort((a, b) => b.length - a.length).map(async (table) => {
           if (table !== resource) {
-            const { structure } = this.resourcesMetadata[table];
+            const structure = this.tablesMapping[table] ?? this.resourcesMetadata[table].structure;
             const sqlQuery = `DELETE FROM "${structure}" WHERE "_resourceId" = $1;`;
             this.telemetry.debug('[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:');
             this.telemetry.debug(`[PostgreSQLDatabaseClient][update]\n\n${sqlQuery}\n`);
@@ -1085,7 +1097,7 @@ export default class PostgreSQLDatabaseClient<
         await Promise.all(tables.map(async (table) => {
           const sqlFields: string[] = [];
           const documents = newDocuments[table];
-          const { structure } = this.resourcesMetadata[table];
+          const structure = this.tablesMapping[table] ?? this.resourcesMetadata[table].structure;
           if (documents.length > 0) {
             const values: unknown[] = [];
             const fieldPlaceholders: string[] = [];
@@ -1110,15 +1122,13 @@ export default class PostgreSQLDatabaseClient<
               }
             });
 
-            if (table === resource) {
-              values.push(resourceId);
-            }
-
-            const excludeDeletedResources = (options.excludeDeletedResources !== false);
-            const deletionClause = !metaData.schema.enableDeletion && excludeDeletedResources
-              ? '\n  AND "_isDeleted" = false'
-              : '';
-            const where = `\n  _id = $${String(fieldPlaceholders.length + 1)}${deletionClause}`;
+            const filters = this.getResourceFilters(resource, id, options);
+            const where = Object.keys(filters).map((key, index) => {
+              if (table === resource) {
+                values.push(filters[key]);
+              }
+              return `\n  "${key}" = $${String(fieldPlaceholders.length + index + 1)}`;
+            }).join('\n  AND ');
             const placeholders = fieldPlaceholders.join(',\n  ');
             const sqlQuery = (table === resource)
               ? `UPDATE "${structure}" SET\n  ${placeholders}\nWHERE${where};`
@@ -1214,21 +1224,24 @@ export default class PostgreSQLDatabaseClient<
     const filters = searchBody.filters ?? {};
     const filterFields = Object.keys(filters);
     const queryFields = [...(query?.on ?? [])];
-    const fields = new Set([...options.fields ?? []]);
     const sortingFields = Object.keys(sortBy ?? {});
+    const fields = new Set([...options.fields ?? []]);
     const limit = options.limit ?? this.DEFAULT_LIMIT;
     const offset = options.offset ?? this.DEFAULT_OFFSET;
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const searchFields = new Set([...queryFields, ...sortingFields, ...filterFields]);
     const allFields = new Set([...fields, ...searchFields]);
-    const metaData = this.model.get(resource);
-    const excludeDeletedResources = (options.excludeDeletedResources !== false);
-    if (!metaData.schema.enableDeletion && excludeDeletedResources) { filters._isDeleted = false; }
     const { formattedQuery, projections } = this.parseFields(resource, allFields, maximumDepth);
     const searchMetaData = this.parseFields(resource, searchFields, maximumDepth, {
       query,
       filters,
     }, sortBy);
+    const extraFilters = this.getResourceFilters(resource, null, options);
+    Object.keys(extraFilters).forEach((key) => {
+      if (searchMetaData.formattedQuery.match) {
+        searchMetaData.formattedQuery.match.filters.push({ [key]: extraFilters[key] });
+      }
+    });
     const sqlQuery = this.generateQuery(resource, formattedQuery, '  ');
     const searchQuery = this.generateQuery(resource, searchMetaData.formattedQuery, '  ');
     let fullSQLQuery = `WITH searchResults AS (\n${searchQuery}\n),`;
@@ -1243,7 +1256,7 @@ export default class PostgreSQLDatabaseClient<
     searchMetaData.formattedQuery.match?.filters.forEach((filter) => {
       if (Array.isArray(Object.values(filter)[0])) {
         values.push(...Object.values(filter)[0] as unknown[]);
-      } else {
+      } else if (Object.values(filter)[0] !== null) {
         values.push(Object.values(filter)[0]);
       }
     });
