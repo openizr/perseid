@@ -17,6 +17,7 @@ import {
   type Deletion,
   type Timestamps,
   type FieldSchema,
+  toSnakeCase,
 } from '@perseid/core';
 import type {
   Payload,
@@ -24,9 +25,7 @@ import type {
   UpdatePayload,
   CreatePayload,
   SearchFilters,
-  CommandOptions,
-  ViewCommandOptions,
-  ListCommandOptions,
+  CommandContext,
 } from 'scripts/core/types';
 import EngineError from 'scripts/core/errors/Engine';
 import Telemetry from 'scripts/core/services/Telemetry';
@@ -220,6 +219,135 @@ export default class Engine<
   }
 
   /**
+   * Verifies that user has the right permissions to perform `operation`, using given payload and
+   * context. This method should return any additional information that is relevant to perform the
+   * operation in granted scope, such as filtered options, updated payload, sub-resources for
+   * narrowing down the scope, etc.
+   *
+   * @param operation Type of operation to perform.
+   *
+   * @param payload Operation payload.
+   *
+   * @param context Command context. If no session is provided, RBAC checks will not be performed.
+   *
+   * @returns Updated context, allowing to perform the operation in granted scope.
+   *
+   * @throws If field path does not exist in data model.
+   *
+   * @throws If maximum level of resources depth is exceeded.
+   *
+   * @throws If user does not have sufficient permissions to perform the operation.
+   *
+   * @throws If `operation` is not allowed for the given resource.
+   */
+  protected async applyPermissions(
+    operation: string,
+    payload: unknown,
+    context: Partial<CommandContext<DataModel>>,
+  ): Promise<CommandContext<DataModel>> {
+    const { session } = context;
+    const filteredFields = new Set<string>();
+    const finalContext = context as CommandContext<DataModel>;
+    const allFields = [...context.queryOptions?.fields ?? []]
+      .concat(Object.keys(context.queryOptions?.sortBy ?? {}))
+      .concat(['_id']);
+
+    if (context.resource !== undefined && session !== undefined) {
+      if (operation === 'LIST') {
+        const listPayload = payload as SearchBody;
+        allFields.push(...Object.keys(listPayload.filters ?? {}).map(String));
+        allFields.push(...Array.from(listPayload.query?.on ?? []).map(String));
+      }
+
+      const requestedFields = new Set(allFields);
+      const permissions = session.user._permissions;
+      const metaData = this.model.get(context.resource.type);
+      const permission = `${toSnakeCase(String(context.resource.type))}.${operation}`;
+      const mustCheckViewPermission = (operation === 'CREATE' || operation === 'UPDATE');
+
+      if (mustCheckViewPermission && !metaData.schema.allowedOperations?.includes('VIEW')) {
+        throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
+      }
+
+      if (!metaData.schema.allowedOperations?.includes(operation as 'CREATE')) {
+        throw new EngineError('OPERATION_NOT_ALLOWED', { operation });
+      }
+
+      while (allFields.length > 0) {
+        const path = String(allFields.shift());
+        const isWildcard = path.at(-1) === '*';
+        const pathWithoutWildcard = isWildcard ? path.slice(0, -2) : path;
+        const getFullPath = (field: string): string => `${pathWithoutWildcard}.${field}`;
+
+        if (path === '*') {
+          allFields.push(...Object.keys(metaData.schema.fields));
+        } else {
+          const fieldMetaData = this.model.get(`${String(context.resource)}.${pathWithoutWildcard}`);
+
+          if (fieldMetaData === null) {
+            throw new EngineError('UNKNOWN_FIELD', { path });
+          }
+
+          if (fieldMetaData.schema.type === 'object') {
+            allFields.push(...Object.keys(fieldMetaData.schema.fields).map(getFullPath));
+          } else if (fieldMetaData.schema.type === 'id' && isWildcard) {
+            if (fieldMetaData.schema.relation === undefined) {
+              throw new EngineError('UNKNOWN_FIELD', { path });
+            }
+            const relationMetaData = this.model.get(fieldMetaData.schema.relation);
+            allFields.push(...Object.keys(relationMetaData.schema.fields).map(getFullPath));
+          } else {
+            const missingPermission = fieldMetaData.permissions.find((fieldPermission) => (
+              fieldPermission === null || !permissions.has(fieldPermission)
+            ));
+            if (missingPermission === undefined) {
+              filteredFields.add(path);
+            } else if (requestedFields.has(path)) {
+              throw new EngineError('FORBIDDEN', { permission: missingPermission });
+            }
+          }
+        }
+      }
+
+      // Unverified users cannot perform any operation.
+      if (session.user._verifiedAt === null) {
+        throw new EngineError('USER_NOT_VERIFIED');
+      }
+
+      // Users cannot update their own roles if not explicitly allowed.
+      if (context.resource.type === 'users') {
+        const userPayload = this.defineUpdatePayload<{ roles: Id[]; }>(payload);
+        if (userPayload.roles !== undefined && !session.user._permissions.has('USERS.UPDATE_ROLES')) {
+          throw new EngineError('FORBIDDEN', { permission: 'USERS.UPDATE_ROLES' });
+        }
+      }
+
+      if (!session.user._permissions.has(permission)) {
+        // Users can always update their own information.
+        if (!(operation === 'USERS.UPDATE' && String(context.resource.id) === String(session.user._id))) {
+          throw new EngineError('FORBIDDEN', { permission: operation });
+        }
+      }
+
+      return {
+        ...finalContext,
+        queryOptions: {
+          ...finalContext.queryOptions,
+          fields: [...filteredFields],
+        },
+      };
+    }
+
+    return Promise.resolve({
+      ...finalContext,
+      queryOptions: {
+        ...finalContext.queryOptions,
+        fields: allFields,
+      },
+    });
+  }
+
+  /**
    * Prepares creation `payload` for database insertion/update, adding automatic fields and such.
    * Business logic checks should be implemented here as well.
    *
@@ -227,17 +355,15 @@ export default class Engine<
    *
    * @param payload Payload to validate and update.
    *
-   * @param options Command options.
+   * @param context Command context.
    *
    * @returns Prepared and validated payload, containing automatic fields.
    */
   protected async prepareCreatePayload<Resource extends keyof DataModel>(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
-    options: CommandOptions,
-    context?: unknown,
+    context: CommandContext<DataModel>,
   ): Promise<DataModel[Resource]> {
-    this.noop(context);
     const metaData = this.model.get(resource);
     let fullPayload = this.defineCreatePayload<Ids & Timestamps & Deletion & Authors>(payload);
     fullPayload = deepCopy(fullPayload);
@@ -247,6 +373,11 @@ export default class Engine<
     if (metaData.schema.enableTimestamps) {
       fullPayload._updatedAt = null;
       fullPayload._createdAt = new Date();
+    }
+
+    if (metaData.schema.enableAuthors && context.session !== undefined) {
+      fullPayload._updatedBy = null;
+      fullPayload._createdBy = context.session.user._id;
     }
 
     if (metaData.schema.enableDeletion === false) {
@@ -260,7 +391,7 @@ export default class Engine<
         isRequired: true,
         fields: metaData.schema.fields,
       }, payload),
-      options,
+      context.queryOptions,
     );
 
     return this.defineCreatePayload<DataModel[Resource]>(fullPayload);
@@ -274,22 +405,24 @@ export default class Engine<
    *
    * @param payload Payload to validate and update.
    *
-   * @param options Command options.
+   * @param context Command context.
    *
    * @returns Prepared and validated payload, containing automatic fields.
    */
   protected async prepareUpdatePayload<Resource extends keyof DataModel>(
     resource: Resource,
     payload: UpdatePayload<DataModel[Resource]>,
-    options: CommandOptions,
-    context?: unknown,
+    context: CommandContext<DataModel>,
   ): Promise<Payload<DataModel[Resource]>> {
-    this.noop(context);
     const metaData = this.model.get(resource);
-    const fullPayload = deepCopy(this.defineUpdatePayload<Timestamps>(payload));
+    const fullPayload = deepCopy(this.defineUpdatePayload<Timestamps & Authors>(payload));
 
     if (metaData.schema.enableTimestamps) {
       fullPayload._updatedAt = new Date();
+    }
+
+    if (metaData.schema.enableAuthors && context.session !== undefined) {
+      fullPayload._updatedBy = context.session.user._id;
     }
 
     await this.databaseClient.checkRelations(
@@ -299,7 +432,7 @@ export default class Engine<
         isRequired: true,
         fields: metaData.schema.fields,
       }, payload),
-      options,
+      context.queryOptions,
     );
 
     return this.defineUpdatePayload<DataModel[Resource]>(fullPayload);
@@ -331,13 +464,9 @@ export default class Engine<
    *
    * @param payload New resource payload.
    *
-   * @param options Command options.
+   * @param context Command context, if any.
    *
    * @returns Newly created resource.
-   *
-   * @throws If the `CREATE` operation is not allowed for this resource.
-   *
-   * @throws If the `VIEW` operation is not allowed for this resource.
    */
   public async create<
     Key extends keyof QueryResults,
@@ -345,23 +474,15 @@ export default class Engine<
   >(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions,
-    context?: unknown,
+    context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
-    this.noop(context);
-    const metaData = this.model.get(resource);
-
-    if (!metaData.schema.allowedOperations?.includes('CREATE')) {
-      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'CREATE' });
-    }
-
-    if (!metaData.schema.allowedOperations.includes('VIEW')) {
-      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
-    }
-
-    const fullPayload = await this.prepareCreatePayload(resource, payload, options);
-    await this.databaseClient.create(resource, fullPayload);
-    return this.view(resource, this.defineCreatePayload<Ids>(fullPayload)._id, options);
+    const fullContext = { ...context, resource: { type: resource, id: undefined } };
+    const updatedContext = await this.applyPermissions('CREATE', payload, fullContext);
+    const fullPayload = await this.prepareCreatePayload(resource, payload, updatedContext);
+    await this.databaseClient.create(resource, fullPayload, updatedContext.queryOptions);
+    // Prevents duplicate RBAC checks (in both `applyPermissions` and `view` methods).
+    updatedContext.session = undefined;
+    return this.view(resource, this.defineCreatePayload<Ids>(fullPayload)._id, updatedContext);
   }
 
   /**
@@ -373,15 +494,11 @@ export default class Engine<
    *
    * @param payload Updated resource payload.
    *
-   * @param options Command options.
+   * @param context Command context.
    *
    * @returns Updated resource.
    *
    * @throws If resource does not exist or does not match criteria.
-   *
-   * @throws If the `UPDATE` operation is not allowed for this resource.
-   *
-   * @throws If the `VIEW` operation is not allowed for this resource.
    */
   public async update<
     Key extends keyof QueryResults,
@@ -390,31 +507,25 @@ export default class Engine<
     resource: Resource,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions,
-    context?: unknown,
+    context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
-    this.noop(context);
     let resourceExists = false;
-    const metaData = this.model.get(resource);
-
-    if (!metaData.schema.allowedOperations?.includes('UPDATE')) {
-      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'UPDATE' });
-    }
-
-    if (!metaData.schema.allowedOperations.includes('VIEW')) {
-      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
-    }
+    const fullContext = { ...context, resource: { type: resource, id } };
+    const updatedContext = await this.applyPermissions('UPDATE', payload, fullContext);
 
     if (Object.keys(payload).length > 0) {
-      const newPayload = await this.prepareUpdatePayload(resource, payload, options);
-      resourceExists = await this.databaseClient.update(resource, id, newPayload);
+      const options = updatedContext.queryOptions;
+      const newPayload = await this.prepareUpdatePayload(resource, payload, updatedContext);
+      resourceExists = await this.databaseClient.update(resource, id, newPayload, options);
 
       if (!resourceExists) {
         throw new EngineError('NO_RESOURCE', { id });
       }
     }
 
-    return this.view(resource, id, options);
+    // Prevents duplicate RBAC checks (in both `applyPermissions` and `view` methods).
+    updatedContext.session = undefined;
+    return this.view(resource, id, updatedContext);
   }
 
   /**
@@ -424,28 +535,22 @@ export default class Engine<
    *
    * @param id Resource id.
    *
-   * @param options Command options.
+   * @param context Command context. If no session is provided, no RBAC nor options checks will be
+   * performed. This can be especially useful when calling `view` methods from other methods like
+   * `create` or `update`, to improve performance by avoiding duplicated checks.
    *
    * @returns Resource, if it exists.
    *
    * @throws If resource does not exist or does not match criteria.
-   *
-   * @throws If the `VIEW` operation is not allowed for this resource.
    */
   public async view<Key extends keyof QueryResults>(
     resource: keyof DataModel,
     id: Id,
-    options: ViewCommandOptions,
-    context?: unknown,
+    context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
-    this.noop(context);
-    const metaData = this.model.get(resource);
-
-    if (!metaData.schema.allowedOperations?.includes('VIEW')) {
-      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
-    }
-
-    const result = await this.databaseClient.view<Key>(resource, id, options);
+    const fullContext = { ...context, resource: { type: resource, id } };
+    const updatedContext = await this.applyPermissions('VIEW', {}, fullContext);
+    const result = await this.databaseClient.view<Key>(resource, id, updatedContext.queryOptions);
 
     if (result === null) {
       throw new EngineError('NO_RESOURCE', { id });
@@ -461,30 +566,18 @@ export default class Engine<
    *
    * @param searchBody Search body (filters, text query) to filter resources with.
    *
-   * @param options Command options.
+   * @param context Command context.
    *
    * @returns Paginated list of resources.
-   *
-   * @throws If the `LIST` operation is not allowed for this resource.
    */
-  public async list<
-    Key extends keyof QueryResults,
-    Resource extends keyof DataModel = keyof DataModel
-  >(
-    resource: Resource,
+  public async list<Key extends keyof QueryResults>(
+    resource: keyof DataModel,
     searchBody: SearchBody,
-    options: ListCommandOptions,
-    context?: unknown,
+    context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>> {
-    this.noop(context);
-
-    const metaData = this.model.get(resource);
-
-    if (!metaData.schema.allowedOperations?.includes('LIST')) {
-      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'LIST' });
-    }
-
-    return this.databaseClient.list(resource, searchBody, options);
+    const fullContext = { ...context, resource: { type: resource, id: undefined } };
+    const updatedContext = await this.applyPermissions('LIST', searchBody, fullContext);
+    return this.databaseClient.list<Key>(resource, searchBody, updatedContext.queryOptions);
   }
 
   /**
@@ -494,32 +587,27 @@ export default class Engine<
    *
    * @param id Resource id.
    *
-   * @param options Command options.
+   * @param context Command context.
    *
    * @throws If resource does not exist or does not match criteria.
-   *
-   * @throws If the `DELETE` operation is not allowed for this resource.
    */
   public async delete<Resource extends keyof DataModel>(
     resource: Resource,
     id: Id,
-    options: CommandOptions,
-    context?: unknown,
+    context: CommandContext<DataModel>,
   ): Promise<void> {
-    this.noop(context);
     let resourceExists = false;
     const metaData = this.model.get(resource);
-
-    if (!metaData.schema.allowedOperations?.includes('DELETE')) {
-      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'DELETE' });
-    }
+    const fullContext = { ...context, resource: { type: resource, id } };
+    const updatedContext = await this.applyPermissions('DELETE', {}, fullContext);
 
     if (metaData.schema.enableDeletion) {
-      resourceExists = await this.databaseClient.delete(resource, id, options);
+      resourceExists = await this.databaseClient.delete(resource, id, updatedContext.queryOptions);
     } else {
-      const fullPayload = await this.prepareUpdatePayload(resource, {}, options);
+      const options = updatedContext.queryOptions;
+      const fullPayload = await this.prepareUpdatePayload(resource, {}, updatedContext);
       this.defineUpdatePayload<Deletion>(fullPayload)._isDeleted = true;
-      resourceExists = await this.databaseClient.update(resource, id, fullPayload);
+      resourceExists = await this.databaseClient.update(resource, id, fullPayload, options);
     }
 
     if (!resourceExists) {
