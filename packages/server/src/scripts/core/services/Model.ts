@@ -14,9 +14,10 @@ import {
   type StringSchema,
   type ObjectSchema,
   Model as BaseModel,
-  type UsersDataModel,
+  type UserDataModel,
   type ResourceSchema,
   type DataModelSchema,
+  type NumberSchema,
 } from '@perseid/core';
 
 /**
@@ -43,16 +44,19 @@ export default class Model<
   /**
    * Users-related data model schema.
    */
-  public static readonly USERS_MODEL: DataModelSchema<UsersDataModel> = {
+  public static readonly USERS_MODEL: DataModelSchema<UserDataModel> = {
     users: {
       enableAuthors: true,
       enableDeletion: false,
       enableTimestamps: true,
+      description: 'User information.',
       fields: {
         _verifiedAt: {
           isIndexed: true,
           type: 'date',
+          description: 'User verification date.',
         },
+        // TODO rename into sessions
         _devices: {
           type: 'array',
           isRequired: true,
@@ -60,21 +64,31 @@ export default class Model<
           fields: {
             type: 'object',
             isRequired: true,
+            description: 'Device information.',
             fields: {
               _id: Model.token(),
-              _expiration: { type: 'date', isRequired: true },
-              _userAgent: { type: 'string', isRequired: true, maxLength: 256 },
-              _refreshToken: { type: 'string', isRequired: true, maxLength: 24 },
+              _expiration: {
+                type: 'date',
+                isRequired: true,
+                description: 'Device refresh token expiration date.',
+              },
+              _userAgent: {
+                type: 'string',
+                maxLength: 256,
+                isRequired: true,
+                description: 'Device user agent.',
+              },
+              _refreshToken: {
+                type: 'string',
+                maxLength: 24,
+                isRequired: true,
+                description: 'Device refresh token to use for that device.',
+              },
             },
           },
         },
-        _apiKeys: {
-          type: 'array',
-          isRequired: true,
-          fields: Model.token(),
-        },
         email: Model.email({ isUnique: true }),
-        password: Model.password(),
+        password: Model.password({ permission: null }),
         roles: {
           type: 'array',
           isRequired: true,
@@ -83,6 +97,7 @@ export default class Model<
             isIndexed: true,
             isRequired: true,
             relation: 'roles',
+            description: 'Role ID.',
           },
         },
       },
@@ -91,6 +106,7 @@ export default class Model<
       enableAuthors: true,
       enableDeletion: true,
       enableTimestamps: true,
+      description: 'Role information.',
       fields: {
         name: Model.tinyText({ isUnique: true, pattern: /^[0-9A-Z_]+$/ }),
         permissions: {
@@ -100,7 +116,8 @@ export default class Model<
             type: 'string',
             isRequired: true,
             maxLength: 256,
-            pattern: /^[0-9A-Z_]+$/,
+            description: 'Permission name.',
+            pattern: /^[0-9A-Z_.]+$/,
           },
         },
       },
@@ -154,8 +171,10 @@ export default class Model<
     schema: FieldSchema<DataModel>,
     relations = new Set<string>(),
   ): FieldSchema<DataModel> {
-    const { errorMessages, type, ...rest } = this.serializeSchema(schema);
-    if (errorMessages) {
+    const {
+      errorMessages, description, type, ...rest
+    } = this.serializeSchema(schema);
+    if (errorMessages || description) {
       // No-op.
     }
     if (type === 'array') {
@@ -183,7 +202,7 @@ export default class Model<
       const data = this.get(relation);
       if (!isRelationAlreadyProcessed) {
         relations.add(relation);
-        this.generatePublicSchemaFrom({ type: 'object', fields: data.schema.fields }, relations);
+        this.generatePublicSchemaFrom({ type: 'object', fields: data.schema.fields, description: data.schema.description }, relations);
       }
     }
     const { isUnique, isIndexed, ...subRest } = rest as Omit<StringSchema, 'type'>;
@@ -205,6 +224,7 @@ export default class Model<
   public static email(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
+      description: 'Resource email address.',
       errorMessages: {
         type: 'must be a valid email',
         pattern: 'must be a valid email',
@@ -229,6 +249,7 @@ export default class Model<
     return {
       maxLength: 50,
       type: 'string',
+      description: 'Resource tiny text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -247,6 +268,7 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 100,
+      description: 'Resource short text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -265,6 +287,7 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 500,
+      description: 'Resource medium text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -283,6 +306,7 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 2500,
+      description: 'Resource long text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -301,6 +325,7 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 10000,
+      description: 'Resource huge text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -320,12 +345,154 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 50,
-      pattern: /^[0-9A-Za-z-]{50}$/,
+      pattern: /^[0-9A-Za-z-]{1,50}$/,
+      description: 'Resource token.',
       errorMessages: {
         type: 'must be a valid token',
         pattern: 'must be a valid token',
       },
       isRequired: overrides.isRequired !== false,
+      ...overrides,
+    };
+  }
+
+  /**
+   * `id` custom data model schema type generator.
+   * An ID can be either a UUID or a Snowflake generated ID.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static id(overrides: Partial<IdSchema<unknown>> = {}): IdSchema<unknown> {
+    return {
+      type: 'id',
+      description: 'Resource ID.',
+      errorMessages: {
+        type: 'must be a valid ID',
+        pattern: 'must be a valid ID',
+      },
+      isRequired: overrides.isRequired !== false,
+      ...overrides,
+    };
+  }
+
+  /**
+   * `queryFields` custom data model schema type generator.
+   * A comma-separated list of fields paths to include in the response.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static queryFields(overrides: Partial<StringSchema> = {}): StringSchema {
+    return {
+      type: 'string',
+      maxLength: 5000,
+      pattern: /^([^ ]+)(,([^ ]+))*$/,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Comma-separated list of fields paths to include in the response.',
+      errorMessages: {
+        type: 'must be a coma-separated list of fields paths',
+        pattern: 'must be a coma-separated list of fields paths',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `queryLimit` custom data model schema type generator.
+   * Maximum number of resources to return.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static queryLimit(overrides: Partial<NumberSchema> = {}): NumberSchema {
+    return {
+      type: 'integer',
+      minimum: 0,
+      maximum: 100,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Maximum number of resources to return.',
+      errorMessages: {
+        type: 'must be a valid length',
+        minimum: 'must be valid length',
+        maximum: 'cannot be greater than 100',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `queryOffset` custom data model schema type generator.
+   * Results pagination offset to apply.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static queryOffset(overrides: Partial<NumberSchema> = {}): NumberSchema {
+    return {
+      type: 'integer',
+      minimum: 0,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Results pagination offset to apply.',
+      errorMessages: {
+        type: 'must be a valid offset',
+        minimum: 'must be valid offset',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `sortBy` custom data model schema type generator.
+   * Comma-separated list of fields paths to sort the resources by.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static sortBy(overrides: Partial<StringSchema> = {}): StringSchema {
+    return {
+      type: 'string',
+      maxLength: 5000,
+      pattern: /^([^ ]+)(,([^ ]+))*$/,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Comma-separated list of fields paths to sort the resources by.',
+      errorMessages: {
+        type: 'must be a coma-separated list of fields paths',
+        pattern: 'must be a coma-separated list of fields paths',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `sortOrder` custom data model schema type generator.
+   * Comma-separated list of sorting orders.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static sortOrder(overrides: Partial<StringSchema> = {}): StringSchema {
+    return {
+      type: 'string',
+      maxLength: 5000,
+      pattern: /^(-1|1)(,(-1|1))*$/,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Comma-separated list of sorting orders.',
+      errorMessages: {
+        type: 'must be a coma-separated list of sorting orders',
+      },
       ...overrides,
     };
   }
@@ -349,6 +516,7 @@ export default class Model<
       type: 'string',
       maxLength: 500,
       pattern: /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,}$/,
+      description: 'Resource password.',
       errorMessages: {
         type: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
         pattern: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
@@ -371,18 +539,21 @@ export default class Model<
   ): ObjectSchema<unknown> {
     return {
       type: 'object',
+      description: 'Resource credentials.',
       fields: {
         deviceId: Model.token(),
         refreshToken: Model.token(),
         expiresIn: {
           type: 'integer',
           minimum: 0,
+          description: 'Resource refresh token expiration time in seconds.',
         },
         accessToken: {
           type: 'string',
           minLength: 10,
           maxLength: 500,
           isRequired: true,
+          description: 'Resource access token.',
         },
       },
       isRequired: overrides.isRequired !== false,
@@ -405,7 +576,7 @@ export default class Model<
       relations[resource] = new Set();
       const { fields } = (this.schema as DataModelSchema<DataModel>)[resource];
       publicSchema[resource] = this.generatePublicSchemaFrom(
-        { type: 'object', fields },
+        { type: 'object', fields, description: '' },
         relations[resource],
       ) as ResourceSchema<DataModel>;
     });

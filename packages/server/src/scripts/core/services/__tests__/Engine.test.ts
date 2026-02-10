@@ -14,7 +14,7 @@ import Telemetry from 'scripts/core/services/Telemetry';
 import CacheClient from 'scripts/core/services/CacheClient';
 import { type DataModel } from 'scripts/core/services/__mocks__/schema';
 import type { CommandContext, CreatePayload, UpdatePayload } from 'scripts/core';
-import PostgresqlDatabaseClient from 'scripts/postgresql/services/PostgreSQLDatabaseClient';
+import PostgresqlDatabaseClient from 'scripts/connectors/postgresql/services/PostgreSQLDatabaseClient';
 
 type TestEngine = Engine<DataModel> & {
   getRelationFilters: Engine<DataModel>['getRelationFilters'];
@@ -52,6 +52,7 @@ describe('core/services/Engine', () => {
     port: 0,
     protocol: '',
     user: '',
+    ssl: false,
   });
 
   beforeEach(() => {
@@ -85,7 +86,7 @@ describe('core/services/Engine', () => {
         },
       },
     };
-    const updatedPayload = await engine.prepareCreatePayload('test', payload);
+    const updatedPayload = await engine.prepareCreatePayload('test', payload, {});
     expect(updatedPayload).toEqual({
       _id: expect.any(Id) as Id,
       _updatedAt: null,
@@ -122,7 +123,7 @@ describe('core/services/Engine', () => {
         },
       },
     };
-    const updatedPayload = await engine.prepareUpdatePayload('test', payload);
+    const updatedPayload = await engine.prepareUpdatePayload('test', payload, {});
     expect(updatedPayload).toEqual({
       _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
       ...payload,
@@ -141,7 +142,7 @@ describe('core/services/Engine', () => {
   describe('[create]', () => {
     test('throws an error if the operation is not allowed', async () => {
       await expect(
-        engine.create('notImplemented', {}, {}, context),
+        engine.create('notImplemented', {}, context),
       ).rejects.toThrow(new EngineError('OPERATION_NOT_ALLOWED', { operation: 'CREATE' }));
     });
 
@@ -161,7 +162,7 @@ describe('core/services/Engine', () => {
       vi.spyOn(databaseClient, 'create');
       vi.spyOn(engine, 'view').mockResolvedValue({ _id: resourceId });
       vi.spyOn(engine, 'prepareCreatePayload').mockResolvedValue({ _id: resourceId });
-      const result = await engine.create('test', payload, {}, context);
+      const result = await engine.create('test', payload, context);
       expect(result).toEqual({ _id: resourceId });
       expect(databaseClient.create).toHaveBeenCalledOnce();
       expect(databaseClient.create).toHaveBeenCalledWith('test', { _id: resourceId });
@@ -176,7 +177,7 @@ describe('core/services/Engine', () => {
     test('throws an error if the operation is not allowed', async () => {
       const resourceId = new Id();
       await expect(
-        engine.update('notImplemented', resourceId, { _id: resourceId }, {}, context),
+        engine.update('notImplemented', resourceId, { _id: resourceId }, context),
       ).rejects.toThrow(new EngineError('OPERATION_NOT_ALLOWED', { operation: 'UPDATE' }));
     });
 
@@ -185,7 +186,7 @@ describe('core/services/Engine', () => {
       vi.spyOn(databaseClient, 'update').mockResolvedValue(false);
       vi.spyOn(engine, 'prepareUpdatePayload').mockResolvedValue({});
       await expect(
-        engine.update('test', resourceId, { indexedString: 'test' }, {}, context),
+        engine.update('test', resourceId, { indexedString: 'test' }, context),
       ).rejects.toThrow(new EngineError('NO_RESOURCE', { id: resourceId }));
     });
 
@@ -194,7 +195,7 @@ describe('core/services/Engine', () => {
       vi.spyOn(databaseClient, 'update').mockResolvedValue(true);
       vi.spyOn(engine, 'view').mockResolvedValue({ _id: resourceId });
       vi.spyOn(engine, 'prepareUpdatePayload').mockResolvedValue({ indexedString: 'test' });
-      const result = await engine.update('test', resourceId, { indexedString: 'test' }, {}, context);
+      const result = await engine.update('test', resourceId, { indexedString: 'test' }, context);
       expect(result).toEqual({ _id: resourceId });
       expect(databaseClient.update).toHaveBeenCalledOnce();
       expect(databaseClient.update).toHaveBeenCalledWith('test', resourceId, { indexedString: 'test' });
@@ -209,7 +210,7 @@ describe('core/services/Engine', () => {
     test('throws an error if the operation is not allowed', async () => {
       const resourceId = new Id();
       await expect(
-        engine.view('notImplemented', resourceId, {}, context),
+        engine.view('notImplemented', resourceId, context),
       ).rejects.toThrow(new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' }));
     });
 
@@ -217,14 +218,14 @@ describe('core/services/Engine', () => {
       const resourceId = new Id();
       vi.spyOn(databaseClient, 'view').mockResolvedValue(null);
       await expect(
-        engine.view('test', resourceId, {}, context),
+        engine.view('test', resourceId, context),
       ).rejects.toThrow(new EngineError('NO_RESOURCE', { id: resourceId }));
     });
 
     test('fetches the requested resource', async () => {
       const resourceId = new Id();
       vi.spyOn(databaseClient, 'view').mockResolvedValue({ _id: resourceId });
-      const result = await engine.view('test', resourceId, {}, context);
+      const result = await engine.view('test', resourceId, context);
       expect(result).toEqual({ _id: resourceId });
       expect(databaseClient.view).toHaveBeenCalledOnce();
       expect(databaseClient.view).toHaveBeenCalledWith('test', resourceId, {});
@@ -234,13 +235,13 @@ describe('core/services/Engine', () => {
   describe('[list]', () => {
     test('throws an error if the operation is not allowed', async () => {
       await expect(
-        engine.list('notImplemented', { query: null, filters: null }, {}, context),
+        engine.list('notImplemented', { query: null, filters: null }, context),
       ).rejects.toThrow(new EngineError('OPERATION_NOT_ALLOWED', { operation: 'LIST' }));
     });
 
     test('correctly returns a list of resources', async () => {
       const searchBody = { query: { on: new Set(['indexedString']), text: 'test' }, filters: null };
-      await engine.list('test', searchBody, { limit: 10, offset: 2 }, context);
+      await engine.list('test', searchBody, { ...context, queryOptions: { limit: 10, offset: 2 } });
       expect(databaseClient.list).toHaveBeenCalledOnce();
       expect(databaseClient.list).toHaveBeenCalledWith('test', searchBody, { offset: 2, limit: 10 });
     });
@@ -249,7 +250,7 @@ describe('core/services/Engine', () => {
   describe('[delete]', () => {
     test('throws an error if the operation is not allowed', async () => {
       await expect(
-        engine.delete('notImplemented', new Id(), {}, context),
+        engine.delete('notImplemented', new Id(), context),
       ).rejects.toThrow(new EngineError('OPERATION_NOT_ALLOWED', { operation: 'DELETE' }));
     });
 
@@ -258,14 +259,14 @@ describe('core/services/Engine', () => {
       vi.spyOn(databaseClient, 'delete').mockResolvedValue(false);
       vi.spyOn(engine, 'prepareUpdatePayload').mockResolvedValue({});
       await expect(
-        engine.delete('otherTest', resourceId, {}, context),
+        engine.delete('otherTest', resourceId, context),
       ).rejects.toThrow(new EngineError('NO_RESOURCE', { id: resourceId }));
     });
 
     test('deletes the specified resource', async () => {
       const resourceId = new Id();
       vi.spyOn(databaseClient, 'delete').mockResolvedValue(true);
-      await engine.delete('otherTest', resourceId, {}, context);
+      await engine.delete('otherTest', resourceId, context);
       expect(databaseClient.delete).toHaveBeenCalledOnce();
       expect(databaseClient.delete).toHaveBeenCalledWith('otherTest', resourceId);
     });
@@ -277,7 +278,7 @@ describe('core/services/Engine', () => {
         _isDeleted: true,
         _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
       });
-      await engine.delete('test', resourceId, {}, context);
+      await engine.delete('test', resourceId, context);
       expect(databaseClient.update).toHaveBeenCalledOnce();
       expect(databaseClient.update).toHaveBeenCalledWith('test', resourceId, {
         _isDeleted: true,

@@ -8,8 +8,7 @@
   "dependencies": {
     "ajv": "^8.12.0",
     "ajv-errors": "^3.0.0",
-    "basx": "^2.0.1",
-    "fastify": "^4.25.1"
+    "fastify": "^5.3.2"
   },
   "eslintConfig": {
     "extends": [
@@ -52,6 +51,6 @@
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "build": "node node_modules/@perseid/dev-kit/scripts/build.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
-    "postinstall": "rm -f node_modules/.eslintcache && (mv ../../../.eslintrc ../../../_eslintrc &>/dev/null) || true"
+    "postinstall": "rm -f node_modules/.eslintcache"
   }
 }

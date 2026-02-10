@@ -2,9 +2,9 @@ import store from 'scripts/store';
 import PropTypes from 'prop-types';
 import React, { Suspense } from 'react';
 import routes from 'scripts/store/routes';
-import connect from 'diox/connectors/react';
 import Loader from 'scripts/components/Loader';
 import translate from 'scripts/helpers/translate';
+import connect from '@perseid/store/connectors/react';
 
 const useSubscription = connect(store);
 

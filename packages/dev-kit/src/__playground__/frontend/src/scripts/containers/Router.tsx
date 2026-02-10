@@ -1,9 +1,9 @@
 import * as React from 'react';
 import store from 'scripts/store';
 import routes from 'scripts/store/routes';
-import useStore from 'diox/connectors/react';
 import Loader from 'scripts/components/Loader';
 import translate from 'scripts/helpers/translate';
+import useStore from '@perseid/store/connectors/react';
 
 type LazyComponent = () => Promise<{
   default: React.ComponentType<{
@@ -16,7 +16,7 @@ const useCombiner = useStore(store); // eslint-disable-line react-hooks/rules-of
 /**
  * App router.
  */
-export default function Router(props: { locale: unknown; }): JSX.Element {
+export default function Router(props: { locale: unknown; }): React.JSX.Element {
   const { log } = console;
   const { locale } = props;
   log(locale);

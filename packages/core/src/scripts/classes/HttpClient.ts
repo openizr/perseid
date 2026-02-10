@@ -6,21 +6,78 @@
  *
  */
 
+import HttpError from 'scripts/classes/HttpError';
+import type Telemetry from 'scripts/classes/Telemetry';
 import isPlainObject from 'scripts/helpers/isPlainObject';
 
-/** HTTP request settings. */
+/**
+ * HTTP client settings.
+ */
+export interface HttpClientSettings {
+  /**
+   * Default maximum request duration (in ms) before generating a timeout.
+   */
+  requestTimeout: number;
+
+  /**
+   * Default maximum number of retries.
+   */
+  maxRetries?: number;
+
+  /**
+   * Default function to calculate the delay for a retry.
+   */
+  calculateDelay?: (retryCount: number) => number;
+
+  /**
+   * Default function to determine if a request should be retried.
+   */
+  shouldRetry?: (error: Error, retryCount: number) => boolean;
+}
+
+/**
+ * HTTP request settings.
+ */
 export interface RequestSettings {
-  /** HTTP method to use. */
+  /**
+   * HTTP method to use.
+   */
   method: 'GET' | 'PATCH' | 'DELETE' | 'PUT' | 'POST' | 'HEAD' | 'OPTIONS';
 
-  /** Request URL. */
+  /**
+   * Request URL.
+   */
   url: string;
 
-  /** Request body. */
+  /**
+   * Request body.
+   */
   body?: string | FormData | Record<string, unknown>;
 
-  /** Request headers. */
+  /**
+   * Request headers.
+   */
   headers?: Record<string, string>;
+
+  /**
+   * Maximum number of retries.
+   */
+  maxRetries?: number;
+
+  /**
+   * Abort signal to cancel the request.
+   */
+  signal?: AbortSignal;
+
+  /**
+   * Function to calculate the delay for a retry.
+   */
+  calculateDelay?: (retryCount: number) => number;
+
+  /**
+   * Function to determine if a request should be retried.
+   */
+  shouldRetry?: (error: Error, retryCount: number) => boolean;
 }
 
 /**
@@ -28,8 +85,68 @@ export interface RequestSettings {
  * Provides a cleaner `fetch` API with better error handling.
  */
 export default class HttpClient {
-  /** Maximum request duration (in ms) before generating a timeout. */
-  protected connectTimeout: number;
+  /**
+   * Telemetry system.
+   */
+  protected telemetry: Telemetry;
+
+  /**
+   * Default maximum request duration (in ms) before generating a timeout.
+   */
+  protected defaultRequestTimeout: number;
+
+  /**
+   * Calculates the delay for a retry.
+   *
+   * @param retryCount Retry count.
+   *
+   * @returns Delay in ms.
+   */
+  protected defaultCalculateDelay: (retryCount: number) => number;
+
+  /**
+   * Determines if a request should be retried.
+   *
+   * @param error Last request error.
+   *
+   * @param retryCount Retry count.
+   *
+   * @returns Whether to retry the request.
+   */
+  protected defaultShouldRetry: (error: Error, retryCount: number) => boolean;
+
+  /**
+   * Performs a new raw HTTP request with `settings` while handling retries if necessary.
+   *
+   * @param settings Request settings.
+   *
+   * @param retryCount Retry count. Defaults to `0`.
+   *
+   * @returns Raw HTTP response.
+   *
+   * @throws If maximum number of retries has been reached.
+   */
+  protected async handleRetries(settings: RequestSettings, retryCount = 0): Promise<Response> {
+    const shouldRetry = settings.shouldRetry ?? this.defaultShouldRetry;
+    const calculateDelay = settings.calculateDelay ?? this.defaultCalculateDelay;
+
+    try {
+      return await this.rawRequest(settings);
+    } catch (error) {
+      if (!shouldRetry(error as Error, retryCount)) {
+        throw error;
+      }
+      await new Promise((resolve) => { setTimeout(resolve, calculateDelay(retryCount)); });
+
+      this.telemetry.warn('Retrying HTTP request...', {
+        method: settings.method,
+        url: settings.url,
+        retryCount: retryCount + 1,
+      });
+
+      return this.handleRetries(settings, retryCount + 1);
+    }
+  }
 
   /**
    * Performs a new HTTP request with `settings`.
@@ -57,24 +174,15 @@ export default class HttpClient {
       body: body as BodyInit,
       method: settings.method,
       headers: headers as HeadersInit,
-      signal: AbortSignal.timeout(this.connectTimeout),
+      signal: settings.signal ?? AbortSignal.timeout(this.defaultRequestTimeout),
     });
 
     if (response.status >= 400) {
       const data = ((response.headers.get('content-type')?.includes('application/json'))
         ? await response.json()
         : await response.text()) as Response;
-      // Spreading error doesn't work, we need to explicitly list all its properties.
-      throw {
-        body: data,
-        ok: response.ok,
-        url: response.url,
-        type: response.type,
-        status: response.status,
-        headers: response.headers,
-        statusText: response.statusText,
-        redirected: response.redirected,
-      } as unknown as Error;
+
+      throw new HttpError(response.status, data);
     }
 
     return response;
@@ -82,15 +190,19 @@ export default class HttpClient {
 
   /**
    * Performs a new HTTP request with `settings`.
-   * Automatically handles request body serialization, `Content-Type` headers and response body
-   * parsing.
+   * Automatically handles response body parsing.
    *
    * @param settings Request settings (URL, method, body, ...).
    *
    * @returns Parsed HTTP response.
    */
   protected async request<Response>(settings: RequestSettings): Promise<Response> {
-    const response = await this.rawRequest(settings);
+    this.telemetry.info('Performing HTTP request...', {
+      method: settings.method,
+      url: settings.url,
+    });
+
+    const response = await this.handleRetries(settings);
 
     const data = ((response.headers.get('content-type')?.includes('application/json'))
       ? await response.json()
@@ -102,9 +214,46 @@ export default class HttpClient {
   /**
    * Class constructor.
    *
-   * @param connectTimeout Maximum request duration (in ms) before generating a timeout.
+   * @param telemetry Telemetry system to use.
+   *
+   * @param settings HTTP client settings.
    */
-  public constructor(connectTimeout: number) {
-    this.connectTimeout = connectTimeout;
+  public constructor(telemetry: Telemetry, settings: HttpClientSettings) {
+    this.telemetry = telemetry;
+    this.defaultRequestTimeout = settings.requestTimeout;
+    this.defaultCalculateDelay = settings.calculateDelay ?? HttpClient.exponentialBackoffDelay(
+      1000,
+      30 * 1000,
+      2,
+    );
+    this.defaultShouldRetry = settings.shouldRetry ?? ((error, retryCount): boolean => (
+      (retryCount < (settings.maxRetries ?? 3)) && (
+        error instanceof TypeError
+        || (error instanceof HttpError && error.status >= 500)
+        || (error instanceof DOMException && error.name !== 'AbortError')
+      )
+    ));
+  }
+
+  /**
+   * Generates the exponential backoff delay function.
+   *
+   * @param baseDelayBetweenRetries Base delay between retries (in ms).
+   *
+   * @param maxDelayBetweenRetries Maximum delay between retries (in ms).
+   *
+   * @param retryFactor Factor to apply to the delay between retries.
+   *
+   * @returns Exponential backoff delay function.
+   */
+  public static exponentialBackoffDelay(
+    baseDelayBetweenRetries: number,
+    maxDelayBetweenRetries: number,
+    retryFactor: number,
+  ) {
+    return (retryCount: number): number => Math.min(
+      baseDelayBetweenRetries * retryFactor ** retryCount,
+      maxDelayBetweenRetries,
+    );
   }
 }

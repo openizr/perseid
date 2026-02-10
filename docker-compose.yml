@@ -3,7 +3,7 @@ services:
   core:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_core
     env_file:
       - .env
@@ -17,7 +17,7 @@ services:
   jobs:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_jobs
     env_file:
       - .env
@@ -33,7 +33,7 @@ services:
   server:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_server
     env_file:
       - .env
@@ -41,6 +41,7 @@ services:
     volumes:
       - ./packages/server:/var/www/html
       - ~/.cache/yarn:/home/node/.cache/yarn
+      - ./packages/core/dist:/var/lib/perseid/core
     ports:
       - "${HOST_IP}:${BACKEND_EXAMPLES_PORT}:${BACKEND_EXAMPLES_PORT}"
     depends_on:
@@ -52,7 +53,7 @@ services:
   form:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_form
     env_file:
       - .env
@@ -68,7 +69,7 @@ services:
   ui:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_ui
     env_file:
       - .env
@@ -84,7 +85,7 @@ services:
   store:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_store
     env_file:
       - .env
@@ -100,7 +101,7 @@ services:
   client:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_client
     env_file:
       - .env
@@ -119,14 +120,14 @@ services:
   dev-kit:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_dev-kit
     env_file:
       - .env
-    command: sh -c "yarn && tail -f /dev/null"
+    command: sh -c "yarn && yarn run dev"
     volumes:
       - ./packages/dev-kit:/var/www/html
-      - ~/.cache/yarn:/home/node/.cache/yarn
+      - yarn_cache:/home/node/.cache/yarn
     ports:
       - "${HOST_IP}:${BACKEND_EXAMPLES_PORT}:${BACKEND_EXAMPLES_PORT}"
       - "${HOST_IP}:${FRONTEND_EXAMPLES_PORT}:${FRONTEND_EXAMPLES_PORT}"
@@ -137,7 +138,7 @@ services:
   examples:
     tty: true
     user: node:node
-    image: openizr/node:7.0.0-dev
+    image: openizr/node:8.0.1-dev
     container_name: ${PROJECT_NAME}_examples
     env_file:
       - .env
@@ -194,13 +195,12 @@ services:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: Test123!
     ports:
-      - "${HOST_IP}:5432:5432"
+      - "${HOST_IP}:${POSTGRESQL_DATABASE_PORT}:5433"
     profiles:
       - client
       - server
       - jobs
       - examples
-
 
 # For people that use a VPN
 networks:
@@ -209,3 +209,8 @@ networks:
     ipam:
       config:
         - subnet: ${DOCKER_SUBNET}
+
+volumes:
+  yarn_cache:
+    external: true
+    name: yarn_cache

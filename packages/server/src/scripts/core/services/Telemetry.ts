@@ -8,6 +8,7 @@
 
 import * as opentelemetry from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import PerseidError from 'scripts/core/errors/Perseid';
 import { pino, type DestinationStream, type Logger as PinoLogger } from 'pino';
 import type { AnyValue, AnyValueMap, Logger as OTELLogger } from '@opentelemetry/api-logs';
 
@@ -255,6 +256,8 @@ export default class Telemetry {
       ? pino(pinoSettings, settings.destination)
       : pino(pinoSettings);
 
+    // We close the telemetry client on `SIGINT` and `SIGTERM` events instead of `exit` because
+    // `exit` is a synchronous process and won't wait for the telemetry client to be closed.
     process.on('warning', this.warn.bind(this));
     process.on('uncaughtException', this.fatal.bind(this));
 
@@ -300,34 +303,16 @@ export default class Telemetry {
     name: string,
     options: Pick<opentelemetry.SpanOptions, 'attributes' | 'links'> & {
       traceState?: string;
-      traceParent?: Pick<opentelemetry.SpanContext, 'traceId' | 'spanId' | 'traceFlags'>;
       kind?: 'CONSUMER' | 'PRODUCER' | 'SERVER' | 'CLIENT';
+      traceParent?: Pick<opentelemetry.SpanContext, 'traceId' | 'spanId' | 'traceFlags'>;
     },
     callback: (span: OpenTelemetrySpan) => T,
     isAnExpectedError: (error: Error) => boolean = () => false,
   ): T {
-    if (this.otelTracer === null) {
-      this.pinoLogger.debug(name);
-      this.pinoLogger.debug(options);
-      return callback({
-        setStatus: (status: { code: 'OK' | 'UNSET' | 'ERROR' }) => {
-          this.pinoLogger.debug(`${name}.setStatus`);
-          this.pinoLogger.debug(status);
-        },
-        setAttributes: (attributes: AnyValue) => {
-          this.pinoLogger.debug(`${name}.setAttributes`);
-          this.pinoLogger.debug(attributes);
-        },
-        getContext: () => ({
-          traceFlags: 0,
-          traceId: '00000000000000000000000000000000',
-          spanId: options.traceParent?.spanId ?? '0000000000000000',
-          traceState: opentelemetry.createTraceState(options.traceState),
-        }),
-      });
-    }
-
-    let context = this.getContext();
+    const store = this.asyncStorage.getStore() as { span?: opentelemetry.Span; } | undefined;
+    let context = (store?.span !== undefined)
+      ? opentelemetry.trace.setSpan(opentelemetry.context.active(), store.span)
+      : undefined;
     if (options.traceParent !== undefined) {
       context = opentelemetry.trace.setSpanContext(opentelemetry.context.active(), {
         spanId: options.traceParent.spanId,
@@ -337,10 +322,45 @@ export default class Telemetry {
       });
     }
 
-    const span = this.otelTracer.startSpan(name, {
-      ...options,
-      kind: this.OTEL_SPAN_KIND_MAPPING[options.kind ?? 'INTERNAL'],
-    }, context);
+    if (this.otelTracer === null) {
+      this.pinoLogger.debug(name);
+      this.pinoLogger.debug(options);
+    }
+
+    const span: opentelemetry.Span = (this.otelTracer === null)
+      ? {
+        addLink: () => span,
+        addEvent: () => span,
+        addLinks: () => span,
+        updateName: () => span,
+        isRecording: () => false,
+        setAttribute: () => span,
+        recordException: () => span,
+        end: (): opentelemetry.Span => {
+          this.pinoLogger.debug(`${name}.end`);
+          return span;
+        },
+        setStatus: (status: { code: opentelemetry.SpanStatusCode }): opentelemetry.Span => {
+          this.pinoLogger.debug(`${name}.setStatus`);
+          this.pinoLogger.debug(status);
+          return span;
+        },
+        setAttributes: (attributes: Record<string, unknown>): opentelemetry.Span => {
+          this.pinoLogger.debug(`${name}.setAttributes`);
+          this.pinoLogger.debug(attributes);
+          return span;
+        },
+        spanContext: () => ({
+          traceFlags: 0,
+          traceId: '00000000000000000000000000000000',
+          spanId: options.traceParent?.spanId ?? '0000000000000000',
+          traceState: opentelemetry.createTraceState(options.traceState),
+        }),
+      }
+      : this.otelTracer.startSpan(name, {
+        ...options,
+        kind: this.OTEL_SPAN_KIND_MAPPING[options.kind ?? 'INTERNAL'],
+      }, context);
 
     return this.asyncStorage.run({ span }, (): T => {
       let callbackResponse;
@@ -364,7 +384,6 @@ export default class Telemetry {
         const rawError = error as Error;
         this.handleError(rawError, span, isAnExpectedError(rawError));
         throw error;
-        /* c8 ignore next */
       } finally {
         if (!(callbackResponse instanceof Promise)) {
           span.end();
@@ -500,11 +519,11 @@ export default class Telemetry {
           severityText: 'error',
           attributes: {
             ...errorAttributes,
+            ...(message instanceof PerseidError ? message.details : {}),
+            name: message.name,
+            message: message.message,
+            stackTrace: message.stack,
             type: message.constructor.name,
-            ...Object.getOwnPropertyNames(message).reduce((acc, key) => ({
-              ...acc,
-              [key === 'stack' ? 'stackTrace' : key]: message[key as keyof Error],
-            }), {}),
           },
         });
     }
@@ -551,11 +570,11 @@ export default class Telemetry {
           body: message.message,
           attributes: {
             ...fatalAttributes,
+            ...(message instanceof PerseidError ? message.details : {}),
+            name: message.name,
+            message: message.message,
+            stackTrace: message.stack,
             type: message.constructor.name,
-            ...Object.getOwnPropertyNames(message).reduce((acc, key) => ({
-              ...acc,
-              [key === 'stack' ? 'stackTrace' : key]: message[key as keyof Error],
-            }), {}),
           },
         });
     }

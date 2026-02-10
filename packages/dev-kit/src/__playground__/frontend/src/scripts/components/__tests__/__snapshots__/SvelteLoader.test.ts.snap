@@ -1,7 +1,0 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
-
-exports[`svelte/Loader > renders correctly - basic 1`] = `
-<div>
-  {"LABEL_TEST":"Test"}
-</div>
-`;

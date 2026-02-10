@@ -38,7 +38,7 @@ module.exports = {
   plugins: ['@typescript-eslint'],
   extends: [
     'airbnb',
-    'plugin:vue/vue3-recommended',
+    'plugin:vue/recommended',
     'plugin:react-hooks/recommended',
     'plugin:vitest-globals/recommended',
     'plugin:@typescript-eslint/strict-type-checked',
@@ -133,6 +133,5 @@ module.exports = {
   env: {
     browser: true,
     'vitest-globals/env': true,
-    'vue/setup-compiler-macros': true,
   },
 };

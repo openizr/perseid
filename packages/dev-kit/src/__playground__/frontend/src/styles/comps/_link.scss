@@ -1,3 +1,5 @@
+@use '../mixins';
+
 .link {
   cursor: pointer;
 
@@ -12,7 +14,7 @@
   }
 
   &--large {
-    @include resp(m) {
+    @include mixins.resp(m) {
       font-size: 2em;
     }
   }

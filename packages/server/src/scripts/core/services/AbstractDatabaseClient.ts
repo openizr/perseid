@@ -539,6 +539,8 @@ export default abstract class AbstractDatabaseClient<
    */
   protected abstract handleError<T>(callback: () => Promise<T>): Promise<T>;
 
+  // TODO split in 2 or add more params ? To differentiate relation filters (foreign keys)
+  // vs resource filters (fetch)
   /**
    * Returns the additional filters to apply in queries for `resource`.
    *
@@ -566,6 +568,7 @@ export default abstract class AbstractDatabaseClient<
     return filters;
   }
 
+  // TODO REMOVE
   /**
    * Updates `documents` right before creation in database. This can be especially useful to set
    * additional database fields that do not exist in the data model, in multi-tenancy for instance.

@@ -8,31 +8,46 @@
 
 import {
   Id,
-  deepCopy,
   type Ids,
   type Results,
-  type Authors,
-  isPlainObject,
-  type IdSchema,
-  type Deletion,
-  type Timestamps,
-  type FieldSchema,
-  toSnakeCase,
 } from '@perseid/core';
 import type {
   Payload,
   SearchBody,
   UpdatePayload,
   CreatePayload,
-  SearchFilters,
   CommandContext,
+  SearchFilters,
 } from 'scripts/core/types';
-import EngineError from 'scripts/core/errors/Engine';
-import Telemetry from 'scripts/core/services/Telemetry';
-import type DefaultModel from 'scripts/core/services/Model';
-import type DefaultDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
+import type Model from 'scripts/core/services/Model';
+import type Telemetry from 'scripts/core/services/Telemetry';
+import EngineFragment from 'scripts/core/services/EngineFragment';
+import type AbstractDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
 
-const noop = (...args: unknown[]): unknown => args;
+type Identity<T> = T;
+
+type PublicFragment<
+  DataModel extends object,
+  DatabaseClient extends AbstractDatabaseClient<DataModel>> = Omit<EngineFragment<
+    DataModel,
+    DatabaseClient
+  >, (
+  'prepareCreatePayload'
+  | 'prepareUpdatePayload'
+  | 'checkResourceExists'
+)> & {
+  definePayload: EngineFragment<DataModel, DatabaseClient>['definePayload'];
+  applyPermissions: EngineFragment<DataModel, DatabaseClient>['applyPermissions'];
+  defineFullPayload: EngineFragment<DataModel, DatabaseClient>['defineFullPayload'];
+  getRelationFilters: EngineFragment<DataModel, DatabaseClient>['getRelationFilters'];
+  checkResourceExists: EngineFragment<DataModel, DatabaseClient>['checkResourceExists'];
+  defineCreatePayload: EngineFragment<DataModel, DatabaseClient>['defineCreatePayload'];
+  defineUpdatePayload: EngineFragment<DataModel, DatabaseClient>['defineUpdatePayload'];
+  prepareCreatePayload: EngineFragment<DataModel, DatabaseClient>['prepareCreatePayload'];
+  prepareUpdatePayload: EngineFragment<DataModel, DatabaseClient>['prepareUpdatePayload'];
+  isResourceCreatePayload: EngineFragment<DataModel, DatabaseClient>['isResourceCreatePayload'];
+  isResourceUpdatePayload: EngineFragment<DataModel, DatabaseClient>['isResourceUpdatePayload'];
+};
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
@@ -51,27 +66,17 @@ export default class Engine<
   QueryResults extends Record<string, Ids> = Record<string, Ids>,
 
   /**
-   * Model class type definition.
-   */
-  Model extends DefaultModel<DataModel> = DefaultModel<DataModel>,
-
-  /**
    * Database client type definition.
    */
-  DatabaseClient extends DefaultDatabaseClient<
+  DatabaseClient extends AbstractDatabaseClient<
     DataModel,
     QueryResults
-  > = DefaultDatabaseClient<DataModel, QueryResults>,
+  > = AbstractDatabaseClient<DataModel, QueryResults>,
 > {
-  /**
-   * Used to prevent false positives in linting. Don't use directly.
-   */
-  protected noop = noop;
-
   /**
    * Data model.
    */
-  protected model: Model;
+  protected model: Model<DataModel>;
 
   /**
    * Telemetry system.
@@ -84,114 +89,122 @@ export default class Engine<
   protected databaseClient: DatabaseClient;
 
   /**
-   * Type guard method that forces type inference on `payload`, right before update
-   * in database, to overcome TypeScript limitations with conditional types inference in
-   * generic contexts. Does not perform any special operations.
-   *
-   * @param payload Payload to force type inference on.
-   *
-   * @returns Payload with type inference forced.
+   * Registered engine fragments, indexed by resource type.
    */
-  protected defineCreatePayload<PayloadType>(
-    payload: unknown,
-  ): PayloadType {
-    this.noop(payload);
-    return payload as PayloadType;
+  protected fragmentPerResource: Partial<Record<
+    keyof DataModel,
+    PublicFragment<DataModel, DatabaseClient>>
+  >;
+
+  /**
+   * Default engine fragment, used as fallback for resources not registered
+   * in `fragmentPerResource`.
+   */
+  protected defaultFragment: PublicFragment<DataModel, DatabaseClient>;
+
+  /**
+   * Registers a new `EngineFragment` instance.
+   *
+   * @param fragment `EngineFragment` instance to register.
+   */
+  protected registerFragment(
+    fragment: EngineFragment<DataModel, AbstractDatabaseClient<DataModel>>,
+  ): void {
+    fragment.resources.forEach((resource) => {
+      this.fragmentPerResource[resource] = (
+        fragment as unknown as PublicFragment<DataModel, DatabaseClient>
+      );
+    });
   }
 
   /**
-   * Type guard method that forces type inference on `payload`, right before insertion
-   * in database, to overcome TypeScript limitations with conditional types inference in
-   * generic contexts. Does not perform any special operations.
+   * Type guard method that forces type inference on `payload`, to overcome TypeScript limitations
+   * with conditional types inference in generic contexts. Does not perform any special operations.
    *
    * @param payload Payload to force type inference on.
    *
-   * @returns Payload with type inference forced.
+   * @returns Type-safe payload (as received by the Engine `create` method).
    */
-  protected defineUpdatePayload<PayloadType>(
-    payload: unknown,
-  ): Payload<PayloadType> {
-    this.noop(payload);
-    return payload as Payload<PayloadType>;
+  protected defineCreatePayload<Resource extends keyof DataModel>(
+    payload: CreatePayload<DataModel[keyof DataModel]>,
+  ): CreatePayload<DataModel[Resource]> {
+    return this.defaultFragment.defineCreatePayload<Resource>(payload);
   }
 
   /**
-   * Extracts all relations to other resources from `partialPayload`.
-   * Internal method, do not use directly.
+   * Type guard method that forces type inference on `payload`, to overcome TypeScript limitations
+   * with conditional types inference in generic contexts. Does not perform any special operations.
    *
-   * @param resource Type of resource payload.
+   * @param payload Payload to force type inference on.
    *
-   * @param partialPayload Payload to extract relations from.
-   *
-   * @param currentSchema Payload data model schema.
-   *
-   * @param payload Full payload that needs to be walked through.
-   *
-   * @param currentPath Path to the current payload in the data model.
-   *
-   * @param relations Final relations map. Defaults to an empty map.
-   *
-   * @returns List of relations to other resources, along with their filters.
+   * @returns Type-safe payload (as received by the Engine `update` method).
    */
-  private extractRelationsFromPayload<Resource extends keyof DataModel>(
-    resource: Resource,
-    partialPayload: unknown,
-    currentSchema: FieldSchema<DataModel>,
-    payload: UpdatePayload<DataModel[Resource]> | CreatePayload<DataModel[Resource]>,
-    currentPath: string[] = [],
-    relations = new Map<string, {
-      resource: keyof DataModel;
-      filters: SearchFilters & { _id: Id[]; } | null;
-    }>(),
-  ): Map<string, {
-    resource: keyof DataModel;
-    filters: SearchFilters & { _id: Id[]; } | null;
-  }> {
-    const path = currentPath.join('.');
-    const { type } = currentSchema;
-    const { relation } = currentSchema as IdSchema<DataModel>;
+  protected defineUpdatePayload<Resource extends keyof DataModel>(
+    payload: UpdatePayload<DataModel[keyof DataModel]>,
+  ): UpdatePayload<DataModel[Identity<Resource>]> {
+    return this.defaultFragment.defineUpdatePayload<Resource>(payload);
+  }
 
-    if (type === 'array' && Array.isArray(partialPayload)) {
-      partialPayload.forEach((value) => {
-        this.extractRelationsFromPayload(
-          resource,
-          value,
-          currentSchema.fields,
-          payload,
-          currentPath,
-          relations,
-        );
-      });
-    } else if (type === 'object' && isPlainObject(partialPayload)) {
-      Object.keys(partialPayload).forEach((fieldName) => {
-        this.extractRelationsFromPayload(
-          resource,
-          partialPayload[fieldName],
-          currentSchema.fields[fieldName],
-          payload,
-          currentPath.concat([fieldName]),
-          relations,
-        );
-      });
-    } else if (type === 'id' && relation !== undefined && partialPayload instanceof Id) {
-      const existingFilters = relations.get(path);
-      if (existingFilters && existingFilters.filters !== null) {
-        (existingFilters.filters._id).push(partialPayload);
-        relations.set(path, existingFilters);
-      } else {
-        relations.set(currentPath.join('.'), {
-          resource: relation,
-          filters: this.getRelationFilters(
-            resource,
-            currentPath.join('.'),
-            [partialPayload],
-            payload,
-          ),
-        });
-      }
-    }
+  /**
+   * Type guard method that forces type inference on `payload`, to overcome TypeScript limitations
+   * with conditional types inference in generic contexts. Does not perform any special operations.
+   *
+   * @param payload Payload to force type inference on.
+   *
+   * @returns Type-safe payload (before update in database).
+   */
+  protected definePayload<Resource extends keyof DataModel>(
+    payload: Payload<DataModel[keyof DataModel]>,
+  ): Payload<DataModel[Identity<Resource>]> {
+    return this.defaultFragment.definePayload<Resource>(payload);
+  }
 
-    return relations;
+  /**
+   * Type guard method that forces type inference on `payload`, to overcome TypeScript limitations
+   * with conditional types inference in generic contexts. Does not perform any special operations.
+   *
+   * @param payload Payload to force type inference on.
+   *
+   * @returns Type-safe payload (before creation in database).
+   */
+  protected defineFullPayload<Resource extends keyof DataModel>(
+    payload: DataModel[keyof DataModel],
+  ): DataModel[Identity<Resource>] {
+    return this.defaultFragment.defineFullPayload<Resource>(payload);
+  }
+
+  /**
+   * Type guard method that checks if the payload is a valid create payload for the given resource.
+   *
+   * @param resource Resource type.
+   *
+   * @param expectedResource Expected resource type.
+   *
+   * @param payload Payload to check.
+   */
+  protected isResourceCreatePayload<Resource extends keyof DataModel>(
+    resource: keyof DataModel,
+    expectedResource: Resource,
+    payload: unknown,
+  ): payload is CreatePayload<DataModel[Resource]> {
+    return this.defaultFragment.isResourceCreatePayload(resource, expectedResource, payload);
+  }
+
+  /**
+   * Type guard method that checks if the payload is a valid update payload for the given resource.
+   *
+   * @param resource Resource type.
+   *
+   * @param expectedResource Expected resource type.
+   *
+   * @param payload Payload to check.
+   */
+  protected isResourceUpdatePayload<Resource extends keyof DataModel>(
+    resource: keyof DataModel,
+    expectedResource: Resource,
+    payload: unknown,
+  ): payload is UpdatePayload<DataModel[Resource]> {
+    return this.defaultFragment.isResourceUpdatePayload(resource, expectedResource, payload);
   }
 
   /**
@@ -214,13 +227,13 @@ export default class Engine<
     ids: Id[],
     payload: UpdatePayload<DataModel[Resource]> | CreatePayload<DataModel[Resource]>,
   ): SearchFilters & { _id: Id[]; } | null {
-    this.noop(resource, path, ids, payload);
-    return { _id: ids };
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.getRelationFilters(resource, path, ids, payload);
   }
 
   /**
-   * Verifies that user has the right permissions to perform `operation`, using given payload and
-   * context. This method should return any additional information that is relevant to perform the
+   * Verifies that user has the right permissions to perform `operation`, using given `payload` and
+   * `context`. This method should return any additional information that is relevant to perform the
    * operation in granted scope, such as filtered options, updated payload, sub-resources for
    * narrowing down the scope, etc.
    *
@@ -241,110 +254,33 @@ export default class Engine<
    * @throws If `operation` is not allowed for the given resource.
    */
   protected async applyPermissions(
+    resource: keyof DataModel,
     operation: string,
+    id: Id | null,
     payload: unknown,
     context: Partial<CommandContext<DataModel>>,
   ): Promise<CommandContext<DataModel>> {
-    const { session } = context;
-    const filteredFields = new Set<string>();
-    const finalContext = context as CommandContext<DataModel>;
-    const allFields = [...context.queryOptions?.fields ?? []]
-      .concat(Object.keys(context.queryOptions?.sortBy ?? {}))
-      .concat(['_id']);
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.applyPermissions(
+      resource,
+      operation,
+      id,
+      payload,
+      context,
+    );
+  }
 
-    if (context.resource !== undefined && session !== undefined) {
-      if (operation === 'LIST') {
-        const listPayload = payload as SearchBody;
-        allFields.push(...Object.keys(listPayload.filters ?? {}).map(String));
-        allFields.push(...Array.from(listPayload.query?.on ?? []).map(String));
-      }
-
-      const requestedFields = new Set(allFields);
-      const permissions = session.user._permissions;
-      const metaData = this.model.get(context.resource.type);
-      const permission = `${toSnakeCase(String(context.resource.type))}.${operation}`;
-      const mustCheckViewPermission = (operation === 'CREATE' || operation === 'UPDATE');
-
-      if (mustCheckViewPermission && !metaData.schema.allowedOperations?.includes('VIEW')) {
-        throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
-      }
-
-      if (!metaData.schema.allowedOperations?.includes(operation as 'CREATE')) {
-        throw new EngineError('OPERATION_NOT_ALLOWED', { operation });
-      }
-
-      while (allFields.length > 0) {
-        const path = String(allFields.shift());
-        const isWildcard = path.at(-1) === '*';
-        const pathWithoutWildcard = isWildcard ? path.slice(0, -2) : path;
-        const getFullPath = (field: string): string => `${pathWithoutWildcard}.${field}`;
-
-        if (path === '*') {
-          allFields.push(...Object.keys(metaData.schema.fields));
-        } else {
-          const fieldMetaData = this.model.get(`${String(context.resource)}.${pathWithoutWildcard}`);
-
-          if (fieldMetaData === null) {
-            throw new EngineError('UNKNOWN_FIELD', { path });
-          }
-
-          if (fieldMetaData.schema.type === 'object') {
-            allFields.push(...Object.keys(fieldMetaData.schema.fields).map(getFullPath));
-          } else if (fieldMetaData.schema.type === 'id' && isWildcard) {
-            if (fieldMetaData.schema.relation === undefined) {
-              throw new EngineError('UNKNOWN_FIELD', { path });
-            }
-            const relationMetaData = this.model.get(fieldMetaData.schema.relation);
-            allFields.push(...Object.keys(relationMetaData.schema.fields).map(getFullPath));
-          } else {
-            const missingPermission = fieldMetaData.permissions.find((fieldPermission) => (
-              fieldPermission === null || !permissions.has(fieldPermission)
-            ));
-            if (missingPermission === undefined) {
-              filteredFields.add(path);
-            } else if (requestedFields.has(path)) {
-              throw new EngineError('FORBIDDEN', { permission: missingPermission });
-            }
-          }
-        }
-      }
-
-      // Unverified users cannot perform any operation.
-      if (session.user._verifiedAt === null) {
-        throw new EngineError('USER_NOT_VERIFIED');
-      }
-
-      // Users cannot update their own roles if not explicitly allowed.
-      if (context.resource.type === 'users') {
-        const userPayload = this.defineUpdatePayload<{ roles: Id[]; }>(payload);
-        if (userPayload.roles !== undefined && !session.user._permissions.has('USERS.UPDATE_ROLES')) {
-          throw new EngineError('FORBIDDEN', { permission: 'USERS.UPDATE_ROLES' });
-        }
-      }
-
-      if (!session.user._permissions.has(permission)) {
-        // Users can always update their own information.
-        if (!(operation === 'USERS.UPDATE' && String(context.resource.id) === String(session.user._id))) {
-          throw new EngineError('FORBIDDEN', { permission: operation });
-        }
-      }
-
-      return {
-        ...finalContext,
-        queryOptions: {
-          ...finalContext.queryOptions,
-          fields: [...filteredFields],
-        },
-      };
-    }
-
-    return Promise.resolve({
-      ...finalContext,
-      queryOptions: {
-        ...finalContext.queryOptions,
-        fields: allFields,
-      },
-    });
+  /**
+   * Checks if the resource exists.
+   *
+   * @param resourceExists If the resource exists.
+   *
+   * @param id Resource ID.
+   *
+   * @throws If resource does not exist.
+   */
+  protected checkResourceExists(resourceExists: boolean, id: Id): void {
+    this.defaultFragment.checkResourceExists(resourceExists, id);
   }
 
   /**
@@ -359,42 +295,13 @@ export default class Engine<
    *
    * @returns Prepared and validated payload, containing automatic fields.
    */
-  protected async prepareCreatePayload<Resource extends keyof DataModel>(
+  protected prepareCreatePayload<Resource extends keyof DataModel>(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<DataModel[Resource]> {
-    const metaData = this.model.get(resource);
-    let fullPayload = this.defineCreatePayload<Ids & Timestamps & Deletion & Authors>(payload);
-    fullPayload = deepCopy(fullPayload);
-
-    fullPayload._id = new Id();
-
-    if (metaData.schema.enableTimestamps) {
-      fullPayload._updatedAt = null;
-      fullPayload._createdAt = new Date();
-    }
-
-    if (metaData.schema.enableAuthors && context.session !== undefined) {
-      fullPayload._updatedBy = null;
-      fullPayload._createdBy = context.session.user._id;
-    }
-
-    if (metaData.schema.enableDeletion === false) {
-      fullPayload._isDeleted = false;
-    }
-
-    await this.databaseClient.checkRelations(
-      resource,
-      this.extractRelationsFromPayload(resource, payload, {
-        type: 'object',
-        isRequired: true,
-        fields: metaData.schema.fields,
-      }, payload),
-      context.queryOptions,
-    );
-
-    return this.defineCreatePayload<DataModel[Resource]>(fullPayload);
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.prepareCreatePayload(resource, payload, context);
   }
 
   /**
@@ -409,52 +316,38 @@ export default class Engine<
    *
    * @returns Prepared and validated payload, containing automatic fields.
    */
-  protected async prepareUpdatePayload<Resource extends keyof DataModel>(
+  protected prepareUpdatePayload<Resource extends keyof DataModel>(
     resource: Resource,
     payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Payload<DataModel[Resource]>> {
-    const metaData = this.model.get(resource);
-    const fullPayload = deepCopy(this.defineUpdatePayload<Timestamps & Authors>(payload));
-
-    if (metaData.schema.enableTimestamps) {
-      fullPayload._updatedAt = new Date();
-    }
-
-    if (metaData.schema.enableAuthors && context.session !== undefined) {
-      fullPayload._updatedBy = context.session.user._id;
-    }
-
-    await this.databaseClient.checkRelations(
-      resource,
-      this.extractRelationsFromPayload(resource, payload, {
-        type: 'object',
-        isRequired: true,
-        fields: metaData.schema.fields,
-      }, payload),
-      context.queryOptions,
-    );
-
-    return this.defineUpdatePayload<DataModel[Resource]>(fullPayload);
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.prepareUpdatePayload(resource, payload, context);
   }
 
   /**
    * Class constructor.
    *
-   * @param model Data model to use.
+   * @param model Model instance to use.
    *
-   * @param telemetry Telemetry system to use.
+   * @param telemetry Telemetry instance to use.
    *
-   * @param databaseClient Database client to use.
+   * @param databaseClient DatabaseClient instance to use.
    */
   constructor(
-    model: Model,
+    model: Model<DataModel>,
     telemetry: Telemetry,
     databaseClient: DatabaseClient,
   ) {
     this.model = model;
     this.telemetry = telemetry;
     this.databaseClient = databaseClient;
+    this.fragmentPerResource = {};
+    this.defaultFragment = new EngineFragment<DataModel, DatabaseClient>(
+      model,
+      telemetry,
+      databaseClient,
+    ) as unknown as PublicFragment<DataModel, DatabaseClient>;
   }
 
   /**
@@ -476,13 +369,8 @@ export default class Engine<
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
-    const fullContext = { ...context, resource: { type: resource, id: undefined } };
-    const updatedContext = await this.applyPermissions('CREATE', payload, fullContext);
-    const fullPayload = await this.prepareCreatePayload(resource, payload, updatedContext);
-    await this.databaseClient.create(resource, fullPayload, updatedContext.queryOptions);
-    // Prevents duplicate RBAC checks (in both `applyPermissions` and `view` methods).
-    updatedContext.session = undefined;
-    return this.view(resource, this.defineCreatePayload<Ids>(fullPayload)._id, updatedContext);
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.create(resource, payload, context);
   }
 
   /**
@@ -509,23 +397,8 @@ export default class Engine<
     payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
-    let resourceExists = false;
-    const fullContext = { ...context, resource: { type: resource, id } };
-    const updatedContext = await this.applyPermissions('UPDATE', payload, fullContext);
-
-    if (Object.keys(payload).length > 0) {
-      const options = updatedContext.queryOptions;
-      const newPayload = await this.prepareUpdatePayload(resource, payload, updatedContext);
-      resourceExists = await this.databaseClient.update(resource, id, newPayload, options);
-
-      if (!resourceExists) {
-        throw new EngineError('NO_RESOURCE', { id });
-      }
-    }
-
-    // Prevents duplicate RBAC checks (in both `applyPermissions` and `view` methods).
-    updatedContext.session = undefined;
-    return this.view(resource, id, updatedContext);
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.update(resource, id, payload, context);
   }
 
   /**
@@ -548,15 +421,56 @@ export default class Engine<
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
-    const fullContext = { ...context, resource: { type: resource, id } };
-    const updatedContext = await this.applyPermissions('VIEW', {}, fullContext);
-    const result = await this.databaseClient.view<Key>(resource, id, updatedContext.queryOptions);
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.view(resource, id, context);
+  }
 
-    if (result === null) {
-      throw new EngineError('NO_RESOURCE', { id });
-    }
+  /**
+   * Fetches resource with id `id`, without performing any RBAC checks. This can be especially
+   * useful when fetching resources from other methods like `create` or `update`, to improve
+   * performance by avoiding duplicated checks.
+   *
+   * @param resource Type of resource to fetch.
+   *
+   * @param id Resource id.
+   *
+   * @param context Command context.
+   *
+   * @returns Resource, if it exists.
+   *
+   * @throws If resource does not exist or does not match criteria.
+   */
+  public async unsafeView<Result = unknown>(
+    resource: keyof DataModel,
+    id: Id,
+    context: CommandContext<DataModel>,
+  ): Promise<Result> {
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.unsafeView(resource, id, context);
+  }
 
-    return result;
+  /**
+   * Fetches a paginated list of resources matching `searchBody` constraints, without performing
+   * any RBAC checks. This can be especially useful when fetching resources from other methods like
+   * `create` or `update`, to improve performance by avoiding duplicated checks.
+   *
+   * @param resource Type of resource to fetch.
+   *
+   * @param searchBody Search body (filters, text query) to filter resources with.
+   *
+   * @param context Command context.
+   *
+   * @returns Resource, if it exists.
+   *
+   * @throws If resource does not exist or does not match criteria.
+   */
+  public async unsafeList<Result = unknown>(
+    resource: keyof DataModel,
+    searchBody: SearchBody,
+    context: CommandContext<DataModel>,
+  ): Promise<Results<Result>> {
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.unsafeList(resource, searchBody, context);
   }
 
   /**
@@ -574,10 +488,13 @@ export default class Engine<
     resource: keyof DataModel,
     searchBody: SearchBody,
     context: CommandContext<DataModel>,
-  ): Promise<Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>> {
-    const fullContext = { ...context, resource: { type: resource, id: undefined } };
-    const updatedContext = await this.applyPermissions('LIST', searchBody, fullContext);
-    return this.databaseClient.list<Key>(resource, searchBody, updatedContext.queryOptions);
+  ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>> {
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.list<Key extends keyof QueryResults ? QueryResults[Key] : Ids>(
+      resource,
+      searchBody,
+      context,
+    );
   }
 
   /**
@@ -591,27 +508,12 @@ export default class Engine<
    *
    * @throws If resource does not exist or does not match criteria.
    */
-  public async delete<Resource extends keyof DataModel>(
-    resource: Resource,
+  public async delete(
+    resource: keyof DataModel,
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<void> {
-    let resourceExists = false;
-    const metaData = this.model.get(resource);
-    const fullContext = { ...context, resource: { type: resource, id } };
-    const updatedContext = await this.applyPermissions('DELETE', {}, fullContext);
-
-    if (metaData.schema.enableDeletion) {
-      resourceExists = await this.databaseClient.delete(resource, id, updatedContext.queryOptions);
-    } else {
-      const options = updatedContext.queryOptions;
-      const fullPayload = await this.prepareUpdatePayload(resource, {}, updatedContext);
-      this.defineUpdatePayload<Deletion>(fullPayload)._isDeleted = true;
-      resourceExists = await this.databaseClient.update(resource, id, fullPayload, options);
-    }
-
-    if (!resourceExists) {
-      throw new EngineError('NO_RESOURCE', { id });
-    }
+    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
+    return fragment.delete(resource, id, context);
   }
 }

@@ -7,16 +7,12 @@
  */
 
 import { type Stream } from 'stream';
-import { HttpClient } from '@perseid/core';
-import Logger from 'scripts/core/services/Logger';
+import { HttpClient, type HttpClientSettings } from '@perseid/core';
 
 /**
  * Bucket client settings.
  */
-export interface BucketClientSettings {
-  /** Maximum request duration (in ms) before generating a timeout. */
-  connectTimeout: number;
-}
+export type BucketClientSettings = HttpClientSettings;
 
 /**
  * Handles log files storage on a remote bucket.
@@ -24,21 +20,6 @@ export interface BucketClientSettings {
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/core/services/BucketClient.ts
  */
 export default class BucketClient extends HttpClient {
-  /** Logging system. */
-  protected logger: Logger;
-
-  /**
-   * Class constructor.
-   *
-   * @param logger Logging system to use.
-   *
-     * @param settings Bucket client settings.
-   */
-  constructor(logger: Logger, settings: BucketClientSettings) {
-    super(settings.connectTimeout);
-    this.logger = logger;
-  }
-
   /**
    * Uploads `body` to the bucket at `path`.
    *
@@ -50,6 +31,6 @@ export default class BucketClient extends HttpClient {
    */
   public async upload(_type: string, path: string, body: Stream): Promise<void> {
     await new Promise((resolve) => { body.once('open', resolve); });
-    this.logger.warn(`[BucketClient][upload] method is not implemented - skipping file upload at ${path}...`);
+    this.telemetry.warn(`[BucketClient][upload] method is not implemented - skipping file upload at ${path}...`);
   }
 }
