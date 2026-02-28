@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Copyright (c) Openizr. All Rights Reserved.
  *
@@ -22,6 +23,7 @@ import DatabaseClient, {
   type FormattedQuery,
   type StructuredPayload,
   type DatabaseClientSettings,
+  type ArrayLookupDescriptor,
 } from 'scripts/core/services/AbstractDatabaseClient';
 import type {
   Payload,
@@ -511,6 +513,219 @@ export default class PostgreSQLDatabaseClient<
   }
 
   /**
+   * Walks the `formattedQuery` tree, generates SQL with only N:1 JOINs inlined, and collects
+   * 1:N (array) lookups into `ArrayLookupDescriptor[]` for separate execution.
+   *
+   * @param resource Type of resource for which to generate the query.
+   *
+   * @param formattedQuery Formatted query to generate database query from.
+   *
+   * @param textIndent Current indent for SQL legibility. Defaults to `""`.
+   *
+   * @returns The main SQL query string and an array of 1:N lookup descriptors.
+   */
+  protected generateResultsQuery<Resource extends keyof DataModel>(
+    _resource: Resource,
+    formattedQuery: FormattedQuery,
+    textIndent = '',
+  ): { mainQuery: string; arrayLookups: ArrayLookupDescriptor[]; } {
+    const arrayLookups: ArrayLookupDescriptor[] = [];
+
+    const buildQuery = (
+      fq: FormattedQuery,
+      indent: string,
+    ): string => {
+      let joinClauses = '';
+      const newIndent = `${indent}  `;
+      const { structure } = fq;
+      const table = this.tablesMapping[structure] ?? this.resourcesMetadata[structure].structure;
+      const joinedTables = Object.keys(fq.lookups);
+
+      for (let i = 0, { length } = joinedTables; i < length; i += 1) {
+        const lookupKey = joinedTables[i];
+        const lookup = fq.lookups[lookupKey];
+
+        if (lookup.localField === '_id') {
+          // 1:N (array) lookup — collect as separate query.
+          const children: ArrayLookupDescriptor[] = [];
+          this.collectArrayLookups(lookup, children);
+          arrayLookups.push({
+            formattedQuery: lookup,
+            lookupKey,
+            parentIdSourceColumn: '_id',
+            children,
+          });
+        } else {
+          // N:1 (relation) lookup — inline as LEFT JOIN.
+          const subQuery = buildQuery(lookup, newIndent);
+          const prefix = `\n${indent}`;
+          const onClause = `${indent}ON "${table}"."${String(lookup.localField)}" = "${lookupKey}"."${String(lookup.foreignField)}"`;
+          joinClauses += `${prefix}LEFT JOIN (\n${subQuery}\n${indent}) AS "${lookupKey}"\n${onClause}`;
+        }
+      }
+
+      const fieldsClause = Object.keys(fq.fields).map((fieldName) => (
+        `"${table}"."${fieldName}" AS "${fq.fields[fieldName]}"`
+      )).concat(
+        joinedTables
+          .filter((key) => fq.lookups[key].localField !== '_id')
+          .map((path) => `"${path}".*`),
+      ).join(`,\n${newIndent}`);
+      const selectClause = `${indent}SELECT\n${newIndent}${fieldsClause}\n${indent}FROM\n${newIndent}"${table}"`;
+
+      return `${selectClause}${joinClauses}`;
+    };
+
+    const mainQuery = buildQuery(formattedQuery, textIndent);
+    return { mainQuery, arrayLookups };
+  }
+
+  /**
+   * Recursively collects 1:N (array) lookups from within a FormattedQuery node.
+   * N:1 lookups nested inside a 1:N are handled during `generateArrayQuery`.
+   *
+   * @param fq The FormattedQuery node to scan.
+   *
+   * @param children Array to populate with nested ArrayLookupDescriptors.
+   */
+  protected collectArrayLookups(
+    fq: FormattedQuery,
+    children: ArrayLookupDescriptor[],
+    parentIdColumnOverride?: string,
+  ): void {
+    const lookupKeys = Object.keys(fq.lookups);
+    for (let i = 0, { length } = lookupKeys; i < length; i += 1) {
+      const lookupKey = lookupKeys[i];
+      const lookup = fq.lookups[lookupKey];
+      if (lookup.localField === '_id') {
+        // Nested 1:N inside this scope.
+        const nestedChildren: ArrayLookupDescriptor[] = [];
+        this.collectArrayLookups(lookup, nestedChildren);
+        children.push({
+          formattedQuery: lookup,
+          lookupKey,
+          parentIdSourceColumn: parentIdColumnOverride ?? '_id',
+          children: nestedChildren,
+        });
+      } else {
+        // N:1 inside this scope — recurse, passing the N:1's foreignField as the
+        // parentIdSourceColumn for any 1:N children found inside the relation.
+        this.collectArrayLookups(lookup, children, lookup.foreignField as string);
+      }
+    }
+  }
+
+  /**
+   * Generates a SELECT for a 1:N (array) sub-table with N:1 JOINs inlined.
+   * Does NOT include a WHERE clause — the caller appends `WHERE "_parentId" IN (...)`.
+   *
+   * @param fq The FormattedQuery node for the array lookup.
+   *
+   * @param textIndent Current indent for SQL legibility. Defaults to `""`.
+   *
+   * @returns SQL SELECT string without WHERE clause.
+   */
+  protected generateArrayQuery(
+    fq: FormattedQuery,
+    textIndent = '',
+  ): string {
+    const buildArrayQuery = (
+      currentFq: FormattedQuery,
+      indent: string,
+    ): string => {
+      let joinClauses = '';
+      const newIndent = `${indent}  `;
+      const { structure } = currentFq;
+      const table = this.tablesMapping[structure] ?? this.resourcesMetadata[structure].structure;
+      const joinedTables = Object.keys(currentFq.lookups);
+
+      for (let i = 0, { length } = joinedTables; i < length; i += 1) {
+        const lookupKey = joinedTables[i];
+        const lookup = currentFq.lookups[lookupKey];
+
+        if (lookup.localField !== '_id') {
+          // N:1 (relation) — inline as LEFT JOIN.
+          const subQuery = buildArrayQuery(lookup, newIndent);
+          const prefix = `\n${indent}`;
+          const onClause = `${indent}ON "${table}"."${String(lookup.localField)}" = "${lookupKey}"."${String(lookup.foreignField)}"`;
+          joinClauses += `${prefix}LEFT JOIN (\n${subQuery}\n${indent}) AS "${lookupKey}"\n${onClause}`;
+        }
+        // 1:N lookups are skipped here — they are handled as children in collectAndExecuteArrayQueries.
+      }
+
+      const fieldsClause = Object.keys(currentFq.fields).map((fieldName) => (
+        `"${table}"."${fieldName}" AS "${currentFq.fields[fieldName]}"`
+      )).concat(
+        joinedTables
+          .filter((key) => currentFq.lookups[key].localField !== '_id')
+          .map((path) => `"${path}".*`),
+      ).join(`,\n${newIndent}`);
+      const selectClause = `${indent}SELECT\n${newIndent}${fieldsClause}\n${indent}FROM\n${newIndent}"${table}"`;
+
+      return `${selectClause}${joinClauses}`;
+    };
+
+    return buildArrayQuery(fq, textIndent);
+  }
+
+  /**
+   * Executes array (1:N) queries, stores results in `arrayResultsMap`, and recursively handles
+   * nested array lookups.
+   *
+   * @param connection PostgreSQL client connection to use for queries.
+   *
+   * @param parentIds List of parent IDs to filter by.
+   *
+   * @param lookups Array of ArrayLookupDescriptor to execute.
+   *
+   * @param arrayResultsMap Map to store results keyed by lookupKey.
+   */
+  protected async collectAndExecuteArrayQueries(
+    connection: pg.PoolClient,
+    parentIds: string[],
+    lookups: ArrayLookupDescriptor[],
+    arrayResultsMap: Map<string, unknown[]>,
+  ): Promise<void> {
+    await Promise.all(lookups.map(async (descriptor) => {
+      if (parentIds.length === 0) {
+        arrayResultsMap.set(descriptor.lookupKey, []);
+        return;
+      }
+
+      const placeholders = parentIds.map((_, idx) => `$${String(idx + 1)}`).join(', ');
+      const { structure } = descriptor.formattedQuery;
+      const table = this.tablesMapping[structure] ?? this.resourcesMetadata[structure].structure;
+      const baseQuery = this.generateArrayQuery(descriptor.formattedQuery);
+      const sqlQuery = `${baseQuery}\nWHERE\n  "${table}"."_parentId" IN (${placeholders});`;
+
+      this.telemetry.debug('[PostgreSQLDatabaseClient][collectAndExecuteArrayQueries] Performing the following SQL query on database:');
+      this.telemetry.debug(`[PostgreSQLDatabaseClient][collectAndExecuteArrayQueries]\n\n${sqlQuery}\n`);
+      this.telemetry.debug(`[PostgreSQLDatabaseClient][collectAndExecuteArrayQueries] [\n  ${parentIds.join(',\n  ')}\n]\n`);
+
+      const response = await connection.query<Record<string, unknown>>(sqlQuery, parentIds);
+      arrayResultsMap.set(descriptor.lookupKey, response.rows);
+
+      // Recurse for children — each child may need different parent IDs depending on
+      // whether it's nested inside a N:1 relation or directly inside this 1:N.
+      if (descriptor.children.length > 0) {
+        await Promise.all(descriptor.children.map(async (child) => {
+          const childParentIds = [...new Set(
+            response.rows
+              .map((row) => row[child.parentIdSourceColumn] as string | null)
+              .filter((v): v is string => v !== null),
+          )];
+          await this.collectAndExecuteArrayQueries(
+            connection,
+            childParentIds,
+            [child],
+            arrayResultsMap,
+          );
+        }));
+      }
+    }));
+  }
+
+  /**
    * Recursively formats `payload` into a structured format for database storage.
    *
    * @param resource Type of resource to format.
@@ -674,6 +889,11 @@ export default class PostgreSQLDatabaseClient<
   /**
    * Formats `results` into a database-agnostic structure, containing only requested fields.
    *
+   * When `arrayResults` is provided (multi-query mode), the main `results` contain one row per
+   * resource (no cartesian product from arrays). Array data is stitched in from `arrayResults`.
+   *
+   * When `arrayResults` is not provided, behaves exactly as the legacy single-query mode.
+   *
    * @param resource Type of resource to format.
    *
    * @param results List of database raw results to format.
@@ -682,9 +902,29 @@ export default class PostgreSQLDatabaseClient<
    *
    * @param mapping Mapping between DBMS-specific field name and real field path.
    *
+   * @param arrayResults Optional map of array lookup results keyed by lookup key.
+   *
    * @returns Formatted results.
    */
   protected formatResources<Resource extends keyof DataModel>(
+    resource: Resource,
+    results: unknown[],
+    fields: unknown,
+    mapping: Map<string, string>,
+    arrayResults?: Map<string, unknown[]>,
+    arrayLookups?: ArrayLookupDescriptor[],
+  ): DataModel[Resource][] {
+    if (arrayResults !== undefined && arrayLookups !== undefined) {
+      return this.formatResourcesMultiQuery(resource, results, fields, mapping, arrayResults, arrayLookups);
+    }
+    return this.formatResourcesLegacy(resource, results, fields, mapping);
+  }
+
+  /**
+   * Legacy single-query formatting (cartesian product mode). Used by `checkRelations` and when
+   * there are no 1:N lookups.
+   */
+  protected formatResourcesLegacy<Resource extends keyof DataModel>(
     resource: Resource,
     results: unknown[],
     fields: unknown,
@@ -700,7 +940,7 @@ export default class PostgreSQLDatabaseClient<
       };
 
       (fields as Set<string>).forEach((path) => {
-        const currentPath = [];
+        const currentPath: string[] = [];
         const splittedPath = path.split('.');
         let currentResource = finalResources[result._id as string];
         let currentSchema = model.schema as FieldSchema<DataModel> | undefined;
@@ -771,6 +1011,489 @@ export default class PostgreSQLDatabaseClient<
     });
 
     return Object.values(finalResources) as DataModel[Resource][];
+  }
+
+  /**
+   * Multi-query formatting: builds base resources from main query rows (one row per resource),
+   * then stitches array data from separate query results.
+   */
+  protected formatResourcesMultiQuery<Resource extends keyof DataModel>(
+    resource: Resource,
+    results: unknown[],
+    fields: unknown,
+    mapping: Map<string, string>,
+    arrayResults: Map<string, unknown[]>,
+    arrayLookups: ArrayLookupDescriptor[],
+  ): DataModel[Resource][] {
+    const finalResources: Record<string, Record<string, unknown>> = {};
+    const allObjectsById = new Map<string, Record<string, unknown>>();
+    const model = this.model.get(resource);
+
+    // Phase 1: Build base resources from main query rows (no arrays in main results).
+    (results as Record<string, unknown>[]).forEach((result) => {
+      const resourceId = result._id as string;
+      finalResources[resourceId] ??= {
+        _id: new Id(resourceId),
+      };
+      allObjectsById.set(resourceId, finalResources[resourceId]);
+
+      (fields as Set<string>).forEach((path) => {
+        const currentPath: string[] = [];
+        const splittedPath = path.split('.');
+        let currentResource = finalResources[resourceId];
+        let currentSchema = model.schema as FieldSchema<DataModel> | undefined;
+
+        while (splittedPath.length > 0 && currentSchema !== undefined) {
+          const fieldName: string = String(splittedPath.shift());
+          const subFields = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields;
+          currentSchema = subFields?.[fieldName];
+          currentPath.push(fieldName);
+
+          if (currentSchema?.type === 'array') {
+            // In multi-query mode, arrays are populated in Phase 2.
+            const fullPath = currentPath.join('_');
+            const key = mapping.get(fullPath) as unknown as string;
+            if (result[key] === null) {
+              currentResource[fieldName] = null;
+            } else if (currentResource[fieldName] === undefined) {
+              currentResource[fieldName] = [];
+            }
+            break;
+          }
+
+          const type = currentSchema?.type;
+          const fullPath = currentPath.join('_');
+          const key = mapping.get(fullPath) as unknown as string;
+          const relation = (currentSchema as IdSchema<DataModel> | undefined)?.relation;
+
+          if (result[key] === null) {
+            currentResource[fieldName] = null;
+            break;
+          }
+
+          if (type === 'id' && relation !== undefined && splittedPath.length > 0) {
+            const isUndefined = currentResource[fieldName] === undefined;
+            if (isUndefined || currentResource[fieldName] instanceof Id) {
+              currentResource[fieldName] = {
+                _id: new Id(result[key] as string),
+              };
+            }
+            currentResource = currentResource[fieldName] as Record<string, unknown>;
+            const relationMetadata = this.model.get(relation);
+            const { schema } = relationMetadata;
+            currentSchema = { type: 'object', fields: schema.fields, description: schema.description };
+          } else if (currentSchema?.type === 'object') {
+            currentResource[fieldName] ??= {};
+            currentResource = currentResource[fieldName] as Record<string, unknown>;
+          } else if (splittedPath.length === 0) {
+            if (type === 'id') {
+              currentResource[fieldName] ??= new Id(result[key] as string);
+            } else {
+              currentResource[fieldName] = result[key];
+            }
+          }
+        }
+      });
+    });
+
+    // Phase 2: Stitch array data from separate query results.
+    this.stitchArrayResults(
+      resource,
+      fields as Set<string>,
+      mapping,
+      arrayResults,
+      finalResources,
+      allObjectsById,
+      model as any,
+      arrayLookups,
+    );
+
+    return Object.values(finalResources) as DataModel[Resource][];
+  }
+
+  /**
+   * Stitches array results from separate queries into the base resource objects.
+   * Processes descriptors in order (parents before children) to ensure allObjectsById is populated.
+   */
+  protected stitchArrayResults<Resource extends keyof DataModel>(
+    _resource: Resource,
+    fields: Set<string>,
+    mapping: Map<string, string>,
+    arrayResults: Map<string, unknown[]>,
+    finalResources: Record<string, Record<string, unknown>>,
+    allObjectsById: Map<string, Record<string, unknown>>,
+    model: { schema: FieldSchema<DataModel>; },
+    arrayLookups: ArrayLookupDescriptor[],
+  ): void {
+    // Flatten the descriptor tree in pre-order (parents before children).
+    const flatDescriptors: ArrayLookupDescriptor[] = [];
+    const flatten = (descriptors: ArrayLookupDescriptor[]): void => {
+      for (let i = 0; i < descriptors.length; i += 1) {
+        flatDescriptors.push(descriptors[i]);
+        flatten(descriptors[i].children);
+      }
+    };
+    flatten(arrayLookups);
+
+    for (let d = 0; d < flatDescriptors.length; d += 1) {
+      const descriptor = flatDescriptors[d];
+      const rows = arrayResults.get(descriptor.lookupKey) ?? [];
+      const arrayPath = this.findArrayPathForLookupKey(fields, model, descriptor.lookupKey);
+      if (arrayPath === null) continue;
+
+      // Use the formattedQuery's field aliases directly — these are always correct
+      // regardless of whether it's a root or child descriptor.
+      const parentIdKey = descriptor.formattedQuery.fields._parentId;
+      const idKey = descriptor.formattedQuery.fields._id;
+
+      // Determine the array item schema by walking the model from the root.
+      const itemSchema = this.findItemSchemaForArrayPath(fields, model, descriptor.lookupKey);
+      if (itemSchema === null) continue;
+
+      // Determine the full mapping prefix for this array's items.
+      // Reverse-lookup from the _parentId alias to find the mapping key prefix.
+      let mappingPrefix: string[] | null = null;
+      mapping.forEach((alias, key) => {
+        if (alias === parentIdKey && key.endsWith('__parentId')) {
+          const base = key.substring(0, key.length - '__parentId'.length);
+          mappingPrefix = base.split('_').concat(['value']);
+        }
+      });
+      if (mappingPrefix === null) continue;
+
+      // Derive the full field path prefix from mappingPrefix by stripping 'value' segments.
+      // e.g., ['roles', 'value', 'permissions', 'value'] -> 'roles.permissions'
+      const fullFieldPrefix = (mappingPrefix as string[])
+        .filter((seg) => seg !== 'value')
+        .join('.');
+
+      // Collect sub-paths: field path segments AFTER the array, using the full field prefix.
+      const subPaths: string[] = [];
+      fields.forEach((fieldPath) => {
+        if (fieldPath.startsWith(`${fullFieldPrefix}.`)) {
+          subPaths.push(fieldPath.substring(fullFieldPrefix.length + 1));
+        }
+      });
+
+      // Group rows by _parentId.
+      const rowsByParent = new Map<string, Record<string, unknown>[]>();
+      (rows as Record<string, unknown>[]).forEach((row) => {
+        const parentId = row[parentIdKey] as string;
+        if (parentId != null) {
+          let parentRows = rowsByParent.get(parentId);
+          if (parentRows === undefined) {
+            parentRows = [];
+            rowsByParent.set(parentId, parentRows);
+          }
+          parentRows.push(row);
+        }
+      });
+
+      rowsByParent.forEach((childRows, parentId) => {
+        const parentObj = allObjectsById.get(parentId) ?? finalResources[parentId];
+        if (parentObj === undefined) return;
+
+        // Navigate to the array field in the parent.
+        let container = parentObj;
+        for (let i = 0; i < arrayPath.length - 1; i += 1) {
+          const segment = arrayPath[i];
+          if (container[segment] == null) return;
+          container = container[segment] as Record<string, unknown>;
+        }
+
+        const arrayFieldName = arrayPath[arrayPath.length - 1];
+        if (container[arrayFieldName] === null) return;
+        container[arrayFieldName] ??= [];
+        const arr = container[arrayFieldName] as unknown[];
+
+        childRows.forEach((childRow) => {
+          const childId = childRow[idKey] as string;
+
+          const item = this.buildArrayItem(
+            childRow, itemSchema, subPaths, mapping,
+            mappingPrefix as string[],
+          );
+          arr.push(item);
+
+          if (childId != null && typeof item === 'object' && item !== null) {
+            const itemObj = item as Record<string, unknown>;
+            allObjectsById.set(childId, itemObj);
+            // For relation expansions, also register under the relation's _id so that
+            // nested array lookups (whose _parentId references the relation) can find this item.
+            if (itemObj._id instanceof Id) {
+              const relId = String(itemObj._id);
+              if (relId !== childId) {
+                allObjectsById.set(relId, itemObj);
+              }
+            }
+          }
+        });
+      });
+    }
+  }
+
+  /**
+   * Finds the array item schema for a given lookupKey by walking all field paths.
+   */
+  protected findItemSchemaForArrayPath(
+    fields: Set<string>,
+    model: { schema: FieldSchema<DataModel>; },
+    lookupKey: string,
+  ): FieldSchema<DataModel> | null {
+    for (const fieldPath of fields) {
+      const splittedPath = fieldPath.split('.');
+      const currentPath: string[] = [];
+      let scopedPath: string[] = [];
+      let currentSchema = model.schema as FieldSchema<DataModel> | undefined;
+
+      for (let i = 0; i < splittedPath.length; i += 1) {
+        const seg = splittedPath[i];
+        const subFields = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields;
+        currentSchema = subFields?.[seg];
+        currentPath.push(seg);
+        scopedPath.push(seg);
+
+        if (currentSchema?.type === 'array') {
+          const flatPath = currentPath.join('_');
+          const flatScopedPath = scopedPath.join('_');
+          if (flatPath === lookupKey || flatScopedPath === lookupKey) {
+            return currentSchema.fields;
+          }
+
+          currentPath.push('value');
+          scopedPath.push('value');
+          currentSchema = currentSchema.fields;
+
+          const relation = (currentSchema as IdSchema<DataModel> | undefined)?.relation;
+          if (currentSchema?.type === 'id' && relation !== undefined) {
+            const relationMetadata = this.model.get(relation);
+            const { schema } = relationMetadata;
+            currentSchema = {
+              type: 'object',
+              fields: schema.fields,
+              description: schema.description,
+            } as unknown as FieldSchema<DataModel>;
+            scopedPath = [];
+          }
+        } else if (currentSchema?.type === 'id') {
+          const relation = (currentSchema as IdSchema<DataModel>).relation;
+          if (relation !== undefined && i < splittedPath.length - 1) {
+            const relationMetadata = this.model.get(relation);
+            const { schema } = relationMetadata;
+            currentSchema = {
+              type: 'object',
+              fields: schema.fields,
+              description: schema.description,
+            } as unknown as FieldSchema<DataModel>;
+            scopedPath = [];
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Builds a single array item from a child row, handling primitives, relations, and objects.
+   */
+  protected buildArrayItem(
+    childRow: Record<string, unknown>,
+    itemSchema: FieldSchema<DataModel>,
+    subPaths: string[],
+    mapping: Map<string, string>,
+    mappingPrefix: string[],
+  ): unknown {
+    const flatPrefix = mappingPrefix.join('_');
+    const valueKey = mapping.get(flatPrefix) as string;
+    const rawValue = valueKey != null ? childRow[valueKey] : null;
+
+    // Case 1: Array of ids with relation expansion (e.g., roles.name, roles.permissions).
+    if (itemSchema.type === 'id') {
+      const relation = (itemSchema as IdSchema<DataModel>).relation;
+      if (relation !== undefined && subPaths.length > 0) {
+        if (rawValue === null || rawValue === undefined) return null;
+        const obj: Record<string, unknown> = {};
+        // Set _id from the relation JOIN.
+        const relIdKey = mapping.get(`${flatPrefix}__id`) as string;
+        if (relIdKey && childRow[relIdKey] != null) {
+          obj._id = new Id(childRow[relIdKey] as string);
+        }
+        // Get the relation schema and walk sub-paths.
+        const relationMetadata = this.model.get(relation);
+        const relSchema: FieldSchema<DataModel> = {
+          type: 'object',
+          fields: relationMetadata.schema.fields,
+          description: relationMetadata.schema.description,
+        } as unknown as FieldSchema<DataModel>;
+        subPaths.forEach((subPath) => {
+          this.walkAndExtract(childRow, subPath.split('.'), relSchema, mapping, mappingPrefix, obj);
+        });
+        return obj;
+      }
+      // Simple id (no relation or no sub-paths).
+      if (rawValue === null || rawValue === undefined) return null;
+      return new Id(rawValue as string);
+    }
+
+    // Case 2: Array of objects.
+    if (itemSchema.type === 'object') {
+      const obj: Record<string, unknown> = {};
+      subPaths.forEach((subPath) => {
+        this.walkAndExtract(childRow, subPath.split('.'), itemSchema, mapping, mappingPrefix, obj);
+      });
+      return obj;
+    }
+
+    // Case 3: Array of other primitives (string, number, boolean, date, etc.).
+    return rawValue;
+  }
+
+  /**
+   * Walks a field path within a schema and extracts the value from the row into the target object.
+   * Handles relations, nested objects, nested arrays, and leaf values.
+   */
+  protected walkAndExtract(
+    row: Record<string, unknown>,
+    pathSegments: string[],
+    schema: FieldSchema<DataModel>,
+    mapping: Map<string, string>,
+    mappingPrefix: string[],
+    targetObj: Record<string, unknown>,
+  ): void {
+    let currentSchema: FieldSchema<DataModel> | undefined = schema;
+    let currentObj = targetObj;
+    const currentPath = [...mappingPrefix];
+    const remaining = [...pathSegments];
+
+    while (remaining.length > 0 && currentSchema !== undefined) {
+      const fieldName = remaining.shift() as string;
+      const subFields = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields as any;
+      currentSchema = subFields?.[fieldName];
+      currentPath.push(fieldName);
+
+      if (currentSchema?.type === 'array') {
+        // Nested array — set to [] or null based on marker column.
+        const fullPath = currentPath.join('_');
+        const markerKey = mapping.get(fullPath) as string;
+        if (markerKey && row[markerKey] === null) {
+          currentObj[fieldName] = null;
+        } else if (currentObj[fieldName] === undefined) {
+          currentObj[fieldName] = [];
+        }
+        return;
+      }
+
+      const type = currentSchema?.type;
+      const fullPath = currentPath.join('_');
+      const key = mapping.get(fullPath) as string;
+      const relation = (currentSchema as IdSchema<DataModel> | undefined)?.relation;
+
+      if (key == null || row[key] === null || row[key] === undefined) {
+        currentObj[fieldName] = null;
+        return;
+      }
+
+      if (type === 'id' && relation !== undefined && remaining.length > 0) {
+        const isUndefined = currentObj[fieldName] === undefined;
+        if (isUndefined || currentObj[fieldName] instanceof Id) {
+          currentObj[fieldName] = { _id: new Id(row[key] as string) };
+        }
+        currentObj = currentObj[fieldName] as Record<string, unknown>;
+        const relationMetadata = this.model.get(relation);
+        const { schema: relSchema } = relationMetadata;
+        currentSchema = {
+          type: 'object',
+          fields: relSchema.fields,
+          description: relSchema.description,
+        } as unknown as FieldSchema<DataModel>;
+      } else if (currentSchema?.type === 'object') {
+        currentObj[fieldName] ??= {};
+        currentObj = currentObj[fieldName] as Record<string, unknown>;
+      } else if (remaining.length === 0) {
+        if (type === 'id') {
+          currentObj[fieldName] ??= new Id(row[key] as string);
+        } else {
+          currentObj[fieldName] = row[key];
+        }
+      }
+    }
+  }
+
+  /**
+   * Finds the array field path segments corresponding to a given lookupKey.
+   * Handles relations within the path (e.g., for arrays nested inside relation fields).
+   *
+   * For root lookupKeys (e.g., 'roles'), returns the navigation path from the resource root.
+   * For child lookupKeys (e.g., 'permissions' inside a relation), returns the navigation path
+   * from the parent object (which is the expanded relation item).
+   */
+  protected findArrayPathForLookupKey(
+    fields: Set<string>,
+    model: { schema: FieldSchema<DataModel>; },
+    lookupKey: string,
+  ): string[] | null {
+    for (const fieldPath of fields) {
+      const splittedPath = fieldPath.split('.');
+      const currentPath: string[] = [];
+      // scopedPath tracks the path within the current scope (reset at relation boundaries).
+      let scopedPath: string[] = [];
+      let currentSchema = model.schema as FieldSchema<DataModel> | undefined;
+
+      for (let i = 0; i < splittedPath.length; i += 1) {
+        const seg = splittedPath[i];
+        const subFields = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields;
+        currentSchema = subFields?.[seg];
+        currentPath.push(seg);
+        scopedPath.push(seg);
+
+        if (currentSchema?.type === 'array') {
+          // Check full path (for root lookups).
+          const flatPath = currentPath.join('_');
+          if (flatPath === lookupKey) {
+            return [...currentPath];
+          }
+          // Check scoped path (for child lookups inside relations).
+          const flatScopedPath = scopedPath.join('_');
+          if (flatScopedPath === lookupKey) {
+            return [...scopedPath];
+          }
+
+          // Continue into nested arrays.
+          currentPath.push('value');
+          scopedPath.push('value');
+          currentSchema = currentSchema.fields;
+
+          // If the array item is a relation, traverse it.
+          const relation = (currentSchema as IdSchema<DataModel> | undefined)?.relation;
+          if (currentSchema?.type === 'id' && relation !== undefined) {
+            const relationMetadata = this.model.get(relation);
+            const { schema } = relationMetadata;
+            currentSchema = {
+              type: 'object',
+              fields: schema.fields,
+              description: schema.description,
+            } as unknown as FieldSchema<DataModel>;
+            // Reset scoped path — we're now in the relation's scope.
+            scopedPath = [];
+          }
+        } else if (currentSchema?.type === 'id') {
+          // Relation traversal outside arrays.
+          const relation = (currentSchema as IdSchema<DataModel>).relation;
+          if (relation !== undefined && i < splittedPath.length - 1) {
+            const relationMetadata = this.model.get(relation);
+            const { schema } = relationMetadata;
+            currentSchema = {
+              type: 'object',
+              fields: schema.fields,
+              description: schema.description,
+            } as unknown as FieldSchema<DataModel>;
+            // Reset scoped path.
+            scopedPath = [];
+          }
+        }
+      }
+    }
+    return null;
   }
 
   /**
@@ -1215,23 +1938,60 @@ export default class PostgreSQLDatabaseClient<
     const fields = new Set([...(options.fields ?? [])]);
     const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
     const { formattedQuery, projections } = this.parseFields(resource, fields, maximumDepth);
+    const { mainQuery, arrayLookups } = this.generateResultsQuery(resource, formattedQuery);
     const filters = this.getResourceFilters(resource, id, options);
     const where = Object.keys(filters).map((key, index) => {
       values.push(filters[key]);
       return `\n  "${key}" = $${String(index + 1)}`;
     }).join('\n  AND ');
-
     const whereClause = `\nWHERE ${where}`;
+    const mapping = projections as Map<string, string>;
+
     return this.handleError(async () => {
-      const sqlQuery = `${this.generateQuery(resource, formattedQuery)}${whereClause};`;
-      this.telemetry.debug('[PostgreSQLDatabaseClient][view] Performing the following SQL query on database:');
-      this.telemetry.debug(`[PostgreSQLDatabaseClient][view]\n\n${sqlQuery}\n`);
-      this.telemetry.debug(`[PostgreSQLDatabaseClient][view] [\n  ${values.join(',\n  ')}\n]\n`);
-      const response = await this.client.query<Record<string, unknown>>(sqlQuery, values);
-      const mapping = projections as Map<string, string>;
-      return (
-        this.formatResources(resource, response.rows, fields, mapping)[0] ?? null
-      ) as unknown as (Key extends keyof QueryResults ? QueryResults[Key] : Ids);
+      if (arrayLookups.length === 0) {
+        // No 1:N lookups — single query, same as legacy path.
+        const sqlQuery = `${mainQuery}${whereClause};`;
+        this.telemetry.debug('[PostgreSQLDatabaseClient][view] Performing the following SQL query on database:');
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][view]\n\n${sqlQuery}\n`);
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][view] [\n  ${values.join(',\n  ')}\n]\n`);
+        const response = await this.client.query<Record<string, unknown>>(sqlQuery, values);
+        return (
+          this.formatResources(resource, response.rows, fields, mapping)[0] ?? null
+        ) as unknown as (Key extends keyof QueryResults ? QueryResults[Key] : Ids);
+      }
+
+      // Multi-query path for 1:N lookups.
+      const connection = await this.client.connect();
+      try {
+        await connection.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+
+        const mainSqlQuery = `${mainQuery}${whereClause};`;
+        this.telemetry.debug('[PostgreSQLDatabaseClient][view] Performing the following SQL query on database:');
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][view]\n\n${mainSqlQuery}\n`);
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][view] [\n  ${values.join(',\n  ')}\n]\n`);
+        const mainResponse = await connection.query<Record<string, unknown>>(mainSqlQuery, values);
+
+        if (mainResponse.rows.length === 0) {
+          await connection.query('COMMIT');
+          connection.release();
+          return null;
+        }
+
+        const resourceIds = [...new Set(mainResponse.rows.map((row) => row._id as string))];
+        const arrayResultsMap = new Map<string, unknown[]>();
+        await this.collectAndExecuteArrayQueries(connection, resourceIds, arrayLookups, arrayResultsMap);
+
+        await connection.query('COMMIT');
+        connection.release();
+
+        return (
+          this.formatResources(resource, mainResponse.rows, fields, mapping, arrayResultsMap, arrayLookups)[0] ?? null
+        ) as unknown as (Key extends keyof QueryResults ? QueryResults[Key] : Ids);
+      } catch (error) {
+        await connection.query('ROLLBACK');
+        connection.release();
+        throw error;
+      }
     });
   }
 
@@ -1268,6 +2028,7 @@ export default class PostgreSQLDatabaseClient<
     const searchFields = new Set([...queryFields, ...sortingFields, ...filterFields]);
     const allFields = new Set([...fields, ...searchFields]);
     const { formattedQuery, projections } = this.parseFields(resource, allFields, maximumDepth);
+    const { mainQuery: resultsQuery, arrayLookups } = this.generateResultsQuery(resource, formattedQuery, '  ');
     const searchMetaData = this.parseFields(resource, searchFields, maximumDepth, {
       query,
       filters,
@@ -1284,13 +2045,14 @@ export default class PostgreSQLDatabaseClient<
         searchMetaData.formattedQuery.match.filters.push({ [key]: extraFilters[key] });
       }
     });
-    const sqlQuery = this.generateQuery(resource, formattedQuery, '  ');
     const searchQuery = this.generateQuery(resource, searchMetaData.formattedQuery, '  ');
-    let fullSQLQuery = `WITH searchResults AS (\n${searchQuery}\n),`;
-    fullSQLQuery += '\ncount AS (\n  SELECT\n    COUNT(_id) AS total\n  FROM\n    searchResults\n),';
-    fullSQLQuery += `\npagination AS (\n  SELECT\n    _id,\n    ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
-    fullSQLQuery += '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1';
-    fullSQLQuery += `\nLEFT JOIN (\n${sqlQuery}\n) AS results\nON results._id = pagination._id\nORDER BY pagination.row_num;`;
+
+    // Build search CTE that returns only __total, _id, row_num (no inline results JOIN).
+    let searchCTE = `WITH searchResults AS (\n${searchQuery}\n),`;
+    searchCTE += '\ncount AS (\n  SELECT\n    COUNT(_id) AS total\n  FROM\n    searchResults\n),';
+    searchCTE += `\npagination AS (\n  SELECT\n    _id,\n    ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
+    searchCTE += '\nSELECT\n  count.total AS __total,\n  pagination._id,\n  pagination.row_num';
+    searchCTE += '\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1\nORDER BY pagination.row_num;';
 
     searchMetaData.formattedQuery.match?.query.forEach((filter) => {
       values.push(Object.values(filter)[0]);
@@ -1303,26 +2065,94 @@ export default class PostgreSQLDatabaseClient<
       }
     });
 
+    const mapping = projections as Map<string, string>;
+
     return this.handleError(async () => {
+      // Step 1: Execute search CTE to get total count and matched IDs.
       this.telemetry.debug('[PostgreSQLDatabaseClient][search] Performing the following SQL query on database:');
-      this.telemetry.debug(`[PostgreSQLDatabaseClient][search]\n\n${fullSQLQuery}\n`);
+      this.telemetry.debug(`[PostgreSQLDatabaseClient][search]\n\n${searchCTE}\n`);
       this.telemetry.debug(`[PostgreSQLDatabaseClient][search] [\n  ${values.join(',\n  ')}\n]\n`);
-      const response = await this.client.query<Omit<QueryResults[Key], '_id'> & {
+      const searchResponse = await this.client.query<{
         __total: string;
         _id: string | null;
-      }>(fullSQLQuery, values);
-      const mapping = projections as Map<string, string>;
-      return {
-        total: parseInt(response.rows[0]?.__total ?? '0', 10),
-        results: (response.rows[0]?._id ?? null) === null
-          ? []
-          : this.formatResources(
-            resource,
-            response.rows,
-            allFields,
-            mapping,
-          ),
-      } as unknown as Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>;
+        row_num: string | null;
+      }>(searchCTE, values);
+
+      const total = parseInt(searchResponse.rows[0]?.__total ?? '0', 10);
+      const matchedIds = searchResponse.rows
+        .map((row) => row._id)
+        .filter((id): id is string => id !== null);
+
+      if (matchedIds.length === 0) {
+        return {
+          total,
+          results: [],
+        } as unknown as Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>;
+      }
+
+      // Build WHERE _id IN (...) clause for the results query.
+      const idPlaceholders = matchedIds.map((_, idx) => `$${String(idx + 1)}`).join(', ');
+      const resultsWhereClause = `\nWHERE\n  "_id" IN (${idPlaceholders})`;
+
+      if (arrayLookups.length === 0) {
+        // No 1:N lookups — single query for results.
+        const resultsSqlQuery = `${resultsQuery}${resultsWhereClause};`;
+        this.telemetry.debug('[PostgreSQLDatabaseClient][search] Performing the following SQL query on database:');
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][search]\n\n${resultsSqlQuery}\n`);
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][search] [\n  ${matchedIds.join(',\n  ')}\n]\n`);
+        const resultsResponse = await this.client.query<Record<string, unknown>>(resultsSqlQuery, matchedIds);
+        const formattedResults = this.formatResources(resource, resultsResponse.rows, allFields, mapping);
+
+        // Reorder results to match pagination order.
+        const idOrder = new Map(matchedIds.map((id, idx) => [id, idx]));
+        formattedResults.sort((a, b) => {
+          const aId = String((a as unknown as { _id: Id })._id);
+          const bId = String((b as unknown as { _id: Id })._id);
+          return (idOrder.get(aId) ?? 0) - (idOrder.get(bId) ?? 0);
+        });
+
+        return {
+          total,
+          results: formattedResults,
+        } as unknown as Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>;
+      }
+
+      // Multi-query path for 1:N lookups.
+      const connection = await this.client.connect();
+      try {
+        await connection.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+
+        const resultsSqlQuery = `${resultsQuery}${resultsWhereClause};`;
+        this.telemetry.debug('[PostgreSQLDatabaseClient][search] Performing the following SQL query on database:');
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][search]\n\n${resultsSqlQuery}\n`);
+        this.telemetry.debug(`[PostgreSQLDatabaseClient][search] [\n  ${matchedIds.join(',\n  ')}\n]\n`);
+        const resultsResponse = await connection.query<Record<string, unknown>>(resultsSqlQuery, matchedIds);
+
+        const arrayResultsMap = new Map<string, unknown[]>();
+        await this.collectAndExecuteArrayQueries(connection, matchedIds, arrayLookups, arrayResultsMap);
+
+        await connection.query('COMMIT');
+        connection.release();
+
+        const formattedResults = this.formatResources(resource, resultsResponse.rows, allFields, mapping, arrayResultsMap, arrayLookups);
+
+        // Reorder results to match pagination order.
+        const idOrder = new Map(matchedIds.map((id, idx) => [id, idx]));
+        formattedResults.sort((a, b) => {
+          const aId = String((a as unknown as { _id: Id })._id);
+          const bId = String((b as unknown as { _id: Id })._id);
+          return (idOrder.get(aId) ?? 0) - (idOrder.get(bId) ?? 0);
+        });
+
+        return {
+          total,
+          results: formattedResults,
+        } as unknown as Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>;
+      } catch (error) {
+        await connection.query('ROLLBACK');
+        connection.release();
+        throw error;
+      }
     });
   }
 
