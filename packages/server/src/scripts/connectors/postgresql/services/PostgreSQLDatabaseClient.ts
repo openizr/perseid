@@ -2412,12 +2412,21 @@ export default class PostgreSQLDatabaseClient<
     const connection = await poolClient.connect()
     this.sessions.set(newSessionId, connection);
     try {
-      await poolClient.query('BEGIN');
+      await this.query({
+        query: 'BEGIN;',
+        poolOrSession: newSessionId,
+      });
       const response = await callback(newSessionId);
-      await poolClient.query('COMMIT');
+      await this.query({
+        query: 'COMMIT;',
+        poolOrSession: newSessionId,
+      });
       return response;
     } catch (error) {
-      await poolClient.query('ROLLBACK');
+      await this.query({
+        query: 'ROLLBACK;',
+        poolOrSession: newSessionId,
+      });
       this.sessions.delete(newSessionId);
       throw error;
     } finally {
