@@ -10,6 +10,7 @@ import * as opentelemetry from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import PerseidError from 'scripts/core/errors/Perseid';
 import { pino, type DestinationStream, type Logger as PinoLogger } from 'pino';
+import { hrTime, hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import type { AnyValue, AnyValueMap, Logger as OTELLogger } from '@opentelemetry/api-logs';
 
 type PinoDestination = DestinationStream & {
@@ -197,11 +198,12 @@ export default class Telemetry {
     span: opentelemetry.Span,
     isAnExpectedError: boolean,
   ): void {
-    if (!this.recordedExceptions.has(error)) {
-      this.recordedExceptions.add(error);
-      span.recordException(error);
-    }
-    if (!isAnExpectedError) {
+    if (isAnExpectedError) {
+      if (!this.recordedExceptions.has(error)) {
+        this.recordedExceptions.add(error);
+        this.info(error.message);
+      }
+    } else {
       if (!this.loggedErrors.has(error)) {
         this.loggedErrors.add(error);
         this.error(error);
@@ -281,11 +283,33 @@ export default class Telemetry {
   }
 
   /**
+   * Returns the current time, formatted using OTEL `hrTime` implementation.
+   *
+   * @returns Current time.
+   */
+  public now(): opentelemetry.HrTime {
+    return (typeof this.LOG_LEVELS === 'number') ? hrTime() : hrTime();
+  }
+
+  /**
+   * Returns the duration between two OTEL `hrTime` values, in seconds.
+   *
+   * @param start Start time.
+   *
+   * @returns Calculated duration.
+   */
+  public duration(start: opentelemetry.HrTime): number {
+    return (typeof this.LOG_LEVELS === 'number')
+      ? hrTimeToMilliseconds(hrTimeDuration(start, hrTime())) / 1000
+      : hrTimeToMilliseconds(hrTimeDuration(start, hrTime())) / 1000;
+  }
+
+  /**
    * Returns the OTEL tracer instance.
    *
    * @returns OTEL tracer instance.
    */
-  public getOtelTracerFromHeaders(): opentelemetry.Tracer | null {
+  public getOtelTracer(): opentelemetry.Tracer | null {
     return this.otelTracer;
   }
 
@@ -309,7 +333,9 @@ export default class Telemetry {
    *
    * @returns Span context.
    */
-  public getSpanContextFromHeaders(headers: Record<string, string>): opentelemetry.Context {
+  public getSpanContextFromHeaders(
+    headers: Partial<Record<string, string | string[]>>,
+  ): opentelemetry.Context {
     this.debug('Extracting span context from HTTP headers...', { headers });
     return opentelemetry.propagation.extract(opentelemetry.context.active(), headers);
   }

@@ -101,6 +101,26 @@ export default class PostgreSQLDatabaseClient<
   protected client: pg.Pool;
 
   /**
+   * Active sessions, indexed by session ID. A session represents a running SQL transaction.
+   */
+  protected sessions: Map<string, pg.PoolClient>;
+
+  /**
+   * Active connection pools, used to handle multi-tenancy. Default pool is referenced with the
+   * key `default`.
+   */
+  protected pools: Map<string, pg.Pool>;
+
+  /**
+   * Last connections metrics values, used to update telemetry metrics.
+   */
+  protected lastMetrics: {
+    used: number;
+    idle: number;
+    pending: number;
+  };
+
+  /**
    * PostgreSQL database connection settings. Necessary to reset pool after dropping database.
    */
   protected databaseSettings: PostgreSQLDatabaseClientSettings;
@@ -1562,10 +1582,29 @@ export default class PostgreSQLDatabaseClient<
     this.tablesMapping = {};
     this.client = null as unknown as pg.Pool;
     this.databaseSettings = settings;
+    this.pools = new Map<string, pg.Pool>();
+    this.sessions = new Map<string, pg.PoolClient>();
+    this.lastMetrics = { used: 0, idle: 0, pending: 0 };
     this.model.getResources().forEach((resource) => {
       this.generateResourceMetadata(resource);
       // Reversing the sub-tables array is essential to delete dependencies in the right order.
       this.resourcesMetadata[resource].subStructures.reverse();
+    });
+    this.telemetry.createHistogram('db.client.operation.duration', {
+      unit: 's',
+      valueType: 1, // DOUBLE
+      description: 'Duration of database client operations.',
+      advice: {
+        explicitBucketBoundaries: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
+      },
+    });
+    this.telemetry.createUpDownCounter('db.client.connection.count', {
+      description: 'The number of connections that are currently in state described by the state attribute.',
+      unit: '{connection}',
+    });
+    this.telemetry.createUpDownCounter('db.client.connection.pending_requests', {
+      description: 'The number of current pending requests for an open connection.',
+      unit: '{request}',
     });
   }
 
@@ -2219,5 +2258,171 @@ export default class PostgreSQLDatabaseClient<
    */
   public async close(): Promise<void> {
     await this.client.end();
+  }
+
+
+  /**
+   * Connects to the database server.
+   *
+   * @param pool Name of the pool to connect to. Defaults to `default`.
+   *
+   * @returns Connection pool instance.
+   */
+  protected async connect(pool = 'default'): Promise<pg.Pool> {
+    const poolClient = this.pools.get(pool);
+
+    if (poolClient !== undefined) {
+      return poolClient;
+    }
+
+    const port = String(this.databaseSettings.port ?? null);
+    const poolName = `${this.databaseSettings.host}:${port}/${this.database}`;
+    this.telemetry.info('Connecting to database...', {
+      'db.system.name': 'postgresql',
+      'db.namespace': this.database,
+      'server.address': this.databaseSettings.host,
+      'server.port': this.databaseSettings.port ?? undefined,
+    });
+    const newPoolClient = new pg.Pool({
+      database: this.database,
+      ssl: this.databaseSettings.ssl,
+      host: this.databaseSettings.host,
+      max: this.databaseSettings.connectionLimit,
+      port: this.databaseSettings.port ?? undefined,
+      user: this.databaseSettings.user ?? undefined,
+      password: this.databaseSettings.password ?? undefined,
+      idleTimeoutMillis: this.databaseSettings.connectTimeout,
+      connectionTimeoutMillis: this.databaseSettings.connectTimeout,
+    });
+    const updateMetrics = () => {
+      const { totalCount, idleCount, waitingCount } = this.client;
+      this.lastMetrics.idle = idleCount - this.lastMetrics.idle;
+      this.lastMetrics.pending = waitingCount - this.lastMetrics.pending;
+      this.lastMetrics.used = totalCount - idleCount - this.lastMetrics.used;
+      this.telemetry.measure('db.client.connection.count', this.lastMetrics.used, {
+        'db.client.connection.state': 'used',
+        'db.client.connection.pool.name': poolName,
+      });
+      this.telemetry.measure('db.client.connection.count', this.lastMetrics.idle, {
+        'db.client.connection.state': 'idle',
+        'db.client.connection.pool.name': poolName,
+      });
+      this.telemetry.measure('db.client.connection.pending_requests', this.lastMetrics.pending, {
+        'db.client.connection.pool.name': poolName,
+      });
+    };
+    this.client.on('connect', updateMetrics);
+    this.client.on('acquire', updateMetrics);
+    this.client.on('remove', updateMetrics);
+    this.client.on('release', updateMetrics);
+    this.pools.set(pool, newPoolClient);
+    return newPoolClient;
+  }
+
+  /**
+   * Performs a SQL query on the database with `settings`.
+   *
+   * @param settings Query settings. Contains:
+   * - `query`: SQL query to perform.
+   * - `values`: Values to bind to the query.
+   * - `poolOrSession`: Pool or session ID to use for the query.
+   * - `attributes`: OpenTelemetry attributes to add to the query span.
+   *
+   * @returns Query result.
+   */
+  public async query<T extends pg.QueryResultRow = pg.QueryResultRow>(settings: {
+    query: string;
+    values?: unknown[];
+    poolOrSession?: string;
+    attributes?: Record<string, string | number | boolean | undefined>;
+  }): Promise<pg.QueryResult<T>> {
+    const { query, values = [] } = settings;
+    const { poolOrSession = 'default', attributes = {} } = settings;
+    let sqlErrorCode: string | undefined;
+    const defaultAttributes: Record<string, string | number | boolean | undefined> = {
+      'db.namespace': this.database,
+      'db.system.name': 'postgresql',
+      'server.address': this.databaseSettings.host,
+      'server.port': this.databaseSettings.port ?? undefined,
+    };
+
+    const client = this.sessions.get(poolOrSession)
+      ?? this.pools.get(poolOrSession)
+      ?? await this.connect(poolOrSession);
+
+    const startTime = this.telemetry.now();
+    return this.telemetry.span(`${this.constructor.name}.query`, {
+      attributes: {
+        ...defaultAttributes,
+        'db.query.text': settings.query,
+        'code.class.name': this.constructor.name,
+        ...attributes,
+      },
+    }, async (span) => {
+      try {
+        return await client.query<T>(query, values);
+      } catch (error) {
+        const postgreError = error as pg.DatabaseError;
+        // TODO
+        // if (postgreError.code === '23505') {
+        //   const match = /Key \(([^)]+)\)=\(([^)]+)\)/.exec(postgreError.detail as unknown as string);
+        //   throw new DatabaseError('DUPLICATE_RESOURCE', {
+        //     path: (match as string[])[1],
+        //     value: (match as string[])[2].trim(),
+        //   });
+        // }
+        // if (postgreError.code === '23503') {
+        //   const path = (/Key \(([^)]+)\)=/.exec(postgreError.detail as unknown as string) as string[])[1];
+        //   throw new DatabaseError('RESOURCE_REFERENCED', { path });
+        // }
+        sqlErrorCode = postgreError.code;
+        throw error;
+      } finally {
+        span.setAttributes({
+          'error.type': sqlErrorCode,
+          'db.response.status_code': sqlErrorCode,
+        });
+        this.telemetry.measure('db.client.operation.duration', this.telemetry.duration(startTime), {
+          ...defaultAttributes,
+          'error.type': sqlErrorCode,
+          'db.response.status_code': sqlErrorCode,
+          ...attributes,
+        });
+      }
+    });
+  }
+
+  /**
+   * Starts a new session to perform multiple database operations atomically.
+   * Automatically handles transaction start, commit and rollback in case of error, as well as
+   * connection release.
+   *
+   * @param callback Callback containing the operations to execute within the session.
+   *
+   * @param pool Name of the pool to use for the session. Defaults to `default`.
+   *
+   * @returns Result of the callback execution, if any.
+   */
+  public async withSession<T>(
+    callback: (session: string) => Promise<T>,
+    pool = 'default',
+  ): Promise<T> {
+    const newSessionId = String(new Id());
+    const poolClient = await this.connect(pool);
+    const connection = await poolClient.connect()
+    this.sessions.set(newSessionId, connection);
+    try {
+      await poolClient.query('BEGIN');
+      const response = await callback(newSessionId);
+      await poolClient.query('COMMIT');
+      return response;
+    } catch (error) {
+      await poolClient.query('ROLLBACK');
+      this.sessions.delete(newSessionId);
+      throw error;
+    } finally {
+      connection.release();
+      this.sessions.delete(newSessionId);
+    }
   }
 }

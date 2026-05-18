@@ -334,6 +334,23 @@ export interface ControllerSettings<DataModel> {
    * Whether to automatically handle CORS (usually in development mode).
    */
   handleCORS: boolean;
+
+  /**
+   * Whether to instrument all endpoints with OpenTelemetry. If set to `false`, only endpoints
+   * created using `createEndpoint` will be wrapped within a span, and global requests won't be
+   * instrumented. If you want to manually instrument global requests, you can link Perseid endpoint
+   * root span to the global request span by adding a `telemetry` property to the request object,
+   * containing the parent span to which you want to link the endpoint root span.
+   *
+   * @example
+   * ```ts
+   * const request = new FastifyRequest({
+   *   method: 'GET',
+   *   url: '/api/v1/users',
+   * });
+   * request.telemetry = { span: parentSpan };
+   */
+  instrumentEndpoints: boolean;
 }
 
 /**
@@ -847,6 +864,23 @@ export default class Controller<
   protected handleCORS: boolean;
 
   /**
+   * Whether to instrument all endpoints with OpenTelemetry. If set to `false`, only endpoints
+   * created using `createEndpoint` will be wrapped within a span, and global requests won't be
+   * instrumented. If you want to manually instrument global requests, you can link Perseid endpoint
+   * root span to the global request span by adding a `telemetry` property to the request object,
+   * containing the parent span to which you want to link the endpoint root span.
+   *
+   * @example
+   * ```ts
+   * const request = new FastifyRequest({
+   *   method: 'GET',
+   *   url: '/api/v1/users',
+   * });
+   * request.telemetry = { span: parentSpan };
+   */
+  protected instrumentEndpoints: boolean;
+
+  /**
    * Formats `output` to match fastify data types specifications.
    *
    * @param output Output to format.
@@ -1059,6 +1093,7 @@ export default class Controller<
     this.version = settings.version;
     this.endpoints = settings.endpoints;
     this.handleCORS = settings.handleCORS;
+    this.instrumentEndpoints = settings.instrumentEndpoints;
     this.ajv = new Ajv({
       allErrors: true,
       useDefaults: true,
@@ -1069,5 +1104,35 @@ export default class Controller<
 
     // Adding Ajv keywords to handle special types...
     this.AJV_KEYWORDS.forEach((keyword) => this.ajv.addKeyword(keyword));
+
+    if (this.instrumentEndpoints) {
+      this.telemetry.createUpDownCounter('http.server.active_requests', {
+        valueType: 1, // DOUBLE
+        unit: '{request}',
+        description: 'Number of active HTTP server requests.',
+      });
+      this.telemetry.createHistogram('http.server.request.duration', {
+        description: 'Duration of HTTP server requests.',
+        unit: 's',
+        advice: {
+          explicitBucketBoundaries: [
+            0.005,
+            0.01,
+            0.025,
+            0.05,
+            0.075,
+            0.1,
+            0.25,
+            0.5,
+            0.75,
+            1,
+            2.5,
+            5,
+            7.5,
+            10,
+          ],
+        },
+      });
+    }
   }
 }

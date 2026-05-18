@@ -120,6 +120,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/api-logs": "^0.207.0",
+    "@opentelemetry/core": "^2.7.1",
     "@perseid/core": "file:/var/lib/perseid/core",
     "ajv": "^8.17.1",
     "ajv-errors": "^3.0.0",

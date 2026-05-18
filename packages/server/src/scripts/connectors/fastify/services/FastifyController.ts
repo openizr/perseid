@@ -11,6 +11,7 @@ import {
   type FastifyReply,
   type FastifyRequest,
   type FastifyInstance,
+  type RouteGenericInterface,
 } from 'fastify';
 import Controller, {
   type EndpointType,
@@ -25,15 +26,23 @@ import type {
   AnonymousCommandContext,
 } from 'scripts/core/types';
 import jwt from 'jsonwebtoken';
+import type { Span } from '@opentelemetry/api';
 import Model from 'scripts/core/services/Model';
 import PerseidError from 'scripts/core/errors/Perseid';
 import Telemetry from 'scripts/core/services/Telemetry';
 import ControllerError from 'scripts/core/errors/Controller';
 import type AuthEngine from 'scripts/core/services/AuthEngine';
 import { Id, deepMerge, type UserDataModel } from '@perseid/core';
-import type { Span } from '@opentelemetry/api';
 
 type AnySchema = any;
+
+type OTELRequest<T extends RouteGenericInterface = RouteGenericInterface> = FastifyRequest<T> & {
+  telemetry?: {
+    span: Span;
+    errorType?: string;
+    spanStartTime: [number, number];
+  }
+};
 
 /**
  * Default Fastify request schema.
@@ -66,7 +75,9 @@ export interface DefaultRequestSchema {
 export interface FastifyCustomEndpoint<
   RequestSchema extends DefaultRequestSchema = DefaultRequestSchema,
 > extends CustomEndpoint {
-  /** Actual endpoint handler. */
+  /**
+   * Actual endpoint handler.
+   */
   handler: (
     request: FastifyRequest<{
       Body: RequestSchema['body'];
@@ -508,6 +519,64 @@ export default class FastifyController<
   }
 
   /**
+   * Updates root request span attributes and status. The logic and conditions are a bit flakky here
+   * because Fastify triggers hooks in a different order depending on the case:
+   * - When an error happens in another hook like `preSerialization`, the `onError` hook is
+   * triggered first, then `onResponse`.
+   * - When an error happens in the endpoint handler, the `onError` hook is triggered first,
+   * then `onResponse`, then the handler ends.
+   * - When everything goes well, the `onResponse` hook is triggered first, then the handler ends.
+   *
+   * @param request Fastify request.
+   *
+   * @param response Fastify response.
+   *
+   * @param error Error to record, if any.
+   */
+  protected updateSpan(request: OTELRequest, response: FastifyReply, error?: Error): void {
+    const { telemetry } = request;
+
+    if (telemetry !== undefined) {
+      const { span, spanStartTime } = telemetry;
+      if (error !== undefined) {
+        span.recordException(error);
+        span.setStatus({ code: 2 });
+        this.telemetry.error(error);
+      }
+
+      if (error === undefined) {
+        span.setAttribute('http.response.status_code', response.statusCode);
+        span.setAttribute('http.route', request.routeOptions.url ?? 'null');
+
+        if (response.statusCode >= 500) {
+          span.setStatus({ code: 2 });
+        }
+
+        if (telemetry.errorType !== undefined) {
+          telemetry.span.setAttribute('error.type', telemetry.errorType);
+        }
+
+        this.telemetry.measure('http.server.active_requests', 1, {
+          'url.scheme': request.protocol,
+          'http.request.method': request.method,
+          'server.port': request.socket.localPort,
+          'server.address': request.socket.localAddress,
+        });
+        this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
+          'url.scheme': request.protocol,
+          'error.type': telemetry.errorType,
+          'http.request.method': request.method,
+          'server.port': request.socket.localPort,
+          'server.address': request.socket.localAddress,
+          'http.response.status_code': response.statusCode,
+          'http.route': request.routeOptions.url ?? 'null',
+        });
+        span.end();
+      }
+    }
+  }
+
+  /**
    * Creates a new fastify endpoint from `settings`.
    *
    * @param settings Endpoint configuration.
@@ -555,9 +624,10 @@ export default class FastifyController<
     const validateHeaders = this.ajv.compile(headersSchema);
     return {
       handler: async (request, response): Promise<FastifyReply> => {
-        const spanContext = (request as FastifyRequest & { span?: Span; }).span?.spanContext();
+        const { telemetry } = request as OTELRequest;
+        const spanContext = telemetry?.span.spanContext();
 
-        return this.telemetry.span(`${this.constructor.name}.handler`, {
+        return await this.telemetry.span(`${this.constructor.name}.handler`, {
           attributes: {
             'code.class.name': this.constructor.name,
           },
@@ -655,6 +725,55 @@ export default class FastifyController<
         if (request.method === 'OPTIONS') {
           await response.status(200).send();
         }
+      });
+    }
+
+    // Telemetry instrumentation for all fastify endpoints.
+    if (this.instrumentEndpoints) {
+      const otelTracer = this.telemetry.getOtelTracer();
+
+      instance.addHook('onResponse', async (request: OTELRequest, response: FastifyReply) => {
+        this.updateSpan(request, response);
+      });
+
+      instance.addHook('onError', async (request: OTELRequest, response, error) => {
+        this.updateSpan(request, response, error);
+      });
+
+      instance.addHook('preSerialization', async (
+        request: OTELRequest,
+        response,
+        payload: { error?: { code?: string; } },
+      ): Promise<unknown> => {
+        if (response.statusCode >= 400) {
+          const { telemetry } = request;
+          if (telemetry !== undefined && typeof payload === 'object') {
+            telemetry.errorType = payload.error?.code;
+          }
+        }
+        return payload;
+      });
+
+      instance.addHook('onRequest', (request: OTELRequest, _, done) => {
+        if (otelTracer !== null) {
+          request.telemetry = {
+            spanStartTime: this.telemetry.now(),
+            span: otelTracer.startSpan(`${request.method} ${String(request.routeOptions.url)}`, {
+              kind: 1,
+              attributes: {
+                'url.path': request.url,
+                'client.address': request.ip,
+                'url.scheme': request.protocol,
+                'http.request.method': request.method,
+                'server.port': request.socket.localPort,
+                'server.address': request.socket.localAddress,
+                'user_agent.original': request.headers['user-agent'],
+                'url.full': `${request.protocol}://${request.hostname}${request.url}`,
+              },
+            }, this.telemetry.getSpanContextFromHeaders(request.headers)),
+          };
+        }
+        done();
       });
     }
 
