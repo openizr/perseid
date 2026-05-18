@@ -131,19 +131,12 @@ export default class HttpClient {
     const calculateDelay = settings.calculateDelay ?? this.defaultCalculateDelay;
 
     try {
-      return await this.rawRequest(settings);
+      return await this.rawRequest(settings, retryCount);
     } catch (error) {
       if (!shouldRetry(error as Error, retryCount)) {
         throw error;
       }
       await new Promise((resolve) => { setTimeout(resolve, calculateDelay(retryCount)); });
-
-      this.telemetry.warn('Retrying HTTP request...', {
-        method: settings.method,
-        url: settings.url,
-        retryCount: retryCount + 1,
-      });
-
       return this.handleRetries(settings, retryCount + 1);
     }
   }
@@ -154,38 +147,77 @@ export default class HttpClient {
    *
    * @param settings Request settings (URL, method, body, ...).
    *
+   * @param retryCount Retry count, for telemetry purposes. Defaults to `0`.
+   *
    * @returns Raw HTTP response.
    *
    * @throws If request fails, either because of a network error, or if HTTP status is >= 400.
    */
-  protected async rawRequest(settings: RequestSettings): Promise<Response> {
-    let { body } = settings;
-    const headers = { ...settings.headers };
+  protected async rawRequest(settings: RequestSettings, retryCount = 0): Promise<Response> {
+    const parsedUrl = new URL(settings.url);
+    const spanStartTime = this.telemetry.now();
+    return this.telemetry.span(settings.method, {
+      attributes: {
+        'url.full': settings.url,
+        'server.port': parsedUrl.port,
+        'url.scheme': parsedUrl.protocol,
+        'server.address': parsedUrl.hostname,
+        'http.request.method': settings.method,
+        'http.request.resend_count': (retryCount > 0) ? retryCount : undefined,
+      },
+    }, async (span) => {
+      let { body } = settings;
+      const headers = { ...settings.headers };
 
-    if (settings.body instanceof FormData) {
-      headers['Content-Type'] = 'multipart/form-data';
-    } else if (isPlainObject(settings.body)) {
-      body = JSON.stringify(body);
-      headers['Content-Type'] = 'application/json';
-    }
+      if (settings.body instanceof FormData) {
+        headers['Content-Type'] = 'multipart/form-data';
+      } else if (isPlainObject(settings.body)) {
+        body = JSON.stringify(body);
+        headers['Content-Type'] = 'application/json';
+      }
 
-    const response = await fetch(settings.url, {
-      redirect: 'manual',
-      body: body as BodyInit,
-      method: settings.method,
-      headers: headers as HeadersInit,
-      signal: settings.signal ?? AbortSignal.timeout(this.defaultRequestTimeout),
+      const response = await fetch(settings.url, {
+        redirect: 'manual',
+        body: body as BodyInit,
+        method: settings.method,
+        headers: headers as HeadersInit,
+        signal: settings.signal ?? AbortSignal.timeout(this.defaultRequestTimeout),
+      });
+
+      span.setAttributes({
+        'http.response.status_code': response.status,
+      });
+
+      const attributes = {
+        'server.port': parsedUrl.port,
+        'url.scheme': parsedUrl.protocol,
+        'server.address': parsedUrl.hostname,
+        'http.request.method': settings.method,
+      };
+
+      this.telemetry.measure('http.server.active_requests', 1, attributes);
+
+      if (response.status >= 400) {
+        const data = ((response.headers.get('content-type')?.includes('application/json'))
+          ? await response.json()
+          : await response.text()) as Response;
+
+        this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
+          ...attributes,
+          'http.response.status_code': response.status,
+          'error.type': (data as { error?: { code?: string; }; }).error?.code,
+        });
+
+        throw new HttpError(response.status, data);
+      }
+
+      this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
+        ...attributes,
+        'http.response.status_code': response.status,
+      });
+
+      return response;
     });
-
-    if (response.status >= 400) {
-      const data = ((response.headers.get('content-type')?.includes('application/json'))
-        ? await response.json()
-        : await response.text()) as Response;
-
-      throw new HttpError(response.status, data);
-    }
-
-    return response;
   }
 
   /**
@@ -197,22 +229,19 @@ export default class HttpClient {
    * @returns Parsed HTTP response.
    */
   protected async request<Response>(settings: RequestSettings): Promise<Response> {
-    this.telemetry.info('Performing HTTP request...', {
-      method: settings.method,
-      url: settings.url,
+    return this.telemetry.span(`${this.constructor.name}.request`, {}, async () => {
+      const response = await this.handleRetries(settings);
+
+      if (response.body === null) {
+        return null as unknown as Response;
+      }
+
+      const data = ((response.headers.get('content-type')?.includes('application/json'))
+        ? await response.json()
+        : await response.text()) as Response;
+
+      return data;
     });
-
-    const response = await this.handleRetries(settings);
-
-    if (response.body === null) {
-      return null as unknown as Response;
-    }
-
-    const data = ((response.headers.get('content-type')?.includes('application/json'))
-      ? await response.json()
-      : await response.text()) as Response;
-
-    return data;
   }
 
   /**
@@ -237,6 +266,33 @@ export default class HttpClient {
         || (error instanceof DOMException && error.name !== 'AbortError')
       )
     ));
+    this.telemetry.createUpDownCounter('http.client.active_requests', {
+      valueType: 1, // DOUBLE
+      unit: '{request}',
+      description: 'Number of active HTTP requests.',
+    });
+    this.telemetry.createHistogram('http.client.request.duration', {
+      description: 'Duration of HTTP client requests.',
+      unit: 's',
+      advice: {
+        explicitBucketBoundaries: [
+          0.005,
+          0.01,
+          0.025,
+          0.05,
+          0.075,
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+          1,
+          2.5,
+          5,
+          7.5,
+          10,
+        ],
+      },
+    });
   }
 
   /**

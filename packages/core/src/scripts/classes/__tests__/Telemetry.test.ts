@@ -12,6 +12,16 @@ import Telemetry, { type OpenTelemetrySpan } from 'scripts/classes/Telemetry';
 class TestTelemetry extends Telemetry {
   protected mock = vi.fn();
 
+  public now(): opentelemetry.HrTime {
+    this.mock();
+    return [0, 0];
+  }
+
+  public duration(start: opentelemetry.HrTime): number {
+    this.mock(start);
+    return 0;
+  }
+
   public waitForReady(): Promise<void> {
     this.mock();
     return Promise.resolve();

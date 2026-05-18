@@ -22,6 +22,7 @@ describe('classes/HttpClient', () => {
   vi.mock('scripts/classes/Telemetry');
 
   const telemetry = {
+    now: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
@@ -30,6 +31,7 @@ describe('classes/HttpClient', () => {
     close: vi.fn(),
     span: vi.fn(),
     measure: vi.fn(),
+    duration: vi.fn(),
     createGauge: vi.fn(),
     waitForReady: vi.fn(),
     createCounter: vi.fn(),

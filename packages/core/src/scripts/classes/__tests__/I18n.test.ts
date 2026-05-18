@@ -29,6 +29,8 @@ describe('classes/I18n', () => {
     fatal: vi.fn(),
     close: vi.fn(),
     span: vi.fn(),
+    now: vi.fn(),
+    duration: vi.fn(),
     measure: vi.fn(),
     createGauge: vi.fn(),
     waitForReady: vi.fn(),

@@ -180,4 +180,20 @@ export default abstract class Telemetry {
    * Gracefully closes pino logger and OTEL providers, flushing remaining buffered logs.
    */
   public abstract close(): Promise<void>;
+
+  /**
+   * Returns the current time, formatted using OTEL `hrTime` implementation.
+   *
+   * @returns Current time.
+   */
+  public abstract now(): opentelemetry.HrTime;
+
+  /**
+   * Returns the duration between two OTEL `hrTime` values, in seconds.
+   *
+   * @param start Start time.
+   *
+   * @returns Calculated duration.
+   */
+  public abstract duration(start: opentelemetry.HrTime): number;
 }
