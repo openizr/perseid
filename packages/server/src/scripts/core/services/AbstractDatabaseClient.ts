@@ -80,6 +80,26 @@ export interface FormattedQuery {
 }
 
 /**
+ * Descriptor for a 1:N (array) lookup that must be executed as a separate query.
+ */
+export interface ArrayLookupDescriptor {
+  /** The FormattedQuery node for this 1:N lookup. */
+  formattedQuery: FormattedQuery;
+
+  /** The lookup key in the parent's lookups Record (e.g. 'objectOne_optionalRelations'). */
+  lookupKey: string;
+
+  /**
+   * Which column in the PARENT result set provides the IDs for this query's WHERE
+   * `_parentId IN (...)`.
+   */
+  parentIdSourceColumn: string;
+
+  /** Nested 1:N lookups within this one. */
+  children: ArrayLookupDescriptor[];
+}
+
+/**
  * Represents metadata for a specific data model resource. This metadata is used to define and
  * create database structures.
  */

@@ -129,6 +129,30 @@
     "pino": "^9.3.2",
     "pino-pretty": "^11.2.2"
   },
+  "peerDependencies": {
+    "express": "^4.19.2",
+    "fastify": "^4.28.1",
+    "mongodb": "^6.8.0",
+    "mysql2": "^3.11.0",
+    "pg": "^8.12.0"
+  },
+  "peerDependenciesMeta": {
+    "pg": {
+      "optional": true
+    },
+    "mongodb": {
+      "optional": true
+    },
+    "mysql2": {
+      "optional": true
+    },
+    "fastify": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    }
+  },
   "devKitConfig": {
     "target": "node",
     "runInDev": true,
@@ -153,29 +177,5 @@
     "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types",
     "build:types": "./node_modules/.bin/tsc --project tsconfig.json --emitDeclarationOnly --noEmit false --outDir dist --declaration && find dist -name \"__tests__\" -type d -exec rm -rf {} + && find dist -name \"__mocks__\" -type d -exec rm -rf {} + && mv dist/scripts/** dist && rm -rf dist/__playground__ && rm -rf dist/scripts && ./node_modules/.bin/tsc-alias -p tsconfig.json --outDir dist && mv dist/fastify-connector.js dist/fastify.js && mv dist/postgresql-connector.js dist/postgresql.js && mv dist/fastify-connector.d.ts dist/fastify.d.ts && mv dist/postgresql-connector.d.ts dist/postgresql.d.ts && mv dist/fastify-connector.js.map dist/fastify.js.map && mv dist/postgresql-connector.js.map dist/postgresql.js.map",
     "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer mysql2@^3.11.0 pg@^8.12.0 mongodb@^6.8.0 fastify@^4.28.1 express@^4.19.2"
-  },
-  "peerDependencies": {
-    "express": "^4.19.2",
-    "fastify": "^4.28.1",
-    "mongodb": "^6.8.0",
-    "mysql2": "^3.11.0",
-    "pg": "^8.12.0"
-  },
-  "peerDependenciesMeta": {
-    "pg": {
-      "optional": true
-    },
-    "mongodb": {
-      "optional": true
-    },
-    "mysql2": {
-      "optional": true
-    },
-    "fastify": {
-      "optional": true
-    },
-    "express": {
-      "optional": true
-    }
   }
 }

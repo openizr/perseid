@@ -204,6 +204,10 @@ export default class HttpClient {
 
     const response = await this.handleRetries(settings);
 
+    if (response.body === null) {
+      return null as unknown as Response;
+    }
+
     const data = ((response.headers.get('content-type')?.includes('application/json'))
       ? await response.json()
       : await response.text()) as Response;

@@ -114,6 +114,11 @@ export default class Telemetry {
   protected readonly loggedErrors: WeakSet<Error>;
 
   /**
+   * Used to prevent recording the same exception multiple times through nested spans.
+   */
+  protected readonly recordedExceptions: WeakSet<Error>;
+
+  /**
    * Stores span context in async stack.
    */
   protected readonly asyncStorage: AsyncLocalStorage<{ span?: opentelemetry.Span; }>;
@@ -192,13 +197,15 @@ export default class Telemetry {
     span: opentelemetry.Span,
     isAnExpectedError: boolean,
   ): void {
-    if (!this.loggedErrors.has(error)) {
-      this.loggedErrors.add(error);
-      if (!isAnExpectedError) {
-        this.error(error);
-      }
+    if (!this.recordedExceptions.has(error)) {
+      this.recordedExceptions.add(error);
+      span.recordException(error);
     }
     if (!isAnExpectedError) {
+      if (!this.loggedErrors.has(error)) {
+        this.loggedErrors.add(error);
+        this.error(error);
+      }
       span.setStatus({ code: opentelemetry.SpanStatusCode.ERROR });
     }
   }
@@ -231,6 +238,7 @@ export default class Telemetry {
     this.otelMetrics = new Map();
     this.loggedErrors = new WeakSet<Error>();
     this.asyncStorage = new AsyncLocalStorage();
+    this.recordedExceptions = new WeakSet<Error>();
     this.logLevel = this.LOG_LEVELS[settings?.logLevel ?? 'info'];
     const pinoSettings = {
       level: settings?.logLevel ?? 'info',
@@ -273,6 +281,15 @@ export default class Telemetry {
   }
 
   /**
+   * Returns the OTEL tracer instance.
+   *
+   * @returns OTEL tracer instance.
+   */
+  public getOtelTracerFromHeaders(): opentelemetry.Tracer | null {
+    return this.otelTracer;
+  }
+
+  /**
    * Resolves as soon as the logging system is ready to accept logs.
    */
   public async waitForReady(): Promise<void> {
@@ -283,6 +300,18 @@ export default class Telemetry {
         this.pinoDestination.on('ready', resolve);
       }
     });
+  }
+
+  /**
+   * Generates a new span context from HTTP `headers`.
+   *
+   * @param headers HTTP headers from which to extract trace parent information.
+   *
+   * @returns Span context.
+   */
+  public getSpanContextFromHeaders(headers: Record<string, string>): opentelemetry.Context {
+    this.debug('Extracting span context from HTTP headers...', { headers });
+    return opentelemetry.propagation.extract(opentelemetry.context.active(), headers);
   }
 
   /**
@@ -315,6 +344,7 @@ export default class Telemetry {
       : undefined;
     if (options.traceParent !== undefined) {
       context = opentelemetry.trace.setSpanContext(opentelemetry.context.active(), {
+        isRemote: true,
         spanId: options.traceParent.spanId,
         traceId: options.traceParent.traceId,
         traceFlags: options.traceParent.traceFlags,
@@ -323,7 +353,7 @@ export default class Telemetry {
     }
 
     if (this.otelTracer === null) {
-      this.pinoLogger.debug(name);
+      this.pinoLogger.debug(`Starting span "${name}"...`);
       this.pinoLogger.debug(options);
     }
 
@@ -337,16 +367,16 @@ export default class Telemetry {
         setAttribute: () => span,
         recordException: () => span,
         end: (): opentelemetry.Span => {
-          this.pinoLogger.debug(`${name}.end`);
+          this.pinoLogger.debug(`Ending span "${name}"...`);
           return span;
         },
         setStatus: (status: { code: opentelemetry.SpanStatusCode }): opentelemetry.Span => {
-          this.pinoLogger.debug(`${name}.setStatus`);
+          this.pinoLogger.debug(`Setting status for span "${name}"...`);
           this.pinoLogger.debug(status);
           return span;
         },
         setAttributes: (attributes: Record<string, unknown>): opentelemetry.Span => {
-          this.pinoLogger.debug(`${name}.setAttributes`);
+          this.pinoLogger.debug(`Setting attributes for span "${name}"...`);
           this.pinoLogger.debug(attributes);
           return span;
         },
@@ -458,7 +488,7 @@ export default class Telemetry {
    *
    * @param attributes Additional attributes to link to the message.
    */
-  public warn(message: string, attributes?: AnyValueMap): void {
+  public warn(message: string | Error, attributes?: AnyValueMap): void {
     const warnAttributes = attributes ?? {};
     if (this.otelLogger === null) {
       this.pinoLogger.warn(message);
@@ -466,14 +496,29 @@ export default class Telemetry {
     } else if (this.LOG_LEVELS.warn >= this.logLevel) {
       const context = this.getContext();
 
-      // Logging message...
-      this.otelLogger.emit({
-        context,
-        body: message,
-        severityNumber: 13, // WARN = 13.
-        severityText: 'warn',
-        attributes: warnAttributes,
-      });
+      // Logging warning depending on the message type...
+      this.otelLogger.emit(!(message instanceof Error)
+        ? {
+          context,
+          body: message,
+          severityNumber: 13, // WARN = 13.
+          severityText: 'warn',
+          attributes: warnAttributes,
+        }
+        : {
+          context,
+          severityNumber: 13, // WARN = 13.
+          severityText: 'warn',
+          body: message.message,
+          attributes: {
+            ...warnAttributes,
+            ...(message instanceof PerseidError ? message.details : {}),
+            name: message.name,
+            message: message.message,
+            stackTrace: message.stack,
+            type: message.constructor.name,
+          },
+        });
     }
   }
 
@@ -495,13 +540,6 @@ export default class Telemetry {
       this.pinoLogger.error(errorAttributes);
     } else if (this.LOG_LEVELS.error >= this.logLevel) {
       const context = this.getContext();
-
-      // Marking span as error...
-      if (context !== undefined) {
-        opentelemetry.trace.getSpan(context)?.setStatus({
-          code: opentelemetry.SpanStatusCode.ERROR,
-        });
-      }
 
       // Logging error depending on the message type...
       this.otelLogger.emit(!(message instanceof Error)
@@ -547,13 +585,6 @@ export default class Telemetry {
     } else if (this.LOG_LEVELS.fatal >= this.logLevel) {
       const context = this.getContext();
 
-      // Marking span as error...
-      if (context !== undefined) {
-        opentelemetry.trace.getSpan(context)?.setStatus({
-          code: opentelemetry.SpanStatusCode.ERROR,
-        });
-      }
-
       // Logging error depending on the message type...
       this.otelLogger.emit(!(message instanceof Error)
         ? {
@@ -589,7 +620,7 @@ export default class Telemetry {
    */
   public createGauge(name: string, options: opentelemetry.MetricOptions): void {
     if (this.otelMeter === null) {
-      this.pinoLogger.debug(name);
+      this.pinoLogger.debug(`Creating gauge metric "${name}"...`);
       this.pinoLogger.debug(options);
     } else {
       this.otelMetrics.set(name, {
@@ -608,7 +639,7 @@ export default class Telemetry {
    */
   public createHistogram(name: string, options: opentelemetry.MetricOptions): void {
     if (this.otelMeter === null) {
-      this.pinoLogger.debug(name);
+      this.pinoLogger.debug(`Creating histogram metric "${name}"...`);
       this.pinoLogger.debug(options);
     } else {
       this.otelMetrics.set(name, {
@@ -627,7 +658,7 @@ export default class Telemetry {
    */
   public createCounter(name: string, options: opentelemetry.MetricOptions): void {
     if (this.otelMeter === null) {
-      this.pinoLogger.debug(name);
+      this.pinoLogger.debug(`Creating counter metric "${name}"...`);
       this.pinoLogger.debug(options);
     } else {
       this.otelMetrics.set(name, {
@@ -646,7 +677,7 @@ export default class Telemetry {
    */
   public createUpDownCounter(name: string, options: opentelemetry.MetricOptions): void {
     if (this.otelMeter === null) {
-      this.pinoLogger.debug(name);
+      this.pinoLogger.debug(`Creating up-down counter metric "${name}"...`);
       this.pinoLogger.debug(options);
     } else {
       this.otelMetrics.set(name, {
@@ -668,7 +699,7 @@ export default class Telemetry {
   public measure(name: string, value: number, attributes?: opentelemetry.Attributes): void {
     const metricAttributes = attributes ?? {};
     if (this.otelMeter === null) {
-      this.pinoLogger.debug(name);
+      this.pinoLogger.debug(`Adding measurement for metric "${name}"...`);
       this.pinoLogger.debug(value);
       this.pinoLogger.debug(metricAttributes);
     } else {

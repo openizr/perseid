@@ -2213,4 +2213,11 @@ export default class PostgreSQLDatabaseClient<
       return resourceExists;
     });
   }
+
+  /**
+   * Closes the database client, releasing all remaining connections to the database server.
+   */
+  public async close(): Promise<void> {
+    await this.client.end();
+  }
 }

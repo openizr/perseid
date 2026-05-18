@@ -31,6 +31,7 @@ import Telemetry from 'scripts/core/services/Telemetry';
 import ControllerError from 'scripts/core/errors/Controller';
 import type AuthEngine from 'scripts/core/services/AuthEngine';
 import { Id, deepMerge, type UserDataModel } from '@perseid/core';
+import type { Span } from '@opentelemetry/api';
 
 type AnySchema = any;
 
@@ -322,7 +323,7 @@ export default class FastifyController<
     errorCode: string,
     errorMessage: string,
   ): FastifyReply {
-    this.telemetry.info(errorCode, { message: errorMessage });
+    this.telemetry.debug(errorCode, { message: errorMessage });
     return response
       .status(status)
       .header('Content-Type', 'application/json')
@@ -398,7 +399,7 @@ export default class FastifyController<
     if (statusCode !== 500) {
       errorCode = error.code;
       message = error.message;
-      this.telemetry.info(errorCode, { message });
+      this.telemetry.debug(errorCode, { message });
     }
 
     return this.error(response, statusCode, errorCode, message);
@@ -553,8 +554,22 @@ export default class FastifyController<
     headersSchema.additionalProperties = true;
     const validateHeaders = this.ajv.compile(headersSchema);
     return {
-      handler: async (request, response): Promise<FastifyReply> => (
-        this.telemetry.span('handler', {}, async () => {
+      handler: async (request, response): Promise<FastifyReply> => {
+        const spanContext = (request as FastifyRequest & { span?: Span; }).span?.spanContext();
+
+        return this.telemetry.span(`${this.constructor.name}.handler`, {
+          attributes: {
+            'code.class.name': this.constructor.name,
+          },
+          ...(spanContext !== undefined ? {
+            traceState: spanContext.traceState?.serialize(),
+            traceParent: {
+              spanId: spanContext.spanId,
+              traceId: spanContext.traceId,
+              traceFlags: spanContext.traceFlags,
+            },
+          } : {}),
+        }, async () => {
           try {
             if (settings.body !== undefined && !validateBody(request.body)) {
               return await this.invalidPayload(response, validateBody.errors?.[0], 'body');
@@ -589,8 +604,8 @@ export default class FastifyController<
             }
             throw error;
           }
-        })
-      ),
+        });
+      },
     };
   }
 
@@ -622,7 +637,7 @@ export default class FastifyController<
 
     // Logs requests timeouts.
     instance.addHook('onTimeout', (request, _response, done) => {
-      this.telemetry.error(new Error(`Request "${request.method} ${request.url}" timed out.`), {
+      this.telemetry.error(new Error('Request timed out.'), {
         statusCode: 504,
         url: request.url,
         method: request.method,
@@ -646,8 +661,8 @@ export default class FastifyController<
     // Catch-all for unsupported content types. Prevents fastify from throwing HTTP 500 when
     // dealing with unknown payloads. See https://www.fastify.io/docs/latest/ContentTypeParser/.
     instance.addContentTypeParser('*', (_request, payload, next) => {
-      const headers = payload.headers as Record<string, string>;
-      if (headers['content-type'].startsWith('multipart/form-data')) {
+      const headers = payload.headers as Partial<Record<string, string>>;
+      if (headers['content-type']?.startsWith('multipart/form-data')) {
         next(null, payload);
       } else {
         let data = '';
