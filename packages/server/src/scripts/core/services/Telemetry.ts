@@ -266,8 +266,6 @@ export default class Telemetry {
       ? pino(pinoSettings, settings.destination)
       : pino(pinoSettings);
 
-    // We close the telemetry client on `SIGINT` and `SIGTERM` events instead of `exit` because
-    // `exit` is a synchronous process and won't wait for the telemetry client to be closed.
     process.on('warning', this.warn.bind(this));
     process.on('uncaughtException', this.fatal.bind(this));
 

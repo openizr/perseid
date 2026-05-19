@@ -38,6 +38,26 @@ import type Telemetry from 'scripts/core/services/Telemetry';
 import type CacheClient from 'scripts/core/services/CacheClient';
 
 /**
+ * Current metrics for a given PostgreSQL connection pool.
+ */
+export interface PoolMetrics {
+  /**
+   * Number of connections currently in use.
+   */
+  used: number;
+
+  /**
+   * Number of connections currently idle.
+   */
+  idle: number;
+
+  /**
+   * Number of requests currently pending.
+   */
+  pending: number;
+}
+
+/**
  * PostgreSQL database client settings.
  */
 export interface PostgreSQLDatabaseClientSettings extends DatabaseClientSettings {
@@ -111,13 +131,9 @@ export default class PostgreSQLDatabaseClient<
   protected pools: Map<string, pg.Pool>;
 
   /**
-   * Last connections metrics values, used to update telemetry metrics.
+   * Last connections metrics values by pool, used to update telemetry metrics.
    */
-  protected lastMetrics: {
-    used: number;
-    idle: number;
-    pending: number;
-  };
+  protected lastMetrics: Map<string, PoolMetrics>;
 
   /**
    * PostgreSQL database connection settings. Necessary to reset pool after dropping database.
@@ -862,7 +878,7 @@ export default class PostgreSQLDatabaseClient<
     this.databaseSettings = settings;
     this.pools = new Map<string, pg.Pool>();
     this.sessions = new Map<string, pg.PoolClient>();
-    this.lastMetrics = { used: 0, idle: 0, pending: 0 };
+    this.lastMetrics = new Map<string, { used: number; idle: number; pending: number; }>();
     this.model.getResources().forEach((resource) => {
       this.generateResourceMetadata(resource);
       // Reversing the sub-tables array is essential to delete dependencies in the right order.
@@ -1457,14 +1473,14 @@ export default class PostgreSQLDatabaseClient<
       return poolClient;
     }
 
-    const port = String(this.databaseSettings.port ?? null);
-    const poolName = `${this.databaseSettings.host}:${port}/${this.database}`;
     this.telemetry.info('Connecting to database...', {
       'db.system.name': 'postgresql',
       'db.namespace': this.database,
       'server.address': this.databaseSettings.host,
       'server.port': this.databaseSettings.port ?? undefined,
     });
+
+    this.lastMetrics.set(pool, { used: 0, idle: 0, pending: 0 });
     const newPoolClient = new pg.Pool({
       database: this.database,
       ssl: this.databaseSettings.ssl,
@@ -1476,27 +1492,30 @@ export default class PostgreSQLDatabaseClient<
       idleTimeoutMillis: this.databaseSettings.connectTimeout,
       connectionTimeoutMillis: this.databaseSettings.connectTimeout,
     });
+
     const updateMetrics = () => {
-      const { totalCount, idleCount, waitingCount } = this.client;
-      this.lastMetrics.idle = idleCount - this.lastMetrics.idle;
-      this.lastMetrics.pending = waitingCount - this.lastMetrics.pending;
-      this.lastMetrics.used = totalCount - idleCount - this.lastMetrics.used;
-      this.telemetry.measure('db.client.connection.count', this.lastMetrics.used, {
+      const lastMetrics = this.lastMetrics.get(pool) as PoolMetrics;
+      const { totalCount, idleCount, waitingCount } = newPoolClient;
+      lastMetrics.idle = idleCount - lastMetrics.idle;
+      lastMetrics.pending = waitingCount - lastMetrics.pending;
+      lastMetrics.used = totalCount - idleCount - lastMetrics.used;
+      this.telemetry.measure('db.client.connection.count', lastMetrics.used, {
         'db.client.connection.state': 'used',
-        'db.client.connection.pool.name': poolName,
+        'db.client.connection.pool.name': pool,
       });
-      this.telemetry.measure('db.client.connection.count', this.lastMetrics.idle, {
+      this.telemetry.measure('db.client.connection.count', lastMetrics.idle, {
         'db.client.connection.state': 'idle',
-        'db.client.connection.pool.name': poolName,
+        'db.client.connection.pool.name': pool,
       });
-      this.telemetry.measure('db.client.connection.pending_requests', this.lastMetrics.pending, {
-        'db.client.connection.pool.name': poolName,
+      this.telemetry.measure('db.client.connection.pending_requests', lastMetrics.pending, {
+        'db.client.connection.pool.name': pool,
       });
     };
     newPoolClient.on('connect', updateMetrics);
     newPoolClient.on('acquire', updateMetrics);
     newPoolClient.on('remove', updateMetrics);
     newPoolClient.on('release', updateMetrics);
+
     this.pools.set(pool, newPoolClient);
     return newPoolClient;
   }
