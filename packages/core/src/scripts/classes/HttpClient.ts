@@ -184,9 +184,7 @@ export default class HttpClient {
         signal: settings.signal ?? AbortSignal.timeout(this.defaultRequestTimeout),
       });
 
-      span.setAttributes({
-        'http.response.status_code': response.status,
-      });
+      span.setAttributes({ 'http.response.status_code': response.status });
 
       const attributes = {
         'server.port': parsedUrl.port,
@@ -195,14 +193,14 @@ export default class HttpClient {
         'http.request.method': settings.method,
       };
 
-      this.telemetry.measure('http.server.active_requests', 1, attributes);
+      this.telemetry.measure('http.client.active_requests', 1, attributes);
 
       if (response.status >= 400) {
         const data = ((response.headers.get('content-type')?.includes('application/json'))
           ? await response.json()
           : await response.text()) as Response;
 
-        this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
+        this.telemetry.measure('http.client.request.duration', this.telemetry.duration(spanStartTime), {
           ...attributes,
           'http.response.status_code': response.status,
           'error.type': (data as { error?: { code?: string; }; }).error?.code,
@@ -211,7 +209,7 @@ export default class HttpClient {
         throw new HttpError(response.status, data);
       }
 
-      this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
+      this.telemetry.measure('http.client.request.duration', this.telemetry.duration(spanStartTime), {
         ...attributes,
         'http.response.status_code': response.status,
       });
