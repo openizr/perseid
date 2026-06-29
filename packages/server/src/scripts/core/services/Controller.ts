@@ -26,10 +26,10 @@ import ajvErrors from 'ajv-errors';
 import multiparty from 'multiparty';
 import { createWriteStream } from 'fs';
 import { type IncomingMessage } from 'http';
+import { PerseidError } from '@perseid/core';
 import Ajv, { type KeywordDefinition } from 'ajv';
 import type Model from 'scripts/core/services/Model';
 import Telemetry from 'scripts/core/services/Telemetry';
-import type PerseidError from 'scripts/core/errors/Perseid';
 import ControllerError from 'scripts/core/errors/Controller';
 import type AuthEngine from 'scripts/core/services/AuthEngine';
 

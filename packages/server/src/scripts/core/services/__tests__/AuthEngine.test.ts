@@ -66,6 +66,7 @@ describe('core/services/AuthEngine', () => {
     connectTimeout: 0,
     database: '',
     host: '',
+    queryTimeout: 0,
     password: '',
     port: 0,
     protocol: '',

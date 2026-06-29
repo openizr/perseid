@@ -26,9 +26,9 @@ import type {
   AnonymousCommandContext,
 } from 'scripts/core/types';
 import jwt from 'jsonwebtoken';
+import { PerseidError } from '@perseid/core';
 import type { Span } from '@opentelemetry/api';
 import Model from 'scripts/core/services/Model';
-import PerseidError from 'scripts/core/errors/Perseid';
 import Telemetry from 'scripts/core/services/Telemetry';
 import ControllerError from 'scripts/core/errors/Controller';
 import type AuthEngine from 'scripts/core/services/AuthEngine';
@@ -541,6 +541,7 @@ export default class FastifyController<
       if (error !== undefined) {
         span.recordException(error);
         span.setStatus({ code: 2 });
+        // TODO link log to span
         this.telemetry.error(error);
       }
 
@@ -556,7 +557,7 @@ export default class FastifyController<
           telemetry.span.setAttribute('error.type', telemetry.errorType);
         }
 
-        this.telemetry.measure('http.server.active_requests', 1, {
+        this.telemetry.measure('http.server.active_requests', -1, {
           'url.scheme': request.protocol,
           'http.request.method': request.method,
           'server.port': request.socket.localPort,
@@ -707,6 +708,7 @@ export default class FastifyController<
 
     // Logs requests timeouts.
     instance.addHook('onTimeout', (request, _response, done) => {
+      // TODO link log to span
       this.telemetry.error(new Error('Request timed out.'), {
         statusCode: 504,
         url: request.url,
@@ -737,6 +739,8 @@ export default class FastifyController<
       });
 
       instance.addHook('onError', async (request: OTELRequest, response, error) => {
+        // TODO transform fastify errors into Perseid errors, pass it to the next hook
+        // If perseid erorr, then don't telemetry.error() it
         this.updateSpan(request, response, error);
       });
 
@@ -756,6 +760,12 @@ export default class FastifyController<
 
       instance.addHook('onRequest', (request: OTELRequest, _, done) => {
         if (otelTracer !== null) {
+          this.telemetry.measure('http.server.active_requests', 1, {
+            'url.scheme': request.protocol,
+            'http.request.method': request.method,
+            'server.port': request.socket.localPort,
+            'server.address': request.socket.localAddress,
+          });
           request.telemetry = {
             spanStartTime: this.telemetry.now(),
             span: otelTracer.startSpan(`${request.method} ${String(request.routeOptions.url)}`, {

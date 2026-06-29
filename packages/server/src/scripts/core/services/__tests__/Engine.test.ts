@@ -47,6 +47,7 @@ describe('core/services/Engine', () => {
     connectionLimit: 0,
     connectTimeout: 0,
     database: '',
+    queryTimeout: 0,
     host: '',
     password: '',
     port: 0,

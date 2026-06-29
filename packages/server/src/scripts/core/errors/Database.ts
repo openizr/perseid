@@ -6,7 +6,7 @@
  *
  */
 
-import PerseidError from 'scripts/core/errors/Perseid';
+import { PerseidError } from '@perseid/core';
 
 /**
  * Database error.

@@ -62,6 +62,11 @@ export interface PoolMetrics {
  */
 export interface PostgreSQLDatabaseClientSettings extends DatabaseClientSettings {
   /**
+   * Maximum time to wait for a query to complete.
+   */
+  queryTimeout: number;
+
+  /**
    * SSL configuration to use for database connection.
    */
   ssl: {
@@ -1489,6 +1494,9 @@ export default class PostgreSQLDatabaseClient<
       port: this.databaseSettings.port ?? undefined,
       user: this.databaseSettings.user ?? undefined,
       password: this.databaseSettings.password ?? undefined,
+      lock_timeout: this.databaseSettings.queryTimeout,
+      query_timeout: this.databaseSettings.queryTimeout,
+      statement_timeout: this.databaseSettings.queryTimeout,
       idleTimeoutMillis: this.databaseSettings.connectTimeout,
       connectionTimeoutMillis: this.databaseSettings.connectTimeout,
     });
@@ -1496,20 +1504,21 @@ export default class PostgreSQLDatabaseClient<
     const updateMetrics = () => {
       const lastMetrics = this.lastMetrics.get(pool) as PoolMetrics;
       const { totalCount, idleCount, waitingCount } = newPoolClient;
-      lastMetrics.idle = idleCount - lastMetrics.idle;
-      lastMetrics.pending = waitingCount - lastMetrics.pending;
-      lastMetrics.used = totalCount - idleCount - lastMetrics.used;
-      this.telemetry.measure('db.client.connection.count', lastMetrics.used, {
+      const currentUsed = totalCount - idleCount;
+      this.telemetry.measure('db.client.connection.count', currentUsed - lastMetrics.used, {
         'db.client.connection.state': 'used',
         'db.client.connection.pool.name': pool,
       });
-      this.telemetry.measure('db.client.connection.count', lastMetrics.idle, {
+      this.telemetry.measure('db.client.connection.count', idleCount - lastMetrics.idle, {
         'db.client.connection.state': 'idle',
         'db.client.connection.pool.name': pool,
       });
-      this.telemetry.measure('db.client.connection.pending_requests', lastMetrics.pending, {
+      this.telemetry.measure('db.client.connection.pending_requests', waitingCount - lastMetrics.pending, {
         'db.client.connection.pool.name': pool,
       });
+     lastMetrics.used = currentUsed;
+     lastMetrics.idle = idleCount;
+     lastMetrics.pending = waitingCount;
     };
     newPoolClient.on('connect', updateMetrics);
     newPoolClient.on('acquire', updateMetrics);
@@ -1552,11 +1561,10 @@ export default class PostgreSQLDatabaseClient<
       ?? await this.connect(poolOrSession);
 
     const startTime = this.telemetry.now();
-    return this.telemetry.span(`${this.constructor.name}.query`, {
+    return this.span('query', {
       attributes: {
         ...defaultAttributes,
         'db.query.text': settings.query,
-        'code.class.name': this.constructor.name,
         ...telemetryAttributes,
       },
     }, async (span) => {
@@ -1565,17 +1573,17 @@ export default class PostgreSQLDatabaseClient<
       } catch (error) {
         const postgreError = error as pg.DatabaseError;
         // TODO
-        // if (postgreError.code === '23505') {
-        //   const match = /Key \(([^)]+)\)=\(([^)]+)\)/.exec(postgreError.detail as unknown as string);
-        //   throw new DatabaseError('DUPLICATE_RESOURCE', {
-        //     path: (match as string[])[1],
-        //     value: (match as string[])[2].trim(),
-        //   });
-        // }
-        // if (postgreError.code === '23503') {
-        //   const path = (/Key \(([^)]+)\)=/.exec(postgreError.detail as unknown as string) as string[])[1];
-        //   throw new DatabaseError('RESOURCE_REFERENCED', { path });
-        // }
+        if (postgreError.code === '23505') {
+          const match = /Key \(([^)]+)\)=\(([^)]+)\)/.exec(postgreError.detail as unknown as string);
+          throw new DatabaseError('DUPLICATE_RESOURCE', {
+            path: (match as string[])[1],
+            value: (match as string[])[2].trim(),
+          });
+        }
+        if (postgreError.code === '23503') {
+          const path = (/Key \(([^)]+)\)=/.exec(postgreError.detail as unknown as string) as string[])[1];
+          throw new DatabaseError('RESOURCE_REFERENCED', { path });
+        }
         sqlErrorCode = postgreError.code;
         throw error;
       } finally {

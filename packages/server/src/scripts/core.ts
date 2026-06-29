@@ -9,7 +9,6 @@
 import Model from 'scripts/core/services/Model';
 import Engine from 'scripts/core/services/Engine';
 import EngineError from 'scripts/core/errors/Engine';
-import PerseidError from 'scripts/core/errors/Perseid';
 import Telemetry from 'scripts/core/services/Telemetry';
 import DatabaseError from 'scripts/core/errors/Database';
 import AuthEngine from 'scripts/core/services/AuthEngine';
@@ -27,8 +26,8 @@ export { Engine };
 export { Telemetry };
 export { AuthEngine };
 export { BucketClient };
+export { ControllerError };
 export { EngineError, DatabaseError };
-export { ControllerError, PerseidError };
 export { Controller, HTTP_STATUS_CODES };
 export { EngineFragment, AuthEngineFragment };
 export { AbstractDatabaseClient, EmailClient, CacheClient };

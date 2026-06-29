@@ -6,9 +6,9 @@
  *
  */
 
+import { PerseidError } from '@perseid/core';
 import * as opentelemetry from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import PerseidError from 'scripts/core/errors/Perseid';
 import { pino, type DestinationStream, type Logger as PinoLogger } from 'pino';
 import { hrTime, hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import type { AnyValue, AnyValueMap, Logger as OTELLogger } from '@opentelemetry/api-logs';
@@ -190,18 +190,18 @@ export default class Telemetry {
    *
    * @param span Current context trace span.
    *
-   * @param isAnExpectedError Whether the error is expected. If so, the error will not be logged,
+   * @param isFailure Whether the error is an actual failure. If not, the error will not be logged,
    * and the span will not be marked as error.
    */
   protected handleError(
     error: Error,
     span: opentelemetry.Span,
-    isAnExpectedError: boolean,
+    isFailure: boolean,
   ): void {
-    if (isAnExpectedError) {
+    if (!isFailure) {
       if (!this.recordedExceptions.has(error)) {
         this.recordedExceptions.add(error);
-        this.info(error.message);
+        this.warn(error.message);
       }
     } else {
       if (!this.loggedErrors.has(error)) {
@@ -334,6 +334,7 @@ export default class Telemetry {
   public getSpanContextFromHeaders(
     headers: Partial<Record<string, string | string[]>>,
   ): opentelemetry.Context {
+    // TODO remove
     this.debug('Extracting span context from HTTP headers...', { headers });
     return opentelemetry.propagation.extract(opentelemetry.context.active(), headers);
   }
@@ -345,22 +346,26 @@ export default class Telemetry {
    * @param name Span name.
    *
    * @param options Span extra options.
+   * - `kind` allows you to specify the span kind.
+   * - `links` allows you to link this span to other external spans.
+   * - `attributes` allows you to provide additional telemetry attributes to the span.
+   * - `traceState` and `traceParent` allow you to inject this span into an existing trace.
+   * - `filterErrors` allows you to customize the span behaviour in case an error is thrown:
+   * sometimes, throwing an error does not necessarily mean the span should be marked as error, nor
+   * that an unexpected thing happened. If this function returns `true`, the error will be
+   * considered as an actual operation failure. Defaults to a function that always returns `true`.
    *
    * @param callback Function to run within the span.
-   *
-   * @param isAnExpectedError Allows you to customize the span behaviour in case an error is thrown.
-   * Sometimes, throwing an error does not necessarily mean the span should be marked as error, nor
-   * that an unexpected thing happened. Defaults to a function that always returns `false`.
    */
   public span<T = unknown>(
     name: string,
     options: Pick<opentelemetry.SpanOptions, 'attributes' | 'links'> & {
       traceState?: string;
+      filterErrors?: (error: Error) => boolean;
       kind?: 'CONSUMER' | 'PRODUCER' | 'SERVER' | 'CLIENT';
       traceParent?: Pick<opentelemetry.SpanContext, 'traceId' | 'spanId' | 'traceFlags'>;
     },
     callback: (span: OpenTelemetrySpan) => T,
-    isAnExpectedError: (error: Error) => boolean = () => false,
   ): T {
     const store = this.asyncStorage.getStore() as { span?: opentelemetry.Span; } | undefined;
     let context = (store?.span !== undefined)
@@ -415,7 +420,6 @@ export default class Telemetry {
         ...options,
         kind: this.OTEL_SPAN_KIND_MAPPING[options.kind ?? 'INTERNAL'],
       }, context);
-
     return this.asyncStorage.run({ span }, (): T => {
       let callbackResponse;
       try {
@@ -431,12 +435,12 @@ export default class Telemetry {
           ? callbackResponse
           : callbackResponse.catch((error: unknown) => {
             const rawError = error as Error;
-            this.handleError(rawError, span, isAnExpectedError(rawError));
+            this.handleError(rawError, span, options.filterErrors?.(rawError) ?? true);
             throw error;
           }).finally(span.end.bind(span)) as T;
       } catch (error) {
         const rawError = error as Error;
-        this.handleError(rawError, span, isAnExpectedError(rawError));
+        this.handleError(rawError, span, options.filterErrors?.(rawError) ?? true);
         throw error;
       } finally {
         if (!(callbackResponse instanceof Promise)) {
@@ -519,6 +523,11 @@ export default class Telemetry {
       this.pinoLogger.warn(warnAttributes);
     } else if (this.LOG_LEVELS.warn >= this.logLevel) {
       const context = this.getContext();
+
+      // Adding warning severity to span...
+      if (context !== undefined) {
+        opentelemetry.trace.getSpan(context)?.setAttribute('severity', 'warn');
+      }
 
       // Logging warning depending on the message type...
       this.otelLogger.emit(!(message instanceof Error)
