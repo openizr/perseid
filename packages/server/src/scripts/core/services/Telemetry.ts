@@ -176,10 +176,11 @@ export default class Telemetry {
    *
    * @returns Current context trace span, if it exists.
    */
-  protected getContext(): opentelemetry.Context | undefined {
+  protected getContext(span?: opentelemetry.Span): opentelemetry.Context | undefined {
     const store = this.asyncStorage.getStore();
-    return (store?.span !== undefined)
-      ? opentelemetry.trace.setSpan(opentelemetry.context.active(), store.span)
+    const currentSpan = span ?? store?.span;
+    return (currentSpan !== undefined)
+      ? opentelemetry.trace.setSpan(opentelemetry.context.active(), currentSpan)
       : undefined;
   }
 
@@ -566,13 +567,13 @@ export default class Telemetry {
    *
    * @param attributes Additional attributes to link to the message.
    */
-  public error(message: string | Error, attributes?: AnyValueMap): void {
+  public error(message: string | Error, attributes?: AnyValueMap, span?: opentelemetry.Span): void {
     const errorAttributes = attributes ?? {};
     if (this.otelLogger === null) {
       this.pinoLogger.error(message);
       this.pinoLogger.error(errorAttributes);
     } else if (this.LOG_LEVELS.error >= this.logLevel) {
-      const context = this.getContext();
+      const context = this.getContext(span);
 
       // Logging error depending on the message type...
       this.otelLogger.emit(!(message instanceof Error)

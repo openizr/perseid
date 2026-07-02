@@ -741,6 +741,15 @@ export default class FastifyController<
       instance.addHook('onError', async (request: OTELRequest, response, error) => {
         // TODO transform fastify errors into Perseid errors, pass it to the next hook
         // If perseid erorr, then don't telemetry.error() it
+
+        // FST_ERR_CTP_INVALID_JSON_BODY
+        // FST_ERR_CTP_EMPTY_JSON_BODY
+        // FST_ERR_CTP_INVALID_CONTENT_LENGTH
+        // FST_ERR_CTP_EMPTY_TYPE
+        // FST_ERR_CTP_INVALID_TYPE
+        // FST_ERR_CTP_BODY_TOO_LARGE
+        // FST_ERR_CTP_INVALID_MEDIA_TYPE
+
         this.updateSpan(request, response, error);
       });
 
