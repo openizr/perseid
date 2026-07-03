@@ -6,7 +6,7 @@
  *
  */
 
-import HttpError from 'scripts/classes/HttpError';
+import HttpError from 'scripts/errors/Http';
 
 describe('classes/HttpError', () => {
   test('[constructor]', () => {
@@ -14,6 +14,6 @@ describe('classes/HttpError', () => {
     expect(error.status).toBe(404);
     expect(error).toBeInstanceOf(HttpError);
     expect(error.message).toBe('HTTP Error');
-    expect(error.body).toEqual({ error: 'Not found', code: 404 });
+    expect(error.details).toEqual({ error: 'Not found', code: 404 });
   });
 });

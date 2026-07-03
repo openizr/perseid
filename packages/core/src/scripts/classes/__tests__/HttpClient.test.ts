@@ -6,7 +6,7 @@
  *
  */
 
-import HttpError from 'scripts/classes/HttpError';
+import HttpError from 'scripts/errors/Http';
 import HttpClient from 'scripts/classes/HttpClient';
 
 type TestHttpClient = HttpClient & {

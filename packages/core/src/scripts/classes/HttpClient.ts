@@ -6,7 +6,7 @@
  *
  */
 
-import HttpError from 'scripts/classes/HttpError';
+import HttpError from 'scripts/errors/Http';
 import type Telemetry from 'scripts/classes/Telemetry';
 import isPlainObject from 'scripts/helpers/isPlainObject';
 
@@ -163,6 +163,7 @@ export default class HttpClient {
         'url.scheme': parsedUrl.protocol,
         'server.address': parsedUrl.hostname,
         'http.request.method': settings.method,
+        'code.class.name': this.constructor.name,
         'http.request.resend_count': (retryCount > 0) ? retryCount : undefined,
       },
     }, async (span) => {
@@ -200,13 +201,15 @@ export default class HttpClient {
           ? await response.json()
           : await response.text()) as Response;
 
+        const responseBody = typeof data === 'string' ? data : JSON.stringify(data);
+        span.setAttributes({ 'http.response.body': responseBody });
         this.telemetry.measure('http.client.request.duration', this.telemetry.duration(spanStartTime), {
           ...attributes,
           'http.response.status_code': response.status,
           'error.type': (data as { error?: { code?: string; }; }).error?.code,
         });
 
-        throw new HttpError(response.status, data);
+        throw new HttpError(response.status, { message: responseBody });
       }
 
       this.telemetry.measure('http.client.request.duration', this.telemetry.duration(spanStartTime), {
@@ -227,18 +230,27 @@ export default class HttpClient {
    * @returns Parsed HTTP response.
    */
   protected async request<Response>(settings: RequestSettings): Promise<Response> {
-    return this.telemetry.span(`${this.constructor.name}.request`, {}, async () => {
-      const response = await this.handleRetries(settings);
+    return this.telemetry.span(`${this.constructor.name}.request`, {
+      attributes: { 'code.class.name': this.constructor.name },
+    }, async (span) => {
+      try {
+        const response = await this.handleRetries(settings);
 
-      if (response.body === null) {
-        return null as unknown as Response;
+        if (response.body === null) {
+          return null as unknown as Response;
+        }
+
+        const data = ((response.headers.get('content-type')?.includes('application/json'))
+          ? await response.json()
+          : await response.text()) as Response;
+
+        return data;
+      } catch (error) {
+        if (!(error instanceof HttpError)) {
+          span.setStatus({ code: 'ERROR' });
+        }
+        throw error;
       }
-
-      const data = ((response.headers.get('content-type')?.includes('application/json'))
-        ? await response.json()
-        : await response.text()) as Response;
-
-      return data;
     });
   }
 

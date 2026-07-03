@@ -52,34 +52,37 @@ export default abstract class Telemetry {
    * @param name Span name.
    *
    * @param options Span extra options.
+   * - `kind` allows you to specify the span kind.
+   * - `links` allows you to link this span to other external spans.
+   * - `attributes` allows you to provide additional telemetry attributes to the span.
+   * - `traceState` and `traceParent` allow you to inject this span into an existing trace.
+   * sometimes, throwing an error does not necessarily mean the span should be marked as error, nor
+   * that an unexpected thing happened. If this function returns `true`, the error will be
+   * considered as an actual operation failure. Defaults to a function that always returns `true`.
    *
    * @param callback Function to run within the span.
-   *
-   * @param isAnExpectedError Allows you to customize the span behaviour in case an error is thrown.
-   * Sometimes, throwing an error does not necessarily mean the span should be marked as error, nor
-   * that an unexpected thing happened. Defaults to a function that always returns `false`.
    */
   public abstract span<T = unknown>(
     name: string,
     options: Pick<opentelemetry.SpanOptions, 'attributes' | 'links'> & {
       traceState?: string;
-      traceParent?: Pick<opentelemetry.SpanContext, 'traceId' | 'spanId' | 'traceFlags'>;
       kind?: 'CONSUMER' | 'PRODUCER' | 'SERVER' | 'CLIENT';
+      traceParent?: Pick<opentelemetry.SpanContext, 'traceId' | 'spanId' | 'traceFlags'>;
     },
     callback: (span: OpenTelemetrySpan) => T,
-    isAnExpectedError?: (error: Error) => boolean,
   ): T;
 
   /**
    * Information that is diagnostically helpful to people more than just developers
-   * (IT, sysadmins, etc.).
-   * This should be the minimum logging level in development.
+   * (IT, sysadmins, etc.). This should be the minimum logging level in development.
    *
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public abstract debug(message: string, attributes?: AnyValueMap): void;
+  public abstract debug(message: string, attributes?: AnyValueMap, span?: opentelemetry.Span): void;
 
   /**
    * Generally useful information to log (service start/stop, configuration assumptions, etc).
@@ -89,8 +92,10 @@ export default abstract class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public abstract info(message: string, attributes?: AnyValueMap): void;
+  public abstract info(message: string, attributes?: AnyValueMap, span?: opentelemetry.Span): void;
 
   /**
    * Anything that can potentially cause application oddities, but which is not a serious concern
@@ -101,8 +106,10 @@ export default abstract class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public abstract warn(message: string, attributes?: AnyValueMap): void;
+  public abstract warn(message: string, attributes?: AnyValueMap, span?: opentelemetry.Span): void;
 
   /**
    * Any error which is fatal to the operation, but not the service or application (can't open a
@@ -114,8 +121,14 @@ export default abstract class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public abstract error(message: string | Error, attributes?: AnyValueMap): void;
+  public abstract error(
+    message: string | Error,
+    attributes?: AnyValueMap,
+    span?: opentelemetry.Span,
+  ): void;
 
   /**
    * Any error that is forcing a shutdown of the service or application to prevent data loss
@@ -126,8 +139,14 @@ export default abstract class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public abstract fatal(message: string | Error, attributes?: AnyValueMap): void;
+  public abstract fatal(
+    message: string | Error,
+    attributes?: AnyValueMap,
+    span?: opentelemetry.Span,
+  ): void;
 
   /**
    * Creates a new gauge metric.

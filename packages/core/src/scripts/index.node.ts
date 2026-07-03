@@ -9,8 +9,10 @@
 import Id from 'scripts/classes/NodeId';
 import I18n from 'scripts/classes/I18n';
 import Model from 'scripts/classes/Model';
+import HttpError from 'scripts/errors/Http';
 import forEach from 'scripts/helpers/forEach';
 import deepCopy from 'scripts/helpers/deepCopy';
+import PerseidError from 'scripts/errors/Perseid';
 import deepMerge from 'scripts/helpers/deepMerge';
 import Telemetry from 'scripts/classes/Telemetry';
 import HttpClient from 'scripts/classes/HttpClient';
@@ -29,8 +31,10 @@ export {
   forEach,
   deepCopy,
   deepMerge,
+  HttpError,
   Telemetry,
   HttpClient,
   toSnakeCase,
+  PerseidError,
   isPlainObject,
 };
