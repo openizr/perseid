@@ -39,7 +39,10 @@ type AnySchema = any;
 type OTELRequest<T extends RouteGenericInterface = RouteGenericInterface> = FastifyRequest<T> & {
   telemetry?: {
     span: Span;
+    logError?: boolean;
     errorType?: string;
+    statusCode: number;
+    endSpanInHandler?: boolean;
     spanStartTime: [number, number];
   }
 };
@@ -533,47 +536,40 @@ export default class FastifyController<
    *
    * @param error Error to record, if any.
    */
-  protected updateSpan(request: OTELRequest, response: FastifyReply, error?: Error): void {
+  protected updateSpan(request: OTELRequest): void {
     const { telemetry } = request;
 
     if (telemetry !== undefined) {
-      const { span, spanStartTime } = telemetry;
-      if (error !== undefined) {
-        span.recordException(error);
+      const { span, spanStartTime, statusCode } = telemetry;
+
+      span.setAttribute('http.response.status_code', statusCode);
+      span.setAttribute('http.route', request.routeOptions.url ?? 'null');
+
+      if (statusCode >= 500) {
         span.setStatus({ code: 2 });
-        // TODO link log to span
-        this.telemetry.error(error);
       }
 
-      if (error === undefined) {
-        span.setAttribute('http.response.status_code', response.statusCode);
-        span.setAttribute('http.route', request.routeOptions.url ?? 'null');
-
-        if (response.statusCode >= 500) {
-          span.setStatus({ code: 2 });
-        }
-
-        if (telemetry.errorType !== undefined) {
-          telemetry.span.setAttribute('error.type', telemetry.errorType);
-        }
-
-        this.telemetry.measure('http.server.active_requests', -1, {
-          'url.scheme': request.protocol,
-          'http.request.method': request.method,
-          'server.port': request.socket.localPort,
-          'server.address': request.socket.localAddress,
-        });
-        this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
-          'url.scheme': request.protocol,
-          'error.type': telemetry.errorType,
-          'http.request.method': request.method,
-          'server.port': request.socket.localPort,
-          'server.address': request.socket.localAddress,
-          'http.response.status_code': response.statusCode,
-          'http.route': request.routeOptions.url ?? 'null',
-        });
-        span.end();
+      if (telemetry.errorType !== undefined) {
+        span.setAttribute('error.type', telemetry.errorType);
       }
+
+      this.telemetry.measure('http.server.active_requests', -1, {
+        'url.scheme': request.protocol,
+        'http.request.method': request.method,
+        'server.port': request.socket.localPort,
+        'server.address': request.socket.localAddress,
+      });
+      this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
+        'url.scheme': request.protocol,
+        'error.type': telemetry.errorType,
+        'http.request.method': request.method,
+        'server.port': request.socket.localPort,
+        'http.response.status_code': statusCode,
+        'server.address': request.socket.localAddress,
+        'http.route': request.routeOptions.url ?? 'null',
+      });
+
+      span.end();
     }
   }
 
@@ -628,6 +624,10 @@ export default class FastifyController<
         const { telemetry } = request as OTELRequest;
         const spanContext = telemetry?.span.spanContext();
 
+        if (telemetry !== undefined) {
+          telemetry.endSpanInHandler = true;
+        }
+
         return await this.telemetry.span(`${this.constructor.name}.handler`, {
           attributes: {
             'code.class.name': this.constructor.name,
@@ -673,7 +673,15 @@ export default class FastifyController<
                 return this.error(response, status, code, message);
               }
             }
+            if (telemetry !== undefined) {
+              telemetry.logError = false;
+              telemetry.endSpanInHandler = false;
+            }
             throw error;
+          }
+        }).finally(() => {
+          if (telemetry?.endSpanInHandler) {
+            this.updateSpan(request);
           }
         });
       },
@@ -707,14 +715,14 @@ export default class FastifyController<
     instance.setNotFoundHandler(this.handleNotFound.bind(this));
 
     // Logs requests timeouts.
-    instance.addHook('onTimeout', (request, _response, done) => {
-      // TODO link log to span
-      this.telemetry.error(new Error('Request timed out.'), {
-        statusCode: 504,
-        url: request.url,
-        method: request.method,
-        headers: Object.keys(request.headers),
-      });
+    instance.addHook('onTimeout', (request: OTELRequest, _response, done) => {
+      const span = request.telemetry?.span;
+      if (span !== undefined) {
+        span.setStatus({ code: 2 });
+        if (request.telemetry?.logError) {
+          this.telemetry.error(new Error('Request timed out.'), {}, span);
+        }
+      }
       done();
     });
 
@@ -734,11 +742,7 @@ export default class FastifyController<
     if (this.instrumentEndpoints) {
       const otelTracer = this.telemetry.getOtelTracer();
 
-      instance.addHook('onResponse', async (request: OTELRequest, response: FastifyReply) => {
-        this.updateSpan(request, response);
-      });
-
-      instance.addHook('onError', async (request: OTELRequest, response, error) => {
+      instance.addHook('onError', async (request: OTELRequest, _, error) => {
         // TODO transform fastify errors into Perseid errors, pass it to the next hook
         // If perseid erorr, then don't telemetry.error() it
 
@@ -750,7 +754,21 @@ export default class FastifyController<
         // FST_ERR_CTP_BODY_TOO_LARGE
         // FST_ERR_CTP_INVALID_MEDIA_TYPE
 
-        this.updateSpan(request, response, error);
+        if (error instanceof PerseidError) {
+          const formattedError = this.KNOWN_ERRORS[error.code]?.(error);
+          if (formattedError !== undefined) {
+            const [status, code, message] = formattedError;
+            return this.error(response, status, code, message);
+          }
+        }
+
+        const span = request.telemetry?.span;
+        if (span !== undefined) {
+          span.setStatus({ code: 2 });
+          if (request.telemetry?.logError) {
+            this.telemetry.error(error, {}, span);
+          }
+        }
       });
 
       instance.addHook('preSerialization', async (
@@ -767,7 +785,7 @@ export default class FastifyController<
         return payload;
       });
 
-      instance.addHook('onRequest', (request: OTELRequest, _, done) => {
+      instance.addHook('onRequest', async (request: OTELRequest, response: FastifyReply) => {
         if (otelTracer !== null) {
           this.telemetry.measure('http.server.active_requests', 1, {
             'url.scheme': request.protocol,
@@ -776,6 +794,9 @@ export default class FastifyController<
             'server.address': request.socket.localAddress,
           });
           request.telemetry = {
+            logError: true,
+            statusCode: 200,
+            endSpanInHandler: false,
             spanStartTime: this.telemetry.now(),
             span: otelTracer.startSpan(`${request.method} ${String(request.routeOptions.url)}`, {
               kind: 1,
@@ -791,8 +812,15 @@ export default class FastifyController<
               },
             }, this.telemetry.getSpanContextFromHeaders(request.headers)),
           };
+
+          response.raw.on('close', () => {
+            const { telemetry } = request;
+            if (telemetry !== undefined && !telemetry.endSpanInHandler) {
+              telemetry.statusCode = response.statusCode;
+              this.updateSpan(request);
+            }
+          });
         }
-        done();
       });
     }
 

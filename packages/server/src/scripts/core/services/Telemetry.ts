@@ -174,6 +174,8 @@ export default class Telemetry {
   /**
    * Returns current context trace span, if it exists.
    *
+   * @param span Optional span to use instead of the current context trace span.
+   *
    * @returns Current context trace span, if it exists.
    */
   protected getContext(span?: opentelemetry.Span): opentelemetry.Context | undefined {
@@ -459,14 +461,16 @@ export default class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public debug(message: string, attributes?: AnyValueMap): void {
+  public debug(message: string, attributes?: AnyValueMap, span?: opentelemetry.Span): void {
     const debugAttributes = attributes ?? {};
     if (this.otelLogger === null) {
       this.pinoLogger.debug(message);
       this.pinoLogger.debug(debugAttributes);
     } else if (this.LOG_LEVELS.debug >= this.logLevel) {
-      const context = this.getContext();
+      const context = this.getContext(span);
 
       // Logging message...
       this.otelLogger.emit({
@@ -487,14 +491,16 @@ export default class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public info(message: string, attributes?: AnyValueMap): void {
+  public info(message: string, attributes?: AnyValueMap, span?: opentelemetry.Span): void {
     const infoAttributes = attributes ?? {};
     if (this.otelLogger === null) {
       this.pinoLogger.info(message);
       this.pinoLogger.info(infoAttributes);
     } else if (this.LOG_LEVELS.info >= this.logLevel) {
-      const context = this.getContext();
+      const context = this.getContext(span);
 
       // Logging message...
       this.otelLogger.emit({
@@ -516,14 +522,16 @@ export default class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public warn(message: string | Error, attributes?: AnyValueMap): void {
+  public warn(message: string | Error, attributes?: AnyValueMap, span?: opentelemetry.Span): void {
     const warnAttributes = attributes ?? {};
     if (this.otelLogger === null) {
       this.pinoLogger.warn(message);
       this.pinoLogger.warn(warnAttributes);
     } else if (this.LOG_LEVELS.warn >= this.logLevel) {
-      const context = this.getContext();
+      const context = this.getContext(span);
 
       // Adding warning severity to span...
       if (context !== undefined) {
@@ -566,6 +574,8 @@ export default class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
   public error(message: string | Error, attributes?: AnyValueMap, span?: opentelemetry.Span): void {
     const errorAttributes = attributes ?? {};
@@ -610,14 +620,16 @@ export default class Telemetry {
    * @param message Message to log.
    *
    * @param attributes Additional attributes to link to the message.
+   *
+   * @param span Optional span to use instead of the current context trace span.
    */
-  public fatal(message: string | Error, attributes?: AnyValueMap): void {
+  public fatal(message: string | Error, attributes?: AnyValueMap, span?: opentelemetry.Span): void {
     const fatalAttributes = attributes ?? {};
     if (this.otelLogger === null) {
       this.pinoLogger.fatal(message);
       this.pinoLogger.fatal(fatalAttributes);
     } else if (this.LOG_LEVELS.fatal >= this.logLevel) {
-      const context = this.getContext();
+      const context = this.getContext(span);
 
       // Logging error depending on the message type...
       this.otelLogger.emit(!(message instanceof Error)
