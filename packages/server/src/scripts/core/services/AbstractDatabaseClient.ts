@@ -404,11 +404,6 @@ export default abstract class AbstractDatabaseClient<
   protected telemetry: Telemetry;
 
   /**
-   * Injects common options to telemetry spans.
-   */
-  protected span: Telemetry['span'];
-
-  /**
    * Cache client, used for results caching.
    */
   protected cache: CacheClient;
@@ -615,20 +610,6 @@ export default abstract class AbstractDatabaseClient<
     this.cache = cache;
     this.model = model;
     this.telemetry = telemetry;
-    const span: Telemetry['span'] = (name, options, callback) => (
-      this.telemetry.span(`${this.constructor.name}.${name}`, {
-        filterErrors: (error: Error): boolean => !(
-          error instanceof DatabaseError
-          && (error.code === 'DUPLICATE_RESOURCE' || error.code === 'RESOURCE_REFERENCED')
-        ),
-        ...options,
-        attributes: {
-          ...options.attributes,
-          'code.class.name': this.constructor.name,
-        },
-      }, callback)
-    );
-    this.span = span;
     this.isConnected = false;
     this.resourcesMetadata = {};
     this.database = settings.database;

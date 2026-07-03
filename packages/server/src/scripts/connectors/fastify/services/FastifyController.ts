@@ -36,13 +36,43 @@ import { Id, deepMerge, type UserDataModel } from '@perseid/core';
 
 type AnySchema = any;
 
+/**
+ * Fastify request augmented with telemetry information.
+ */
 type OTELRequest<T extends RouteGenericInterface = RouteGenericInterface> = FastifyRequest<T> & {
   telemetry?: {
+    /**
+     * Telemetry span.
+     */
     span: Span;
-    logError?: boolean;
-    errorType?: string;
+
+    /**
+     * We can't use response status code by passing it to the `endSpan` method for instance,
+     * because it's not set yet when the handler's `finally` block is executed, which would end up
+     * having all spans marked with HTTP status code 200 event in case of error. We need to store it
+     * here and populate it on response serialization.
+     */
     statusCode: number;
-    endSpanInHandler?: boolean;
+
+    /**
+     * Error to record, if any. We need this temporary storage as the only moment we can get a
+     * structured error is right before response serialization process.
+     */
+    error?: PerseidError;
+
+    /**
+     * Whether to end the span in the handler, or in the `close` event. This is necessary to make
+     * sure root and handler spans are ended in the right order, in all possible scenarios (with or
+     * without `createEndpoint` method):
+     * - No error thrown => `close` event comes after handler finally => `close` event ends span
+     * - Uncaught error thrown => `close` event after handler finally => `close` event ends span
+     * - Catcheable error thrown => `close` event comes before handler finally => handler ends span
+     */
+    endSpanInHandler: boolean;
+
+    /**
+     * Start time of the span.
+     */
     spanStartTime: [number, number];
   }
 };
@@ -118,6 +148,24 @@ export default class FastifyController<
    */
   EngineType extends AuthEngine<DataModelType> = AuthEngine<DataModelType>,
 > extends Controller<DataModelType, TelemetryType, ModelType, EngineType> {
+  /**
+   * Default error content type.
+   */
+  protected readonly DEFAULT_ERROR_CONTENT_TYPE = 'application/json';
+
+  /**
+   * Fastify payload errors that must not be considered as actual errors.
+   */
+  protected readonly FASTIFY_PAYLOAD_ERRORS = [
+    'FST_ERR_CTP_EMPTY_TYPE',
+    'FST_ERR_CTP_INVALID_TYPE',
+    'FST_ERR_CTP_BODY_TOO_LARGE',
+    'FST_ERR_CTP_EMPTY_JSON_BODY',
+    'FST_ERR_CTP_INVALID_JSON_BODY',
+    'FST_ERR_CTP_INVALID_MEDIA_TYPE',
+    'FST_ERR_CTP_INVALID_CONTENT_LENGTH',
+  ];
+
   /**
    * Built-in API handlers for auth-related endpoints.
    */
@@ -329,6 +377,8 @@ export default class FastifyController<
    *
    * @param errorMessage Error message.
    *
+   * @param errorDetails Additional error details.
+   *
    * @returns Error HTTP response.
    */
   protected error(
@@ -336,12 +386,12 @@ export default class FastifyController<
     status: number,
     errorCode: string,
     errorMessage: string,
+    errorDetails?: Record<string, unknown>,
   ): FastifyReply {
-    this.telemetry.debug(errorCode, { message: errorMessage });
     return response
       .status(status)
-      .header('Content-Type', 'application/json')
-      .send({ error: { code: errorCode, message: errorMessage } });
+      .header('Content-Type', this.DEFAULT_ERROR_CONTENT_TYPE)
+      .send({ error: { code: errorCode, message: errorMessage, details: errorDetails ?? {} } });
   }
 
   /**
@@ -360,22 +410,34 @@ export default class FastifyController<
     error: unknown,
     payloadType: string,
   ): FastifyReply {
-    let { message } = error as { message?: string; };
+    const { message } = error as { message?: string; };
     const { keyword, instancePath, params } = error as {
       keyword?: string;
       instancePath?: string;
       params?: Record<string, unknown>;
     };
 
-    const fullPath = `${payloadType}${(String(instancePath)).replace(/\//g, '.')}`;
-    message = `"${fullPath}" ${message as unknown as string}.`;
+    const rootPath = `${payloadType}${(String(instancePath)).replace(/\//g, '.')}`;
     if (keyword === 'required') {
-      message = `"${fullPath}.${params?.missingProperty as string}" is required.`;
-    } else if (keyword === 'additionalProperties') {
-      message = `Unknown field "${fullPath}.${params?.additionalProperty as string}".`;
+      const fullPath = `${rootPath}.${String(params?.missingProperty)}`;
+      return this.error(response, 400, 'INVALID_PAYLOAD', `"${fullPath}" is required.`, {
+        path: fullPath,
+        type: 'MISSING_FIELD',
+      });
     }
 
-    return this.error(response, 400, 'INVALID_PAYLOAD', message);
+    if (keyword === 'additionalProperties') {
+      const fullPath = `${rootPath}.${String(params?.additionalProperty)}`;
+      return this.error(response, 400, 'INVALID_PAYLOAD', `"${fullPath}" is required.`, {
+        path: fullPath,
+        type: 'UNKNOWN_FIELD',
+      });
+    }
+
+    return this.error(response, 400, 'INVALID_PAYLOAD', `"${rootPath}" ${String(message)}.`, {
+      path: rootPath,
+      type: 'INVALID_VALUE',
+    });
   }
 
   /**
@@ -408,6 +470,11 @@ export default class FastifyController<
     // Invalid JSON payloads throw a SyntaxError when fastify tries to parse them.
     if (error.validation !== undefined) {
       statusCode = 400;
+    }
+
+    if (this.FASTIFY_PAYLOAD_ERRORS.includes(error.code)) {
+      errorCode = 'INVALID_PAYLOAD';
+      message = `${error.message}.`;
     }
 
     if (statusCode !== 500) {
@@ -522,21 +589,11 @@ export default class FastifyController<
   }
 
   /**
-   * Updates root request span attributes and status. The logic and conditions are a bit flakky here
-   * because Fastify triggers hooks in a different order depending on the case:
-   * - When an error happens in another hook like `preSerialization`, the `onError` hook is
-   * triggered first, then `onResponse`.
-   * - When an error happens in the endpoint handler, the `onError` hook is triggered first,
-   * then `onResponse`, then the handler ends.
-   * - When everything goes well, the `onResponse` hook is triggered first, then the handler ends.
+   * Ends root request span, updating its attributes and status.
    *
    * @param request Fastify request.
-   *
-   * @param response Fastify response.
-   *
-   * @param error Error to record, if any.
    */
-  protected updateSpan(request: OTELRequest): void {
+  protected endSpan(request: OTELRequest): void {
     const { telemetry } = request;
 
     if (telemetry !== undefined) {
@@ -549,8 +606,12 @@ export default class FastifyController<
         span.setStatus({ code: 2 });
       }
 
-      if (telemetry.errorType !== undefined) {
-        span.setAttribute('error.type', telemetry.errorType);
+      const { error } = telemetry;
+      if (error !== undefined) {
+        span.setAttribute('error.code', error.code);
+        Object.keys(error.details).forEach((key) => {
+          span.setAttribute(`error.details.${key}`, String(error.details[key]));
+        });
       }
 
       this.telemetry.measure('http.server.active_requests', -1, {
@@ -560,8 +621,8 @@ export default class FastifyController<
         'server.address': request.socket.localAddress,
       });
       this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
+        'error.code': error?.code,
         'url.scheme': request.protocol,
-        'error.type': telemetry.errorType,
         'http.request.method': request.method,
         'server.port': request.socket.localPort,
         'http.response.status_code': statusCode,
@@ -624,10 +685,6 @@ export default class FastifyController<
         const { telemetry } = request as OTELRequest;
         const spanContext = telemetry?.span.spanContext();
 
-        if (telemetry !== undefined) {
-          telemetry.endSpanInHandler = true;
-        }
-
         return await this.telemetry.span(`${this.constructor.name}.handler`, {
           attributes: {
             'code.class.name': this.constructor.name,
@@ -640,7 +697,7 @@ export default class FastifyController<
               traceFlags: spanContext.traceFlags,
             },
           } : {}),
-        }, async () => {
+        }, async (span) => {
           try {
             if (settings.body !== undefined && !validateBody(request.body)) {
               return await this.invalidPayload(response, validateBody.errors?.[0], 'body');
@@ -660,6 +717,12 @@ export default class FastifyController<
 
             return await settings.handler(request, response);
           } catch (error) {
+            // On catcheable errors, the `finally` block is executed after the `close` hook is
+            // triggered.
+            if (telemetry !== undefined) {
+              telemetry.endSpanInHandler = true;
+            }
+
             if (error instanceof jwt.TokenExpiredError) {
               return this.error(response, 401, 'TOKEN_EXPIRED', 'Access token has expired.');
             }
@@ -670,18 +733,22 @@ export default class FastifyController<
               const formattedError = this.KNOWN_ERRORS[error.code]?.(error);
               if (formattedError !== undefined) {
                 const [status, code, message] = formattedError;
-                return this.error(response, status, code, message);
+                return this.error(response, status, code, message, error.details);
               }
             }
+
+            // On uncaught errors, the `finally` block is executed before the `close` hook is
+            // triggered.
             if (telemetry !== undefined) {
-              telemetry.logError = false;
               telemetry.endSpanInHandler = false;
+              span.setStatus({ code: 'ERROR' });
             }
+
             throw error;
           }
         }).finally(() => {
           if (telemetry?.endSpanInHandler) {
-            this.updateSpan(request);
+            this.endSpan(request);
           }
         });
       },
@@ -719,9 +786,7 @@ export default class FastifyController<
       const span = request.telemetry?.span;
       if (span !== undefined) {
         span.setStatus({ code: 2 });
-        if (request.telemetry?.logError) {
-          this.telemetry.error(new Error('Request timed out.'), {}, span);
-        }
+        this.telemetry.error(new Error('Request timed out.'), {}, span);
       }
       done();
     });
@@ -743,29 +808,10 @@ export default class FastifyController<
       const otelTracer = this.telemetry.getOtelTracer();
 
       instance.addHook('onError', async (request: OTELRequest, _, error) => {
-        // TODO transform fastify errors into Perseid errors, pass it to the next hook
-        // If perseid erorr, then don't telemetry.error() it
-
-        // FST_ERR_CTP_INVALID_JSON_BODY
-        // FST_ERR_CTP_EMPTY_JSON_BODY
-        // FST_ERR_CTP_INVALID_CONTENT_LENGTH
-        // FST_ERR_CTP_EMPTY_TYPE
-        // FST_ERR_CTP_INVALID_TYPE
-        // FST_ERR_CTP_BODY_TOO_LARGE
-        // FST_ERR_CTP_INVALID_MEDIA_TYPE
-
-        if (error instanceof PerseidError) {
-          const formattedError = this.KNOWN_ERRORS[error.code]?.(error);
-          if (formattedError !== undefined) {
-            const [status, code, message] = formattedError;
-            return this.error(response, status, code, message);
-          }
-        }
-
-        const span = request.telemetry?.span;
-        if (span !== undefined) {
-          span.setStatus({ code: 2 });
-          if (request.telemetry?.logError) {
+        if (!this.FASTIFY_PAYLOAD_ERRORS.includes(error.code)) {
+          const span = request.telemetry?.span;
+          if (span !== undefined) {
+            span.setStatus({ code: 2 });
             this.telemetry.error(error, {}, span);
           }
         }
@@ -774,14 +820,17 @@ export default class FastifyController<
       instance.addHook('preSerialization', async (
         request: OTELRequest,
         response,
-        payload: { error?: { code?: string; } },
+        payload: { error?: PerseidError; },
       ): Promise<unknown> => {
-        if (response.statusCode >= 400) {
-          const { telemetry } = request;
-          if (telemetry !== undefined && typeof payload === 'object') {
-            telemetry.errorType = payload.error?.code;
+        const { telemetry } = request;
+
+        if (telemetry !== undefined) {
+          telemetry.statusCode = response.statusCode;
+          if (response.statusCode >= 400 && typeof payload === 'object') {
+            telemetry.error = payload.error;
           }
         }
+
         return payload;
       });
 
@@ -794,7 +843,6 @@ export default class FastifyController<
             'server.address': request.socket.localAddress,
           });
           request.telemetry = {
-            logError: true,
             statusCode: 200,
             endSpanInHandler: false,
             spanStartTime: this.telemetry.now(),
@@ -817,7 +865,7 @@ export default class FastifyController<
             const { telemetry } = request;
             if (telemetry !== undefined && !telemetry.endSpanInHandler) {
               telemetry.statusCode = response.statusCode;
-              this.updateSpan(request);
+              this.endSpan(request);
             }
           });
         }

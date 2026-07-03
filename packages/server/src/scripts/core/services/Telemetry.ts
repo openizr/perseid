@@ -115,11 +115,6 @@ export default class Telemetry {
   protected readonly loggedErrors: WeakSet<Error>;
 
   /**
-   * Used to prevent recording the same exception multiple times through nested spans.
-   */
-  protected readonly recordedExceptions: WeakSet<Error>;
-
-  /**
    * Stores span context in async stack.
    */
   protected readonly asyncStorage: AsyncLocalStorage<{ span?: opentelemetry.Span; }>;
@@ -187,35 +182,6 @@ export default class Telemetry {
   }
 
   /**
-   * Handles deduplicated error logging.
-   *
-   * @param error Error to handle.
-   *
-   * @param span Current context trace span.
-   *
-   * @param isFailure Whether the error is an actual failure. If not, the error will not be logged,
-   * and the span will not be marked as error.
-   */
-  protected handleError(
-    error: Error,
-    span: opentelemetry.Span,
-    isFailure: boolean,
-  ): void {
-    if (!isFailure) {
-      if (!this.recordedExceptions.has(error)) {
-        this.recordedExceptions.add(error);
-        this.warn(error.message);
-      }
-    } else {
-      if (!this.loggedErrors.has(error)) {
-        this.loggedErrors.add(error);
-        this.error(error);
-      }
-      span.setStatus({ code: opentelemetry.SpanStatusCode.ERROR });
-    }
-  }
-
-  /**
    * Class constructor.
    *
    * @param settings Telemetry settings.
@@ -243,7 +209,6 @@ export default class Telemetry {
     this.otelMetrics = new Map();
     this.loggedErrors = new WeakSet<Error>();
     this.asyncStorage = new AsyncLocalStorage();
-    this.recordedExceptions = new WeakSet<Error>();
     this.logLevel = this.LOG_LEVELS[settings?.logLevel ?? 'info'];
     const pinoSettings = {
       level: settings?.logLevel ?? 'info',
@@ -343,8 +308,7 @@ export default class Telemetry {
   }
 
   /**
-   * Creates a new trace span that will wrap `callback` execution. Automatically handles errors
-   * logging and span status setting in case of errors.
+   * Creates a new trace span that will wrap `callback` execution.
    *
    * @param name Span name.
    *
@@ -353,7 +317,6 @@ export default class Telemetry {
    * - `links` allows you to link this span to other external spans.
    * - `attributes` allows you to provide additional telemetry attributes to the span.
    * - `traceState` and `traceParent` allow you to inject this span into an existing trace.
-   * - `filterErrors` allows you to customize the span behaviour in case an error is thrown:
    * sometimes, throwing an error does not necessarily mean the span should be marked as error, nor
    * that an unexpected thing happened. If this function returns `true`, the error will be
    * considered as an actual operation failure. Defaults to a function that always returns `true`.
@@ -364,7 +327,6 @@ export default class Telemetry {
     name: string,
     options: Pick<opentelemetry.SpanOptions, 'attributes' | 'links'> & {
       traceState?: string;
-      filterErrors?: (error: Error) => boolean;
       kind?: 'CONSUMER' | 'PRODUCER' | 'SERVER' | 'CLIENT';
       traceParent?: Pick<opentelemetry.SpanContext, 'traceId' | 'spanId' | 'traceFlags'>;
     },
@@ -436,15 +398,7 @@ export default class Telemetry {
 
         return !(callbackResponse instanceof Promise)
           ? callbackResponse
-          : callbackResponse.catch((error: unknown) => {
-            const rawError = error as Error;
-            this.handleError(rawError, span, options.filterErrors?.(rawError) ?? true);
-            throw error;
-          }).finally(span.end.bind(span)) as T;
-      } catch (error) {
-        const rawError = error as Error;
-        this.handleError(rawError, span, options.filterErrors?.(rawError) ?? true);
-        throw error;
+          : callbackResponse.finally(span.end.bind(span)) as T;
       } finally {
         if (!(callbackResponse instanceof Promise)) {
           span.end();
@@ -455,8 +409,7 @@ export default class Telemetry {
 
   /**
    * Information that is diagnostically helpful to people more than just developers
-   * (IT, sysadmins, etc.).
-   * This should be the minimum logging level in development.
+   * (IT, sysadmins, etc.). This should be the minimum logging level in development.
    *
    * @param message Message to log.
    *

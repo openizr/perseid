@@ -1561,10 +1561,11 @@ export default class PostgreSQLDatabaseClient<
       ?? await this.connect(poolOrSession);
 
     const startTime = this.telemetry.now();
-    return this.span('query', {
+    return this.telemetry.span(`${this.constructor.name}.query`, {
       attributes: {
         ...defaultAttributes,
         'db.query.text': settings.query,
+        'code.class.name': this.constructor.name,
         ...telemetryAttributes,
       },
     }, async (span) => {
@@ -1585,6 +1586,7 @@ export default class PostgreSQLDatabaseClient<
           throw new DatabaseError('RESOURCE_REFERENCED', { path });
         }
         sqlErrorCode = postgreError.code;
+        span.setStatus({ code: 'ERROR' });
         throw error;
       } finally {
         span.setAttributes({
@@ -1613,30 +1615,37 @@ export default class PostgreSQLDatabaseClient<
    * @returns Result of the callback execution, if any.
    */
   public async withSession<T>(
-    callback: (session: string) => Promise<T>,
+    callback: (session: string, cancel: () => void) => Promise<T>,
     pool = 'default',
   ): Promise<T> {
+    let isCancelled = false;
     const newSessionId = String(new Id());
     const poolClient = await this.connect(pool);
     const connection = await poolClient.connect()
     this.sessions.set(newSessionId, connection);
-    try {
-      await this.query({
-        query: 'BEGIN;',
-        poolOrSession: newSessionId,
-      });
-      const response = await callback(newSessionId);
-      await this.query({
-        query: 'COMMIT;',
-        poolOrSession: newSessionId,
-      });
-      return response;
-    } catch (error) {
+    const cancel = async () => {
+      isCancelled = true;
       await this.query({
         query: 'ROLLBACK;',
         poolOrSession: newSessionId,
       });
       this.sessions.delete(newSessionId);
+    };
+    try {
+      await this.query({
+        query: 'BEGIN;',
+        poolOrSession: newSessionId,
+      });
+      const response = await callback(newSessionId, cancel);
+      if (!isCancelled) {
+        await this.query({
+          query: 'COMMIT;',
+          poolOrSession: newSessionId,
+        });
+      }
+      return response;
+    } catch (error) {
+      await cancel();
       throw error;
     } finally {
       connection.release();
