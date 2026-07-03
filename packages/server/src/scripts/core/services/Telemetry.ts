@@ -66,7 +66,7 @@ export interface TelemetrySettings {
   /**
    * Callback that gracefully shuts down OTEL instances.
    */
-  shutdownCallback?: () => Promise<void>;
+  onShutdown?: () => Promise<void>;
 
   /**
    * Whether to pretty-print logs. Defaults to `false`.
@@ -147,7 +147,7 @@ export default class Telemetry {
   /**
    * Callback to gracefully shutdown OTEL providers.
    */
-  protected readonly shutdownCallback: () => Promise<void>;
+  protected readonly onShutdown: () => Promise<void>;
 
   /**
    * List of registered OTEL metrics.
@@ -229,7 +229,7 @@ export default class Telemetry {
     this.otelLogger = settings?.otelLogger ?? null;
     this.otelTracer = settings?.otelTracer ?? null;
     this.pinoDestination = settings?.destination ?? undefined;
-    this.shutdownCallback = settings?.shutdownCallback ?? ((): Promise<void> => Promise.resolve());
+    this.onShutdown = settings?.onShutdown ?? ((): Promise<void> => Promise.resolve());
     this.pinoLogger = (settings?.destination !== undefined)
       ? pino(pinoSettings, settings.destination)
       : pino(pinoSettings);
@@ -720,10 +720,10 @@ export default class Telemetry {
   }
 
   /**
-   * Gracefully closes pino logger and OTEL providers, flushing remaining buffered logs.
+   * Gracefully shuts down pino logger and OTEL providers, flushing remaining buffered logs.
    */
-  public async close(): Promise<void> {
-    await this.shutdownCallback();
+  public async shutdown(): Promise<void> {
+    await this.onShutdown();
     this.pinoDestination?.flushSync();
     await new Promise((resolve) => { this.pinoLogger.flush(resolve); });
   }

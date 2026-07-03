@@ -1454,9 +1454,9 @@ export default class PostgreSQLDatabaseClient<
   }
 
   /**
-   * Closes the database client, releasing all remaining connections to the database server.
+   * Gracefully shuts down the database client, releasing all remaining connections to the server.
    */
-  public async close(): Promise<void> {
+  public async shutdown(): Promise<void> {
     await Promise.all([
       this.client.end(),
       ...Array.from(this.pools.values()).map((pool) => pool.end()),
