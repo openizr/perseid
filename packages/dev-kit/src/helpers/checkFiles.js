@@ -47,6 +47,9 @@ export default async function checkFiles(
     process.stdout.write('\x1Bc');
     log(colors.magenta(colors.bold('Checking files...')));
     const result = await eslint.lintFiles(srcPath);
+    if (fixMode) {
+      await ESLint.outputFixes(result);
+    }
     const formatter = await eslint.loadFormatter('stylish');
     const output = await formatter.format(result);
     const totalErrors = result.reduce((errors, file) => errors + file.errorCount, 0);

@@ -1,4 +1,3 @@
-/* eslint-disable */
 /**
  * Copyright (c) Openizr. All Rights Reserved.
  *
@@ -10,69 +9,593 @@
 import {
   Id,
   forEach,
+  type Ids,
   type Results,
+  isPlainObject,
   type IdSchema,
-  type DateSchema,
   type FieldSchema,
   type ObjectSchema,
   type UserDataModel,
-  type Ids,
 } from '@perseid/core';
-import pg from 'pg';
-import DatabaseClient, {
-  type FormattedQuery,
-  type StructuredPayload,
-  type DatabaseClientSettings,
-} from 'scripts/core/services/AbstractDatabaseClient';
+import {
+  Pool,
+  type PoolClient,
+  type PoolConfig,
+  type QueryResult,
+  type QueryResultRow,
+  type DatabaseError as PostgreSQLDatabaseError,
+} from 'pg';
 import type {
   Payload,
   SearchBody,
-  QueryOptions,
   SearchFilters,
   ViewQueryOptions,
   ListQueryOptions,
 } from 'scripts/core';
+import { createHash } from 'crypto';
 import type BaseModel from 'scripts/core/services/Model';
 import DatabaseError from 'scripts/core/errors/Database';
 import type Telemetry from 'scripts/core/services/Telemetry';
 import type CacheClient from 'scripts/core/services/CacheClient';
+import DatabaseClient, { type DatabaseClientSettings } from 'scripts/core/services/AbstractDatabaseClient';
+
+type WhereClause = Exclude<FilterableQuery['where'], undefined>[number];
+interface ConnectedPool { telemetryAttributes: Record<string, unknown>; pool: Pool; }
+interface Session { telemetryAttributes: Record<string, unknown>; client: PoolClient; }
+type FormattedValue = string | number | boolean | null | (string | number | boolean | null)[];
+type JoinQuery = SelectQuery & { join: NonNullable<SelectQuery['join']>; };
+type SubQuery = SelectQuery & { where: NonNullable<SelectQuery['where']>; };
+type SearchQuery = SelectQuery & {
+  join: NonNullable<SelectQuery['join']>;
+  where: NonNullable<SelectQuery['where']>;
+  orderBy: NonNullable<SelectQuery['orderBy']>;
+};
 
 /**
- * Current metrics for a given PostgreSQL connection pool.
+ * Base query definition.
  */
-export interface PoolMetrics {
+interface BaseQuery {
   /**
-   * Number of connections currently in use.
+   * Name of the table to query.
    */
-  used: number;
+  table: string;
 
   /**
-   * Number of connections currently idle.
+   * List of `WITH` sub-queries to include in the query.
    */
-  idle: number;
+  with?: {
+    /**
+     * Alias to use for the sub-query.
+     */
+    as: string;
 
-  /**
-   * Number of requests currently pending.
-   */
-  pending: number;
+    /**
+     * Sub-query to include in the query.
+     */
+    query: Query;
+  }[];
 }
+
+/**
+ * Base query definition with a `WHERE` clause.
+ */
+interface FilterableQuery extends BaseQuery {
+  /**
+   * List of conditions to apply to the query.
+   */
+  where?: (
+    /**
+     * Simple string condition.
+     */
+    string
+    /**
+     * EXISTS condition.
+     */
+    | { operator: 'EXISTS'; value: string | SelectQuery; }
+    /**
+     * NOT EXISTS condition.
+     */
+    | { operator: 'NOT EXISTS'; value: string | SelectQuery; }
+    /**
+     * IN condition.
+     */
+    | { operator: 'IN'; column: string; value: string | SelectQuery; }
+    /**
+     * NOT IN condition.
+     */
+    | { operator: 'NOT IN'; column: string; value: string | SelectQuery; }
+    /**
+     * OR condition.
+     */
+    | { operator: 'OR'; conditions: Exclude<SelectQuery['where'], undefined>; }
+    /**
+     * AND condition.
+     */
+    | { operator: 'AND'; conditions: Exclude<SelectQuery['where'], undefined>; }
+    /**
+     * Comparison condition.
+     */
+    | { column: string; value: unknown; operator: '~*' | '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'ILIKE' | 'IS' | 'IS NOT' | 'BETWEEN' | 'NOT BETWEEN'; }
+  )[];
+}
+
+/**
+ * Delete query definition.
+ */
+export interface DeleteQuery extends FilterableQuery {
+  /**
+   * Query type.
+   */
+  type: 'DELETE';
+
+  /**
+   * List of conditions to apply to the query.
+   */
+  where: NonNullable<FilterableQuery['where']>;
+}
+
+/**
+ * Insert query definition.
+ */
+export interface InsertQuery extends BaseQuery {
+  /**
+   * Query type.
+   */
+  type: 'INSERT';
+
+  /**
+   * List of fields to insert.
+   */
+  fields: string[];
+
+  /**
+   * List of values to insert.
+   */
+  values: unknown[][];
+}
+
+/**
+ * Update query definition.
+ */
+export interface UpdateQuery extends FilterableQuery {
+  /**
+   * Query type.
+   */
+  type: 'UPDATE';
+
+  /**
+   * Alias to use for the query.
+   */
+  as?: string;
+
+  /**
+   * List of fields to update.
+   */
+  fields: Record<string, unknown>;
+}
+
+/**
+ * Select query definition.
+ */
+export interface SelectQuery extends FilterableQuery {
+  /**
+   * Query type.
+   */
+  type: 'SELECT';
+
+  /**
+   * Alias to use for the query.
+   */
+  as?: string;
+
+  /**
+   * Limit the number of results to return.
+   */
+  limit?: number;
+
+  /**
+   * Offset the results to return.
+   */
+  offset?: number;
+
+  /**
+   * List of fields to select.
+   */
+  fields: string[];
+
+  /**
+   * List of joins to perform.
+   */
+  join?: {
+    /**
+     * Field to join on.
+     */
+    on: string;
+
+    /**
+     * Alias to use for the join.
+     */
+    as?: string;
+
+    /**
+     * Table to join.
+     */
+    table: string;
+
+    /**
+     * Type of join to perform.
+     */
+    type?: 'LEFT' | 'INNER';
+  }[];
+
+  /**
+   * List of fields to order the results by.
+   */
+  orderBy?: {
+    /**
+     * Field to order by.
+     */
+    field: string;
+
+    /**
+     * Direction to order the results by.
+     */
+    direction: 'ASC' | 'DESC';
+  }[];
+}
+
+/**
+ * Query definition.
+ */
+export type Query = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery;
+
+/**
+ * Fields projections tree: must follow the data model structure down to the leaf fields.
+ */
+export interface Projections {
+  [key: string]: Projections | 1;
+}
+
+// PostgreSQL has a hard limit of 65,535 parameters per query.
+const MAXIMUM_PARAMETERS_PER_QUERY = 65535;
+const CONSTRAINT_VIOLATION_CODES: Record<string, string> = {
+  23505: 'RESOURCE_EXISTS',
+  23503: 'RESOURCE_REFERENCED',
+};
+
+/**
+ * Formats `value` into a value suitable for SQL queries.
+ *
+ * @param value Value to format.
+ *
+ * @returns Formatted value.
+ */
+const formatValue = (value: unknown): FormattedValue => {
+  if (Array.isArray(value)) {
+    return value.map(formatValue) as FormattedValue;
+  }
+  if (value instanceof Id) {
+    return String(value);
+  }
+  return value as string;
+};
+
+/**
+ * Builds a query filter from `condition`, wrapping it in `subQuery` when the filtered field lives
+ * in another table.
+ *
+ * @param condition Condition to filter by.
+ *
+ * @param subQuery Sub query resolving the filtered field up to the root resource, if any.
+ *
+ * @returns Query filter.
+ */
+const buildQueryFilter = (condition: WhereClause, subQuery: SubQuery | undefined): WhereClause => {
+  if (subQuery === undefined) {
+    return condition;
+  }
+
+  return {
+    operator: 'EXISTS',
+    value: { ...subQuery, fields: ['1'], where: [condition, ...subQuery.where] },
+  };
+};
+
+/**
+ * Builds the filter matching `column` against `value`, handling special cases.
+ *
+ * @param column SQL column to filter on.
+ *
+ * @param value Value, or list of values, the column must match.
+ *
+ * @returns Query filter.
+ */
+const buildValueFilter = (column: string, value: SearchFilters[string]): WhereClause => {
+  if (value === null) {
+    return `${column} IS NULL`;
+  }
+
+  if (!Array.isArray(value)) {
+    return { column, operator: '=', value };
+  }
+
+  const conditions: WhereClause[] = [];
+  const definedValues = value.filter((item) => item !== null);
+
+  if (definedValues.length > 0) {
+    conditions.push({ column, operator: '=', value: definedValues });
+  }
+
+  if (definedValues.length < value.length) {
+    conditions.push(`${column} IS NULL`);
+  }
+
+  // An empty list of values matches nothing, which `FALSE`.
+  if (conditions.length === 0) {
+    return 'FALSE';
+  }
+
+  return (conditions.length === 1) ? conditions[0] : { operator: 'OR', conditions };
+};
+
+/**
+ * Builds the full-text search filter matching `field` against all `tokens`. Tokens are matched as
+ * case-insensitive substrings, which, unlike a regular expression, can be accelerated by a
+ * trigram (`pg_trgm`) GIN index.
+ *
+ * @param tokens Search tokens that must all be present in `field`.
+ *
+ * @param field Field to match.
+ *
+ * @returns Search filter.
+ */
+const buildSearchFilter = (tokens: string[], field: string): WhereClause => {
+  const conditions: WhereClause[] = tokens.map((token) => ({
+    column: field,
+    operator: 'ILIKE',
+    value: `%${token.replace(/[%_\\]/g, (match) => `\\${match}`)}%`,
+  }));
+
+  return (conditions.length === 1) ? conditions[0] : { operator: 'AND', conditions };
+};
+
+/**
+ * Registers `value` as a new bound parameter in `values`, and returns its SQL placeholder.
+ *
+ * @param value Value to bind to the query.
+ *
+ * @param values Bound parameters list to register `value` in.
+ *
+ * @param operator Comparison operator the placeholder is used with, if any.
+ *
+ * @returns SQL placeholder for `value`.
+ *
+ * @throws If `value` is an array and `operator` does not support array comparison.
+ */
+const getPlaceholder = (
+  value: unknown,
+  values: unknown[],
+  operator?: Extract<WhereClause, { column: string; }>['operator'],
+): string => {
+  values.push(formatValue(value));
+  const placeholder = `$${String(values.length)}`;
+
+  if (!Array.isArray(value) || operator === undefined) {
+    return placeholder;
+  }
+
+  const arrayOperators: Record<string, string> = { '=': 'ANY', '!=': 'ALL' };
+  const quantifier = arrayOperators[operator];
+
+  if (quantifier === undefined) {
+    throw new DatabaseError('UNSUPPORTED_ARRAY_OPERATOR', { operator });
+  }
+
+  return `${quantifier}(${placeholder})`;
+};
+
+/**
+ * Compiles the `where` clause `condition` into SQL, registering its values in `values`.
+ *
+ * @param condition Condition to compile.
+ *
+ * @param values Bound parameters list to register condition values in.
+ *
+ * @param tabs Indentation to prefix the compiled clause with.
+ *
+ * @returns Compiled SQL clause.
+ */
+function compileWhereClause(condition: WhereClause, values: unknown[], tabs: string): string {
+  if (typeof condition === 'string') {
+    return condition;
+  }
+
+  if (condition.operator === 'AND' || condition.operator === 'OR') {
+    const conditions = condition.conditions.map((subCondition) => (
+      compileWhereClause(subCondition, values, `${tabs}  `)
+    ));
+
+    // A single condition needs no grouping, and wrapping it would only add noise to the query.
+    if (conditions.length === 1) {
+      return conditions[0];
+    }
+
+    return `(\n${tabs}    ${conditions.join(`\n${tabs}    ${condition.operator} `)}\n${tabs}  )`;
+  }
+
+  if (condition.operator === 'EXISTS' || condition.operator === 'NOT EXISTS') {
+    const subQuery = isPlainObject(condition.value)
+      ? compileQuery(condition.value as Query, values, `${tabs}    `)
+      : condition.value as string;
+    return `${condition.operator} (\n${subQuery}\n${tabs}  )`;
+  }
+
+  if (condition.operator === 'IN' || condition.operator === 'NOT IN') {
+    const subQuery = isPlainObject(condition.value)
+      ? `(\n${compileQuery(condition.value as Query, values, `${tabs}    `)}\n${tabs}  )`
+      : `(${condition.value as string})`;
+    return `${condition.column} ${condition.operator} ${subQuery}`;
+  }
+
+  const value = isPlainObject(condition.value)
+    ? `(\n${compileQuery(condition.value as unknown as Query, values, `${tabs}    `)}\n${tabs}  )`
+    : getPlaceholder(condition.value, values, condition.operator);
+  return `${condition.column} ${condition.operator} ${value}`;
+};
+
+/**
+ * Compiles the `WITH` clauses of `query` into SQL, registering their values in `values`.
+ *
+ * @param query Query to compile the `WITH` clauses of.
+ *
+ * @param values Bound parameters list to register clauses values in.
+ *
+ * @param tabs Indentation to prefix the compiled clauses with.
+ *
+ * @returns Compiled SQL clause, an empty string if `query` contains no `WITH` clause.
+ */
+const compileWithClauses = (query: Query, values: unknown[], tabs: string): string => {
+  const withQueries = query.with?.map((subQuery) => (
+    `"${subQuery.as}" AS (\n${compileQuery(subQuery.query, values, `${tabs}    `)}\n${tabs}  )`
+  ));
+
+  if (withQueries === undefined || withQueries.length === 0) {
+    return '';
+  }
+
+  return `WITH\n${tabs}  ${withQueries.join(`,\n${tabs}  `)}\n`;
+};
+
+/**
+ * Compiles the `where` clauses of `query` into SQL, registering their values in `values`.
+ *
+ * @param query Query to compile the `where` clauses of.
+ *
+ * @param values Bound parameters list to register clauses values in.
+ *
+ * @param tabs Indentation to prefix the compiled clauses with.
+ *
+ * @returns Compiled SQL clause, an empty string if `query` contains no `where` clause.
+ */
+const compileWhereClauses = (query: FilterableQuery, values: unknown[], tabs: string): string => {
+  if (query.where === undefined || query.where.length === 0) {
+    return '';
+  }
+
+  const conditions = query.where.map((condition) => compileWhereClause(condition, values, tabs));
+  return `\n${tabs}WHERE\n${tabs}  ${conditions.join(`\n${tabs}  AND `)}`;
+};
+
+/**
+ * Compiles the formatted `query` definition into a SQL query, registering its values in `values`.
+ * Statements are built as a list of clauses, joined at the very end, so that indentation stays a
+ * single concern of this function instead of being threaded through every branch.
+ *
+ * @param query Formatted query definition to compile.
+ *
+ * @param values Bound parameters list to register query values in.
+ *
+ * @param tabs Indentation to prefix the compiled query with.
+ *
+ * @returns Compiled SQL query.
+ */
+function compileQuery(query: Query, values: unknown[], tabs = ''): string {
+  const clauses: string[] = [];
+  const withClause = compileWithClauses(query, values, tabs);
+  const alias = (typeof (query as SelectQuery).as === 'string')
+    ? ` AS "${String((query as SelectQuery).as)}"`
+    : '';
+
+  if (query.type === 'SELECT') {
+    // Duplicate joins are dropped, as the same table can be reached by several field paths.
+    const existingJoins = new Set<string>();
+    const joins: string[] = [];
+    query.join?.forEach((join) => {
+      const joinKey = join.as ?? join.table;
+      if (!existingJoins.has(joinKey)) {
+        existingJoins.add(joinKey);
+        const joinAlias = (typeof join.as === 'string') ? ` AS "${join.as}"` : '';
+        const joinType = (join.type === 'INNER') ? 'INNER' : 'LEFT';
+        joins.push(`${joinType} JOIN\n${tabs}  "${join.table}"${joinAlias}\n${tabs}ON\n${tabs}  ${join.on}`);
+      }
+    });
+
+    clauses.push(`SELECT\n${tabs}  ${query.fields.join(`,\n${tabs}  `)}`);
+    clauses.push(`FROM\n${tabs}  "${query.table}"${alias}`);
+    joins.forEach((join) => clauses.push(join));
+
+    let statement = `${tabs}${withClause}${clauses.join(`\n${tabs}`)}`;
+    statement += compileWhereClauses(query, values, tabs);
+
+    if (query.orderBy !== undefined && query.orderBy.length > 0) {
+      const orderBy = query.orderBy.map(({ field, direction }) => `${field} ${direction}`);
+      statement += `\n${tabs}ORDER BY\n${tabs}  ${orderBy.join(`,\n${tabs}  `)}`;
+    }
+
+    if (query.limit !== undefined) {
+      statement += `\n${tabs}LIMIT ${getPlaceholder(query.limit, values)}`;
+    }
+
+    if (query.offset !== undefined) {
+      statement += `\n${tabs}OFFSET ${getPlaceholder(query.offset, values)}`;
+    }
+
+    return statement;
+  }
+
+  if (query.type === 'INSERT') {
+    const fields = query.fields.map((field) => `"${field}"`);
+    const rows = query.values.map((rowValues) => {
+      const placeholders = rowValues.map((value) => getPlaceholder(value, values));
+      return `${tabs}  (\n${tabs}    ${placeholders.join(`,\n${tabs}    `)}\n${tabs}  )`;
+    });
+    clauses.push(`INSERT INTO\n${tabs}  "${query.table}" (\n${tabs}    ${fields.join(`,\n${tabs}    `)}\n${tabs}  )`);
+    clauses.push(`VALUES\n${rows.join(',\n')}`);
+    return `${tabs}${withClause}${clauses.join(`\n${tabs}`)}`;
+  }
+
+  if (query.type === 'UPDATE') {
+    const assignments = Object.keys(query.fields).map((field) => (
+      `"${field}" = ${getPlaceholder(query.fields[field], values)}`
+    ));
+    clauses.push(`UPDATE\n${tabs}  "${query.table}"${alias}`);
+    clauses.push(`SET\n${tabs}  ${assignments.join(`,\n${tabs}  `)}`);
+    return `${tabs}${withClause}${clauses.join(`\n${tabs}`)}${compileWhereClauses(query, values, tabs)}`;
+  }
+
+  clauses.push(`DELETE FROM\n${tabs}  "${query.table}"`);
+  return `${tabs}${withClause}${clauses.join(`\n${tabs}`)}${compileWhereClauses(query, values, tabs)}`;
+};
 
 /**
  * PostgreSQL database client settings.
  */
 export interface PostgreSQLDatabaseClientSettings extends DatabaseClientSettings {
   /**
-   * Maximum time to wait for a query to complete.
+   * Whether to hash field paths in SQL queries. Turn this off for debugging purposes.
+   * Defaults to `true`.
    */
-  queryTimeout: number;
+  hashAliases: boolean;
 
   /**
-   * SSL configuration to use for database connection.
+   * Connection settings for each available connection pool. You can register as many pools as you
+   * need and switch between them in queries, each having its own lifecycle and connection settings.
+   * This can be especially useful to handle multi-tenancy.
    */
-  ssl: {
-    ca?: string;
-    rejectUnauthorized?: boolean;
-  } | false;
+  pools: Record<string, DatabaseClientSettings['pools'][string] & Omit<PoolConfig, 'user' | 'password' | 'port'> & {
+    /**
+     * Maximum time to wait for a query to complete.
+     */
+    queryTimeout: number;
+
+    /**
+     * SSL configuration to use for database connection.
+     */
+    ssl: {
+      ca?: string;
+      rejectUnauthorized?: boolean;
+    } | false;
+  }>;
 }
 
 /**
@@ -99,66 +622,237 @@ export default class PostgreSQLDatabaseClient<
   /**
    * Data model types <> SQL types mapping, for tables creation.
    */
-  protected readonly SQL_TYPES_MAPPING: Record<string, string> = {
+  private readonly SQL_TYPES_MAPPING: Record<string, string> = {
     null: 'BOOLEAN',
-    id: (Id.FORMAT === 'SNOWFLAKE') ? 'CHAR(24)' : 'UUID',
+    id: (Id.FORMAT === 'SNOWFLAKE') ? 'VARCHAR(24)' : 'UUID',
     integer: 'INT',
     boolean: 'BOOLEAN',
     float: 'FLOAT8',
     binary: 'BYTEA',
-    date: 'TIMESTAMP',
+    date: 'TIMESTAMPTZ',
     array: 'BOOLEAN',
     object: 'BOOLEAN',
   };
 
   /**
-   * SQL sorting keywords.
+   * SQL aliases, indexed by field path.
    */
-  protected readonly SQL_SORT_MAPPING: Record<1 | -1, string> = {
-    1: 'ASC',
-    '-1': 'DESC',
-  };
+  private fieldSqlAliases = new Map<string, string>();
 
   /**
-   * PostgreSQL client instance.
+   * Whether to hash fields aliases in SQL queries. Turn this off for debugging purposes.
+   * Defaults to `true`.
    */
-  protected client: pg.Pool;
-
-  /**
-   * Active sessions, indexed by session ID. A session represents a running SQL transaction.
-   */
-  protected sessions: Map<string, pg.PoolClient>;
-
-  /**
-   * Active connection pools, used to handle multi-tenancy. Default pool is referenced with the
-   * key `default`.
-   */
-  protected pools: Map<string, pg.Pool>;
-
-  /**
-   * Last connections metrics values by pool, used to update telemetry metrics.
-   */
-  protected lastMetrics: Map<string, PoolMetrics>;
-
-  /**
-   * PostgreSQL database connection settings. Necessary to reset pool after dropping database.
-   */
-  protected databaseSettings: PostgreSQLDatabaseClientSettings;
-
-  /**
-   * Used to format ArrayBuffers into strings.
-   */
-  protected textDecoder = new TextDecoder('utf-8');
-
-  /**
-   * Used to format strings into ArrayBuffers.
-   */
-  protected textEncoder = new TextEncoder();
+  private hashAliases: boolean;
 
   /**
    * Allows to provide a custom SQL table name for specific resources and sub-resources.
    */
   protected tablesMapping: Record<string, string>;
+
+  /**
+   * Connection settings for each available pool. You can register as many pools as you need and
+   * switch between them in queries, each having its own lifecycle and connection settings. This can
+   * be especially useful to handle multi-tenancy.
+   */
+  protected poolSettings: Map<string, PostgreSQLDatabaseClientSettings['pools'][string]>;
+
+  /**
+   * Active connection pools. Default pool is referenced with the key `default`.
+   */
+  protected pools: Map<string, ConnectedPool>;
+
+  /**
+   * Active sessions, indexed by session ID. A session represents a running SQL transaction.
+   */
+  protected sessions: Map<string, Session>;
+
+  /**
+   * Returns the SQL table name to use for `table`.
+   *
+   * @param table Table to get the SQL name for.
+   *
+   * @returns SQL table name for `table`.
+   */
+  private getTableName(table: string): string {
+    return this.tablesMapping[table] ?? table;
+  }
+
+  /**
+   * Returns a deterministic SQL alias to use for `path`.
+   *
+   * @param path Field path to get the SQL alias for.
+   *
+   * @returns SQL alias for `path`.
+   */
+  private getFieldSqlAlias(path: string): string {
+    const existingAlias = this.fieldSqlAliases.get(path);
+
+    if (existingAlias !== undefined) {
+      return existingAlias;
+    }
+
+    const newAlias = (this.hashAliases || path.length > 63)
+      ? `_${createHash('sha256').update(path).digest('hex').slice(0, 18)}`
+      : path;
+
+    this.fieldSqlAliases.set(path, newAlias);
+    return newAlias;
+  }
+
+  /**
+   * Builds the filter excluding soft-deleted rows of `resource`, if it is soft-deletable.
+   *
+   * @param resource Resource to build the deletion filter for.
+   *
+   * @param alias SQL alias of the table to filter.
+   *
+   * @param excludeDeletedResources Whether soft-deleted resources must be excluded.
+   *
+   * @returns Deletion filter, an empty list if `resource` is not soft-deletable.
+   */
+  private buildDeletionFilter(
+    resource: string,
+    alias: string,
+    excludeDeletedResources?: boolean,
+  ): string[] {
+    const { enableDeletion } = this.model.get(resource as keyof DataModel & string).schema;
+
+    if (excludeDeletedResources === false || enableDeletion !== false) {
+      return [];
+    }
+
+    return [`"${alias}"."_isDeleted" = FALSE`];
+  }
+
+  /**
+   * Builds a select formatted query.
+   *
+   * @param table Table to build the select query for.
+   *
+   * @param rootPath Root path of the select query.
+   *
+   * @returns Select query.
+   */
+  private buildQuery(table: string, rootPath: string): JoinQuery {
+    const tableName = this.getTableName(table);
+    const tableAlias = this.getFieldSqlAlias(table);
+    return ({
+      join: [],
+      type: 'SELECT',
+      as: tableAlias,
+      table: tableName,
+      // Array items must be returned in the order they had in the payload (= UUIDs values).
+      orderBy: [{ field: `"${tableAlias}"."_id"`, direction: 'ASC' }],
+      fields: [
+        `"${tableAlias}"."_id" AS "${this.getFieldSqlAlias(`${rootPath}__itemId`)}"`,
+        `"${tableAlias}"."_parentId" AS "${this.getFieldSqlAlias(`${rootPath}__parentId`)}"`,
+        `"${tableAlias}"."value" AS "${this.getFieldSqlAlias(rootPath)}"`,
+      ],
+    });
+  }
+
+  /**
+   * Builds a join formatted query.
+   *
+   * @param alias Alias of the table to join.
+   *
+   * @param table Table to join.
+   *
+   * @param type Type of join to perform.
+   *
+   * @param onField Field to join on.
+   *
+   * @param conditions Additional conditions to add to the join. Defaults to `[]`.
+   *
+   * @returns Join query.
+   */
+  private buildQueryJoin(
+    alias: string,
+    table: string,
+    type: 'INNER' | 'LEFT',
+    onField: string,
+    conditions: string[] = [],
+  ): Exclude<SelectQuery['join'], undefined>[number] {
+    return {
+      type,
+      as: alias,
+      table: this.getTableName(table),
+      on: [`"${alias}"."_id" = ${onField}`, ...conditions].join(' AND '),
+    };
+  }
+
+  /**
+   * Builds an order by formatted query.
+   *
+   * @param field Field to order by.
+   *
+   * @param direction Direction to order by.
+   *
+   * @returns Order by query.
+   */
+  private buildOrderBy(
+    field: string,
+    direction: 'ASC' | 'DESC',
+  ): NonNullable<SelectQuery['orderBy']>[number] {
+    return { field, direction };
+  }
+
+  /**
+   * Builds a sub query.
+   *
+   * @param table Table to build the sub query for.
+   *
+   * @param newAlias Alias of the new sub query.
+   *
+   * @param parentAlias Alias of the parent sub query.
+   *
+   * @param parentField Field of the parent sub query.
+   *
+   * @param value Value to filter by.
+   *
+   * @param whereField Field to filter by.
+   *
+   * @param conditions Additional conditions to add to the sub query. Defaults to `[]`.
+   *
+   * @returns Sub query.
+   */
+  private buildSubQuery(
+    table: string,
+    newAlias: string,
+    parentAlias: string,
+    parentField: string,
+    value: string | SubQuery,
+    whereField: string,
+    conditions: string[] = [],
+  ): SubQuery {
+    let finalValue: string | SelectQuery = value;
+    let finalOperator: 'IN' | '=' = 'IN';
+    if (typeof value !== 'string') {
+      const condition = value.where[0] as { operator: 'IN' | '='; column: string; value: string; };
+      const redundantColumn = `"${parentAlias}"."${parentField}"`;
+      if (value.where.length === 1 && condition.column === redundantColumn) {
+        finalValue = condition.value;
+        finalOperator = condition.operator;
+      } else {
+        finalValue = { ...value, fields: [redundantColumn] };
+      }
+    }
+    return {
+      as: newAlias,
+      table: this.getTableName(table),
+      fields: [],
+      type: 'SELECT',
+      where: [
+        {
+          column: `"${newAlias}"."${whereField}"`,
+          operator: finalOperator,
+          value: finalValue,
+        },
+        ...conditions,
+      ],
+    };
+  }
 
   /**
    * Generates metadata for `resource`, including fields, indexes, and constraints, necessary to
@@ -242,12 +936,14 @@ export default class PostgreSQLDatabaseClient<
         if (type === 'string') {
           const { isIndexed, isUnique } = currentSchema;
           const { maxLength, enum: enumerations } = currentSchema;
-          let max = (enumerations !== undefined) ? enumerations.reduce((m, value) => (
+          const max = (enumerations !== undefined) ? enumerations.reduce((m, value) => (
             Math.max(m, value.length)
           ), 0) : maxLength;
-          max = (!!isIndexed || !!isUnique) ? Math.min(max, 255) : max;
-          const newType = (max < 256) ? `VARCHAR(${String(max)})` : 'TEXT';
-          fields[scopedPath] = { type: newType, isRequired };
+          // PostgreSQL has a hard limit of 2000 characters for indexed fields.
+          if ((!!isIndexed || !!isUnique) && max > 2000) {
+            throw new DatabaseError('INDEXED_FIELD_VALUE_TOO_LONG', { path: `${resource}.${fullPath}` });
+          }
+          fields[scopedPath] = { type: `VARCHAR(${String(max)})`, isRequired };
         } else if (type === 'id' && currentSchema.relation !== undefined) {
           const { relation } = currentSchema;
           this.resourcesMetadata[table].constraints.push({ path: scopedPath, relation });
@@ -266,22 +962,82 @@ export default class PostgreSQLDatabaseClient<
     generateMetadata(resource, resourceSchema as ObjectSchema<DataModel>, { scoped: [], full: [] });
   }
 
-  // TODO build formatted queries as pipelines, no need for a query builder as long as we can
-  // customize filters, fields, etc.
   /**
-   * Returns DBMS-specific formatted query metadata and projections from `fields`.
+   * Connects to the database server.
    *
-   * @param resource Type of resource to query.
+   * @param pool Name of the pool to connect to. Defaults to `default`.
    *
-   * @param fields List of fields to fetch from database.
+   * @returns Connection pool instance.
    *
-   * @param maximumDepth Maximum allowed level of resources depth.
+   * @throws If the specified pool does not have any connection settings registered.
+   */
+  protected async connect(pool = 'default'): Promise<ConnectedPool> {
+    const poolClient = this.pools.get(pool);
+
+    if (poolClient !== undefined) {
+      return poolClient;
+    }
+
+    const poolSettings = this.poolSettings.get(pool);
+    if (poolSettings === undefined) {
+      throw new DatabaseError('POOL_NOT_FOUND', { pool });
+    }
+
+    const telemetryAttributes = {
+      'db.system.name': 'postgresql',
+      'server.port': poolSettings.port,
+      'server.address': poolSettings.host,
+      'db.namespace': poolSettings.database,
+    };
+    this.telemetry.info('Connecting to database...', telemetryAttributes);
+
+    const newPoolClient = new Pool({
+      max: poolSettings.connectionLimit,
+      lock_timeout: poolSettings.queryTimeout,
+      query_timeout: poolSettings.queryTimeout,
+      statement_timeout: poolSettings.queryTimeout,
+      connectionTimeoutMillis: poolSettings.connectTimeout,
+      ...poolSettings,
+      port: poolSettings.port ?? undefined,
+      user: poolSettings.user ?? undefined,
+      password: poolSettings.password ?? undefined,
+      // Allows reliable parsing of error details.
+      options: `${poolSettings.options ?? ''} -c lc_messages=C`,
+    });
+
+    // Prevents uncaught exceptions when errors happen on idle connections.
+    newPoolClient.on('error', (error) => {
+      this.telemetry.error(error, {
+        'db.system.name': 'postgresql',
+        'db.client.connection.pool.name': pool,
+      });
+    });
+
+    this.pools.set(pool, { pool: newPoolClient, telemetryAttributes });
+
+    return { pool: newPoolClient, telemetryAttributes };
+  }
+
+  /**
+   * Generates a list of formatted queries and projections for `resource` and `type` of operation.
    *
-   * @param searchBody Optional search body to apply to the request. Defaults to `null`.
+   * @param resource Type of resource to plan queries for.
    *
-   * @param sortBy Optional sorting to apply to the request. Defaults to `{}`.
+   * @param type Type of operation to plan queries for.
    *
-   * @returns Formatted query, along with projections.
+   * @param id ID of the resource, if any.
+   *
+   * @param payload Resource or search payload, if any.
+   *
+   * @param options Query options.
+   *
+   * @returns List of formatted queries and projections.
+   *
+   * @throws If any payload field does meet its schema definition.
+   *
+   * @throws If payload field does not match data model.
+   *
+   * @throws If a required field is not provided in payload.
    *
    * @throws If field path does not exist in data model.
    *
@@ -293,571 +1049,713 @@ export default class PostgreSQLDatabaseClient<
    *
    * @throws If maximum level of resources depth is exceeded.
    */
-  protected parseFields<Resource extends keyof DataModel>(
-    resource: Resource,
-    fields: Set<string>,
-    maximumDepth: number,
-    searchBody: SearchBody | null = null,
-    sortBy: Partial<Record<string, 1 | -1>> = {},
-  ): { projections: unknown; formattedQuery: FormattedQuery; } {
-    let index = 0;
-    const projections = new Map([['_id', '_id']]);
-    const formattedQuery: FormattedQuery = {
-      structure: String(resource),
-      sort: null,
-      match: null,
-      lookups: {},
-      localField: null,
-      foreignField: null,
-      fields: { _id: '_id' },
-    };
-    const sortByFields = Object.keys(sortBy);
-    const processedQueryFields = new Set();
-    const processedFiltersFields = new Set();
-    const queryFields = [...(searchBody?.query?.on ?? [])];
-    const filterFields = Object.keys(searchBody?.filters ?? {});
-    const model = this.model.get(resource);
-    const allFields = [...fields].concat(sortByFields).concat(filterFields).concat(queryFields);
-    const formattedMatch: {
-      query: Record<string, unknown>[];
-      filters: Record<string, unknown>[];
-    } = { query: [], filters: [] };
-    const queryRegExp = new RegExp((searchBody?.query?.text ?? '').split(this.SPLITTING_TOKENS).map((t) => (
-      `(?=.*${t.replace(/[[\]/()]/ig, (match) => `\\${match}`)})`
-    )).join('|'), 'i').source;
+  protected planQueries<Resource extends keyof DataModel>(
+    resource: Resource & string,
+    type: 'CREATE',
+    id: null,
+    payload: DataModel[Resource],
+    options: ViewQueryOptions,
+  ): { projections: Projections; queries: Record<string, InsertQuery>; };
 
-    const getMappedField = (path: string): string => {
-      if (searchBody !== null) {
-        return path;
-      }
-      const existingMappedPath = projections.get(path);
-      if (existingMappedPath === undefined) {
-        const mappedPath = `${String(resource)}_${String(index)}`;
-        index += 1;
-        projections.set(path, mappedPath);
-        return mappedPath;
-      }
-      return existingMappedPath;
+  protected planQueries<Resource extends keyof DataModel>(
+    resource: Resource & string,
+    type: 'UPDATE',
+    id: Id,
+    payload: Payload<DataModel[Resource]>,
+    options: ViewQueryOptions,
+  ): { projections: Projections; queries: Record<string, InsertQuery | UpdateQuery | DeleteQuery> };
+
+  protected planQueries(
+    resource: keyof DataModel & string,
+    type: 'DELETE',
+    id: Id,
+    payload: null,
+    options: ViewQueryOptions,
+  ): { projections: Projections; queries: Record<string, DeleteQuery>; };
+
+  protected planQueries(
+    resource: keyof DataModel & string,
+    type: 'VIEW',
+    id: Id,
+    payload: null,
+    options: ViewQueryOptions,
+  ): { projections: Projections; queries: Record<string, SelectQuery>; };
+
+  protected planQueries(
+    resource: keyof DataModel & string,
+    type: 'LIST',
+    id: null,
+    payload: SearchBody | null,
+    options: ListQueryOptions,
+  ): { projections: Projections; queries: Record<string, SelectQuery>; };
+
+  protected planQueries<Resource extends keyof DataModel>(
+    resource: Resource & string,
+    type: 'VIEW' | 'LIST' | 'CREATE' | 'UPDATE' | 'DELETE',
+    id: Id | null,
+    payload: SearchBody | DataModel[Resource] | Payload<DataModel[Resource]> | null,
+    options: ViewQueryOptions | ListQueryOptions,
+  ): { projections: Projections; queries: Record<string, Query>; } {
+    const model = this.model.get(resource);
+    const finalProjections: Projections = { _id: 1 };
+    const deletionFilter = this.buildDeletionFilter(
+      resource,
+      this.getFieldSqlAlias(this.getTableName(resource)),
+      options.excludeDeletedResources,
+    );
+    const idFilter: NonNullable<SelectQuery['where']> = (id === null) ? [] : [{
+      column: `"${this.getFieldSqlAlias(this.getTableName(resource))}"."_id"`,
+      operator: '=',
+      value: id,
+    }];
+
+    if (type === 'DELETE') {
+      return {
+        projections: finalProjections,
+        queries: {
+          [resource]: {
+            table: this.getTableName(resource),
+            type: 'DELETE',
+            where: idFilter.concat(deletionFilter),
+          },
+        },
+      };
+    }
+
+    if (type === 'CREATE' || type === 'UPDATE') {
+      let deleteIndex = 0;
+      const resourceId = id ?? (payload as Ids)._id;
+      const resourceRow: Record<string, unknown> = {};
+      // Tables of the arrays directly owned by the resource row. Deleting their rows is enough to
+      // also clear the tables of the arrays they contain, as foreign keys make deletions cascade.
+      const rootArrayTables = new Set<string>();
+      const rowsPerTable: Record<string, Record<string, unknown>[]> = { [resource]: [resourceRow] };
+
+      // Fills `row` with the flattened columns of `value`. `path` is the full path of `value` from
+      // the root resource, used for array tables naming and errors, `column` is its column name in
+      // `row`, reset at each array table crossing, and `parentId` is the id of the row owning it.
+      const structureRow = (
+        value: unknown,
+        schema: FieldSchema<DataModel> | undefined,
+        row: Record<string, unknown>,
+        path: string,
+        pathInResource: string,
+        column: string,
+        parentId: Id,
+        skipValidation: boolean,
+        requireFullPayload: boolean,
+      ): void => {
+        if (schema === undefined) {
+          throw new DatabaseError('UNKNOWN_FIELD', { path });
+        }
+
+        const { type: fieldType } = schema;
+        if (!skipValidation) {
+          this.VALIDATORS[fieldType](path, value, schema);
+        }
+
+        // Array values live in their own table: the owner row only keeps a marker telling whether
+        // the array is null, and each item becomes a row in that table, linked to its owner by
+        // "_parentId" and to the root resource by "_resourceId".
+        if (fieldType === 'array') {
+          const table = `_${resource}_${path.replace(/\./g, '_')}`;
+          // Registered even when the array is null or empty, as its previous rows must still be
+          // deleted on update. Arrays owned by the resource row are the first level ones.
+          rowsPerTable[table] ??= [];
+          if (row === resourceRow) {
+            rootArrayTables.add(table);
+          }
+          if (value === null) {
+            Object.assign(row, { [column]: null });
+          } else {
+            Object.assign(row, { [column]: true });
+            const itemPath = `${path}.value`;
+            (value as unknown[]).forEach((item) => {
+              const itemId = new Id();
+              const itemRow: Record<string, unknown> = {
+                _id: itemId,
+                _parentId: parentId,
+              };
+              rowsPerTable[table].push(itemRow);
+              structureRow(
+                item,
+                schema.fields,
+                itemRow,
+                itemPath,
+                pathInResource,
+                'value',
+                itemId,
+                skipValidation,
+                true,
+              );
+            });
+          }
+        }
+
+        // Nested objects are flattened into their owner row, each leaf becoming its own column
+        // (e.g. "value__refreshToken"), plus a marker column for the object itself. A `null`
+        // object nullifies all its sub-columns, and its sub-payloads don't need validation.
+        if (fieldType === 'object') {
+          const isNull = (value === null);
+          const { fields, isRequired } = schema;
+          const pathPrefix = (path === '') ? '' : `${path}.`;
+          const columnPrefix = (column === '') ? '' : `${column}_`;
+          const pathInResourcePrefix = (pathInResource === '') ? '' : `${pathInResource}.`;
+          const missingFields = new Set(Object.keys(fields));
+          const requireAllFields = type === 'CREATE' || requireFullPayload || !isRequired;
+          if (column !== '') {
+            Object.assign(row, { [column]: isNull ? null : true });
+          }
+          const subFields = isNull
+            ? missingFields
+            : Object.keys(value as Record<string, unknown>);
+          subFields.forEach((fieldName) => {
+            missingFields.delete(fieldName);
+            structureRow(
+              isNull ? null : (value as Record<string, unknown>)[fieldName],
+              fields[fieldName],
+              row,
+              pathPrefix + fieldName,
+              pathInResourcePrefix + fieldName,
+              columnPrefix + fieldName,
+              parentId,
+              isNull || skipValidation,
+              requireAllFields,
+            );
+          });
+          if (requireAllFields && missingFields.size > 0) {
+            const fieldPath = pathInResourcePrefix + [...missingFields][0];
+            throw new DatabaseError('MISSING_FIELD', { path: fieldPath });
+          }
+        }
+
+        if (fieldType !== 'array' && fieldType !== 'object') {
+          row[column] = value;
+        }
+      };
+
+      structureRow(payload, {
+        type: 'object',
+        isRequired: true,
+        fields: model.schema.fields,
+        description: model.schema.description,
+      }, resourceRow, '', '', '', resourceId, false, type === 'CREATE');
+
+      const isUpdate = (type === 'UPDATE');
+      const queries: Record<string, InsertQuery | UpdateQuery | DeleteQuery> = {};
+      const previousRows: NonNullable<DeleteQuery['where']>[number] = {
+        operator: '=',
+        column: '"_parentId"',
+        value: resourceId,
+      };
+
+      // Tables are walked in payload order, which always yields an array table after the one it is
+      // nested in, and is therefore a safe execution order for the generated queries.
+      Object.keys(rowsPerTable).forEach((key) => {
+        const rows = rowsPerTable[key];
+        const table = this.getTableName(key);
+
+        // Previous rows of first level arrays are deleted right before the new ones are inserted.
+        // Deeper arrays don't need it, as foreign keys make that deletion cascade to them.
+        if (isUpdate && rootArrayTables.has(key)) {
+          queries[`_delete_${String(deleteIndex)}`] = { table, type: 'DELETE', where: [previousRows] };
+          deleteIndex += 1;
+        }
+
+        if (isUpdate && key === resource) {
+          queries[key] = {
+            table,
+            type: 'UPDATE',
+            fields: rows[0],
+            as: this.getFieldSqlAlias(table),
+            where: idFilter.concat(deletionFilter),
+          };
+        } else if (rows.length > 0) {
+          const fields = Object.keys(rows[0]);
+          // Large arrays are inserted in several batches to prevent reaching PostgreSQL hard limit.
+          const maximumRows = Math.max(1, Math.floor(MAXIMUM_PARAMETERS_PER_QUERY / fields.length));
+          for (let index = 0; index < rows.length; index += maximumRows) {
+            const batch = rows.slice(index, index + maximumRows);
+            queries[(index === 0) ? key : `${key}_${String(index)}`] = {
+              table,
+              fields,
+              type: 'INSERT',
+              values: batch.map((row) => fields.map((field) => row[field])),
+            };
+          }
+        }
+      });
+
+      return { projections: finalProjections, queries };
+    }
+
+    const isView = (type === 'VIEW');
+    const queryJoins = new Set<string>();
+    const searchJoins = new Set<string>();
+    const searchBody = payload as SearchBody | null;
+    const filters = (isView ? {} : searchBody?.filters ?? {});
+    const sortBy = (options as ListQueryOptions).sortBy ?? {};
+    const resourceTable = this.getTableName(resource);
+    const sortByFields = new Set(Object.keys(sortBy));
+    const filterFields = new Set(Object.keys(filters));
+    const rootAlias = this.getFieldSqlAlias(resourceTable);
+    const fetchFields = new Set(['_id', ...(options.fields ?? [])]);
+    const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
+    // All query fields must match the same tokens, so they are extracted once for the whole query.
+    const searchTokens = (isView ? '' : searchBody?.query?.text ?? '')
+      .slice(0, 100)
+      .split(this.SPLITTING_TOKENS)
+      .filter((token) => token !== '')
+      .slice(0, 8);
+    const queryFields = new Set((searchTokens.length === 0) ? [] : searchBody?.query?.on ?? []);
+    const searchFields = new Set([...sortByFields, ...filterFields, ...queryFields]);
+    const allFields = new Set([...fetchFields, ...sortByFields, ...filterFields, ...queryFields]);
+    const searchQuery: NonNullable<SelectQuery['where']>[0] = { operator: 'OR', conditions: [] };
+    const queries: Record<string, JoinQuery> & { _search: SearchQuery; } = {
+      [resource]: {
+        join: [],
+        fields: [],
+        as: rootAlias,
+        type: 'SELECT',
+        table: resourceTable,
+        where: [{ column: `"${rootAlias}"."_id"`, operator: '=', value: [] }],
+        orderBy: [{ field: `array_position($1, "${rootAlias}"."_id")`, direction: 'ASC' }],
+      },
+      _search: {
+        join: [],
+        orderBy: [],
+        as: rootAlias,
+        type: 'SELECT',
+        table: resourceTable,
+        limit: (options as ListQueryOptions).limit ?? this.DEFAULT_LIMIT,
+        offset: (options as ListQueryOptions).offset ?? this.DEFAULT_OFFSET,
+        fields: [`"${rootAlias}"."_id"`, 'COUNT(*) OVER () AS __total'],
+        where: [...deletionFilter, ...(queryFields.size > 0 ? [searchQuery] : [])],
+      },
     };
 
     allFields.forEach((path) => {
       let currentDepth = 1;
-      let isInArray = false;
-      let scopedPath: string[] = [];
-      const currentPath: string[] = [];
-      let pathInRelation: string[] = [];
-      let currentTable = String(resource);
-      const splittedPath = path.split('.');
-      let currentFormattedQuery = formattedQuery;
+      const segments = path.split('.');
+      const isFetchField = fetchFields.has(path);
+      const isFilterField = filterFields.has(path);
+      const isQueryField = queryFields.has(path);
+      const isSortByField = sortByFields.has(path);
+      const isSearchField = searchFields.has(path);
+      let currentProjections = finalProjections;
+      let currentQuery = queries[resource] as JoinQuery;
       let currentSchema = model.schema as FieldSchema<DataModel> | undefined;
 
-      while (splittedPath.length > 0 && currentSchema !== undefined) {
-        const fieldName = String(splittedPath.shift());
-        const newFields = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields;
-        currentSchema = newFields?.[fieldName];
-        scopedPath.push(fieldName);
-        currentPath.push(fieldName);
-        pathInRelation.push(fieldName);
-        let flattenedFullPath = currentPath.join('_');
-        let flattenedScopedPath = scopedPath.join('_');
+      // Necessary to reference the previous alias when performing joins.
+      let currentAlias = rootAlias;
+      // Stores the full path from the root resource to the leaf (e.g.
+      // "users_roles__createdBy_email"). It is used as a unique identifier for aliases
+      // generation, queries indexing, and results formatting.
+      let fullFlattenedPath: string = resource;
+      // Stores the real field path in the current table. It is reset at each new table
+      // crossing, and contains `value` for arrays (e.g. "value__refreshToken"). It is used to
+      // get the right SQL column to compare in `IN (SELECT ...)` subqueries.
+      let flattenedPathInTable = '';
+      // Stores the name of the current table to use for nested `IN (SELECT ...)` and JOIN
+      // subqueries. It is reset at each new resource crossing, and does not
+      // contain `value` for arrays (e.g. "_users__devices." for "users._devices._refreshToken").
+      let currentTable: string = resource;
 
-        if (currentSchema?.type === 'array') {
-          isInArray = true;
-          currentFormattedQuery.fields[flattenedScopedPath] = getMappedField(flattenedFullPath);
-          currentFormattedQuery.lookups[flattenedScopedPath] ??= {
-            sort: null,
-            match: null,
-            lookups: {},
-            localField: '_id',
-            structure: `_${currentTable}_${pathInRelation.join('_')}`,
-            foreignField: getMappedField(`${flattenedFullPath}__parentId`),
-            fields: { _id: getMappedField(`${flattenedFullPath}__id`), _parentId: getMappedField(`${flattenedFullPath}__parentId`) },
-          };
-          scopedPath = ['value'];
-          currentPath.push('value');
-          pathInRelation.push('value');
-          currentFormattedQuery = currentFormattedQuery.lookups[flattenedScopedPath];
-          currentSchema = currentSchema.fields;
-        }
-
-        const type = currentSchema?.type;
-        const relation = (currentSchema as IdSchema<DataModel> | undefined)?.relation;
-        flattenedFullPath = currentPath.join('_');
-        flattenedScopedPath = scopedPath.join('_');
-
-        if (type === 'object') {
-          currentFormattedQuery.fields[flattenedScopedPath] = getMappedField(flattenedFullPath);
-        } else if (type === 'id' && relation !== undefined && splittedPath.length > 0) {
-          currentDepth += 1;
-          currentTable = relation;
-          currentFormattedQuery.fields[flattenedScopedPath] = getMappedField(flattenedFullPath);
-          currentFormattedQuery.lookups[flattenedScopedPath] ??= {
-            lookups: {},
-            sort: null,
-            match: null,
-            structure: currentTable,
-            localField: flattenedScopedPath,
-            foreignField: getMappedField(`${flattenedFullPath}__id`),
-            fields: { _id: getMappedField(`${flattenedFullPath}__id`) },
-          };
-          scopedPath = [];
-          pathInRelation = [];
-          currentFormattedQuery = currentFormattedQuery.lookups[flattenedScopedPath];
-          const relationMetadata = this.model.get(relation);
-          const { schema } = relationMetadata;
-          currentSchema = { type: 'object', fields: schema.fields, description: schema.description };
-        } else if (splittedPath.length === 0) {
-          currentFormattedQuery.fields[flattenedScopedPath] = getMappedField(flattenedFullPath);
-        }
-      }
-
-      if (currentSchema === undefined) {
-        throw new DatabaseError('UNKNOWN_FIELD', { path });
-      } else if (currentSchema.type === 'object') {
-        throw new DatabaseError('INVALID_FIELD', { path });
-      } else if (currentDepth > maximumDepth) {
-        throw new DatabaseError('MAXIMUM_DEPTH_EXCEEDED', { path });
-      } else if (sortBy[path] !== undefined && isInArray) {
-        throw new DatabaseError('UNSORTABLE_FIELD', { path });
-      } else if ((
-        sortBy[path] !== undefined
-        || searchBody?.filters?.[path] !== undefined
-        || searchBody?.query?.on.has(path)
-      ) && !(currentSchema as DateSchema).isIndexed && !(currentSchema as DateSchema).isUnique) {
-        throw new DatabaseError('UNINDEXED_FIELD', { path });
-      }
-
-      const finalSearchPath = currentPath.join('_');
-      const key = getMappedField(finalSearchPath);
-
-      if (sortBy[path] !== undefined) {
-        formattedQuery.sort ??= {};
-        formattedQuery.sort[key] = (sortBy as Record<string, 1 | -1>)[path];
-      }
-
-      if (searchBody?.filters?.[path] !== undefined && !processedFiltersFields.has(path)) {
-        processedFiltersFields.add(path);
-        let value = searchBody.filters[path];
-        if (value instanceof Id) {
-          value = String(value);
-        } else if (Array.isArray(value)) {
-          value = value.map((item) => ((item instanceof Id) ? String(item) : item));
-        }
-        formattedMatch.filters.push({ [key]: value });
-      } else if (searchBody?.query?.on.has(path) && !processedQueryFields.has(path)) {
-        processedQueryFields.add(path);
-        formattedMatch.query.push({ [key]: queryRegExp });
-      }
-    });
-
-    if (formattedMatch.filters.length > 0 || formattedMatch.query.length > 0) {
-      formattedQuery.match = formattedMatch;
-    }
-
-    return { formattedQuery, projections };
-  }
-
-  /**
-   * Generates the final DBMS-specific query from `formattedQuery`.
-   *
-   * @param resource Type of resource for which to generate database query.
-   *
-   * @param formattedQuery Formatted query to generate database query from.
-   *
-   * @param isSearchQuery Whether query is a search query or a simple `SELECT`. Defaults to `false`.
-   *
-   * @param textIndent Current indent. Used to improve SQL statement legibility. Defaults to `""`.
-   *
-   * @param startPlaceholderIndex Current placeholder index. Defaults to `1`.
-   *
-   * @returns Final DBMS-specific query.
-   */
-  protected generateQuery<Resource extends keyof DataModel>(
-    resource: Resource,
-    formattedQuery: FormattedQuery,
-    textIndent = '',
-    startPlaceholderIndex = 1,
-  ): string {
-    let joinClauses = '';
-    const { sort } = formattedQuery;
-    const newIndent = `${textIndent}  `;
-    const { structure } = formattedQuery;
-    const table = this.tablesMapping[structure] ?? this.resourcesMetadata[structure].structure;
-    const joinedTables = Object.keys(formattedQuery.lookups);
-    for (let index = 0, { length } = joinedTables; index < length; index += 1) {
-      const join = formattedQuery.lookups[joinedTables[index]];
-      const subQuery = this.generateQuery(resource, join, newIndent);
-      const prefix = `\n${textIndent}`;
-      const onClause = `${textIndent}ON "${table}"."${String(join.localField)}" = "${joinedTables[index]}"."${String(join.foreignField)}"`;
-      joinClauses += `${prefix}LEFT JOIN (\n${subQuery}\n${textIndent}) AS "${joinedTables[index]}"\n${onClause}`;
-    }
-
-    const sortFields = Object.keys(sort ?? {}).reduce<string[]>((finalFields, path) => (
-      (path === '_id') ? finalFields : finalFields.concat([`"${path}"`])
-    ), []);
-    const fieldsClause = (formattedQuery.match !== null || sort !== null)
-      ? [`DISTINCT "${table}"."_id"`].concat(sort !== null ? sortFields : []).join(', ')
-      : Object.keys(formattedQuery.fields).map((fieldName) => (
-        `"${table}"."${fieldName}" AS "${formattedQuery.fields[fieldName]}"`
-      )).concat(joinedTables.map((path) => `"${path}".*`)).join(`,\n${newIndent}`);
-    const selectClause = `${textIndent}SELECT\n${newIndent}${fieldsClause}\n${textIndent}FROM\n${newIndent}"${table}"`;
-
-    let groupClause = '';
-    if (sort !== null) {
-      const sortClause = `\n${textIndent}ORDER BY\n${newIndent}${Object.keys(sort).map((path) => (
-        `${(path === '_id') ? `"${table}"."${path}"` : `"${path}"`} ${this.SQL_SORT_MAPPING[sort[path]]}`
-      )).join(`,\n${newIndent}`)}`;
-      groupClause += `\n${textIndent}GROUP BY ${[`"${table}"."_id"`].concat(sortFields).join(', ')}${sortClause}`;
-    }
-
-    const whereClause = [];
-    let placeholderIndex = startPlaceholderIndex;
-    if (formattedQuery.match !== null) {
-      const { filters, query } = formattedQuery.match;
-      if (query.length > 0) {
-        whereClause.push(`(\n${newIndent}  ${query.map((q) => {
-          const statement = (
-            `"${Object.keys(q)[0]}" ~* $${String(placeholderIndex)}`
-          );
-          placeholderIndex += 1;
-          return statement;
-        }).join(`\n${newIndent}   OR `)}\n${newIndent})`);
-      }
-      if (filters.length > 0) {
-        whereClause.push(filters.map((filter) => {
-          let clause = '';
-          if (Array.isArray(Object.values(filter)[0])) {
-            const includesNullValue = (Object.values(filter)[0] as unknown[]).includes(null);
-            clause = `"${Object.keys(filter)[0]}" IN (${(Object.values(filter)[0] as unknown[]).filter((value) => value !== null).map(() => {
-              const p = `$${String(placeholderIndex)}`;
-              placeholderIndex += 1;
-              return p;
-            }).join(', ')})`;
-            clause = includesNullValue ? `(${clause} OR "${Object.keys(filter)[0]}" IS NULL)` : clause;
-          } else if (Object.values(filter)[0] === null) {
-            clause = `"${Object.keys(filter)[0]}" IS NULL`;
-          } else {
-            clause = `"${Object.keys(filter)[0]}" = $${String(placeholderIndex)}`;
-            placeholderIndex += 1;
-          }
-          return clause;
-        }).join(`\n${newIndent}AND `));
-      }
-    }
-
-    const fullWhereClause = (whereClause.length > 0)
-      ? `\n${textIndent}WHERE\n${newIndent}${whereClause.join(`\n${newIndent}AND `)}`
-      : '';
-
-    return `${selectClause}${joinClauses}${fullWhereClause}${groupClause}`;
-  }
-
-  /**
-   * Recursively formats `payload` into a structured format for database storage.
-   *
-   * @param resource Type of resource to format.
-   *
-   * @param resourceId Id of the related resource.
-   *
-   * @param payload Payload to format.
-   *
-   * @param mode Whether to structure payload for creation, or just a partial update.
-   *
-   * @returns Structured format for database storage.
-   */
-  protected structurePayload<Resource extends keyof DataModel>(
-    resource: Resource,
-    resourceId: Id,
-    payload: Payload<DataModel[Resource]>,
-    mode: 'CREATE' | 'UPDATE',
-  ): StructuredPayload {
-    const structuredPayload: StructuredPayload = { [resource]: [] };
-    const model = this.model.get(resource);
-
-    const structurePartialPayload = (
-      currentTable: string,
-      partialPayload: unknown,
-      requireFullPayload: boolean,
-      currentSchema?: FieldSchema<DataModel>,
-      currentFormattedPayload: Record<string, unknown> = {},
-      currentPath: { full: string[]; scoped: string[]; rootArray: string[]; } = {
-        full: [],
-        scoped: [],
-        rootArray: [],
-      },
-      parentId: Id | null = null,
-      skipValidation = false,
-    ): void => {
-      const path = currentPath.full.join('.');
-      const npath = currentPath.scoped.join('_');
-      const rootFormattedPayload = currentFormattedPayload;
-
-      if (currentSchema === undefined) {
-        throw new DatabaseError('UNKNOWN_FIELD', { path });
-      }
-
-      const { type } = currentSchema;
-      if (!skipValidation) {
-        this.VALIDATORS[type](path, partialPayload, currentSchema);
-      }
-
-      if (type === 'date' && partialPayload instanceof Date) {
-        rootFormattedPayload[npath] = partialPayload.toISOString();
-      } else if (type === 'id' && partialPayload instanceof Id) {
-        rootFormattedPayload[npath] = String(partialPayload);
-      } else if (type === 'array') {
-        const fpath = currentPath.rootArray.join('_');
-        const subTables = this.resourcesMetadata[String(resource)].subStructuresPerPath[fpath];
-        subTables.forEach((subTable) => {
-          structuredPayload[subTable] ??= [];
-        });
-        if (partialPayload === null) {
-          rootFormattedPayload[npath] = null;
-        } else {
-          rootFormattedPayload[npath] = true;
-          (partialPayload as unknown[]).forEach((subPayload) => {
-            const newId = new Id();
-            const newPayload = {};
-            structurePartialPayload(
-              `_${String(resource)}_${fpath}`,
-              {
-                _id: newId,
-                _parentId: parentId ?? resourceId,
-                _resourceId: resourceId,
-                value: subPayload,
-              },
-              true,
-              {
-                type: 'object',
-                isRequired: true,
-                description: 'Object value.',
-                fields: {
-                  _id: { type: 'id', isRequired: true, description: 'ID of the object value.' },
-                  _parentId: { type: 'id', isRequired: true, description: 'ID of the parent object.' },
-                  _resourceId: { type: 'id', isRequired: true, description: 'ID of the resource.' },
-                  value: currentSchema.fields,
-                },
-              },
-              newPayload,
-              { scoped: [], full: currentPath.full, rootArray: currentPath.rootArray },
-              newId,
-              skipValidation,
-            );
-            structuredPayload[`_${String(resource)}_${fpath}`].push(newPayload);
-          });
-        }
-      } else if (type === 'object') {
-        const { fields, isRequired } = currentSchema;
-        const missingFields = new Set(Object.keys(fields));
-        const requireAllFields = mode === 'CREATE' || requireFullPayload || !isRequired;
-
-        if (partialPayload === null) {
-          rootFormattedPayload[npath] = null;
-          missingFields.forEach((fieldName) => {
-            const full = currentPath.full.concat([fieldName]);
-            const scoped = currentPath.scoped.concat([fieldName]);
-            const rootArray = currentPath.rootArray.concat([fieldName]);
-            structurePartialPayload(
-              currentTable,
-              null,
-              requireAllFields,
-              fields[fieldName],
-              rootFormattedPayload,
-              { full, scoped, rootArray },
-              parentId,
-              true,
-            );
-          });
-        } else {
-          if (currentPath.scoped.length > 0) {
-            rootFormattedPayload[npath] = true;
-          }
-          Object.keys(partialPayload as Record<string, unknown>).forEach((fieldName) => {
-            missingFields.delete(fieldName);
-            const full = currentPath.full.concat([fieldName]);
-            const scoped = currentPath.scoped.concat([fieldName]);
-            const rootArray = currentPath.rootArray.concat([fieldName]);
-            structurePartialPayload(
-              currentTable,
-              (partialPayload as Record<string, unknown>)[fieldName],
-              requireAllFields,
-              fields[fieldName],
-              rootFormattedPayload,
-              { full, scoped, rootArray },
-              parentId,
-              skipValidation,
-            );
-          });
-          if (requireAllFields && missingFields.size > 0) {
-            const fieldPath = currentPath.full.concat([[...missingFields][0]]).join('.');
-            throw new DatabaseError('MISSING_FIELD', { path: fieldPath });
-          }
-        }
-      } else {
-        rootFormattedPayload[npath] = partialPayload;
-      }
-    };
-
-    const formattedPayload = {};
-    structurePartialPayload(
-      String(resource),
-      payload,
-      mode === 'CREATE',
-      {
-        type: 'object', isRequired: true, fields: model.schema.fields, description: model.schema.description,
-      },
-      formattedPayload,
-    );
-    structuredPayload[String(resource)][0] = formattedPayload;
-
-    return structuredPayload;
-  }
-
-  /**
-   * Formats `results` into a database-agnostic structure, containing only requested fields.
-   *
-   * @param resource Type of resource to format.
-   *
-   * @param results List of database raw results to format.
-   *
-   * @param fields Fields tree used to format results.
-   *
-   * @param mapping Mapping between DBMS-specific field name and real field path.
-   *
-   * @returns Formatted results.
-   */
-  protected formatResources<Resource extends keyof DataModel>(
-    resource: Resource,
-    results: unknown[],
-    fields: unknown,
-    mapping: Map<string, string>,
-  ): DataModel[Resource][] {
-    const arraysMapping = new Map<string, number>();
-    const finalResources: Record<string, Record<string, unknown>> = {};
-    const model = this.model.get(resource);
-
-    (results as Record<string, unknown>[]).forEach((result) => {
-      finalResources[result._id as string] ??= {
-        _id: new Id(result._id as string),
+      // When using filters or queries on arrays, we need to create a subquery that will resolve
+      // joined values up to the root resource. These variables store intermediate results.
+      // `existsQuery` for search query, `selectQuery` for subsequent queries.
+      let existsQuery: SubQuery | undefined;
+      let selectQuery: SubQuery = {
+        fields: [],
+        as: rootAlias,
+        type: 'SELECT',
+        table: resourceTable,
+        where: [{ column: `"${rootAlias}"."_id"`, operator: '=', value: isView ? id : [] }],
       };
 
-      (fields as Set<string>).forEach((path) => {
-        const currentPath: string[] = [];
-        const splittedPath = path.split('.');
-        let currentResource = finalResources[result._id as string];
-        let currentSchema = model.schema as FieldSchema<DataModel> | undefined;
+      while (segments.length > 0) {
+        let isArrayValueLeaf = false;
+        const fieldName = String(segments.shift());
+        const isLeaf = (segments.length === 0);
+        const subSchema = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; } | undefined);
+        currentSchema = subSchema?.fields?.[fieldName];
+        fullFlattenedPath = `${fullFlattenedPath}_${fieldName}`;
+        flattenedPathInTable = (flattenedPathInTable === '') ? fieldName : `${flattenedPathInTable}_${fieldName}`;
 
-        while (splittedPath.length > 0 && currentSchema !== undefined) {
-          let fieldName: string | number = String(splittedPath.shift());
-          const subFields = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields;
-          currentSchema = subFields?.[fieldName];
-          currentPath.push(fieldName);
+        // Array values live in their own table, linked to the owner row by "_parentId".
+        // Crossing one switches tables: seal the query we're leaving (its row filter is now
+        // fully known), chain both ownership subqueries one level deeper, then re-anchor the
+        // whole walk state (table, alias, in-table path, schema, fetch query) on the array table.
+        if (currentSchema?.type === 'array') {
+          if (isFetchField) {
+            currentQuery.where ??= [...selectQuery.where];
+          }
+          const newTable = `_${currentTable.replace(/^_/, '')}_${flattenedPathInTable.replace(/^value_/, '')}`;
+          const newAlias = this.getFieldSqlAlias(newTable);
+          const newQuery = existsQuery ?? `"${currentAlias}"."_id"`;
+          existsQuery = this.buildSubQuery(newTable, newAlias, currentAlias, '_id', newQuery, '_parentId');
+          selectQuery = this.buildSubQuery(newTable, newAlias, currentAlias, '_id', selectQuery, '_parentId');
+          currentTable = newTable;
+          currentAlias = newAlias;
+          flattenedPathInTable = 'value';
+          currentSchema = currentSchema.fields;
+          isArrayValueLeaf = isLeaf;
+          if (isFetchField) {
+            queries[fullFlattenedPath] ??= this.buildQuery(newTable, fullFlattenedPath);
+            currentQuery = queries[fullFlattenedPath];
+          }
+        }
 
-          if (currentSchema?.type === 'array') {
-            const fullPath = currentPath.join('_');
-            const key = mapping.get(fullPath) as unknown as string;
+        // Checked as an own property, as a field named after one of `Object.prototype` members
+        // would otherwise resolve to that member instead of being rejected.
+        const fields: Record<string, unknown> = subSchema?.fields ?? {};
 
-            if (result[key] === null) {
-              currentResource[fieldName] = null;
-              break;
-            } else {
-              currentResource[fieldName] ??= [];
-              const id = result[mapping.get(`${fullPath}__id`) as unknown as string] as string | null;
-              if (id === null) {
-                break;
-              } else {
-                if (!arraysMapping.has(id)) {
-                  arraysMapping.set(id, (currentResource[fieldName] as unknown[]).length);
-                }
-                currentPath.push('value');
-                currentSchema = currentSchema.fields;
-                currentResource = currentResource[fieldName] as Record<string, unknown>;
-                fieldName = arraysMapping.get(id) as unknown as number;
-              }
-            }
+        if (currentSchema === undefined || !Object.prototype.hasOwnProperty.call(fields, fieldName)) {
+          throw new DatabaseError('UNKNOWN_QUERY_FIELD', { path });
+        }
+
+        if (currentDepth > maximumDepth) {
+          throw new DatabaseError('MAXIMUM_QUERY_FIELDS_DEPTH_EXCEEDED', { path });
+        }
+
+        if (isSortByField && existsQuery !== undefined) {
+          throw new DatabaseError('UNSORTABLE_FIELD', { path });
+        }
+
+        const { relation, isIndexed, isUnique } = currentSchema as IdSchema<DataModel>;
+
+        // Leaves are where the field is actually resolved into a SQL column, to either fetch it,
+        // filter on it, match it against the search query, or sort on it.
+        if (isLeaf) {
+          if (currentSchema.type === 'object') {
+            throw new DatabaseError('INVALID_QUERY_FIELD', { path });
           }
 
-          const type = currentSchema?.type;
-          const fullPath = currentPath.join('_');
-          const key = mapping.get(fullPath) as unknown as string;
-          const relation = (currentSchema as IdSchema<DataModel> | undefined)?.relation;
-
-          if (result[key] === null) {
-            currentResource[fieldName] = null;
-            break;
+          if (!isIndexed && !isUnique && isSearchField) {
+            throw new DatabaseError('UNINDEXED_FIELD', { path });
           }
 
-          if (type === 'id' && relation !== undefined && splittedPath.length > 0) {
-            const isUndefined = currentResource[fieldName] === undefined;
-            if (isUndefined || currentResource[fieldName] instanceof Id) {
-              currentResource[fieldName] = {
-                _id: new Id(result[key] as string),
-              };
-            }
-            currentResource = currentResource[fieldName] as Record<string, unknown>;
-            const relationMetadata = this.model.get(relation);
-            const { schema } = relationMetadata;
-            currentSchema = { type: 'object', fields: schema.fields, description: schema.description };
-          } else if (currentSchema?.type === 'object') {
-            currentResource[fieldName] ??= {};
-            currentResource = currentResource[fieldName] as Record<string, unknown>;
-          } else if (splittedPath.length === 0) {
-            if (type === 'id') {
-              currentResource[fieldName] ??= new Id(result[key] as string);
-            } else {
-              currentResource[fieldName] = result[key];
+          // A full-text search matches substrings, which only makes sense on text: any other type
+          // has no such notion, and the database would reject the comparison altogether.
+          if (isQueryField && currentSchema.type !== 'string') {
+            throw new DatabaseError('UNSEARCHABLE_FIELD', { path });
+          }
+
+          const column = `"${currentAlias}"."${flattenedPathInTable}"`;
+
+          if (isFilterField) {
+            const condition = buildValueFilter(column, filters[path]);
+            queries._search.where.push(buildQueryFilter(condition, existsQuery));
+          }
+
+          if (isQueryField) {
+            const condition = buildSearchFilter(searchTokens, column);
+            searchQuery.conditions.push(buildQueryFilter(condition, existsQuery));
+          }
+
+          if (isSortByField) {
+            const direction = (sortBy[path] === 1) ? 'ASC' : 'DESC';
+            queries._search.orderBy.push(this.buildOrderBy(column, direction));
+          }
+
+          if (isFetchField) {
+            currentProjections[fieldName] ??= 1;
+            currentQuery.where ??= [...selectQuery.where];
+            if (!isArrayValueLeaf) {
+              currentQuery.fields.push(`${column} AS "${this.getFieldSqlAlias(fullFlattenedPath)}"`);
             }
           }
         }
-      });
+
+        // Relation fields mean moving to the related resource's table, linked to the previous
+        // resource by "_id". Crossing one switches tables: seal the query we're leaving (its row
+        // filter is now fully known), chain both ownership subqueries one level deeper, then
+        // re-anchor the whole walk state (table, alias, in-table path, schema, fetch query) on the
+        // related resource's table.
+        if (!isLeaf && currentSchema.type === 'id' && relation !== undefined) {
+          currentDepth += 1;
+          const newTable = relation;
+          const newAlias = this.getFieldSqlAlias(fullFlattenedPath);
+
+          // Soft-deleted resources must not be reachable through filters, search or sorting.
+          const relationDeletionFilter = !isSearchField ? [] : this.buildDeletionFilter(
+            newTable,
+            newAlias,
+            options.excludeDeletedResources,
+          );
+
+          existsQuery = (existsQuery === undefined)
+            ? existsQuery
+            : this.buildSubQuery(newTable, newAlias, currentAlias, flattenedPathInTable, existsQuery, '_id', relationDeletionFilter);
+          selectQuery = this.buildSubQuery(newTable, newAlias, currentAlias, flattenedPathInTable, selectQuery, '_id');
+
+          if (existsQuery === undefined && isSearchField && !searchJoins.has(newAlias)) {
+            searchJoins.add(newAlias);
+            const onField = `"${currentAlias}"."${flattenedPathInTable}"`;
+            queries._search.join.push(this.buildQueryJoin(newAlias, newTable, 'LEFT', onField, relationDeletionFilter));
+          }
+
+          if (isFetchField && !queryJoins.has(newAlias)) {
+            queryJoins.add(newAlias);
+            const joinType = currentSchema.isRequired ? 'INNER' : 'LEFT';
+            const onField = `"${currentAlias}"."${flattenedPathInTable}"`;
+            currentQuery.join.push(this.buildQueryJoin(newAlias, newTable, joinType, onField));
+            const idFieldAlias = this.getFieldSqlAlias(`${fullFlattenedPath}__id`);
+            currentQuery.fields.push(`"${newAlias}"."_id" AS "${idFieldAlias}"`);
+          }
+
+          currentTable = newTable;
+          currentAlias = newAlias;
+          flattenedPathInTable = '';
+          const { schema } = this.model.get(relation);
+          currentSchema = { type: 'object', fields: schema.fields, description: schema.description };
+          if (isFetchField && (currentProjections[fieldName] ?? 1) === 1) {
+            currentProjections[fieldName] = { _id: 1 };
+          }
+        }
+
+        if (!isLeaf && isFetchField) {
+          currentProjections[fieldName] ??= {};
+        }
+
+        if (isFetchField) {
+          currentProjections = currentProjections[fieldName] as Projections;
+        }
+      }
     });
 
-    return Object.values(finalResources) as DataModel[Resource][];
+    // Sorting fields are not necessarily unique, and `LIMIT` / `OFFSET` over a non-deterministic
+    // order makes rows shift between pages: the resource id is thus always used as a final
+    // tiebreaker, after any requested sorting.
+    queries._search.orderBy.push(this.buildOrderBy(`"${rootAlias}"."_id"`, 'ASC'));
+
+    const { _search, ...rest } = queries;
+
+    if (isView) {
+      delete queries[resource].orderBy;
+      queries[resource].where = idFilter.concat(deletionFilter);
+      return { projections: finalProjections, queries: rest };
+    }
+
+    return { projections: finalProjections, queries: { _search, ...rest } };
   }
 
   /**
-   * Connects database client to the database server before performing any query, and handles common
-   * database server errors. You should always use this method to wrap your code.
+   * Compiles formatted `queries` definitions into SQL queries.
    *
-   * @param callback Callback to wrap in the error handler.
+   * @param queries Formatted queries definitions from which to compile SQL queries.
    *
-   * @throws If connection to the server failed.
-   *
-   * @throws Transformed database error if applicable, original error otherwise.
+   * @returns Compiled SQL queries.
    */
-  protected async handleError<T>(callback: () => Promise<T>): Promise<T> {
-    if (!this.isConnected) {
-      this.telemetry.debug(`[PostgreSQLDatabaseClient][handleError] Connecting to database ${this.database}...`);
-      this.client = new pg.Pool({
-        database: this.database,
-        ssl: this.databaseSettings.ssl,
-        host: this.databaseSettings.host,
-        max: this.databaseSettings.connectionLimit,
-        port: this.databaseSettings.port ?? undefined,
-        user: this.databaseSettings.user ?? undefined,
-        password: this.databaseSettings.password ?? undefined,
-        idleTimeoutMillis: this.databaseSettings.connectTimeout,
-        connectionTimeoutMillis: this.databaseSettings.connectTimeout,
-      });
-      this.isConnected = true;
-    }
-    try {
-      return await callback();
-    } catch (error) {
-      const postgreError = error as pg.DatabaseError;
-      if (postgreError.code === '23505') {
-        const match = /Key \(([^)]+)\)=\(([^)]+)\)/.exec(postgreError.detail as unknown as string);
-        throw new DatabaseError('DUPLICATE_RESOURCE', {
-          path: (match as string[])[1],
-          value: (match as string[])[2].trim(),
+  protected compileQueries(
+    queries: Record<string, Query>,
+  ): Record<string, { query: string, values: unknown[]; }> {
+    const compiledQueries: Record<string, { query: string; values: unknown[]; }> = {};
+
+    Object.keys(queries).forEach((key) => {
+      const values: unknown[] = [];
+      const query = `${compileQuery(queries[key], values)};`;
+
+      if (values.length > MAXIMUM_PARAMETERS_PER_QUERY) {
+        throw new DatabaseError('TOO_MANY_QUERY_PARAMETERS', {
+          query: key,
+          parameters: values.length,
         });
       }
-      if (postgreError.code === '23503') {
-        const path = (/Key \(([^)]+)\)=/.exec(postgreError.detail as unknown as string) as string[])[1];
-        throw new DatabaseError('RESOURCE_REFERENCED', { path });
+
+      compiledQueries[key] = { query, values };
+    });
+
+    return compiledQueries;
+  }
+
+  /**
+   * Performs a SQL query on the database with `settings`.
+   *
+   * @param settings Query settings. Contains:
+   * - `query`: SQL query to perform.
+   * - `values`: Values to bind to the query.
+   * - `poolOrSession`: Pool or session ID to use for the query.
+   * - `telemetryAttributes`: Telemetry attributes to add to the query span.
+   * Defaults to `{ poolOrSession: 'default' }`.
+   *
+   * @returns Query result.
+   *
+   * @throws If the specified pool or session does not exist.
+   */
+  protected async query<T extends QueryResultRow = QueryResultRow>(settings: {
+    query: string;
+    values?: unknown[];
+    poolOrSession?: string;
+    telemetryAttributes?: Record<string, string | number | boolean | undefined>;
+  }): Promise<QueryResult<T>> {
+    const { query, values = [] } = settings;
+    const { poolOrSession = 'default', telemetryAttributes = {} } = settings;
+    let sqlErrorCode: string | undefined;
+
+    const session = this.sessions.get(poolOrSession);
+    const client = session ?? await this.connect(poolOrSession);
+    let connection = (session === undefined) ? (client as ConnectedPool).pool : session.client;
+
+    const startTime = this.telemetry.now();
+    return this.telemetry.span(`${this.constructor.name}.query`, {
+      attributes: {
+        ...client.telemetryAttributes,
+        'db.query.text': settings.query,
+        'code.class.name': this.constructor.name,
+        ...telemetryAttributes,
+      },
+    }, async (span) => {
+      let result: QueryResult<T>;
+
+      try {
+        // We manually performs the connection to the pool as it allows us to measure the connection
+        // wait time.
+        if (session === undefined) {
+          connection = await (connection as Pool).connect();
+          this.telemetry.measure('db.client.connection.wait_time', this.telemetry.duration(startTime), {
+            'db.client.connection.pool.name': poolOrSession,
+          });
+        }
+        result = await connection.query<T>(query, values);
+      } catch (error) {
+        const postgreError = error as PostgreSQLDatabaseError;
+        sqlErrorCode = postgreError.code;
+        span.setStatus({ code: 'ERROR' });
+
+        // Network failure, timeout, etc. are rethrown as-is.
+        if (sqlErrorCode === undefined) {
+          throw error;
+        }
+
+        const path = (CONSTRAINT_VIOLATION_CODES[sqlErrorCode] === undefined)
+          ? null
+          : /Key \((.+?)\)=/.exec(postgreError.detail ?? '')?.[1] ?? null;
+
+        if (path !== null) {
+          throw new DatabaseError(CONSTRAINT_VIOLATION_CODES[sqlErrorCode], { path });
+        }
+
+        throw new DatabaseError('DATABASE_ERROR', {
+          code: sqlErrorCode,
+          message: postgreError.message,
+        });
+      } finally {
+        if (session === undefined) {
+          (connection as PoolClient).release();
+        }
+        span.setAttributes({
+          'error.type': sqlErrorCode,
+          'db.response.status_code': sqlErrorCode,
+        });
+        this.telemetry.measure('db.client.operation.duration', this.telemetry.duration(startTime), {
+          ...client.telemetryAttributes,
+          'error.type': sqlErrorCode,
+          'db.response.status_code': sqlErrorCode,
+          ...telemetryAttributes,
+        });
       }
-      throw error;
-    }
+
+      return result;
+    });
+  }
+
+  /**
+   * Formats `resultsPerQuery` into database-agnostic rows, containing only requested fields.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param projections Fields tree used to format rows.
+   *
+   * @param resultsPerQuery List of database raw results to format, per SQL query.
+   *
+   * @returns Formatted rows.
+   */
+  protected formatRows<T = unknown>(
+    resource: keyof DataModel & string,
+    projections: Projections | 1,
+    resultsPerQuery: Record<string, Record<string, unknown>[]>,
+  ): T {
+    // Rows of an array query, grouped by the id of the row that owns them. Indexing them on first
+    // use avoids scanning the whole query results again for each of their parents, which gets
+    // especially costly for nested arrays, as those have one parent per item of their own parent.
+    const indexesPerPath = new Map<string, Map<string, Record<string, unknown>[]>>();
+
+    const getItemRows = (path: string, parentId: string): Record<string, unknown>[] => {
+      const existingIndex = indexesPerPath.get(path);
+      if (existingIndex !== undefined) {
+        return existingIndex.get(parentId) ?? [];
+      }
+
+      const index = new Map<string, Record<string, unknown>[]>();
+      resultsPerQuery[path].forEach((itemRow) => {
+        const itemParentId = String(itemRow[this.getFieldSqlAlias(`${path}__parentId`)]);
+        const itemRows = index.get(itemParentId);
+        if (itemRows === undefined) {
+          index.set(itemParentId, [itemRow]);
+        } else {
+          itemRows.push(itemRow);
+        }
+      });
+      indexesPerPath.set(path, index);
+
+      return index.get(parentId) ?? [];
+    };
+
+    // Formats the field at `path`, which is its full flattened path from the root resource, and
+    // resolves both its SQL alias in `row` and, for arrays, the query its own rows come from.
+    // `parentId` is the id of the row owning that field, a `null` one meaning it has no value.
+    const format = (
+      path: string,
+      projection: Projections | 1,
+      row: Record<string, unknown> | null,
+      schema: FieldSchema<DataModel>,
+      parentId: string | null,
+    ): unknown => {
+      const value = row?.[this.getFieldSqlAlias(path)];
+
+      if (value === null || parentId === null) {
+        return null;
+      }
+
+      // Array values live in their own query, each of its rows being linked to the row that owns
+      // the array by "_parentId".
+      if (schema.type === 'array') {
+        const idAlias = this.getFieldSqlAlias(`${path}__itemId`);
+        return getItemRows(path, parentId).map((itemRow) => (
+          format(path, projection, itemRow, schema.fields, itemRow[idAlias] as string | null)
+        ));
+      }
+
+      // Relations are formatted against the related resource's schema, their joined columns living
+      // in that very same row.
+      const { relation } = schema as IdSchema<DataModel>;
+      if (schema.type === 'id' && relation !== undefined && projection !== 1) {
+        const { fields } = this.model.get(relation).schema;
+        const subParentId = row?.[this.getFieldSqlAlias(`${path}__id`)] as string | null;
+        return format(path, projection, row, { fields, type: 'object', description: '' }, subParentId);
+      }
+
+      if (schema.type === 'object' && projection !== 1) {
+        const finalResult: Record<string, unknown> = {};
+        Object.keys(projection).forEach((fieldName) => {
+          const subPath = `${path}_${fieldName}`;
+          const subSchema = schema.fields[fieldName];
+          const subProjection = projection[fieldName];
+          finalResult[fieldName] = format(subPath, subProjection, row, subSchema, parentId);
+        });
+
+        return finalResult;
+      }
+
+      return (schema.type === 'id') ? new Id(value as string) : value;
+    };
+
+    return resultsPerQuery[resource].map((row) => format(resource, projections, row, {
+      type: 'object',
+      fields: this.model.get(resource).schema.fields,
+      description: '',
+    }, row[this.getFieldSqlAlias(`${resource}__id`)] as string)) as T;
   }
 
   /**
@@ -879,15 +1777,25 @@ export default class PostgreSQLDatabaseClient<
   ) {
     super(model, telemetry, cache, settings);
     this.tablesMapping = {};
-    this.client = null as unknown as pg.Pool;
-    this.databaseSettings = settings;
-    this.pools = new Map<string, pg.Pool>();
-    this.sessions = new Map<string, pg.PoolClient>();
-    this.lastMetrics = new Map<string, { used: number; idle: number; pending: number; }>();
+    this.pools = new Map();
+    this.sessions = new Map();
+    this.poolSettings = new Map();
+    this.hashAliases = settings.hashAliases;
+    Object.keys(settings.pools).forEach((pool) => {
+      this.poolSettings.set(pool, settings.pools[pool]);
+    });
     this.model.getResources().forEach((resource) => {
       this.generateResourceMetadata(resource);
       // Reversing the sub-tables array is essential to delete dependencies in the right order.
       this.resourcesMetadata[resource].subStructures.reverse();
+    });
+    this.telemetry.createHistogram('db.client.connection.wait_time', {
+      unit: 's',
+      valueType: 1, // DOUBLE
+      description: 'The time it took to obtain an open connection from the pool.',
+      advice: {
+        explicitBucketBoundaries: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
+      },
     });
     this.telemetry.createHistogram('db.client.operation.duration', {
       unit: 's',
@@ -900,178 +1808,117 @@ export default class PostgreSQLDatabaseClient<
     this.telemetry.createUpDownCounter('db.client.connection.count', {
       description: 'The number of connections that are currently in state described by the state attribute.',
       unit: '{connection}',
+    }, (observe) => {
+      this.pools.forEach(({ pool }, name) => {
+        observe(pool.totalCount - pool.idleCount, {
+          'db.client.connection.state': 'used',
+          'db.client.connection.pool.name': name,
+        });
+        observe(pool.idleCount, {
+          'db.client.connection.state': 'idle',
+          'db.client.connection.pool.name': name,
+        });
+      });
     });
     this.telemetry.createUpDownCounter('db.client.connection.pending_requests', {
       description: 'The number of current pending requests for an open connection.',
       unit: '{request}',
+    }, (observe) => {
+      this.pools.forEach(({ pool }, name) => {
+        observe(pool.waitingCount, { 'db.client.connection.pool.name': name });
+      });
     });
   }
 
   /**
-   * Drops the entire database.
+   * Starts a new session to perform multiple database operations atomically.
+   * Automatically handles transaction start, commit and rollback in case of error, as well as
+   * connection release.
+   *
+   * @param callback Callback containing the operations to execute within the session.
+   *
+   * @param pool Name of the pool to use for the session. Defaults to `default`.
+   *
+   * @returns Result of the callback execution, if any.
    */
-  public async dropDatabase(): Promise<void> {
-    this.isConnected = false;
-    const message = '[PostgreSQLDatabaseClient][dropDatabase] PostgreSQL does not support database'
-      + ' dropping while being connected to this database. You must perform this operation directly'
-      + ' on database.';
-    await (this.telemetry.warn as unknown as (_: string) => Promise<void>)(message);
-  }
-
-  /**
-   * Creates the database.
-   */
-  public async createDatabase(): Promise<void> {
-    this.isConnected = false;
-    const message = '[PostgreSQLDatabaseClient][createDatabase] Database is already created - '
-      + 'skipping creation.';
-    await (this.telemetry.warn as unknown as (_: string) => Promise<void>)(message);
-  }
-
-  /**
-   * Creates missing database structures for current data model.
-   */
-  public async createMissingStructures(): Promise<void> {
-    await this.handleError(async () => {
-      const query = 'SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_'
-        + 'type = \'BASE TABLE\'\nAND table_schema NOT IN (\'information_schema\', \'pg_catalog\');';
-      const response = await this.client.query<{ table_name: string; }>(query);
-      const existingTables = new Set(response.rows.map((row) => row.table_name));
-
-      await forEach(Object.keys(this.resourcesMetadata), async (table) => {
-        const { indexes, structure } = this.resourcesMetadata[table];
-        const fields = this.resourcesMetadata[table].fields as Record<string, {
-          type: string;
-          isRequired: boolean;
-        }>;
-        if (!existingTables.has(structure)) {
-          const fieldsClause = Object.keys(fields as Record<string, unknown>).map((fieldName) => {
-            const { type, isRequired } = fields[fieldName];
-            return `"${fieldName}" ${type}${isRequired ? ' NOT NULL' : ''}`;
-          }).join(',\n  ');
-          const sqlQuery = `CREATE TABLE "${structure}" (\n  ${fieldsClause},\n  PRIMARY KEY ("_id")\n);`;
-          this.telemetry.info(`[PostgreSQLDatabaseClient][createMissingStructures] Creating table ${structure}...`);
-          this.telemetry.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
-          this.telemetry.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${sqlQuery}\n`);
-          await this.client.query(sqlQuery);
-          await forEach(indexes, async (currentIndex, index) => {
-            const { unique, path } = currentIndex;
-            const uniqueClause = unique ? ' UNIQUE' : '';
-            const indexSqlQuery = `CREATE${uniqueClause} INDEX index_${structure}_${String(index)} ON "${structure}" ("${path}");`;
-            this.telemetry.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${indexSqlQuery}\n`);
-            await this.client.query(indexSqlQuery);
+  public async withSession<T>(
+    callback: (session: string, cancel: () => Promise<void>) => Promise<T>,
+    pool = 'default',
+  ): Promise<T> {
+    return this.telemetry.span(`${this.constructor.name}.withSession`, {
+      kind: 'CLIENT',
+      attributes: { pool, 'code.class.name': this.constructor.name },
+    }, async () => {
+      let isCancelled = false;
+      let destroyConnection = false;
+      let sessionError: Error | undefined;
+      const newSessionId = String(new Id());
+      const startTime = this.telemetry.now();
+      const { pool: poolClient, telemetryAttributes } = await this.connect(pool);
+      const connection = await poolClient.connect();
+      this.telemetry.measure('db.client.connection.wait_time', this.telemetry.duration(startTime), {
+        'db.client.connection.pool.name': pool,
+      });
+      this.sessions.set(newSessionId, { client: connection, telemetryAttributes });
+      const cancel = async (): Promise<void> => {
+        isCancelled = true;
+        try {
+          await this.query({
+            query: 'ROLLBACK;',
+            poolOrSession: newSessionId,
           });
+        } catch (rollbackError) {
+          destroyConnection = true;
+          throw rollbackError;
+        } finally {
+          this.sessions.delete(newSessionId);
         }
-      });
+      };
+      let response: T;
 
-      await forEach(Object.keys(this.resourcesMetadata), async (table) => {
-        const { constraints, structure } = this.resourcesMetadata[table];
-        if (!existingTables.has(structure)) {
-          await forEach(constraints, async (constraint, index) => {
-            const { path, relation } = constraint;
-            const foreignTable = this.resourcesMetadata[relation].structure;
-            const constraintSqlQuery = `ALTER TABLE "${structure}" ADD CONSTRAINT fk_${structure}_${String(index)} FOREIGN KEY ("${path}") REFERENCES "${foreignTable}"("_id")`;
-            this.telemetry.debug('[PostgreSQLDatabaseClient][createMissingStructures] Performing the following SQL query on database:');
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][createMissingStructures] \n\n${constraintSqlQuery}\n`);
-            await this.client.query(constraintSqlQuery);
-          });
-        }
-      });
-
-      this.telemetry.info('[PostgreSQLDatabaseClient][createMissingStructures] Creating table _config...');
-      await this.client.query('DROP TABLE IF EXISTS "_config";');
-      await this.client.query(
-        'CREATE TABLE "_config" ("key" VARCHAR(255) NOT NULL PRIMARY KEY, "value" TEXT NOT NULL);',
-      );
-    });
-  }
-
-  /**
-   * Resets the whole underlying database, re-creating structures, indexes, and such.
-   */
-  public async reset(): Promise<void> {
-    await this.dropDatabase();
-    await this.createDatabase();
-    await this.handleError(async () => {
-      this.telemetry.info('[PostgreSQLDatabaseClient][reset] Initializing tables...');
-      await this.createMissingStructures();
-      this.telemetry.info('[PostgreSQLDatabaseClient][reset] Successfully initialized tables.');
-    });
-  }
-
-  /**
-   * Makes sure that `relations` reference existing resources that match specific conditions.
-   *
-   * @param resource Type of resource to check relations for.
-   *
-   * @param relations Foreign ids to check in database.
-   *
-   * @param options Query options. Defaults to `{}`.
-   *
-   * @throws If any foreign id does not exist.
-   */
-  public async checkRelations<Resource extends keyof DataModel>(
-    _resource: Resource,
-    relations: Map<string, { resource: keyof DataModel; filters: SearchFilters | null; }>,
-    options?: QueryOptions,
-  ): Promise<void> {
-    if (relations.size > 0) {
-      let placeholderIndex = 1;
-      const values: unknown[] = [];
-      const sqlSubQueries: string[] = [];
-      const missingIds = new Set<string>();
-      relations.forEach((value, path) => {
-        const table = String(value.resource);
-        const allFilters = { ...value.filters };
-        const fields = new Set(Object.keys(allFilters));
-        const searchBody = { query: null, filters: allFilters };
-        const { formattedQuery } = this.parseFields(value.resource, fields, Infinity, searchBody);
-        const extraFilters = this.getResourceFilters(value.resource, null, options);
-        if (Object.keys(extraFilters).length > 0) {
-          formattedQuery.match ??= {
-            filters: [],
-            query: [],
-          };
-        }
-        Object.keys(extraFilters).forEach((key) => {
-          if (formattedQuery.match) {
-            formattedQuery.match.filters.push({ [key]: extraFilters[key] });
-          }
+      try {
+        await this.query({
+          query: 'BEGIN;',
+          poolOrSession: newSessionId,
         });
-        sqlSubQueries.push(this.generateQuery(value.resource, formattedQuery, '', placeholderIndex).replace(`DISTINCT "${table}"."_id"`, `DISTINCT "${table}"."_id", '${path}' as path`));
-        (formattedQuery.match as unknown as Exclude<FormattedQuery['match'], null>).filters.forEach((filter) => {
-          if (Object.keys(filter)[0] === '_id') {
-            (filter._id as string[]).forEach((id) => missingIds.add(`${id}:${path}`));
+        response = await callback(newSessionId, cancel);
+        if (!isCancelled) {
+          try {
+            await this.query({
+              query: 'COMMIT;',
+              poolOrSession: newSessionId,
+            });
+          } catch (commitError) {
+            destroyConnection = true;
+            throw commitError;
           }
-          if (Array.isArray(Object.values(filter)[0])) {
-            placeholderIndex += (Object.values(filter)[0] as unknown[]).length;
-            values.push(...Object.values(filter)[0] as unknown[]);
-          } else {
-            placeholderIndex += 1;
-            values.push(Object.values(filter)[0]);
+        }
+      } catch (error) {
+        sessionError = error as Error;
+
+        if (!isCancelled) {
+          try {
+            await cancel();
+            destroyConnection = false;
+          } catch (rollbackError) {
+            // Rolling back often fails for the very reason the transaction failed: the original
+            // error is always the one propagated, as it is the one describing what went wrong.
+            this.telemetry.warn(rollbackError as Error, {
+              'db.client.connection.pool.name': pool,
+            });
           }
-        });
-      });
-
-      await this.handleError(async () => {
-        const sqlQuery = sqlSubQueries.join('\nUNION\n');
-        this.telemetry.debug('[PostgreSQLDatabaseClient][checkRelations] Performing the following SQL query on database:');
-        this.telemetry.debug(`[PostgreSQLDatabaseClient][checkRelations]\n\n${sqlQuery}\n`);
-        this.telemetry.debug(`[PostgreSQLDatabaseClient][checkRelations] [\n  ${values.join(',\n  ')}\n]\n`);
-        const response = await this.client.query<Record<string, string>>(sqlQuery, values);
-
-        for (let index = 0, { length } = response.rows; index < length; index += 1) {
-          const row = response.rows[index];
-          missingIds.delete(`${row._id}:${row.path}`);
         }
 
-        if (missingIds.size > 0) {
-          const id = (missingIds.values().next().value as unknown as string).split(':')[0];
-          throw new DatabaseError('NO_RESOURCE', { id });
-        }
-      });
-    }
+        throw sessionError;
+      } finally {
+        // Releasing with an error destroys the connection instead of returning it to the pool:
+        // only a connection left in an unknown state is worth that cost.
+        connection.release(destroyConnection ? sessionError : undefined);
+        this.sessions.delete(newSessionId);
+      }
+
+      return response;
+    });
   }
 
   /**
@@ -1084,57 +1931,35 @@ export default class PostgreSQLDatabaseClient<
    * @param options Query options. Defaults to `{}`.
    */
   public async create<Resource extends keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: DataModel[Resource],
     options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<void> {
-    const resourceId = (payload as { _id: Id; })._id;
-    const newDocuments = this.updatePayload(
-      String(resource),
-      this.structurePayload(resource, resourceId, payload as Payload<DataModel[Resource]>, 'CREATE'),
-      options,
-    );
+    return this.telemetry.span(`${this.constructor.name}.create`, {
+      kind: 'CLIENT',
+      attributes: {
+        resource,
+        pool_or_session: options.poolOrSession,
+        'code.class.name': this.constructor.name,
+        ...options.telemetryAttributes,
+      },
+    }, async () => {
+      const { queries } = this.planQueries(resource, 'CREATE', null, payload, options);
+      const sqlQueries = this.compileQueries(queries);
 
-    await this.handleError(async () => {
-      const connection = await this.client.connect();
-      await connection.query('BEGIN');
-      try {
-        await Promise.all(Object.keys(newDocuments).map(async (table) => {
-          const documents = newDocuments[table];
-          if (documents.length > 0) {
-            const sqlFields: string[] = [];
-            const fieldPlaceholders: string[] = [];
-            const fields = Object.keys(documents[0]);
-            const values: unknown[] = [];
-            const { length } = fields;
-            documents.forEach((document, index) => {
-              const placeholders: string[] = [];
-              fields.forEach((fieldName, fieldIndex) => {
-                placeholders.push(`$${String(length * index + fieldIndex + 1)}`);
-                if (index === 0) {
-                  sqlFields.push(`"${fieldName}"`);
-                }
-                values.push(document[fieldName]);
-              });
-              fieldPlaceholders.push(`(${placeholders.join(', ')})`);
-            });
-            const placeholders = fieldPlaceholders.join(',\n  ');
-            const structure = this.tablesMapping[table] ?? this.resourcesMetadata[table].structure;
-            const sqlQuery = `INSERT INTO "${structure}" (\n  ${sqlFields.join(',\n  ')}\n)\nVALUES\n  ${placeholders};`;
-            this.telemetry.debug('[PostgreSQLDatabaseClient][create] Performing the following SQL query on database:');
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][create]\n\n${sqlQuery}\n`);
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][create] [\n  ${values.join(',\n  ')}\n]\n`);
-            return connection.query(sqlQuery, values);
-          }
-          return null;
-        }));
-        await connection.query('COMMIT');
-        connection.release();
-      } catch (error) {
-        await connection.query('ROLLBACK');
-        connection.release();
-        throw error;
-      }
+      const execute = async (session?: string): Promise<void> => {
+        await forEach(Object.keys(sqlQueries), async (key) => {
+          await this.query({
+            poolOrSession: session,
+            query: sqlQueries[key].query,
+            values: sqlQueries[key].values,
+          });
+        });
+      };
+
+      return (options.poolOrSession !== undefined && this.sessions.has(options.poolOrSession))
+        ? execute(options.poolOrSession)
+        : this.withSession(execute, options.poolOrSession);
     });
   }
 
@@ -1151,108 +1976,124 @@ export default class PostgreSQLDatabaseClient<
    *
    * @returns `true` if resource has been successfully updated, `false` otherwise.
    */
-  public async update<Resource extends keyof DataModel>(
-    resource: Resource,
+  public async update<Resource extends keyof DataModel = keyof DataModel>(
+    resource: Resource & string,
     id: Id,
     payload: Payload<DataModel[Resource]>,
     options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<boolean> {
-    let resourceExists = false;
-    const resourceId = String(id);
-    const newDocuments = this.structurePayload(resource, id, payload, 'UPDATE');
+    return this.telemetry.span(`${this.constructor.name}.update`, {
+      kind: 'CLIENT',
+      attributes: {
+        resource,
+        id: String(id),
+        pool_or_session: options.poolOrSession,
+        'code.class.name': this.constructor.name,
+        ...options.telemetryAttributes,
+      },
+    }, async () => {
+      const { queries } = this.planQueries(resource, 'UPDATE', id, payload, options);
+      const sqlQueries = this.compileQueries(queries);
 
-    return this.handleError(async () => {
-      const connection = await this.client.connect();
-      await connection.query('BEGIN');
-      try {
-        const tables = Object.keys(newDocuments);
+      const deleteQueryKeys: string[] = [];
+      const insertQueryKeys: string[] = [];
+      Object.keys(queries).forEach((key) => {
+        if (queries[key].type === 'DELETE') {
+          deleteQueryKeys.push(key);
+        } else if (key !== resource) {
+          insertQueryKeys.push(key);
+        }
+      });
 
-        // If only the main resource is being updated, we don't need to use any lock as
-        // the operation will be atomic anyway.
-        if (tables.length > 1) {
-          const mainStructure = this.tablesMapping[String(resource)]
-            ?? this.resourcesMetadata[String(resource)].structure;
-          await connection.query(`SELECT * FROM "${mainStructure}" WHERE "_id" = $1 FOR UPDATE;`, [resourceId]);
+      const execute = async (session?: string, cancel?: () => Promise<void>): Promise<boolean> => {
+        // A payload touching nothing but arrays leaves the resource row itself unchanged, which
+        // would make for an empty `UPDATE ... SET`. The row is then only locked instead, both to
+        // check that the resource exists and to serialize concurrent updates of its arrays.
+        const useFallbackQuery = Object.keys((queries[resource] as UpdateQuery).fields).length < 1;
+        const rootQuery = !useFallbackQuery ? sqlQueries[resource] : this.compileQueries({
+          [resource]: {
+            type: 'SELECT',
+            fields: ['1'],
+            table: this.getTableName(resource),
+            where: (queries[resource] as UpdateQuery).where,
+            as: this.getFieldSqlAlias(this.getTableName(resource)),
+          },
+        })[resource];
+        const response = await this.query({
+          poolOrSession: session,
+          values: rootQuery.values,
+          query: useFallbackQuery ? rootQuery.query.replace(/;$/, ' FOR UPDATE;') : rootQuery.query,
+        });
+
+        if (response.rowCount === 0) {
+          await cancel?.();
+          return false;
         }
 
-        // We need to sort tables from the most specific to the root resource before deletion, in
-        // order to prevent foreign keys constraints issues on nested fields deletion.
-        await Promise.all([...tables].sort((a, b) => b.length - a.length).map(async (table) => {
-          if (table !== resource) {
-            const structure = this.tablesMapping[table] ?? this.resourcesMetadata[table].structure;
-            const sqlQuery = `DELETE FROM "${structure}" WHERE "_resourceId" = $1;`;
-            this.telemetry.debug('[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:');
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][update]\n\n${sqlQuery}\n`);
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][update] [\n  ${resourceId}\n]\n`);
-            await connection.query(sqlQuery, [resourceId]);
-          }
-        }));
+        await forEach(deleteQueryKeys, async (key) => {
+          await this.query({
+            poolOrSession: session,
+            query: sqlQueries[key].query,
+            values: sqlQueries[key].values,
+          });
+        });
 
-        await Promise.all(tables.map(async (table) => {
-          const sqlFields: string[] = [];
-          const documents = newDocuments[table];
-          const structure = this.tablesMapping[table] ?? this.resourcesMetadata[table].structure;
-          if (documents.length > 0) {
-            const values: unknown[] = [];
-            const fieldPlaceholders: string[] = [];
-            const fields = Object.keys(documents[0]);
-            const { length } = fields;
-            documents.forEach((document, index) => {
-              if (table === resource) {
-                fields.forEach((fieldName, fieldIndex) => {
-                  fieldPlaceholders.push(`"${fieldName}" = $${String(length * index + fieldIndex + 1)}`);
-                  values.push(document[fieldName]);
-                });
-              } else {
-                const placeholders: string[] = [];
-                fields.forEach((fieldName, fieldIndex) => {
-                  if (index === 0) {
-                    sqlFields.push(`"${fieldName}"`);
-                  }
-                  placeholders.push(`$${String(length * index + fieldIndex + 1)}`);
-                  values.push(document[fieldName]);
-                });
-                fieldPlaceholders.push(`(${placeholders.join(', ')})`);
-              }
-            });
+        await forEach(insertQueryKeys, async (key) => {
+          await this.query({
+            poolOrSession: session,
+            query: sqlQueries[key].query,
+            values: sqlQueries[key].values,
+          });
+        });
 
-            const filters = this.getResourceFilters(resource, id, options);
-            const where = Object.keys(filters).map((key, index) => {
-              if (table === resource) {
-                values.push(filters[key]);
-              }
-              return `\n  "${key}" = $${String(fieldPlaceholders.length + index + 1)}`;
-            }).join('\n  AND ');
-            const placeholders = fieldPlaceholders.join(',\n  ');
-            const sqlQuery = (table === resource)
-              ? `UPDATE "${structure}" SET\n  ${placeholders}\nWHERE${where};`
-              : `INSERT INTO "${structure}" (\n  ${sqlFields.join(',\n  ')}\n)\nVALUES\n  ${placeholders};`;
-            this.telemetry.debug('[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:');
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][update]\n\n${sqlQuery}\n`);
-            this.telemetry.debug(`[PostgreSQLDatabaseClient][update] [\n  ${values.join(',\n  ')}\n]\n`);
-            const response = await connection.query(sqlQuery, values);
-            if (table === resource) {
-              resourceExists = response.rowCount === 1;
-            }
-          }
-        }));
-        if (!resourceExists) {
-          await connection.query('ROLLBACK');
-        } else {
-          await connection.query('COMMIT');
-        }
-        connection.release();
-        return resourceExists;
-      } catch (error) {
-        await connection.query('ROLLBACK');
-        connection.release();
-        throw error;
-      }
+        return true;
+      };
+
+      return (options.poolOrSession !== undefined && this.sessions.has(options.poolOrSession))
+        ? execute(options.poolOrSession)
+        : this.withSession(execute, options.poolOrSession);
     });
   }
 
-  // TODO method that handles treansactions => withSession + callback
-  // TODO correct trace teleemtry + anonyluzatiuon
+  /**
+   * Deletes resource with id `id` from database.
+   *
+   * @param resource Type of resource to delete.
+   *
+   * @param id Resource id.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns `true` if resource has been successfully deleted, `false` otherwise.
+   */
+  public async delete<Resource extends keyof DataModel = keyof DataModel>(
+    resource: Resource & string,
+    id: Id,
+    options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
+  ): Promise<boolean> {
+    return this.telemetry.span(`${this.constructor.name}.delete`, {
+      kind: 'CLIENT',
+      attributes: {
+        resource,
+        id: String(id),
+        pool_or_session: options.poolOrSession,
+        'code.class.name': this.constructor.name,
+        ...options.telemetryAttributes,
+      },
+    }, async () => {
+      const { queries } = this.planQueries(resource, 'DELETE', id, null, options);
+      const sqlQueries = this.compileQueries(queries);
+
+      const response = await this.query({
+        query: sqlQueries[resource].query,
+        values: sqlQueries[resource].values,
+        poolOrSession: options.poolOrSession,
+      });
+
+      return (response.rowCount ?? 0) > 0;
+    });
+  }
+
   /**
    * Fetches resource with id `id` from database.
    *
@@ -1266,33 +2107,43 @@ export default class PostgreSQLDatabaseClient<
    */
   public async view<
     Key extends keyof QueryResults,
-    Resource extends keyof DataModel = keyof DataModel
+    Resource extends keyof DataModel = keyof DataModel,
   >(
-    resource: Resource,
+    resource: Resource & string,
     id: Id,
-    options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
+    options: ViewQueryOptions,
   ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null> {
-    const values: unknown[] = [];
-    const fields = new Set([...(options.fields ?? [])]);
-    const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
-    const { formattedQuery, projections } = this.parseFields(resource, fields, maximumDepth);
-    const filters = this.getResourceFilters(resource, id, options);
-    const where = Object.keys(filters).map((key, index) => {
-      values.push(filters[key]);
-      return `\n  "${key}" = $${String(index + 1)}`;
-    }).join('\n  AND ');
-    const whereClause = `\nWHERE ${where}`;
+    return this.telemetry.span(`${this.constructor.name}.view`, {
+      kind: 'CLIENT',
+      attributes: {
+        resource,
+        id: String(id),
+        pool_or_session: options.poolOrSession,
+        'code.class.name': this.constructor.name,
+        ...options.telemetryAttributes,
+      },
+    }, async () => {
+      const finalResults: Record<string, Record<string, unknown>[]> = {};
+      const { projections, queries } = this.planQueries(resource, 'VIEW', id, null, options);
+      const { [String(resource)]: resourceQuery, ...sqlQueries } = this.compileQueries(queries);
 
-    return this.handleError(async () => {
-      const sqlQuery = `${this.generateQuery(resource, formattedQuery)}${whereClause};`;
-      this.telemetry.debug('[PostgreSQLDatabaseClient][view] Performing the following SQL query on database:');
-      this.telemetry.debug(`[PostgreSQLDatabaseClient][view]\n\n${sqlQuery}\n`);
-      this.telemetry.debug(`[PostgreSQLDatabaseClient][view] [\n  ${values.join(',\n  ')}\n]\n`);
-      const response = await this.client.query<Record<string, unknown>>(sqlQuery, values);
-      const mapping = projections as Map<string, string>;
-      return (
-        this.formatResources(resource, response.rows, fields, mapping)[0] ?? null
-      ) as unknown as (Key extends keyof QueryResults ? QueryResults[Key] : Ids);
+      finalResults[resource] = await this.query<Record<string, unknown>>({
+        query: resourceQuery.query,
+        values: resourceQuery.values,
+        poolOrSession: options.poolOrSession,
+      }).then((response) => response.rows);
+
+      if (finalResults[resource].length === 0) {
+        return null;
+      }
+
+      await forEach(Object.keys(sqlQueries), (key) => this.query<Record<string, unknown>>({
+        query: sqlQueries[key].query,
+        values: sqlQueries[key].values,
+        poolOrSession: options.poolOrSession,
+      }).then(({ rows }) => { finalResults[key] = rows; }), 5);
+
+      return this.formatRows<null[]>(resource, projections, finalResults)[0];
     });
   }
 
@@ -1309,147 +2160,75 @@ export default class PostgreSQLDatabaseClient<
    */
   public async list<
     Key extends keyof QueryResults,
-    Resource extends keyof DataModel = keyof DataModel
+    Resource extends keyof DataModel = keyof DataModel,
   >(
-    resource: Resource,
-    searchBody: SearchBody,
-    options: ListQueryOptions = this.DEFAULT_LIST_COMMAND_OPTIONS,
-  ): Promise<Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>> {
-    const { sortBy } = options;
-    const values: unknown[] = [];
-    const query = searchBody.query ?? null;
-    const filters = searchBody.filters ?? {};
-    const filterFields = Object.keys(filters);
-    const queryFields = [...(query?.on ?? [])];
-    const sortingFields = Object.keys(sortBy ?? {});
-    const fields = new Set([...options.fields ?? []]);
-    const limit = options.limit ?? this.DEFAULT_LIMIT;
-    const offset = options.offset ?? this.DEFAULT_OFFSET;
-    const maximumDepth = options.maximumDepth ?? this.DEFAULT_MAXIMUM_DEPTH;
-    const searchFields = new Set([...queryFields, ...sortingFields, ...filterFields]);
-    const allFields = new Set([...fields, ...searchFields]);
-    const { formattedQuery, projections } = this.parseFields(resource, allFields, maximumDepth);
-    const searchMetaData = this.parseFields(resource, searchFields, maximumDepth, {
-      query,
-      filters,
-    }, sortBy);
-    const extraFilters = this.getResourceFilters(resource, null, options);
-    if (Object.keys(extraFilters).length > 0) {
-      searchMetaData.formattedQuery.match ??= {
-        filters: [],
-        query: [],
-      };
-    }
-    Object.keys(extraFilters).forEach((key) => {
-      if (searchMetaData.formattedQuery.match) {
-        searchMetaData.formattedQuery.match.filters.push({ [key]: extraFilters[key] });
+    resource: Resource & string,
+    searchBody: SearchBody | null,
+    options: ListQueryOptions,
+  ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>> {
+    return this.telemetry.span(`${this.constructor.name}.list`, {
+      kind: 'CLIENT',
+      attributes: {
+        resource,
+        limit: options.limit,
+        offset: options.offset,
+        pool_or_session: options.poolOrSession,
+        'code.class.name': this.constructor.name,
+        ...options.telemetryAttributes,
+      },
+    }, async () => {
+      const offset = (options.offset ?? this.DEFAULT_OFFSET);
+      const { projections, queries } = this.planQueries(resource, 'LIST', null, searchBody, options);
+      const { _search, ...sqlQueries } = this.compileQueries(queries);
+
+      const response = await this.query<{ __total: string | null; _id: string; }>({
+        query: _search.query,
+        values: _search.values,
+        poolOrSession: options.poolOrSession,
+      });
+
+      if (response.rows.length === 0 && offset === 0) {
+        return { total: 0, results: [] };
       }
-    });
-    const searchQuery = this.generateQuery(resource, searchMetaData.formattedQuery, '  ');
 
-    // Build search CTE that returns only __total, _id, row_num (no inline results JOIN).
-    let searchCTE = `WITH searchResults AS (\n${searchQuery}\n),`;
-    searchCTE += '\ncount AS (\n  SELECT\n    COUNT(_id) AS total\n  FROM\n    searchResults\n),';
-    searchCTE += `\npagination AS (\n  SELECT\n    _id,\n    ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
-    searchCTE += '\nSELECT\n  count.total AS __total,\n  pagination._id,\n  pagination.row_num';
-    searchCTE += '\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1\nORDER BY pagination.row_num;';
+      // Paginating with overflowed offset gives no rows in the response although there may actually
+      // be results. This second query makes sure to return the total number of results.
+      if (response.rows.length === 0) {
+        const { _search: countQuery } = this.compileQueries({
+          _search: {
+            ...queries._search,
+            limit: 1,
+            offset: 0,
+            orderBy: [],
+            fields: ['COUNT(*) AS __total'],
+          },
+        });
 
-    searchMetaData.formattedQuery.match?.query.forEach((filter) => {
-      values.push(Object.values(filter)[0]);
-    });
-    searchMetaData.formattedQuery.match?.filters.forEach((filter) => {
-      if (Array.isArray(Object.values(filter)[0])) {
-        values.push(...Object.values(filter)[0] as unknown[]);
-      } else if (Object.values(filter)[0] !== null) {
-        values.push(Object.values(filter)[0]);
+        const countResponse = await this.query<{ __total: string | null; _id: string; }>({
+          query: countQuery.query,
+          values: countQuery.values,
+          poolOrSession: options.poolOrSession,
+        });
+
+        return {
+          total: parseInt(countResponse.rows[0]?.__total ?? '0', 10),
+          results: [],
+        };
       }
-    });
 
-    return this.handleError(async () => {
-      const sqlQuery = this.generateQuery(resource, formattedQuery, '  ');
-      const searchQuery = this.generateQuery(resource, searchMetaData.formattedQuery, '  ');
-      let fullSQLQuery = `WITH searchResults AS (\n${searchQuery}\n),`;
-      fullSQLQuery += '\ncount AS (\n  SELECT\n    COUNT(_id) AS total\n  FROM\n    searchResults\n),';
-      fullSQLQuery += `\npagination AS (\n  SELECT\n    _id,\n    ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT ${String(limit)}\n  OFFSET ${String(offset)}\n)`;
-      fullSQLQuery += '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination\nON 1 = 1';
-      fullSQLQuery += `\nLEFT JOIN (\n${sqlQuery}\n) AS results\nON results._id = pagination._id\nORDER BY pagination.row_num;`;
-      this.telemetry.debug('[PostgreSQLDatabaseClient][list] Performing the following SQL query on database:');
-      this.telemetry.debug(`[PostgreSQLDatabaseClient][list]\n\n${fullSQLQuery}\n`);
-      this.telemetry.debug(`[PostgreSQLDatabaseClient][list] [\n  ${values.join(',\n  ')}\n]\n`);
-      const response = await this.client.query<Omit<QueryResults[Key], '_id'> & {
-        __total: string;
-        _id: string | null;
-      }>(fullSQLQuery, values);
-      const mapping = projections as Map<string, string>;
+      const ids = response.rows.map((row) => row._id);
+      const finalResults: Record<string, Record<string, unknown>[]> = {};
+
+      await forEach(Object.keys(sqlQueries), (key) => this.query<Record<string, string>>({
+        values: [ids],
+        query: sqlQueries[key].query,
+        poolOrSession: options.poolOrSession,
+      }).then(({ rows }) => { finalResults[key] = rows; }), 5);
+
       return {
         total: parseInt(response.rows[0]?.__total ?? '0', 10),
-        results: (response.rows[0]?._id ?? null) === null
-          ? []
-          : this.formatResources(
-            resource,
-            response.rows,
-            allFields,
-            mapping,
-          ),
-      } as unknown as Key extends keyof QueryResults ? Results<QueryResults[Key]> : Results<Ids>;
-    });
-  }
-
-  /**
-   * Deletes resource with id `id` from database.
-   *
-   * @param resource Type of resource to delete.
-   *
-   * @param id Resource id.
-   *
-   * @param options Query options. Defaults to `{}`.
-   *
-   * @returns `true` if resource has been successfully deleted, `false` otherwise.
-   */
-  public async delete<Resource extends keyof DataModel>(
-    resource: Resource,
-    id: Id,
-    options: QueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
-  ): Promise<boolean> {
-    let resourceExists = false;
-    const resourceId = String(id);
-    const subTables = this.resourcesMetadata[String(resource)].subStructures;
-
-    return this.handleError(async () => {
-      const connection = await this.client.connect();
-      await connection.query('BEGIN');
-      try {
-        await Promise.all(subTables.concat([resource as string]).map(async (table) => {
-          const values: unknown[] = (table !== resource) ? [resourceId] : [];
-          const fieldPlaceholders: string[] = [];
-          const structure = this.tablesMapping[table] ?? this.resourcesMetadata[table].structure;
-          const filters = this.getResourceFilters(resource, id, options);
-          const where = Object.keys(filters).map((key, index) => {
-            if (table === resource) {
-              values.push(filters[key]);
-            }
-            return `\n  "${key}" = $${String(fieldPlaceholders.length + index + 1)}`;
-          }).join('\n  AND ');
-          const sqlQuery = (table !== resource)
-            ? `DELETE FROM "${structure}" WHERE "_resourceId" = $1;`
-            : `DELETE FROM "${structure}" WHERE${where};`;
-          this.telemetry.debug('[PostgreSQLDatabaseClient][delete] Performing the following SQL query on database:');
-          this.telemetry.debug(`[PostgreSQLDatabaseClient][delete]\n\n${sqlQuery}\n`);
-          this.telemetry.debug(`[PostgreSQLDatabaseClient][delete] [\n  ${values.join(',\n  ')}\n]\n`);
-          const response = await connection.query(sqlQuery, values);
-          if (table === resource) {
-            resourceExists = response.rowCount === 1;
-          }
-        }));
-        await connection.query('COMMIT');
-        connection.release();
-      } catch (error) {
-        await connection.query('ROLLBACK');
-        connection.release();
-        throw error;
-      }
-
-      return resourceExists;
+        results: this.formatRows(resource, projections, finalResults),
+      };
     });
   }
 
@@ -1457,199 +2236,84 @@ export default class PostgreSQLDatabaseClient<
    * Gracefully shuts down the database client, releasing all remaining connections to the server.
    */
   public async shutdown(): Promise<void> {
-    await Promise.all([
-      this.client.end(),
-      ...Array.from(this.pools.values()).map((pool) => pool.end()),
-    ]);
-  }
-
-
-  /**
-   * Connects to the database server.
-   *
-   * @param pool Name of the pool to connect to. Defaults to `default`.
-   *
-   * @returns Connection pool instance.
-   */
-  protected async connect(pool = 'default'): Promise<pg.Pool> {
-    const poolClient = this.pools.get(pool);
-
-    if (poolClient !== undefined) {
-      return poolClient;
-    }
-
-    this.telemetry.info('Connecting to database...', {
-      'db.system.name': 'postgresql',
-      'db.namespace': this.database,
-      'server.address': this.databaseSettings.host,
-      'server.port': this.databaseSettings.port ?? undefined,
-    });
-
-    this.lastMetrics.set(pool, { used: 0, idle: 0, pending: 0 });
-    const newPoolClient = new pg.Pool({
-      database: this.database,
-      ssl: this.databaseSettings.ssl,
-      host: this.databaseSettings.host,
-      max: this.databaseSettings.connectionLimit,
-      port: this.databaseSettings.port ?? undefined,
-      user: this.databaseSettings.user ?? undefined,
-      password: this.databaseSettings.password ?? undefined,
-      lock_timeout: this.databaseSettings.queryTimeout,
-      query_timeout: this.databaseSettings.queryTimeout,
-      statement_timeout: this.databaseSettings.queryTimeout,
-      idleTimeoutMillis: this.databaseSettings.connectTimeout,
-      connectionTimeoutMillis: this.databaseSettings.connectTimeout,
-    });
-
-    const updateMetrics = () => {
-      const lastMetrics = this.lastMetrics.get(pool) as PoolMetrics;
-      const { totalCount, idleCount, waitingCount } = newPoolClient;
-      const currentUsed = totalCount - idleCount;
-      this.telemetry.measure('db.client.connection.count', currentUsed - lastMetrics.used, {
-        'db.client.connection.state': 'used',
-        'db.client.connection.pool.name': pool,
-      });
-      this.telemetry.measure('db.client.connection.count', idleCount - lastMetrics.idle, {
-        'db.client.connection.state': 'idle',
-        'db.client.connection.pool.name': pool,
-      });
-      this.telemetry.measure('db.client.connection.pending_requests', waitingCount - lastMetrics.pending, {
-        'db.client.connection.pool.name': pool,
-      });
-     lastMetrics.used = currentUsed;
-     lastMetrics.idle = idleCount;
-     lastMetrics.pending = waitingCount;
-    };
-    newPoolClient.on('connect', updateMetrics);
-    newPoolClient.on('acquire', updateMetrics);
-    newPoolClient.on('remove', updateMetrics);
-    newPoolClient.on('release', updateMetrics);
-
-    this.pools.set(pool, newPoolClient);
-    return newPoolClient;
-  }
-
-  /**
-   * Performs a SQL query on the database with `settings`.
-   *
-   * @param settings Query settings. Contains:
-   * - `query`: SQL query to perform.
-   * - `values`: Values to bind to the query.
-   * - `poolOrSession`: Pool or session ID to use for the query.
-   * - `telemetryAttributes`: Telemetry attributes to add to the query span.
-   *
-   * @returns Query result.
-   */
-  public async query<T extends pg.QueryResultRow = pg.QueryResultRow>(settings: {
-    query: string;
-    values?: unknown[];
-    poolOrSession?: string;
-    telemetryAttributes?: Record<string, string | number | boolean | undefined>;
-  }): Promise<pg.QueryResult<T>> {
-    const { query, values = [] } = settings;
-    const { poolOrSession = 'default', telemetryAttributes = {} } = settings;
-    let sqlErrorCode: string | undefined;
-    const defaultAttributes: Record<string, string | number | boolean | undefined> = {
-      'db.namespace': this.database,
-      'db.system.name': 'postgresql',
-      'server.address': this.databaseSettings.host,
-      'server.port': this.databaseSettings.port ?? undefined,
-    };
-
-    const client = this.sessions.get(poolOrSession)
-      ?? this.pools.get(poolOrSession)
-      ?? await this.connect(poolOrSession);
-
-    const startTime = this.telemetry.now();
-    return this.telemetry.span(`${this.constructor.name}.query`, {
+    const pools = Array.from(this.pools.values());
+    return this.telemetry.span(`${this.constructor.name}.shutdown`, {
+      kind: 'CLIENT',
       attributes: {
-        ...defaultAttributes,
-        'db.query.text': settings.query,
+        pools: pools.length,
         'code.class.name': this.constructor.name,
-        ...telemetryAttributes,
       },
-    }, async (span) => {
-      try {
-        return await client.query<T>(query, values);
-      } catch (error) {
-        const postgreError = error as pg.DatabaseError;
-        // TODO
-        if (postgreError.code === '23505') {
-          const match = /Key \(([^)]+)\)=\(([^)]+)\)/.exec(postgreError.detail as unknown as string);
-          throw new DatabaseError('DUPLICATE_RESOURCE', {
-            path: (match as string[])[1],
-            value: (match as string[])[2].trim(),
-          });
-        }
-        if (postgreError.code === '23503') {
-          const path = (/Key \(([^)]+)\)=/.exec(postgreError.detail as unknown as string) as string[])[1];
-          throw new DatabaseError('RESOURCE_REFERENCED', { path });
-        }
-        sqlErrorCode = postgreError.code;
-        span.setStatus({ code: 'ERROR' });
-        throw error;
-      } finally {
-        span.setAttributes({
-          'error.type': sqlErrorCode,
-          'db.response.status_code': sqlErrorCode,
-        });
-        this.telemetry.measure('db.client.operation.duration', this.telemetry.duration(startTime), {
-          ...defaultAttributes,
-          'error.type': sqlErrorCode,
-          'db.response.status_code': sqlErrorCode,
-          ...telemetryAttributes,
-        });
-      }
+    }, async () => {
+      await Promise.all(pools.map((pool) => pool.pool.end()));
+      this.pools.clear();
     });
   }
 
   /**
-   * Starts a new session to perform multiple database operations atomically.
-   * Automatically handles transaction start, commit and rollback in case of error, as well as
-   * connection release.
+   * Makes sure that `relations` reference existing resources that match specific conditions.
    *
-   * @param callback Callback containing the operations to execute within the session.
+   * @param resource Type of resource to check relations for.
    *
-   * @param pool Name of the pool to use for the session. Defaults to `default`.
+   * @param relations Foreign ids to check in database.
    *
-   * @returns Result of the callback execution, if any.
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @throws If any foreign id does not exist.
    */
-  public async withSession<T>(
-    callback: (session: string, cancel: () => void) => Promise<T>,
-    pool = 'default',
-  ): Promise<T> {
-    let isCancelled = false;
-    const newSessionId = String(new Id());
-    const poolClient = await this.connect(pool);
-    const connection = await poolClient.connect()
-    this.sessions.set(newSessionId, connection);
-    const cancel = async () => {
-      isCancelled = true;
-      await this.query({
-        query: 'ROLLBACK;',
-        poolOrSession: newSessionId,
-      });
-      this.sessions.delete(newSessionId);
-    };
-    try {
-      await this.query({
-        query: 'BEGIN;',
-        poolOrSession: newSessionId,
-      });
-      const response = await callback(newSessionId, cancel);
-      if (!isCancelled) {
-        await this.query({
-          query: 'COMMIT;',
-          poolOrSession: newSessionId,
+  public async checkRelations<Resource extends keyof DataModel>(
+    resource: Resource & string,
+    relations: Map<string, {
+      resource: keyof DataModel & string;
+      filters: { _id: Id[]; } & SearchFilters;
+    }>,
+    options?: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
+  ): Promise<void> {
+    return this.telemetry.span(`${this.constructor.name}.checkRelations`, {
+      kind: 'CLIENT',
+      attributes: {
+        resource,
+        relations: relations.size,
+        pool_or_session: options?.poolOrSession,
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      if (relations.size > 0) {
+        const values: unknown[] = [];
+        const sqlSubQueries: string[] = [];
+        const missingIds = new Set<string>();
+        relations.forEach((value, path) => {
+          const searchBody = { query: null, filters: value.filters };
+          const queryOptions = { ...options, maximumDepth: Infinity };
+          const { queries } = this.planQueries(value.resource, 'LIST', null, searchBody, queryOptions);
+          delete queries._search.limit;
+          delete queries._search.offset;
+          delete queries._search.orderBy;
+          queries._search.fields = [`DISTINCT "${queries._search.as}"."_id"`, `${getPlaceholder(path, values)} as path`];
+          sqlSubQueries.push(`${compileQuery(queries._search, values)};`);
+          value.filters._id.forEach((id) => missingIds.add(`${id}:${path}`));
         });
+
+        let query = '';
+        for (let index = 0, { length } = sqlSubQueries; index < length; index += 1) {
+          query += (query === '') ? sqlSubQueries[index].replace(/;$/, '') : `\nUNION ALL\n${sqlSubQueries[index].replace(/;$/, '')}`;
+        }
+
+        const response = await this.query({
+          values,
+          query: `${query};`,
+          poolOrSession: options?.poolOrSession,
+        });
+
+        for (let index = 0, { length } = response.rows; index < length; index += 1) {
+          const row = response.rows[index];
+          missingIds.delete(`${row._id}:${row.path}`);
+        }
+
+        if (missingIds.size > 0) {
+          const id = (missingIds.values().next().value as unknown as string).split(':')[0];
+          throw new DatabaseError('NO_RESOURCE', { id });
+        }
       }
-      return response;
-    } catch (error) {
-      await cancel();
-      throw error;
-    } finally {
-      connection.release();
-      this.sessions.delete(newSessionId);
-    }
+    });
   }
 }

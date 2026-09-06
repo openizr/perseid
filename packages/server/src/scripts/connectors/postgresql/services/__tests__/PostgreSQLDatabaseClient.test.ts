@@ -1,2399 +1,1386 @@
-/* eslint-disable */
-// /**
-//  * Copyright (c) Openizr. All Rights Reserved.
-//  *
-//  * This source code is licensed under the MIT license found in the
-//  * LICENSE file in the root directory of this source tree.
-//  *
-//  */
+/**
+ * Copyright (c) Openizr. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
 
-// import pg from 'pg';
-// import Model from 'scripts/core/services/Model';
-// import Logger from 'scripts/core/services/Logger';
-// import { type ResourceSchema, Id } from '@perseid/core';
-// import DatabaseError from 'scripts/core/errors/Database';
-// import CacheClient from 'scripts/core/services/CacheClient';
-// import { type DataModel } from 'scripts/core/services/__mocks__/schema';
-// import type { FormattedQuery } from 'scripts/core/services/AbstractDatabaseClient';
-// import PostgreSQLDatabaseClient from 'scripts/postgresql/services/PostgreSQLDatabaseClient';
+import {
+  Pool,
+  emit,
+  pool,
+  poolClient,
+} from '__mocks__/pg';
+import PostgreSQLDatabaseClient, {
+  type Query,
+  type SelectQuery,
+  type PostgreSQLDatabaseClientSettings,
+} from 'scripts/connectors/postgresql/services/PostgreSQLDatabaseClient';
+import { Id } from '@perseid/core';
+import Model from 'scripts/core/services/Model';
+import type { SearchBody } from 'scripts/core';
+import { resetIdCount } from '__mocks__/@perseid/core';
+import Telemetry from 'scripts/core/services/Telemetry';
+import CacheClient from 'scripts/core/services/CacheClient';
+import { type DataModel } from 'scripts/core/services/__mocks__/schema';
 
-// type TestPostgreSQLDatabaseClient = PostgreSQLDatabaseClient<DataModel> & {
-//   client: PostgreSQLDatabaseClient<DataModel>['client'];
-//   isConnected: PostgreSQLDatabaseClient<DataModel>['isConnected'];
-//   handleError: PostgreSQLDatabaseClient<DataModel>['handleError'];
-//   parseFields: PostgreSQLDatabaseClient<DataModel>['parseFields'];
-//   generateQuery: PostgreSQLDatabaseClient<DataModel>['generateQuery'];
-//   formatResources: PostgreSQLDatabaseClient<DataModel>['formatResources'];
-//   structurePayload: PostgreSQLDatabaseClient<DataModel>['structurePayload'];
-//   resourcesMetadata: PostgreSQLDatabaseClient<DataModel>['resourcesMetadata'];
-//   generateResourceMetadata: PostgreSQLDatabaseClient<DataModel>['generateResourceMetadata'];
-// };
+type TestClient = PostgreSQLDatabaseClient<DataModel> & {
+  query: PostgreSQLDatabaseClient<DataModel>['query'];
+  formatRows: PostgreSQLDatabaseClient<DataModel>['formatRows'];
+  planQueries: PostgreSQLDatabaseClient<DataModel>['planQueries'];
+  compileQueries: PostgreSQLDatabaseClient<DataModel>['compileQueries'];
+  resourcesMetadata: PostgreSQLDatabaseClient<DataModel>['resourcesMetadata'];
+};
 
-// describe('postgresql/services/PostgreSQLDatabaseClient', () => {
-//   vi.mock('pg');
-//   vi.mock('@perseid/core');
-//   vi.mock('scripts/core/services/Model');
-//   vi.mock('scripts/core/services/Logger');
-//   vi.mock('scripts/core/services/CacheClient');
-//   vi.mock('scripts/core/services/AbstractDatabaseClient');
+type Observe = (observe: (value: number, attributes?: Record<string, unknown>) => void) => void;
 
-//   let databaseClient: TestPostgreSQLDatabaseClient;
-//   const logger = new Logger({ logLevel: 'info', prettyPrint: false });
-//   const cacheClient = new CacheClient({ cachePath: '/.cache', connectTimeout: 0 });
-//   const model = new Model<DataModel>({} as Record<keyof DataModel, ResourceSchema<DataModel>>);
+/**
+ * Returns the callback the `name` metric observes its values with.
+ */
+const observeMetric = (telemetry: Telemetry, name: string): Observe => {
+  const [, , callback] = vi.mocked(telemetry.createUpDownCounter).mock.calls
+    .find(([metric]) => metric === name) as [string, unknown, Observe];
+  return callback;
+};
 
-//   beforeEach(() => {
-//     databaseClient = new PostgreSQLDatabaseClient<DataModel>(model, logger, cacheClient, {
-//       protocol: 'http',
-//       host: 'localhost',
-//       port: null,
-//       user: null,
-//       password: null,
-//       database: 'test',
-//       connectTimeout: 0,
-//       connectionLimit: 0,
-//     }) as TestPostgreSQLDatabaseClient;
-//     databaseClient.client = new pg.Pool();
+describe('connectors/postgresql/services/PostgreSQLDatabaseClient', () => {
+  vi.mock('pg');
+  vi.mock('crypto');
+  vi.mock('@perseid/core');
+  vi.mock('scripts/core/errors/Database');
+  vi.mock('scripts/core/services/Model');
+  vi.mock('scripts/core/services/Telemetry');
+  vi.mock('scripts/core/services/CacheClient');
+  vi.mock('scripts/core/services/AbstractDatabaseClient');
 
-//     vi.clearAllMocks();
-//     delete process.env.NO_RESULT;
-//     delete process.env.DATABASE_ERROR;
-//     delete process.env.MISSING_FOREIGN_IDS;
-//   });
+  const resourceId = new Id('000000000000000000000001');
 
-//   test('[generateResourceMetadata]', () => {
-//     databaseClient.resourcesMetadata = {
-//       test: {
-//         fields: {},
-//         indexes: [],
-//         constraints: [],
-//         structure: 'test',
-//         subStructures: [],
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//       otherTest: {
-//         fields: {},
-//         indexes: [],
-//         constraints: [],
-//         subStructures: [],
-//         structure: 'otherTest',
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//     };
-//     databaseClient.generateResourceMetadata('test');
-//     databaseClient.generateResourceMetadata('otherTest');
-//     expect(databaseClient.resourcesMetadata).toEqual({
-//       test: {
-//         fields: {
-//           _id: { type: 'CHAR(24)', isRequired: true },
-//           _isDeleted: { type: 'BOOLEAN', isRequired: true },
-//           indexedString: { type: 'VARCHAR(255)', isRequired: true },
-//           objectOne: { type: 'BOOLEAN', isRequired: true },
-//           objectOne_boolean: { type: 'BOOLEAN', isRequired: true },
-//           objectOne_optionalRelations: { type: 'BOOLEAN', isRequired: false },
-//           objectOne_objectTwo: { type: 'BOOLEAN', isRequired: true },
-//           objectOne_objectTwo_optionalIndexedString: { type: 'VARCHAR(255)', isRequired: false },
-//           objectOne_objectTwo_optionalNestedArray: { type: 'BOOLEAN', isRequired: false },
-//         },
-//         indexes: [
-//           { path: '_isDeleted', unique: false },
-//           { path: 'indexedString', unique: false },
-//           {
-//             path: 'objectOne_objectTwo_optionalIndexedString',
-//             unique: true,
-//           },
-//         ],
-//         constraints: [],
-//         structure: 'test',
-//         subStructures: [
-//           '_test_objectOne_optionalRelations',
-//           '_test_objectOne_objectTwo_optionalNestedArray',
-//           '_test_objectOne_objectTwo_optionalNestedArray_value_data_flatArray',
-//           '_test_objectOne_objectTwo_optionalNestedArray_value_data_nestedArray',
-//         ],
-//         subStructuresPerPath: {
-//           objectOne_optionalRelations: new Set(['_test_objectOne_optionalRelations']),
-//           objectOne_objectTwo_optionalNestedArray: new Set([
-//             '_test_objectOne_objectTwo_optionalNestedArray',
-//             '_test_objectOne_objectTwo_optionalNestedArray_value_data_flatArray',
-//             '_test_objectOne_objectTwo_optionalNestedArray_value_data_nestedArray',
-//           ]),
-//           objectOne_objectTwo_optionalNestedArray_value_data_flatArray: new Set([
-//             '_test_objectOne_objectTwo_optionalNestedArray_value_data_flatArray',
-//           ]),
-//           objectOne_objectTwo_optionalNestedArray_value_data_nestedArray: new Set([
-//             '_test_objectOne_objectTwo_optionalNestedArray_value_data_nestedArray',
-//           ]),
-//         },
-//         invertedRelations: new Map(),
-//       },
-//       otherTest: {
-//         fields: {
-//           _id: { type: 'CHAR(24)', isRequired: true },
-//           _createdAt: { type: 'TIMESTAMP', isRequired: true },
-//           binary: { type: 'BYTEA', isRequired: true },
-//           optionalRelation: { type: 'CHAR(24)', isRequired: false },
-//           data: { type: 'BOOLEAN', isRequired: true },
-//           enum: { type: 'VARCHAR(5)', isRequired: true },
-//           data_optionalRelation: { type: 'CHAR(24)', isRequired: false },
-//           data_optionalFlatArray: { type: 'BOOLEAN', isRequired: false },
-//         },
-//         indexes: [
-//           { path: '_createdAt', unique: false },
-//           { path: 'optionalRelation', unique: false },
-//           { path: 'data_optionalRelation', unique: false },
-//         ],
-//         constraints: [
-//           { path: 'optionalRelation', relation: 'test' },
-//           { path: 'data_optionalRelation', relation: 'test' },
-//         ],
-//         subStructures: ['_otherTest_data_optionalFlatArray'],
-//         structure: 'otherTest',
-//         subStructuresPerPath: {
-//           data_optionalFlatArray: new Set(['_otherTest_data_optionalFlatArray']),
-//         },
-//         invertedRelations: new Map(),
-//       },
-//       _test_objectOne_optionalRelations: {
-//         fields: {
-//           _id: { type: 'CHAR(24)', isRequired: true },
-//           _parentId: { type: 'CHAR(24)', isRequired: true },
-//           _resourceId: { type: 'CHAR(24)', isRequired: true },
-//           value: { type: 'CHAR(24)', isRequired: false },
-//         },
-//         structure: '_test_1',
-//         constraints: [
-//           { path: '_parentId', relation: 'test' },
-//           { path: '_resourceId', relation: 'test' },
-//           { path: 'value', relation: 'otherTest' },
-//         ],
-//         indexes: [
-//           { path: '_parentId', unique: false },
-//           { path: '_resourceId', unique: false },
-//           { path: 'value', unique: false },
-//         ],
-//         subStructures: [],
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//       _test_objectOne_objectTwo_optionalNestedArray: {
-//         fields: {
-//           _id: { type: 'CHAR(24)', isRequired: true },
-//           _parentId: { type: 'CHAR(24)', isRequired: true },
-//           _resourceId: { type: 'CHAR(24)', isRequired: true },
-//           value: { type: 'BOOLEAN', isRequired: false },
-//           value_data: { type: 'BOOLEAN', isRequired: false },
-//           value_data_optionalInteger: { type: 'INT', isRequired: false },
-//           value_data_flatArray: { type: 'BOOLEAN', isRequired: false },
-//           value_data_nestedArray: { type: 'BOOLEAN', isRequired: false },
-//         },
-//         structure: '_test_2',
-//         constraints: [
-//           { path: '_parentId', relation: 'test' },
-//           { path: '_resourceId', relation: 'test' },
-//         ],
-//         indexes: [
-//           { path: '_parentId', unique: false },
-//           { path: '_resourceId', unique: false },
-//           { path: 'value_data_optionalInteger', unique: false },
-//         ],
-//         subStructures: [],
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//       _test_objectOne_objectTwo_optionalNestedArray_value_data_flatArray: {
-//         fields: {
-//           _id: { type: 'CHAR(24)', isRequired: true },
-//           _parentId: { type: 'CHAR(24)', isRequired: true },
-//           _resourceId: { type: 'CHAR(24)', isRequired: true },
-//           value: { type: 'VARCHAR(255)', isRequired: false },
-//         },
-//         structure: '_test_3',
-//         constraints: [
-//           {
-//             path: '_parentId',
-//             relation: '_test_objectOne_objectTwo_optionalNestedArray',
-//           },
-//           { path: '_resourceId', relation: 'test' },
-//         ],
-//         indexes: [
-//           { path: '_parentId', unique: false },
-//           { path: '_resourceId', unique: false },
-//           { path: 'value', unique: false },
-//         ],
-//         subStructures: [],
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//       _test_objectOne_objectTwo_optionalNestedArray_value_data_nestedArray: {
-//         fields: {
-//           _id: { type: 'CHAR(24)', isRequired: true },
-//           _parentId: { type: 'CHAR(24)', isRequired: true },
-//           _resourceId: { type: 'CHAR(24)', isRequired: true },
-//           value: { type: 'BOOLEAN', isRequired: true },
-//           value_optionalRelation: { type: 'CHAR(24)', isRequired: false },
-//           value_key: { type: 'TEXT', isRequired: true },
-//         },
-//         structure: '_test_4',
-//         constraints: [
-//           {
-//             path: '_parentId',
-//             relation: '_test_objectOne_objectTwo_optionalNestedArray',
-//           },
-//           { path: '_resourceId', relation: 'test' },
-//           { path: 'value_optionalRelation', relation: 'otherTest' },
-//         ],
-//         indexes: [
-//           { path: '_parentId', unique: false },
-//           { path: '_resourceId', unique: false },
-//         ],
-//         subStructures: [],
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//       _otherTest_data_optionalFlatArray: {
-//         fields: {
-//           _id: { type: 'CHAR(24)', isRequired: true },
-//           _parentId: { type: 'CHAR(24)', isRequired: true },
-//           _resourceId: { type: 'CHAR(24)', isRequired: true },
-//           value: { type: 'VARCHAR(5)', isRequired: true },
-//         },
-//         structure: '_otherTest_1',
-//         constraints: [
-//           { path: '_parentId', relation: 'otherTest' },
-//           { path: '_resourceId', relation: 'otherTest' },
-//         ],
-//         indexes: [
-//           { path: '_parentId', unique: false },
-//           { path: '_resourceId', unique: false },
-//           { path: 'value', unique: true },
-//         ],
-//         subStructures: [],
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//     });
-//   });
+  const defaultPool = {
+    ssl: false as const,
+    port: 5432,
+    user: 'root',
+    host: 'localhost',
+    database: 'test',
+    queryTimeout: 5000,
+    connectTimeout: 2000,
+    connectionLimit: 10,
+    password: 'Test123!',
+    protocol: 'postgresql',
+  };
 
-//   describe('[parseFields]', () => {
-//     test('unknown field error', () => {
-//       expect(() => (
-//         databaseClient.parseFields('otherTest', new Set([
-//           'data.invalid_field',
-//         ]), 1)
-//       )).toThrow(new DatabaseError('UNKNOWN_FIELD', { path: 'data.invalid_field' }));
-//     });
+  const settings: PostgreSQLDatabaseClientSettings = {
+    hashAliases: false,
+    pools: { default: defaultPool },
+  };
 
-//     test('maximum depth exceeded error', () => {
-//       expect(() => (
-//         databaseClient.parseFields('otherTest', new Set([
-//           'data.optionalRelation._id',
-//         ]), 1)
-//       )).toThrow(new DatabaseError('MAXIMUM_DEPTH_EXCEEDED', { path: 'data.optionalRelation._id' }));
-//     });
+  const otherTestPayload: DataModel['otherTest'] = {
+    enum: 'ONE',
+    _id: resourceId,
+    optionalRelation: null,
+    binary: new ArrayBuffer(0),
+    _createdAt: new Date('2025-01-01'),
+    data: {
+      optionalRelation: null,
+      optionalFlatArray: ['test1', 'test2'],
+    },
+  };
 
-//     test('invalid field error', () => {
-//       expect(() => (
-//         databaseClient.parseFields('test', new Set([]), 1, {
-//           query: null,
-//           filters: {
-//             'objectOne.objectTwo.optionalNestedArray': false,
-//           },
-//         })
-//       )).toThrow(new DatabaseError('INVALID_FIELD', { path: 'objectOne.objectTwo.optionalNestedArray' }));
-//     });
+  const test = it.extend<{
+    client: TestClient;
+    telemetry: Telemetry;
+    model: Model<DataModel>;
+    connectedClient: TestClient;
+  }>({
+    model: async ({ task }, use) => {
+      vi.fn(() => task);
+      await use(new Model<DataModel>({}));
+    },
+    telemetry: async ({ task }, use) => {
+      vi.fn(() => task);
+      await use(new Telemetry());
+    },
+    client: async ({ model, telemetry }, use) => {
+      const cache = new CacheClient(telemetry, { cachePath: '/.cache', requestTimeout: 0 });
+      await use(new PostgreSQLDatabaseClient<DataModel>(
+        model,
+        telemetry,
+        cache,
+        settings,
+      ) as TestClient);
+    },
+    connectedClient: async ({ client }, use) => {
+      await client.withSession(async () => Promise.resolve());
+      vi.mocked(Pool).mockClear();
+      poolClient.query.mockClear();
+      await use(client);
+    },
+  });
 
-//     test('unindexed field error', () => {
-//       expect(() => (
-//         databaseClient.parseFields('test', new Set([]), 1, {
-//           query: null,
-//           filters: {
-//             'objectOne.boolean': false,
-//           },
-//         })
-//       )).toThrow(new DatabaseError('UNINDEXED_FIELD', { path: 'objectOne.boolean' }));
-//     });
+  beforeEach(() => {
+    resetIdCount();
+    vi.clearAllMocks();
+    poolClient.query.mockImplementation(() => Promise.resolve({
+      rowCount: 1,
+      rows: [{ __total: '10', _id: '000000000000000000000001' }],
+    }));
+  });
 
-//     test('unsortable field error', () => {
-//       expect(() => (
-//         databaseClient.parseFields('otherTest', new Set([]), 1, null, { 'data.optionalFlatArray': 1 })
-//       )).toThrow(new DatabaseError('UNSORTABLE_FIELD', { path: 'data.optionalFlatArray' }));
-//     });
+  afterEach(() => {
+    Id.FORMAT = 'UUID';
+  });
 
-//     test('existing fields', () => {
-//       expect(databaseClient.parseFields('test', new Set([
-//         '_id',
-//         '_isDeleted',
-//         'indexedString',
-//         'objectOne.objectTwo.optionalIndexedString',
-//         'objectOne.optionalRelations.data.optionalFlatArray',
-//         'objectOne.objectTwo.optionalNestedArray.data.flatArray',
-//         'objectOne.objectTwo.optionalNestedArray.data.optionalInteger',
-//         'objectOne.objectTwo.optionalNestedArray.data.nestedArray.key',
-//         'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation',
-//       ]), 10, {
-//         query: {
-//           on: new Set([
-//             'objectOne.objectTwo.optionalIndexedString',
-//             'objectOne.objectTwo.optionalNestedArray.data.flatArray',
-//           ]),
-//           text: 'test',
-//         },
-//         filters: {
-//           'objectOne.optionalRelations': new Id('000000000000000000000001'),
-//           'objectOne.objectTwo.optionalNestedArray.data.optionalInteger': 3,
-//           'objectOne.objectTwo.optionalIndexedString': new Date(1719399429820),
-//           'objectOne.optionalRelations.data.optionalRelation.objectOne.objectTwo.optionalIndexedString': 'test',
-//         },
-//       }, { indexedString: -1 })).toEqual({
-//         formattedQuery: {
-//           structure: 'test',
-//           sort: { indexedString: -1 },
-//           match: {
-//             query: [
-//               { objectOne_objectTwo_optionalNestedArray_value_data_flatArray_value: '(?=.*test)' },
-//               { objectOne_objectTwo_optionalIndexedString: '(?=.*test)' },
-//             ],
-//             filters: [
-//               { objectOne_objectTwo_optionalIndexedString: new Date('2024-06-26T10:57:09.820Z') },
-//               { objectOne_objectTwo_optionalNestedArray_value_data_optionalInteger: 3 },
-//               { objectOne_optionalRelations_value: '000000000000000000000001' },
-//               { objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo_optionalIndexedString: 'test' },
-//             ],
-//           },
-//           lookups: {
-//             objectOne_optionalRelations: {
-//               sort: null,
-//               match: null,
-//               lookups: {
-//                 value: {
-//                   lookups: {
-//                     data_optionalFlatArray: {
-//                       sort: null,
-//                       match: null,
-//                       lookups: {},
-//                       localField: '_id',
-//                       structure: '_otherTest_data_optionalFlatArray',
-//                       foreignField: 'objectOne_optionalRelations_value_data_optionalFlatArray__parentId',
-//                       fields: {
-//                         _id: 'objectOne_optionalRelations_value_data_optionalFlatArray__id',
-//                         _parentId: 'objectOne_optionalRelations_value_data_optionalFlatArray__parentId',
-//                         value: 'objectOne_optionalRelations_value_data_optionalFlatArray_value',
-//                       },
-//                     },
-//                     data_optionalRelation: {
-//                       lookups: {},
-//                       sort: null,
-//                       match: null,
-//                       structure: 'test',
-//                       localField: 'data_optionalRelation',
-//                       foreignField: 'objectOne_optionalRelations_value_data_optionalRelation__id',
-//                       fields: {
-//                         _id: 'objectOne_optionalRelations_value_data_optionalRelation__id',
-//                         objectOne: 'objectOne_optionalRelations_value_data_optionalRelation_objectOne',
-//                         objectOne_objectTwo: 'objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo',
-//                         objectOne_objectTwo_optionalIndexedString: 'objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo_optionalIndexedString',
-//                       },
-//                     },
-//                   },
-//                   sort: null,
-//                   match: null,
-//                   structure: 'otherTest',
-//                   localField: 'value',
-//                   foreignField: 'objectOne_optionalRelations_value__id',
-//                   fields: {
-//                     _id: 'objectOne_optionalRelations_value__id',
-//                     data: 'objectOne_optionalRelations_value_data',
-//                     data_optionalFlatArray: 'objectOne_optionalRelations_value_data_optionalFlatArray',
-//                     data_optionalRelation: 'objectOne_optionalRelations_value_data_optionalRelation',
-//                   },
-//                 },
-//               },
-//               localField: '_id',
-//               structure: '_test_objectOne_optionalRelations',
-//               foreignField: 'objectOne_optionalRelations__parentId',
-//               fields: {
-//                 _id: 'objectOne_optionalRelations__id',
-//                 _parentId: 'objectOne_optionalRelations__parentId',
-//                 value: 'objectOne_optionalRelations_value',
-//               },
-//             },
-//             objectOne_objectTwo_optionalNestedArray: {
-//               sort: null,
-//               match: null,
-//               lookups: {
-//                 value_data_flatArray: {
-//                   sort: null,
-//                   match: null,
-//                   lookups: {},
-//                   localField: '_id',
-//                   structure: '_test_objectOne_objectTwo_optionalNestedArray_value_data_flatArray',
-//                   foreignField: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray__parentId',
-//                   fields: {
-//                     _id: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray__id',
-//                     _parentId: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray__parentId',
-//                     value: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray_value',
-//                   },
-//                 },
-//                 value_data_nestedArray: {
-//                   sort: null,
-//                   match: null,
-//                   lookups: {},
-//                   localField: '_id',
-//                   structure: '_test_objectOne_objectTwo_optionalNestedArray_value_data_nestedArray',
-//                   foreignField: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__parentId',
-//                   fields: {
-//                     _id: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__id',
-//                     _parentId: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__parentId',
-//                     value: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value',
-//                     value_key: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value_key',
-//                     value_optionalRelation: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value_optionalRelation',
-//                   },
-//                 },
-//               },
-//               localField: '_id',
-//               structure: '_test_objectOne_objectTwo_optionalNestedArray',
-//               foreignField: 'objectOne_objectTwo_optionalNestedArray__parentId',
-//               fields: {
-//                 _id: 'objectOne_objectTwo_optionalNestedArray__id',
-//                 _parentId: 'objectOne_objectTwo_optionalNestedArray__parentId',
-//                 value: 'objectOne_objectTwo_optionalNestedArray_value',
-//                 value_data: 'objectOne_objectTwo_optionalNestedArray_value_data',
-//                 value_data_flatArray: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray',
-//                 value_data_optionalInteger: 'objectOne_objectTwo_optionalNestedArray_value_data_optionalInteger',
-//                 value_data_nestedArray: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray',
-//               },
-//             },
-//           },
-//           localField: null,
-//           foreignField: null,
-//           fields: {
-//             _id: '_id',
-//             _isDeleted: '_isDeleted',
-//             indexedString: 'indexedString',
-//             objectOne: 'objectOne',
-//             objectOne_objectTwo: 'objectOne_objectTwo',
-//             objectOne_objectTwo_optionalIndexedString: 'objectOne_objectTwo_optionalIndexedString',
-//             objectOne_optionalRelations: 'objectOne_optionalRelations',
-//             objectOne_objectTwo_optionalNestedArray: 'objectOne_objectTwo_optionalNestedArray',
-//           },
-//         },
-//         projections: new Map([['_id', '_id']]),
-//       });
+  describe('[constructor]', () => {
+    test('registers database telemetry instruments', ({ client, telemetry }) => {
+      expect(client).toBeInstanceOf(PostgreSQLDatabaseClient);
+      expect(telemetry.createHistogram).toHaveBeenCalledWith('db.client.connection.wait_time', expect.objectContaining({ unit: 's' }));
+      expect(telemetry.createHistogram).toHaveBeenCalledWith('db.client.operation.duration', expect.objectContaining({ unit: 's' }));
+      // Connections metrics are observed at collection time, so that a pool stuck with no free
+      // connection still reports its real state, even though no event is emitted for it.
+      expect(telemetry.createUpDownCounter).toHaveBeenCalledWith('db.client.connection.count', expect.anything(), expect.any(Function));
+      expect(telemetry.createUpDownCounter).toHaveBeenCalledWith('db.client.connection.pending_requests', expect.anything(), expect.any(Function));
+    });
 
-//       expect(databaseClient.parseFields('otherTest', new Set([
-//         '_id',
-//         'data.optionalFlatArray',
-//         'data.optionalRelation.indexedString',
-//       ]), 10, {
-//         query: null,
-//         filters: {
-//           _createdAt: [new Date(1719399428820)],
-//           'data.optionalRelation': ['000000000000000000000002'],
-//           _id: [new Id('000000000000000000000001')],
-//           'data.optionalFlatArray': [new Date(1719399428820), new Date(1719399429820)],
-//         },
-//       })).toEqual({
-//         formattedQuery: {
-//           structure: 'otherTest',
-//           lookups: {
-//             data_optionalFlatArray: {
-//               sort: null,
-//               match: null,
-//               lookups: {},
-//               foreignField: 'data_optionalFlatArray__parentId',
-//               localField: '_id',
-//               fields: {
-//                 _id: 'data_optionalFlatArray__id',
-//                 _parentId: 'data_optionalFlatArray__parentId',
-//                 value: 'data_optionalFlatArray_value',
-//               },
-//               structure: '_otherTest_data_optionalFlatArray',
-//             },
-//             data_optionalRelation: {
-//               fields: {
-//                 _id: 'data_optionalRelation__id',
-//                 indexedString: 'data_optionalRelation_indexedString',
-//               },
-//               structure: 'test',
-//               foreignField: 'data_optionalRelation__id',
-//               localField: 'data_optionalRelation',
-//               lookups: {},
-//               match: null,
-//               sort: null,
-//             },
-//           },
-//           sort: null,
-//           match: {
-//             query: [],
-//             filters: [
-//               { _id: ['000000000000000000000001'] },
-//               { data_optionalFlatArray_value: [new Date('2024-06-26T10:57:08.820Z'), new Date('2024-06-26T10:57:09.820Z')] },
-//               { _createdAt: [new Date('2024-06-26T10:57:08.820Z')] },
-//               { data_optionalRelation: ['000000000000000000000002'] },
-//             ],
-//           },
-//           localField: null,
-//           foreignField: null,
-//           fields: {
-//             _id: '_id',
-//             data: 'data',
-//             _createdAt: '_createdAt',
-//             data_optionalRelation: 'data_optionalRelation',
-//             data_optionalFlatArray: 'data_optionalFlatArray',
-//           },
-//         },
-//         projections: new Map([['_id', '_id']]),
-//       });
-//       databaseClient.parseFields('otherTest', new Set([]), 10, {
-//         query: null,
-//         filters: { _createdAt: '2024-06-26T10:57:09.820Z' },
-//       });
-//       databaseClient.parseFields('otherTest', new Set([]), 10, {
-//         query: null,
-//         filters: { _createdAt: ['2024-06-26T10:57:09.820Z', '2024-06-26T10:57:09.820Z'] },
-//       });
-//       databaseClient.parseFields('otherTest', new Set([]), 10, {
-//         query: null,
-//         filters: { _createdAt: [new Date('2024-06-26T10:57:09.820Z'), new Date('2024-06-26T10:57:09.820Z')] },
-//       });
-//       databaseClient.parseFields('otherTest', new Set([]), 10, {
-//         query: null,
-//         filters: {
-//           _createdAt: [
-//             new Date('2024-06-26T10:57:09.820Z'),
-//             new Date('2024-06-26T10:57:09.820Z'),
-//             '2024-06-26T10:57:09.820Z',
-//           ],
-//         },
-//       });
+    test('generates the SQL structure of each resource of the data model', ({ client }) => {
+      expect(client.resourcesMetadata.test.fields).toEqual(expect.objectContaining({
+        _id: { type: 'UUID', isRequired: true },
+        _isDeleted: { type: 'BOOLEAN', isRequired: true },
+        indexedString: { type: 'VARCHAR(undefined)', isRequired: true },
+        objectOne: { type: 'BOOLEAN', isRequired: true },
+        objectOne_optionalRelations: { type: 'BOOLEAN', isRequired: false },
+      }));
+      expect(client.resourcesMetadata.otherTest.fields).toEqual(expect.objectContaining({
+        binary: { type: 'BYTEA', isRequired: true },
+        _createdAt: { type: 'TIMESTAMPTZ', isRequired: true },
+        enum: { type: 'VARCHAR(5)', isRequired: true },
+      }));
+    });
 
-//       expect(databaseClient.parseFields('otherTest', new Set([]), 10)).toEqual({
-//         formattedQuery: {
-//           sort: null,
-//           localField: null,
-//           foreignField: null,
-//           structure: 'otherTest',
-//           fields: { _id: '_id' },
-//           lookups: {},
-//           match: null,
-//         },
-//         projections: new Map([['_id', '_id']]),
-//       });
-//     });
-//   });
+    test('stores ids as fixed-length strings when using the snowflake format', ({ model, telemetry }) => {
+      Id.FORMAT = 'SNOWFLAKE';
+      const cache = new CacheClient(telemetry, { cachePath: '/.cache', requestTimeout: 0 });
+      const client = new PostgreSQLDatabaseClient<DataModel>(model, telemetry, cache, settings);
 
-//   test('[generateQuery]', () => {
-//     databaseClient.generateResourceMetadata('test');
-//     databaseClient.generateResourceMetadata('otherTest');
-//     expect(databaseClient.generateQuery('test', {
-//       structure: 'test',
-//       sort: { indexedString: -1 },
-//       match: {
-//         query: [
-//           { objectOne_objectTwo_optionalNestedArray_value_data_flatArray_value: '(?=.*test)' },
-//           { objectOne_objectTwo_optionalIndexedString: '(?=.*test)' },
-//         ],
-//         filters: [
-//           { objectOne_objectTwo_optionalIndexedString: new Date('2024-06-26T10:57:09.820Z') },
-//           { objectOne_objectTwo_optionalNestedArray_value_data_optionalInteger: 3 },
-//           { objectOne_optionalRelations_value: '000000000000000000000001' },
-//           { objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo_optionalIndexedString: 'test' },
-//         ],
-//       },
-//       lookups: {
-//         objectOne_optionalRelations: {
-//           sort: null,
-//           match: null,
-//           lookups: {
-//             value: {
-//               lookups: {
-//                 data_optionalFlatArray: {
-//                   sort: null,
-//                   match: null,
-//                   lookups: {},
-//                   localField: '_id',
-//                   structure: '_otherTest_data_optionalFlatArray',
-//                   foreignField: 'objectOne_optionalRelations_value_data_optionalFlatArray__parentId',
-//                   fields: {
-//                     _id: 'objectOne_optionalRelations_value_data_optionalFlatArray__id',
-//                     _parentId: 'objectOne_optionalRelations_value_data_optionalFlatArray__parentId',
-//                     value: 'objectOne_optionalRelations_value_data_optionalFlatArray_value',
-//                   },
-//                 },
-//                 data_optionalRelation: {
-//                   lookups: {},
-//                   sort: null,
-//                   match: null,
-//                   structure: 'test',
-//                   localField: 'data_optionalRelation',
-//                   foreignField: 'objectOne_optionalRelations_value_data_optionalRelation__id',
-//                   fields: {
-//                     _id: 'objectOne_optionalRelations_value_data_optionalRelation__id',
-//                     objectOne: 'objectOne_optionalRelations_value_data_optionalRelation_objectOne',
-//                     objectOne_objectTwo: 'objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo',
-//                     objectOne_objectTwo_optionalIndexedString: 'objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo_optionalIndexedString',
-//                   },
-//                 },
-//               },
-//               sort: null,
-//               match: null,
-//               structure: 'otherTest',
-//               localField: 'value',
-//               foreignField: 'objectOne_optionalRelations_value__id',
-//               fields: {
-//                 _id: 'objectOne_optionalRelations_value__id',
-//                 data: 'objectOne_optionalRelations_value_data',
-//                 data_optionalFlatArray: 'objectOne_optionalRelations_value_data_optionalFlatArray',
-//                 data_optionalRelation: 'objectOne_optionalRelations_value_data_optionalRelation',
-//               },
-//             },
-//           },
-//           localField: '_id',
-//           structure: '_test_objectOne_optionalRelations',
-//           foreignField: 'objectOne_optionalRelations__parentId',
-//           fields: {
-//             _id: 'objectOne_optionalRelations__id',
-//             _parentId: 'objectOne_optionalRelations__parentId',
-//             value: 'objectOne_optionalRelations_value',
-//           },
-//         },
-//         objectOne_objectTwo_optionalNestedArray: {
-//           sort: null,
-//           match: null,
-//           lookups: {
-//             value_data_flatArray: {
-//               sort: null,
-//               match: null,
-//               lookups: {},
-//               localField: '_id',
-//               structure: '_test_objectOne_objectTwo_optionalNestedArray_value_data_flatArray',
-//               foreignField: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray__parentId',
-//               fields: {
-//                 _id: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray__id',
-//                 _parentId: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray__parentId',
-//                 value: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray_value',
-//               },
-//             },
-//             value_data_nestedArray: {
-//               sort: null,
-//               match: null,
-//               lookups: {},
-//               localField: '_id',
-//               structure: '_test_objectOne_objectTwo_optionalNestedArray_value_data_nestedArray',
-//               foreignField: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__parentId',
-//               fields: {
-//                 _id: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__id',
-//                 _parentId: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__parentId',
-//                 value: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value',
-//                 value_key: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value_key',
-//                 value_optionalRelation: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value_optionalRelation',
-//               },
-//             },
-//           },
-//           localField: '_id',
-//           structure: '_test_objectOne_objectTwo_optionalNestedArray',
-//           foreignField: 'objectOne_objectTwo_optionalNestedArray__parentId',
-//           fields: {
-//             _id: 'objectOne_objectTwo_optionalNestedArray__id',
-//             _parentId: 'objectOne_objectTwo_optionalNestedArray__parentId',
-//             value: 'objectOne_objectTwo_optionalNestedArray_value',
-//             value_data: 'objectOne_objectTwo_optionalNestedArray_value_data',
-//             value_data_flatArray: 'objectOne_objectTwo_optionalNestedArray_value_data_flatArray',
-//             value_data_optionalInteger: 'objectOne_objectTwo_optionalNestedArray_value_data_optionalInteger',
-//             value_data_nestedArray: 'objectOne_objectTwo_optionalNestedArray_value_data_nestedArray',
-//           },
-//         },
-//       },
-//       localField: null,
-//       foreignField: null,
-//       fields: {
-//         _id: '_id',
-//         _isDeleted: '_isDeleted',
-//         indexedString: 'indexedString',
-//         objectOne: 'objectOne',
-//         objectOne_objectTwo: 'objectOne_objectTwo',
-//         objectOne_objectTwo_optionalIndexedString: 'objectOne_objectTwo_optionalIndexedString',
-//         objectOne_optionalRelations: 'objectOne_optionalRelations',
-//         objectOne_objectTwo_optionalNestedArray: 'objectOne_objectTwo_optionalNestedArray',
-//       },
-//     })).toEqual(
-//       `SELECT
-//   DISTINCT "test"."_id", "indexedString"
-// FROM
-//   "test"
-// LEFT JOIN (
-//   SELECT
-//     "_test_5"."_id" AS "objectOne_optionalRelations__id",
-//     "_test_5"."_parentId" AS "objectOne_optionalRelations__parentId",
-//     "_test_5"."value" AS "objectOne_optionalRelations_value",
-//     "value".*
-//   FROM
-//     "_test_5"
-//   LEFT JOIN (
-//     SELECT
-//       "otherTest"."_id" AS "objectOne_optionalRelations_value__id",
-//       "otherTest"."data" AS "objectOne_optionalRelations_value_data",
-//       "otherTest"."data_optionalFlatArray" AS "objectOne_optionalRelations_value_data_optionalFlatArray",
-//       "otherTest"."data_optionalRelation" AS "objectOne_optionalRelations_value_data_optionalRelation",
-//       "data_optionalFlatArray".*,
-//       "data_optionalRelation".*
-//     FROM
-//       "otherTest"
-//     LEFT JOIN (
-//       SELECT
-//         "_otherTest_2"."_id" AS "objectOne_optionalRelations_value_data_optionalFlatArray__id",
-//         "_otherTest_2"."_parentId" AS "objectOne_optionalRelations_value_data_optionalFlatArray__parentId",
-//         "_otherTest_2"."value" AS "objectOne_optionalRelations_value_data_optionalFlatArray_value"
-//       FROM
-//         "_otherTest_2"
-//     ) AS "data_optionalFlatArray"
-//     ON "otherTest"."_id" = "data_optionalFlatArray"."objectOne_optionalRelations_value_data_optionalFlatArray__parentId"
-//     LEFT JOIN (
-//       SELECT
-//         "test"."_id" AS "objectOne_optionalRelations_value_data_optionalRelation__id",
-//         "test"."objectOne" AS "objectOne_optionalRelations_value_data_optionalRelation_objectOne",
-//         "test"."objectOne_objectTwo" AS "objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo",
-//         "test"."objectOne_objectTwo_optionalIndexedString" AS "objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo_optionalIndexedString"
-//       FROM
-//         "test"
-//     ) AS "data_optionalRelation"
-//     ON "otherTest"."data_optionalRelation" = "data_optionalRelation"."objectOne_optionalRelations_value_data_optionalRelation__id"
-//   ) AS "value"
-//   ON "_test_5"."value" = "value"."objectOne_optionalRelations_value__id"
-// ) AS "objectOne_optionalRelations"
-// ON "test"."_id" = "objectOne_optionalRelations"."objectOne_optionalRelations__parentId"
-// LEFT JOIN (
-//   SELECT
-//     "_test_6"."_id" AS "objectOne_objectTwo_optionalNestedArray__id",
-//     "_test_6"."_parentId" AS "objectOne_objectTwo_optionalNestedArray__parentId",
-//     "_test_6"."value" AS "objectOne_objectTwo_optionalNestedArray_value",
-//     "_test_6"."value_data" AS "objectOne_objectTwo_optionalNestedArray_value_data",
-//     "_test_6"."value_data_flatArray" AS "objectOne_objectTwo_optionalNestedArray_value_data_flatArray",
-//     "_test_6"."value_data_optionalInteger" AS "objectOne_objectTwo_optionalNestedArray_value_data_optionalInteger",
-//     "_test_6"."value_data_nestedArray" AS "objectOne_objectTwo_optionalNestedArray_value_data_nestedArray",
-//     "value_data_flatArray".*,
-//     "value_data_nestedArray".*
-//   FROM
-//     "_test_6"
-//   LEFT JOIN (
-//     SELECT
-//       "_test_7"."_id" AS "objectOne_objectTwo_optionalNestedArray_value_data_flatArray__id",
-//       "_test_7"."_parentId" AS "objectOne_objectTwo_optionalNestedArray_value_data_flatArray__parentId",
-//       "_test_7"."value" AS "objectOne_objectTwo_optionalNestedArray_value_data_flatArray_value"
-//     FROM
-//       "_test_7"
-//   ) AS "value_data_flatArray"
-//   ON "_test_6"."_id" = "value_data_flatArray"."objectOne_objectTwo_optionalNestedArray_value_data_flatArray__parentId"
-//   LEFT JOIN (
-//     SELECT
-//       "_test_8"."_id" AS "objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__id",
-//       "_test_8"."_parentId" AS "objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__parentId",
-//       "_test_8"."value" AS "objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value",
-//       "_test_8"."value_key" AS "objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value_key",
-//       "_test_8"."value_optionalRelation" AS "objectOne_objectTwo_optionalNestedArray_value_data_nestedArray_value_optionalRelation"
-//     FROM
-//       "_test_8"
-//   ) AS "value_data_nestedArray"
-//   ON "_test_6"."_id" = "value_data_nestedArray"."objectOne_objectTwo_optionalNestedArray_value_data_nestedArray__parentId"
-// ) AS "objectOne_objectTwo_optionalNestedArray"
-// ON "test"."_id" = "objectOne_objectTwo_optionalNestedArray"."objectOne_objectTwo_optionalNestedArray__parentId"
-// WHERE
-//   (
-//     "objectOne_objectTwo_optionalNestedArray_value_data_flatArray_value" ~* $1
-//      OR "objectOne_objectTwo_optionalIndexedString" ~* $2
-//   )
-//   AND "objectOne_objectTwo_optionalIndexedString" = $3
-//   AND "objectOne_objectTwo_optionalNestedArray_value_data_optionalInteger" = $4
-//   AND "objectOne_optionalRelations_value" = $5
-//   AND "objectOne_optionalRelations_value_data_optionalRelation_objectOne_objectTwo_optionalIndexedString" = $6
-// GROUP BY "test"."_id", "indexedString"
-// ORDER BY
-//   "indexedString" DESC`,
-//     );
+      expect((client as unknown as {
+        resourcesMetadata: Record<string, { fields: Record<string, unknown>; }>;
+      }).resourcesMetadata.test.fields._id).toEqual({ type: 'VARCHAR(24)', isRequired: true });
+    });
 
-//     expect(databaseClient.generateQuery('otherTest', {
-//       structure: 'otherTest',
-//       lookups: {
-//         data_optionalFlatArray: {
-//           sort: null,
-//           match: null,
-//           lookups: {},
-//           foreignField: 'data_optionalFlatArray__parentId',
-//           localField: '_id',
-//           fields: {
-//             _id: 'data_optionalFlatArray__id',
-//             _parentId: 'data_optionalFlatArray__parentId',
-//             value: 'data_optionalFlatArray_value',
-//           },
-//           structure: '_otherTest_data_optionalFlatArray',
-//         },
-//         data_optionalRelation: {
-//           fields: {
-//             _id: 'data_optionalRelation__id',
-//             indexedString: 'data_optionalRelation_indexedString',
-//           },
-//           structure: 'test',
-//           foreignField: 'data_optionalRelation__id',
-//           localField: 'data_optionalRelation',
-//           lookups: {},
-//           match: null,
-//           sort: null,
-//         },
-//       },
-//       sort: null,
-//       match: {
-//         query: [],
-//         filters: [
-//           { _id: ['000000000000000000000001'] },
-//           { data_optionalFlatArray_value: [new Date('2024-06-26T10:57:08.820Z'), new Date('2024-06-26T10:57:09.820Z')] },
-//           { _createdAt: [new Date('2024-06-26T10:57:08.820Z')] },
-//           { data_optionalRelation: ['000000000000000000000002'] },
-//         ],
-//       },
-//       localField: null,
-//       foreignField: null,
-//       fields: {
-//         _id: '_id',
-//         data: 'data',
-//         _createdAt: '_createdAt',
-//         data_optionalRelation: 'data_optionalRelation',
-//         data_optionalFlatArray: 'data_optionalFlatArray',
-//       },
-//     })).toEqual(
-//       `SELECT
-//   DISTINCT "otherTest"."_id"
-// FROM
-//   "otherTest"
-// LEFT JOIN (
-//   SELECT
-//     "_otherTest_2"."_id" AS "data_optionalFlatArray__id",
-//     "_otherTest_2"."_parentId" AS "data_optionalFlatArray__parentId",
-//     "_otherTest_2"."value" AS "data_optionalFlatArray_value"
-//   FROM
-//     "_otherTest_2"
-// ) AS "data_optionalFlatArray"
-// ON "otherTest"."_id" = "data_optionalFlatArray"."data_optionalFlatArray__parentId"
-// LEFT JOIN (
-//   SELECT
-//     "test"."_id" AS "data_optionalRelation__id",
-//     "test"."indexedString" AS "data_optionalRelation_indexedString"
-//   FROM
-//     "test"
-// ) AS "data_optionalRelation"
-// ON "otherTest"."data_optionalRelation" = "data_optionalRelation"."data_optionalRelation__id"
-// WHERE
-//   "_id" IN ($1)
-//   AND "data_optionalFlatArray_value" IN ($2, $3)
-//   AND "_createdAt" IN ($4)
-//   AND "data_optionalRelation" IN ($5)`,
-//     );
-//   });
+    test('throws if a string field is too long to be indexed', ({ model, telemetry }) => {
+      const cache = new CacheClient(telemetry, { cachePath: '/.cache', requestTimeout: 0 });
+      vi.spyOn(model, 'get').mockReturnValue({
+        depth: 1,
+        permissions: [],
+        canonicalPath: ['test'],
+        schema: {
+          fields: {
+            tooLong: {
+              type: 'string',
+              isUnique: true,
+              maxLength: 3000,
+            },
+          },
+        },
+      } as never);
 
-//   describe('[structurePayload]', () => {
-//     test('unknown field error', () => {
-//       expect(() => (
-//         databaseClient.structurePayload('test', new Id('000000000000000000000001'), {
-//           unknown: 'test',
-//         } as unknown as DataModel['test'], 'CREATE')
-//       )).toThrow(new DatabaseError('UNKNOWN_FIELD', { path: 'unknown' }));
-//     });
+      expect(() => new PostgreSQLDatabaseClient<DataModel>(model, telemetry, cache, settings))
+        .toThrow('INDEXED_FIELD_VALUE_TOO_LONG');
+    });
+  });
 
-//     test('missing field error', () => {
-//       expect(() => (
-//         databaseClient.structurePayload('test', new Id('000000000000000000000001'), {}, 'CREATE')
-//       )).toThrow(new DatabaseError('MISSING_FIELD', { path: '_id' }));
-//     });
+  describe('[planQueries]', () => {
+    test('plans a DELETE command', ({ client }) => {
+      const { queries } = client.planQueries('otherTest', 'DELETE', resourceId, null, {});
 
-//     test('CREATE mode', () => {
-//       expect(databaseClient.structurePayload('test', new Id('000000000000000000000001'), {
-//         _id: new Id('000000000000000000000001'),
-//         _isDeleted: false,
-//         indexedString: 'test',
-//         objectOne: {
-//           boolean: true,
-//           objectTwo: {
-//             optionalIndexedString: 'test1',
-//             optionalNestedArray: [
-//               null,
-//               {
-//                 data: {
-//                   flatArray: ['test2', null, 'test3'],
-//                   optionalInteger: null,
-//                   nestedArray: [
-//                     { key: 'test4', optionalRelation: new Id('000000000000000000000022') },
-//                     { key: 'test5', optionalRelation: null },
-//                   ],
-//                 },
-//               },
-//               {
-//                 data: {
-//                   flatArray: ['test6', null, 'test7'],
-//                   optionalInteger: 1,
-//                   nestedArray: [
-//                     { key: 'test8', optionalRelation: new Id('000000000000000000000023') },
-//                   ],
-//                 },
-//               },
-//               null,
-//             ],
-//           },
-//           optionalRelations: [null],
-//         },
-//       }, 'CREATE')).toEqual({
-//         test: [
-//           {
-//             _id: '000000000000000000000001',
-//             _isDeleted: false,
-//             indexedString: 'test',
-//             objectOne: true,
-//             objectOne_boolean: true,
-//             objectOne_objectTwo: true,
-//             objectOne_objectTwo_optionalIndexedString: 'test1',
-//             objectOne_objectTwo_optionalNestedArray: true,
-//             objectOne_optionalRelations: true,
-//           },
-//         ],
-//         _test_objectOne_objectTwo_optionalNestedArray: [
-//           {
-//             _id: '000000000000000000000001',
-//             _parentId: '000000000000000000000001',
-//             _resourceId: '000000000000000000000001',
-//             value: null,
-//             value_data: null,
-//             value_data_optionalInteger: null,
-//             value_data_flatArray: null,
-//             value_data_nestedArray: null,
-//           },
-//           {
-//             _id: '000000000000000000000002',
-//             _parentId: '000000000000000000000001',
-//             _resourceId: '000000000000000000000001',
-//             value: true,
-//             value_data: true,
-//             value_data_flatArray: true,
-//             value_data_optionalInteger: null,
-//             value_data_nestedArray: true,
-//           },
-//           {
-//             _id: '000000000000000000000008',
-//             _parentId: '000000000000000000000001',
-//             _resourceId: '000000000000000000000001',
-//             value: true,
-//             value_data: true,
-//             value_data_flatArray: true,
-//             value_data_optionalInteger: 1,
-//             value_data_nestedArray: true,
-//           },
-//           {
-//             _id: '000000000000000000000013',
-//             _parentId: '000000000000000000000001',
-//             _resourceId: '000000000000000000000001',
-//             value: null,
-//             value_data: null,
-//             value_data_optionalInteger: null,
-//             value_data_flatArray: null,
-//             value_data_nestedArray: null,
-//           },
-//         ],
-//         _test_objectOne_objectTwo_optionalNestedArray_value_data_flatArray: [
-//           {
-//             _id: '000000000000000000000003',
-//             _parentId: '000000000000000000000002',
-//             _resourceId: '000000000000000000000001',
-//             value: 'test2',
-//           },
-//           {
-//             _id: '000000000000000000000004',
-//             _parentId: '000000000000000000000002',
-//             _resourceId: '000000000000000000000001',
-//             value: null,
-//           },
-//           {
-//             _id: '000000000000000000000005',
-//             _parentId: '000000000000000000000002',
-//             _resourceId: '000000000000000000000001',
-//             value: 'test3',
-//           },
-//           {
-//             _id: '000000000000000000000009',
-//             _parentId: '000000000000000000000008',
-//             _resourceId: '000000000000000000000001',
-//             value: 'test6',
-//           },
-//           {
-//             _id: '000000000000000000000010',
-//             _parentId: '000000000000000000000008',
-//             _resourceId: '000000000000000000000001',
-//             value: null,
-//           },
-//           {
-//             _id: '000000000000000000000011',
-//             _parentId: '000000000000000000000008',
-//             _resourceId: '000000000000000000000001',
-//             value: 'test7',
-//           },
-//         ],
-//         _test_objectOne_objectTwo_optionalNestedArray_value_data_nestedArray: [
-//           {
-//             _id: '000000000000000000000006',
-//             _parentId: '000000000000000000000002',
-//             _resourceId: '000000000000000000000001',
-//             value: true,
-//             value_key: 'test4',
-//             value_optionalRelation: '000000000000000000000022',
-//           },
-//           {
-//             _id: '000000000000000000000007',
-//             _parentId: '000000000000000000000002',
-//             _resourceId: '000000000000000000000001',
-//             value: true,
-//             value_key: 'test5',
-//             value_optionalRelation: null,
-//           },
-//           {
-//             _id: '000000000000000000000012',
-//             _parentId: '000000000000000000000008',
-//             _resourceId: '000000000000000000000001',
-//             value: true,
-//             value_key: 'test8',
-//             value_optionalRelation: '000000000000000000000023',
-//           },
-//         ],
-//         _test_objectOne_optionalRelations: [
-//           {
-//             _id: '000000000000000000000014',
-//             _parentId: '000000000000000000000001',
-//             _resourceId: '000000000000000000000001',
-//             value: null,
-//           },
-//         ],
-//       });
+      expect(queries).toEqual({
+        otherTest: {
+          type: 'DELETE',
+          table: 'otherTest',
+          where: [{ column: '"otherTest"."_id"', operator: '=', value: resourceId }],
+        },
+      });
+    });
 
-//       expect(databaseClient.structurePayload('otherTest', new Id('000000000000000000000001'), {
-//         _id: new Id('000000000000000000000001'),
-//         _createdAt: new Date('2023-01-01'),
-//         binary: new ArrayBuffer(10),
-//         optionalRelation: null,
-//         enum: 'ONE',
-//         data: {
-//           optionalFlatArray: null,
-//           optionalRelation: new Id('000000000000000000000002'),
-//         },
-//       }, 'CREATE')).toEqual({
-//         _otherTest_data_optionalFlatArray: [],
-//         otherTest: [
-//           {
-//             _id: '000000000000000000000001',
-//             optionalRelation: null,
-//             enum: 'ONE',
-//             _createdAt: new Date('2023-01-01'),
-//             binary: expect.any(String) as string,
-//             data: true,
-//             data_optionalFlatArray: null,
-//             data_optionalRelation: '000000000000000000000002',
-//           },
-//         ],
-//       });
-//     });
+    test('excludes soft-deleted resources unless explicitly asked not to', ({ client }) => {
+      const { queries } = client.planQueries('test', 'LIST', null, null, {});
+      const { queries: allQueries } = client.planQueries('test', 'LIST', null, null, {
+        excludeDeletedResources: false,
+      });
 
-//     test('UPDATE mode', () => {
-//       expect(databaseClient.structurePayload('test', new Id('000000000000000000000001'), {
-//         objectOne: {
-//           optionalRelations: [new Id('000000000000000000000041'), null, new Id('000000000000000000000042')],
-//           objectTwo: {
-//             optionalNestedArray: null,
-//           },
-//         },
-//       }, 'UPDATE')).toEqual({
-//         _test_objectOne_objectTwo_optionalNestedArray: [],
-//         _test_objectOne_objectTwo_optionalNestedArray_value_data_flatArray: [],
-//         _test_objectOne_objectTwo_optionalNestedArray_value_data_nestedArray: [],
-//         _test_objectOne_optionalRelations: [
-//           {
-//             _id: '000000000000000000000015',
-//             _parentId: '000000000000000000000001',
-//             _resourceId: '000000000000000000000001',
-//             value: '000000000000000000000041',
-//           },
-//           {
-//             _id: '000000000000000000000016',
-//             _parentId: '000000000000000000000001',
-//             _resourceId: '000000000000000000000001',
-//             value: null,
-//           },
-//           {
-//             _id: '000000000000000000000017',
-//             _parentId: '000000000000000000000001',
-//             _resourceId: '000000000000000000000001',
-//             value: '000000000000000000000042',
-//           },
-//         ],
-//         test: [
-//           {
-//             objectOne: true,
-//             objectOne_objectTwo: true,
-//             objectOne_objectTwo_optionalNestedArray: null,
-//             objectOne_optionalRelations: true,
-//           },
-//         ],
-//       });
-//     });
-//   });
+      expect(queries._search.where).toContainEqual('"test"."_isDeleted" = FALSE');
+      expect(allQueries._search.where).not.toContainEqual('"test"."_isDeleted" = FALSE');
+    });
 
-//   test('[formatResources]', () => {
-//     const mapping = new Map([
-//       ['_id', '_id'],
-//       ['_isDeleted', 'test_24'],
-//       ['objectOne', 'test_0'],
-//       ['objectOne_objectTwo', 'test_1'],
-//       ['objectOne_objectTwo_optionalIndexedString', 'test_2'],
-//       ['objectOne_optionalRelations', 'test_3'],
-//       ['objectOne_objectTwo_optionalNestedArray', 'test_4'],
-//       ['objectOne_optionalRelations__id', 'test_5'],
-//       ['objectOne_optionalRelations__parentId', 'test_6'],
-//       ['objectOne_optionalRelations_value', 'test_7'],
-//       ['objectOne_optionalRelations_value__id', 'test_8'],
-//       ['objectOne_optionalRelations_value_data', 'test_9'],
-//       ['objectOne_optionalRelations_value_data_optionalFlatArray', 'test_10'],
-//       ['objectOne_optionalRelations_value_data_optionalFlatArray__id', 'test_11'],
-//       ['objectOne_optionalRelations_value_data_optionalFlatArray__parentId', 'test_12'],
-//       ['objectOne_optionalRelations_value_data_optionalFlatArray_value', 'test_13'],
-//       ['objectOne_objectTwo_optionalNestedArray__id', 'test_14'],
-//       ['objectOne_objectTwo_optionalNestedArray__parentId', 'test_15'],
-//       ['objectOne_objectTwo_optionalNestedArray_value', 'test_16'],
-//       ['objectOne_objectTwo_optionalNestedArray_value_data', 'test_17'],
-//       ['objectOne_objectTwo_optionalNestedArray_value_data_flatArray', 'test_18'],
-//       ['objectOne_objectTwo_optionalNestedArray_value_data_optionalInteger', 'test_19'],
-//       ['objectOne_objectTwo_optionalNestedArray_value_data_flatArray__id', 'test_20'],
-//       ['objectOne_objectTwo_optionalNestedArray_value_data_flatArray__parentId', 'test_21'],
-//       ['objectOne_objectTwo_optionalNestedArray_value_data_flatArray_value', 'test_22'],
-//       ['indexedString', 'test_23'],
-//     ]);
-//     expect(databaseClient.formatResources('test', [
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000002',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000003',
-//         test_8: '000000000000000000000003',
-//         test_9: true,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000004',
-//         test_15: '000000000000000000000001',
-//         test_16: null,
-//         test_17: null,
-//         test_18: null,
-//         test_19: null,
-//         test_20: null,
-//         test_21: null,
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000002',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000003',
-//         test_8: '000000000000000000000003',
-//         test_9: 1,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000006',
-//         test_21: '000000000000000000000005',
-//         test_22: 'test2',
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000002',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000003',
-//         test_8: '000000000000000000000003',
-//         test_9: 1,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000007',
-//         test_21: '000000000000000000000005',
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000002',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000003',
-//         test_8: '000000000000000000000003',
-//         test_9: 1,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000008',
-//         test_21: '000000000000000000000005',
-//         test_22: 'test3',
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000002',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000003',
-//         test_8: '000000000000000000000003',
-//         test_9: 1,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000009',
-//         test_15: '000000000000000000000001',
-//         test_16: null,
-//         test_17: null,
-//         test_18: null,
-//         test_19: null,
-//         test_20: null,
-//         test_21: null,
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000012',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test1',
-//         test_14: '000000000000000000000004',
-//         test_15: '000000000000000000000001',
-//         test_16: null,
-//         test_17: null,
-//         test_18: null,
-//         test_19: null,
-//         test_20: null,
-//         test_21: null,
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000012',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test1',
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000006',
-//         test_21: '000000000000000000000005',
-//         test_22: 'test2',
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000012',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test1',
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000007',
-//         test_21: '000000000000000000000005',
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000012',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test1',
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000008',
-//         test_21: '000000000000000000000005',
-//         test_22: 'test3',
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000012',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test1',
-//         test_14: '000000000000000000000009',
-//         test_15: '000000000000000000000001',
-//         test_16: null,
-//         test_17: null,
-//         test_18: null,
-//         test_19: null,
-//         test_20: null,
-//         test_21: null,
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000013',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test2',
-//         test_14: '000000000000000000000004',
-//         test_15: '000000000000000000000001',
-//         test_16: null,
-//         test_17: null,
-//         test_18: null,
-//         test_19: null,
-//         test_20: null,
-//         test_21: null,
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000013',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test2',
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000006',
-//         test_21: '000000000000000000000005',
-//         test_22: 'test2',
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000013',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test2',
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000007',
-//         test_21: '000000000000000000000005',
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000013',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test2',
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000008',
-//         test_21: '000000000000000000000005',
-//         test_22: 'test3',
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000010',
-//         test_6: '000000000000000000000001',
-//         test_7: '000000000000000000000011',
-//         test_8: '000000000000000000000011',
-//         test_9: 1,
-//         test_10: 1,
-//         test_11: '000000000000000000000013',
-//         test_12: '000000000000000000000011',
-//         test_13: 'test2',
-//         test_14: '000000000000000000000009',
-//         test_15: '000000000000000000000001',
-//         test_16: null,
-//         test_17: null,
-//         test_18: null,
-//         test_19: null,
-//         test_20: null,
-//         test_21: null,
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000014',
-//         test_6: '000000000000000000000001',
-//         test_7: null,
-//         test_8: null,
-//         test_9: null,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000004',
-//         test_15: '000000000000000000000001',
-//         test_16: null,
-//         test_17: null,
-//         test_18: null,
-//         test_19: null,
-//         test_20: null,
-//         test_21: null,
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000014',
-//         test_6: '000000000000000000000001',
-//         test_7: null,
-//         test_8: null,
-//         test_9: null,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000006',
-//         test_21: '000000000000000000000005',
-//         test_22: 'test2',
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000014',
-//         test_6: '000000000000000000000001',
-//         test_7: null,
-//         test_8: null,
-//         test_9: null,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000007',
-//         test_21: '000000000000000000000005',
-//         test_22: null,
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000014',
-//         test_6: '000000000000000000000001',
-//         test_7: null,
-//         test_8: null,
-//         test_9: null,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000005',
-//         test_15: '000000000000000000000001',
-//         test_16: 1,
-//         test_17: 1,
-//         test_18: 1,
-//         test_19: null,
-//         test_20: '000000000000000000000008',
-//         test_21: '000000000000000000000005',
-//         test_22: 'test3',
-//       },
-//       {
-//         _id: '000000000000000000000001',
-//         test_23: 'test',
-//         test_24: true,
-//         test_0: true,
-//         test_1: true,
-//         test_2: 'test1',
-//         test_3: true,
-//         test_4: true,
-//         test_5: '000000000000000000000014',
-//         test_6: '000000000000000000000001',
-//         test_7: null,
-//         test_8: null,
-//         test_9: null,
-//         test_10: null,
-//         test_11: null,
-//         test_12: null,
-//         test_13: null,
-//         test_14: '000000000000000000000009',
-//         test_15: '000000000000000000000001',
-//         test_16: null,
-//         test_17: null,
-//         test_18: null,
-//         test_19: null,
-//         test_20: null,
-//         test_21: null,
-//         test_22: null,
-//       },
-//     ], new Set([
-//       '_id',
-//       '_isDeleted',
-//       'indexedString',
-//       'objectOne',
-//       'objectOne.objectTwo',
-//       'objectOne.optionalRelations',
-//       'objectOne.optionalRelations.data',
-//       'objectOne.objectTwo.optionalNestedArray',
-//       'objectOne.objectTwo.optionalIndexedString',
-//       'objectOne.objectTwo.optionalNestedArray.data',
-//       'objectOne.optionalRelations.data.optionalFlatArray',
-//       'objectOne.objectTwo.optionalNestedArray.data.flatArray',
-//     ]), mapping)).toEqual([
-//       {
-//         _id: new Id('000000000000000000000001'),
-//         _isDeleted: true,
-//         indexedString: 'test',
-//         objectOne: {
-//           objectTwo: {
-//             optionalIndexedString: 'test1',
-//             optionalNestedArray: [
-//               null,
-//               {
-//                 data: {
-//                   flatArray: [
-//                     'test2',
-//                     null,
-//                     'test3',
-//                   ],
-//                 },
-//               },
-//               null,
-//             ],
-//           },
-//           optionalRelations: [
-//             {
-//               _id: new Id('000000000000000000000003'),
-//               data: {
-//                 optionalFlatArray: null,
-//               },
-//             },
-//             {
-//               _id: new Id('000000000000000000000011'),
-//               data: {
-//                 optionalFlatArray: [
-//                   'test1',
-//                   'test2',
-//                 ],
-//               },
-//             },
-//             null,
-//           ],
-//         },
-//       },
-//     ]);
+    test('plans a CREATE command, splitting arrays into their own tables', ({ client }) => {
+      const { queries } = client.planQueries('otherTest', 'CREATE', null, otherTestPayload, {});
 
-//     expect(databaseClient.formatResources('otherTest', [{
-//       _id: '000000000000000000000001',
-//       otherTest_0: '',
-//       otherTest_1: true,
-//       otherTest_2: true,
-//       otherTest_3: null,
-//       otherTest_4: null,
-//       otherTest_5: null,
-//     }], new Set(['_id', 'binary', 'data.optionalFlatArray']), new Map([
-//       ['_id', '_id'],
-//       ['binary', 'otherTest_0'],
-//       ['data', 'otherTest_1'],
-//       ['data_optionalFlatArray', 'otherTest_2'],
-//       ['data_optionalFlatArray__id', 'otherTest_3'],
-//       ['data_optionalFlatArray__parentId', 'otherTest_4'],
-//       ['data_optionalFlatArray__value', 'otherTest_5'],
-//     ]))).toEqual([
-//       {
-//         _id: new Id('000000000000000000000001'),
-//         binary: new ArrayBuffer(0),
-//         data: {
-//           optionalFlatArray: [],
-//         },
-//       },
-//     ]);
-//   });
+      expect(Object.keys(queries)).toEqual(['otherTest', '_otherTest_data_optionalFlatArray']);
+      expect(queries.otherTest).toEqual({
+        type: 'INSERT',
+        table: 'otherTest',
+        fields: ['enum', '_id', 'optionalRelation', 'binary', '_createdAt', 'data', 'data_optionalRelation', 'data_optionalFlatArray'],
+        values: [['ONE', resourceId, null, new ArrayBuffer(0), new Date('2025-01-01'), true, null, true]],
+      });
+      expect(queries._otherTest_data_optionalFlatArray).toEqual({
+        type: 'INSERT',
+        table: '_otherTest_data_optionalFlatArray',
+        fields: ['_id', '_parentId', 'value'],
+        values: [
+          [expect.any(Id), resourceId, 'test1'],
+          [expect.any(Id), resourceId, 'test2'],
+        ],
+      });
+    });
 
-//   describe('[handleError]', () => {
-//     test('RESOURCE_REFERENCED error', async () => {
-//       const callback = async (): Promise<void> => {
-//         await Promise.resolve();
-//         const error = new Error();
-//         (error as unknown as { code: string; }).code = '23503';
-//         (error as unknown as { detail: string; }).detail = 'Key (_id)=';
-//         throw error;
-//       };
-//       const databaseError = new DatabaseError('RESOURCE_REFERENCED', { path: '_id' });
-//       await expect(async () => databaseClient.handleError(callback)).rejects.toEqual(databaseError);
-//     });
+    test('marks null arrays and nullifies all the columns of null objects', ({ client }) => {
+      const { queries } = client.planQueries('test', 'CREATE', null, {
+        _id: resourceId,
+        _isDeleted: false,
+        indexedString: 'test',
+        objectOne: {
+          boolean: true,
+          optionalRelations: null,
+          objectTwo: {
+            optionalIndexedString: null,
+            optionalNestedArray: [null],
+          },
+        },
+      }, {});
 
-//     test('DUPLICATE_RESOURCE error', async () => {
-//       const callback = async (): Promise<void> => {
-//         await Promise.resolve();
-//         const error = new Error();
-//         (error as unknown as { code: string; }).code = '23505';
-//         (error as unknown as { detail: string; }).detail = 'Key (_id)=(\'test\')';
-//         throw error;
-//       };
-//       const databaseError = new DatabaseError('DUPLICATE_RESOURCE', { path: '_id', value: 'test' });
-//       await expect(async () => databaseClient.handleError(callback)).rejects.toEqual(databaseError);
-//     });
+      expect((queries.test).values).toEqual([[
+        resourceId,
+        false,
+        'test',
+        true,
+        true,
+        null,
+        true,
+        null,
+        true,
+      ]]);
+      const insertQuery = queries._test_objectOne_objectTwo_optionalNestedArray;
+      expect(insertQuery.values).toEqual([[
+        expect.any(Id),
+        resourceId,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ]]);
+    });
 
-//     test('other error', async () => {
-//       const callback = async (): Promise<void> => { await Promise.resolve(); throw new Error('Unknown'); };
-//       await expect(async () => databaseClient.handleError(callback)).rejects.toEqual(new Error('Unknown'));
-//     });
+    test('splits large arrays insertions into several queries', ({ client }) => {
+      const { queries } = client.planQueries('otherTest', 'CREATE', null, {
+        ...otherTestPayload,
+        data: { optionalRelation: null, optionalFlatArray: new Array(65500).fill('test1') },
+      }, {});
 
-//     test('no error', async () => {
-//       await databaseClient.handleError(async () => Promise.resolve(null));
-//       expect(pg.Pool).toHaveBeenCalledOnce();
-//       expect(pg.Pool).toHaveBeenCalledWith({
-//         connectionTimeoutMillis: 0,
-//         database: 'test',
-//         host: 'localhost',
-//         idleTimeoutMillis: 0,
-//         max: 0,
-//       });
-//       expect(logger.debug).toHaveBeenCalledOnce();
-//       expect(logger.debug).toHaveBeenCalledWith('[PostgreSQLDatabaseClient][handleError] Connecting to database test...');
-//     });
-//   });
+      expect(Object.keys(queries)).toEqual([
+        'otherTest',
+        '_otherTest_data_optionalFlatArray',
+        '_otherTest_data_optionalFlatArray_21845',
+        '_otherTest_data_optionalFlatArray_43690',
+      ]);
+    });
 
-//   test('[constructor]', () => {
-//     vi.clearAllMocks();
-//     databaseClient = new PostgreSQLDatabaseClient<DataModel>(model, logger, cacheClient, {
-//       protocol: 'http',
-//       host: 'localhost',
-//       port: null,
-//       user: null,
-//       password: null,
-//       database: 'test',
-//       connectTimeout: 0,
-//       connectionLimit: 0,
-//     }) as TestPostgreSQLDatabaseClient;
-//   });
+    test('plans an UPDATE command, replacing the previous rows of its arrays', ({ client }) => {
+      const { queries } = client.planQueries('otherTest', 'UPDATE', resourceId, {
+        data: { optionalFlatArray: ['test3'] },
+      }, {});
 
-//   test('[dropDatabase]', async () => {
-//     await databaseClient.dropDatabase();
-//     expect(databaseClient.isConnected).toBe(false);
-//     const log = '[PostgreSQLDatabaseClient][dropDatabase] PostgreSQL does not support database '
-//       + 'dropping while being connected to this database. You must perform this operation directly '
-//       + 'on database.';
-//     expect(logger.warn).toHaveBeenCalledOnce();
-//     expect(logger.warn).toHaveBeenCalledWith(log);
-//   });
+      expect(Object.keys(queries)).toEqual(['otherTest', '_delete_0', '_otherTest_data_optionalFlatArray']);
+      expect(queries.otherTest).toEqual({
+        type: 'UPDATE',
+        as: 'otherTest',
+        table: 'otherTest',
+        fields: { data: true, data_optionalFlatArray: true },
+        where: [{ column: '"otherTest"."_id"', operator: '=', value: resourceId }],
+      });
+      expect(queries._delete_0).toEqual({
+        type: 'DELETE',
+        table: '_otherTest_data_optionalFlatArray',
+        where: [{ column: '"_parentId"', operator: '=', value: resourceId }],
+      });
+    });
 
-//   test('[createDatabase]', async () => {
-//     await databaseClient.createDatabase();
-//     const log = '[PostgreSQLDatabaseClient][createDatabase] Database is already created - skipping '
-//       + 'creation.';
-//     expect(logger.warn).toHaveBeenCalledOnce();
-//     expect(logger.warn).toHaveBeenCalledWith(log);
-//   });
+    test('plans a VIEW command, fetching arrays and relations in their own queries', ({ client }) => {
+      const { projections, queries } = client.planQueries('test', 'VIEW', resourceId, null, {
+        fields: ['objectOne.optionalRelations._createdAt'],
+      });
 
-//   test('[createMissingStructures]', async () => {
-//     vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//     databaseClient.resourcesMetadata = {
-//       test: {
-//         fields: {},
-//         indexes: [],
-//         constraints: [],
-//         structure: 'test',
-//         subStructures: [],
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//       otherTest: {
-//         fields: {},
-//         indexes: [],
-//         constraints: [],
-//         subStructures: [],
-//         structure: 'otherTest',
-//         subStructuresPerPath: {},
-//         invertedRelations: new Map(),
-//       },
-//     };
-//     databaseClient.generateResourceMetadata('test');
-//     databaseClient.generateResourceMetadata('otherTest');
-//     await databaseClient.createMissingStructures();
-//     const log1 = '[PostgreSQLDatabaseClient][createMissingStructures] Creating table test...';
-//     const log2 = '[PostgreSQLDatabaseClient][createMissingStructures] Creating table _test_1...';
-//     const log3 = '[PostgreSQLDatabaseClient][createMissingStructures] Creating table _test_2...';
-//     const log4 = '[PostgreSQLDatabaseClient][createMissingStructures] Creating table _test_3...';
-//     const log5 = '[PostgreSQLDatabaseClient][createMissingStructures] Creating table _test_4...';
-//     const log6 = '[PostgreSQLDatabaseClient][createMissingStructures] Creating table otherTest...';
-//     const log7 = '[PostgreSQLDatabaseClient][createMissingStructures] Creating table _otherTest_1...';
-//     const log8 = '[PostgreSQLDatabaseClient][createMissingStructures] Creating table _config...';
-//     expect(logger.info).toHaveBeenCalledTimes(8);
-//     expect(logger.info).toHaveBeenCalledWith(log1);
-//     expect(logger.info).toHaveBeenCalledWith(log2);
-//     expect(logger.info).toHaveBeenCalledWith(log3);
-//     expect(logger.info).toHaveBeenCalledWith(log4);
-//     expect(logger.info).toHaveBeenCalledWith(log5);
-//     expect(logger.info).toHaveBeenCalledWith(log6);
-//     expect(logger.info).toHaveBeenCalledWith(log7);
-//     expect(logger.info).toHaveBeenCalledWith(log8);
-//     expect(logger.debug).toHaveBeenCalledTimes(82);
-//     const query1 = 'SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_'
-//       + 'type = \'BASE TABLE\'\nAND table_schema NOT IN (\'information_schema\', \'pg_catalog\');';
-//     const query2 = 'CREATE TABLE "test" (\n  "_id" CHAR(24) NOT NULL,\n  "_isDeleted" BOOLEAN NOT'
-//       + ' NULL,\n  "indexedString" VARCHAR(255) NOT NULL,\n  "objectOne" BOOLEAN NOT NULL,\n  '
-//       + '"objectOne_boolean" BOOLEAN NOT NULL,\n  "objectOne_optionalRelations" BOOLEAN,\n  '
-//       + '"objectOne_objectTwo" BOOLEAN NOT NULL,\n  "objectOne_objectTwo_optionalIndexedString" '
-//       + 'VARCHAR(255),\n  "objectOne_objectTwo_optionalNestedArray" BOOLEAN,\n  PRIMARY KEY ("_id")\n);';
-//     const query3 = 'CREATE INDEX index_test_1 ON "test" ("indexedString");';
-//     const query4 = 'CREATE UNIQUE INDEX index_test_2 ON "test" ("objectOne_objectTwo_optionalIndexedString");';
-//     const query5 = 'ALTER TABLE "_otherTest_1" ADD CONSTRAINT fk__otherTest_1_1 FOREIGN KEY ("_resourceId") REFERENCES "otherTest"("_id")';
-//     const query6 = 'DROP TABLE IF EXISTS "_config";';
-//     const query7 = 'CREATE TABLE "_config" ("key" VARCHAR(255) NOT NULL PRIMARY KEY, "value" TEXT NOT NULL);';
-//     expect(databaseClient.client.query).toHaveBeenCalledTimes(44);
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query1);
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query2);
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query3);
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query4);
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query5);
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query6);
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query7);
-//   });
+      expect(projections).toEqual({
+        _id: 1,
+        objectOne: { optionalRelations: { _id: 1, _createdAt: 1 } },
+      });
+      expect((queries.test).where).toEqual([
+        { column: '"test"."_id"', operator: '=', value: resourceId },
+        '"test"."_isDeleted" = FALSE',
+      ]);
+      expect((queries.test).orderBy).toBeUndefined();
+      expect((queries.test_objectOne_optionalRelations).orderBy).toEqual([
+        { field: '"_test_objectOne_optionalRelations"."_id"', direction: 'ASC' },
+      ]);
+      expect((queries.test_objectOne_optionalRelations).join).toEqual([{
+        type: 'LEFT',
+        table: 'otherTest',
+        as: 'test_objectOne_optionalRelations',
+        on: '"test_objectOne_optionalRelations"."_id" = "_test_objectOne_optionalRelations"."value"',
+      }]);
+    });
 
-//   test('[reset]', async () => {
-//     vi.spyOn(databaseClient, 'dropDatabase').mockImplementation(vi.fn());
-//     vi.spyOn(databaseClient, 'createDatabase').mockImplementation(vi.fn());
-//     vi.spyOn(databaseClient, 'createMissingStructures').mockImplementation(vi.fn());
-//     await databaseClient.reset();
-//     expect(databaseClient.dropDatabase).toHaveBeenCalledOnce();
-//     expect(databaseClient.createDatabase).toHaveBeenCalledOnce();
-//     expect(databaseClient.createMissingStructures).toHaveBeenCalledOnce();
-//     expect(logger.info).toHaveBeenCalledTimes(2);
-//     expect(logger.info).toHaveBeenCalledWith('[PostgreSQLDatabaseClient][reset] Initializing tables...');
-//     expect(logger.info).toHaveBeenCalledWith('[PostgreSQLDatabaseClient][reset] Successfully initialized tables.');
-//   });
+    test('keeps the aliases of long field paths within the database identifier limit', ({ client }) => {
+      const { queries } = client.planQueries('test', 'VIEW', resourceId, null, {
+        fields: ['objectOne.objectTwo.optionalNestedArray.data.optionalInteger'],
+      });
 
-//   describe('[checkForeignIds]', () => {
-//     test('NO_RESOURCE error', async () => {
-//       process.env.MISSING_FOREIGN_IDS = 'true';
-//       await expect(async () => {
-//         await databaseClient.checkForeignIds('otherTest', new Map<string, {
-//           resource: keyof DataModel;
-//           filters: SearchFilters;
-//         }>([
-//           ['data.optionalRelation', {
-//             resource: 'test',
-//             filters: {
-//               'objectOne.objectTwo.optionalIndexedString': 'test',
-//               _id: [
-//                 new Id('000000000000000000000001'),
-//                 new Id('000000000000000000000002'),
-//               ],
-//             },
-//           }],
-//           ['optionalRelation', {
-//             resource: 'test',
-//             filters: {
-//               indexedString: 'test2',
-//               _id: [
-//                 new Id('000000000000000000000002'),
-//               ],
-//             },
-//           }],
-//         ]));
-//       }).rejects.toThrow(new DatabaseError('NO_RESOURCE'));
-//     });
+      const nestedArray = queries.test_objectOne_objectTwo_optionalNestedArray;
+      const [, fieldAlias] = /"value_data_optionalInteger" AS "([^"]+)"/.exec(nestedArray.fields.join()) as string[];
+      // PostgreSQL silently truncates identifiers longer than 63 bytes, which would make two long
+      // paths sharing a prefix collide.
+      expect(fieldAlias.length).toBeLessThanOrEqual(63);
+      expect(fieldAlias).toBe('_test_objealInteger');
+    });
 
-//     test('no error', async () => {
-//       vi.spyOn(databaseClient, 'generateQuery').mockImplementation(vi.fn(() => 'SQL_QUERY'));
-//       vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//       vi.spyOn(databaseClient, 'parseFields').mockImplementation(vi.fn(() => ({
-//         projections: 'PROJECTIONS' as unknown,
-//         mapping: new Map([['_id', '_id']]),
-//         formattedQuery: { match: { filters: [{ indexedString: 'test' }] } } as unknown as FormattedQuery,
-//       })));
-//       await databaseClient.checkForeignIds('otherTest', new Map<string, {
-//         resource: keyof DataModel;
-//         filters: SearchFilters;
-//       }>([
-//         ['data.optionalRelation', {
-//           resource: 'test',
-//           filters: {
-//             'objectOne.objectTwo.optionalIndexedString': 'test',
-//             _id: [
-//               new Id('000000000000000000000001'),
-//               new Id('000000000000000000000002'),
-//             ],
-//           },
-//         }],
-//         ['optionalRelation', {
-//           resource: 'test',
-//           filters: {
-//             indexedString: 'test2',
-//             _id: [
-//               new Id('000000000000000000000002'),
-//             ],
-//           },
-//         }],
-//       ]));
-//       expect(databaseClient.parseFields).toHaveBeenCalledTimes(2);
-//       expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set([
-//         '_id',
-//         'indexedString',
-//         '_isDeleted',
-//       ]), Infinity, {
-//         query: null,
-//         filters: {
-//           _isDeleted: false,
-//           indexedString: 'test2',
-//           _id: [
-//             new Id('000000000000000000000002'),
-//           ],
-//         },
-//       });
-//       expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set([
-//         '_id',
-//         'objectOne.objectTwo.optionalIndexedString',
-//         '_isDeleted',
-//       ]), Infinity, {
-//         query: null,
-//         filters: {
-//           _isDeleted: false,
-//           'objectOne.objectTwo.optionalIndexedString': 'test',
-//           _id: [
-//             new Id('000000000000000000000001'),
-//             new Id('000000000000000000000002'),
-//           ],
-//         },
-//       });
-//       const query = 'SQL_QUERY\nUNION\nSQL_QUERY';
-//       const log1 = '[PostgreSQLDatabaseClient][checkForeignIds] Performing the following SQL query on database:';
-//       const log2 = '[PostgreSQLDatabaseClient][checkForeignIds]\n\nSQL_QUERY\nUNION\nSQL_QUERY\n';
-//       const log3 = '[PostgreSQLDatabaseClient][checkForeignIds] [\n  test,\n  test\n]\n';
-//       expect(logger.debug).toHaveBeenCalledTimes(3);
-//       expect(logger.debug).toHaveBeenCalledWith(log1);
-//       expect(logger.debug).toHaveBeenCalledWith(log2);
-//       expect(logger.debug).toHaveBeenCalledWith(log3);
-//       expect(databaseClient.client.query).toHaveBeenCalledOnce();
-//       expect(databaseClient.client.query).toHaveBeenCalledWith(query, ['test', 'test']);
-//     });
-//   });
+    test('generates opaque and stable aliases by default', ({ model, telemetry }) => {
+      const cache = new CacheClient(telemetry, { cachePath: '/.cache', requestTimeout: 0 });
+      const client = new PostgreSQLDatabaseClient<DataModel>(model, telemetry, cache, {
+        hashAliases: false,
+        pools: settings.pools,
+      }) as TestClient;
+      const plan = (): Record<string, Query> => client.planQueries('test', 'VIEW', resourceId, null, {
+        fields: ['indexedString'],
+      }).queries;
 
-//   describe('[create]', () => {
-//     test('error', async () => {
-//       process.env.DATABASE_ERROR = 'true';
-//       const connection = await databaseClient.client.connect();
-//       vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//       vi.spyOn(databaseClient, 'structurePayload').mockImplementation(vi.fn(() => ({
-//         test: [
-//           // Keys order is important here, to make sure values are re-ordered in SQL query.
-//           { _id: new Id('000000000000000000000001'), key: 'test' },
-//           { key: 'test', _id: new Id('000000000000000000000002') },
-//         ],
-//         otherTest: [],
-//       })));
-//       await expect(async () => {
-//         const payload = { _id: new Id('000000000000000000000001') } as DataModel['test'];
-//         await databaseClient.create('test', payload);
-//       }).rejects.toEqual(new Error('ERROR'));
-//       expect(connection.query).toHaveBeenCalledTimes(3);
-//       expect(connection.query).toHaveBeenCalledWith('ROLLBACK');
-//       expect(connection.release).toHaveBeenCalledOnce();
-//     });
+      expect((plan().test as SelectQuery).fields.join()).not.toContain('indexedString AS');
+      expect(plan()).toEqual(plan());
+    });
 
-//     test('no error', async () => {
-//       const connection = await databaseClient.client.connect();
-//       vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//       vi.spyOn(databaseClient, 'structurePayload').mockImplementation(vi.fn(() => ({
-//         test: [
-//           // Keys order is important here, to make sure values are re-ordered in SQL query.
-//           { _id: '000000000000000000000001', key: 'test' },
-//           { key: 'test', _id: '000000000000000000000002' },
-//         ],
-//         otherTest: [],
-//       })));
-//       const payload = { _id: new Id('000000000000000000000001') } as DataModel['test'];
-//       await databaseClient.create('test', payload);
-//       const query = 'INSERT INTO "test" (\n  "_id",\n  "key"\n)\nVALUES\n  ($1, $2),\n  ($3, $4);';
-//       const log1 = '[PostgreSQLDatabaseClient][create] Performing the following SQL query on database:';
-//       const log2 = `[PostgreSQLDatabaseClient][create]\n\n${query}\n`;
-//       const log3 = '[PostgreSQLDatabaseClient][create] [\n  000000000000000000000001,\n  test,\n  000000000000000000000002,\n  test\n]\n';
-//       expect(connection.query).toHaveBeenCalledTimes(3);
-//       expect(connection.query).toHaveBeenCalledWith('BEGIN');
-//       expect(connection.query).toHaveBeenCalledWith('COMMIT');
-//       expect(connection.query).toHaveBeenCalledWith(query, [
-//         '000000000000000000000001',
-//         'test',
-//         '000000000000000000000002',
-//         'test',
-//       ]);
-//       expect(logger.debug).toHaveBeenCalledTimes(3);
-//       expect(logger.debug).toHaveBeenCalledWith(log1);
-//       expect(logger.debug).toHaveBeenCalledWith(log2);
-//       expect(logger.debug).toHaveBeenCalledWith(log3);
-//       expect(connection.release).toHaveBeenCalledOnce();
-//     });
-//   });
+    test('joins a required related resource with an inner join', ({ model, telemetry }) => {
+      const cache = new CacheClient(telemetry, { cachePath: '/.cache', requestTimeout: 0 });
+      vi.spyOn(model, 'get').mockImplementation((resource: string) => ({
+        depth: 1,
+        permissions: [],
+        canonicalPath: [resource],
+        schema: {
+          enableDeletion: true,
+          fields: (resource === 'test')
+            ? {
+              _id: { type: 'id', isRequired: true },
+              requiredRelation: { type: 'id', isRequired: true, relation: 'otherTest' },
+            }
+            : {
+              _id: { type: 'id', isRequired: true },
+              enum: { type: 'string', isIndexed: true, maxLength: 10 },
+            },
+        },
+      }) as never);
+      const client = new PostgreSQLDatabaseClient<DataModel>(
+        model,
+        telemetry,
+        cache,
+        settings,
+      ) as TestClient;
 
-//   describe('[update]', () => {
-//     test('error', async () => {
-//       process.env.DATABASE_ERROR = 'true';
-//       const connection = await databaseClient.client.connect();
-//       vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//       vi.spyOn(databaseClient, 'structurePayload').mockImplementation(vi.fn(() => ({
-//         test: [
-//           // Keys order is important here, to make sure values are re-ordered in SQL query.
-//           { _id: new Id('000000000000000000000001'), key: 'test' },
-//           { key: 'test', _id: new Id('000000000000000000000002') },
-//         ],
-//         otherTest: [],
-//       })));
-//       await expect(async () => {
-//         const payload = { indexedString: 'test' } as DataModel['test'];
-//         await databaseClient.update('test', new Id('000000000000000000000001'), payload);
-//       }).rejects.toEqual(new Error('ERROR'));
-//       expect(connection.query).toHaveBeenCalledTimes(3);
-//       expect(connection.query).toHaveBeenCalledWith('ROLLBACK');
-//       expect(connection.release).toHaveBeenCalledOnce();
-//     });
+      const { queries } = client.planQueries('test', 'VIEW', resourceId, null, {
+        fields: ['requiredRelation.enum'],
+      });
 
-//     test('no error', async () => {
-//       const connection = await databaseClient.client.connect();
-//       vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//       vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//       vi.spyOn(databaseClient, 'structurePayload').mockImplementation(vi.fn(() => ({
-//         test: [
-//           // Keys order is important here, to make sure values are re-ordered in SQL query.
-//           { _id: '000000000000000000000001', key: 'test' },
-//           { key: 'test', _id: '000000000000000000000002' },
-//         ],
-//         otherTest: [{ otherKey: 'test2' }],
-//         _test_objectOne_optionalRelations: [{ value: 'test' }],
-//       })));
-//       const payload = { indexedString: 'test' } as DataModel['test'];
-//       await databaseClient.update('test', new Id('000000000000000000000001'), payload);
-//       const query1 = 'DELETE FROM "_test_1" WHERE "_resourceId" = $1;';
-//       const query2 = 'DELETE FROM "otherTest" WHERE "_resourceId" = $1;';
-//       const query3 = 'UPDATE "test" SET\n  "_id" = $1,\n  "key" = $2,\n  "_id" = $3,\n  "key" = $4\nWHERE\n  _id = $5\n  AND "_isDeleted" = false;';
-//       const query4 = 'INSERT INTO "otherTest" (\n  "otherKey"\n)\nVALUES\n  ($1);';
-//       const log1 = '[PostgreSQLDatabaseClient][update] Performing the following SQL query on database:';
-//       const log2 = `[PostgreSQLDatabaseClient][update]\n\n${query1}\n`;
-//       const log3 = '[PostgreSQLDatabaseClient][update] [\n  000000000000000000000001\n]\n';
-//       const log4 = `[PostgreSQLDatabaseClient][update]\n\n${query2}\n`;
-//       const log5 = '[PostgreSQLDatabaseClient][update] [\n  000000000000000000000001\n]\n';
-//       const log6 = `[PostgreSQLDatabaseClient][update]\n\n${query3}\n`;
-//       const log7 = '[PostgreSQLDatabaseClient][update] [\n  test2\n]\n';
-//       expect(connection.query).toHaveBeenCalledTimes(7);
-//       expect(connection.query).toHaveBeenNthCalledWith(1, 'BEGIN');
-//       expect(connection.query).toHaveBeenNthCalledWith(2, query1, ['000000000000000000000001']);
-//       expect(connection.query).toHaveBeenNthCalledWith(3, query2, ['000000000000000000000001']);
-//       expect(connection.query).toHaveBeenNthCalledWith(4, query3, [
-//         '000000000000000000000001',
-//         'test',
-//         '000000000000000000000002',
-//         'test',
-//         '000000000000000000000001',
-//       ]);
-//       expect(connection.query).toHaveBeenNthCalledWith(5, query4, ['test2']);
-//       expect(connection.query).toHaveBeenNthCalledWith(7, 'COMMIT');
-//       expect(connection.query).not.toHaveBeenCalledWith('ROLLBACK');
-//       expect(logger.debug).toHaveBeenCalledTimes(15);
-//       expect(logger.debug).toHaveBeenCalledWith(log1);
-//       expect(logger.debug).toHaveBeenCalledWith(log2);
-//       expect(logger.debug).toHaveBeenCalledWith(log3);
-//       expect(logger.debug).toHaveBeenCalledWith(log4);
-//       expect(logger.debug).toHaveBeenCalledWith(log5);
-//       expect(logger.debug).toHaveBeenCalledWith(log6);
-//       expect(logger.debug).toHaveBeenCalledWith(log7);
-//       expect(connection.release).toHaveBeenCalledOnce();
+      expect((queries.test).join).toEqual([expect.objectContaining({ type: 'INNER' })]);
+    });
 
-//       // Covers other specific cases.
-//       process.env.NO_RESULT = 'true';
-//       await databaseClient.update('otherTest', new Id('000000000000000000000001'), {});
-//       expect(connection.query).toHaveBeenCalledWith('ROLLBACK');
-//     });
-//   });
+    test('paginates, filters, searches and sorts resources', ({ client }) => {
+      const { queries } = client.planQueries('test', 'LIST', null, {
+        filters: { indexedString: ['first', 'second'] },
+        query: { on: ['indexedString'], text: 'jo(hn 100%' },
+      } as SearchBody, {
+        limit: 10,
+        offset: 20,
+        sortBy: { indexedString: 1 },
+      });
 
-//   test('[view]', async () => {
-//     vi.spyOn(databaseClient, 'formatResources').mockImplementation(vi.fn(() => []));
-//     vi.spyOn(databaseClient, 'generateQuery').mockImplementation(vi.fn(() => 'SQL_QUERY'));
-//     vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//     vi.spyOn(databaseClient, 'parseFields').mockImplementation(vi.fn(() => ({
-//       mapping: new Map([['_id', '_id']]),
-//       projections: 'PROJECTIONS' as unknown,
-//       formattedQuery: { match: { filters: [] } } as unknown as FormattedQuery,
-//     })));
-//     await databaseClient.view('test', new Id('000000000000000000000001'));
-//     const query = 'SQL_QUERY\nWHERE "test"."_id" = $1 AND "test"."_isDeleted" = false;';
-//     expect(databaseClient.parseFields).toHaveBeenCalledOnce();
-//     expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set(), 3);
-//     const log1 = '[PostgreSQLDatabaseClient][view] Performing the following SQL query on database:';
-//     const log2 = `[PostgreSQLDatabaseClient][view]\n\n${query}\n`;
-//     const log3 = '[PostgreSQLDatabaseClient][view] [\n  000000000000000000000001\n]\n';
-//     expect(logger.debug).toHaveBeenCalledTimes(3);
-//     expect(logger.debug).toHaveBeenCalledWith(log1);
-//     expect(logger.debug).toHaveBeenCalledWith(log2);
-//     expect(logger.debug).toHaveBeenCalledWith(log3);
-//     expect(databaseClient.client.query).toHaveBeenCalledOnce();
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query, ['000000000000000000000001']);
+      expect(queries._search.limit).toBe(10);
+      expect(queries._search.offset).toBe(20);
+      const column = '"test"."indexedString"';
+      expect(queries._search.orderBy).toEqual([
+        { field: column, direction: 'ASC' },
+        { field: '"test"."_id"', direction: 'ASC' },
+      ]);
+      expect(queries._search.where).toEqual([
+        '"test"."_isDeleted" = FALSE',
+        {
+          operator: 'OR',
+          conditions: [{
+            operator: 'AND',
+            conditions: [
+              { column, operator: 'ILIKE', value: '%jo%' },
+              { column, operator: 'ILIKE', value: '%hn%' },
+              { column, operator: 'ILIKE', value: '%100\\%%' },
+            ],
+          }],
+        },
+        { column, operator: '=', value: ['first', 'second'] },
+      ]);
+    });
 
-//     // Covers other specific cases.
-//     await databaseClient.view('otherTest', new Id('000000000000000000000001'));
-//   });
+    test('matches a null filter value with a dedicated condition', ({ client }) => {
+      const { queries } = client.planQueries('test', 'LIST', null, {
+        query: null,
+        filters: { indexedString: ['first', null] },
+      } as unknown as SearchBody, {});
+      const { queries: noValue } = client.planQueries('test', 'LIST', null, {
+        query: null,
+        filters: { indexedString: [] },
+      } as unknown as SearchBody, {});
 
-//   test('[search]', async () => {
-//     vi.spyOn(databaseClient, 'formatResources').mockImplementation(vi.fn(() => []));
-//     vi.spyOn(databaseClient, 'generateQuery').mockImplementation(vi.fn(() => 'SQL_QUERY'));
-//     vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//     vi.spyOn(databaseClient, 'parseFields').mockImplementation(vi.fn(() => ({
-//       mapping: new Map([['_id', '_id']]),
-//       projections: 'PROJECTIONS' as unknown,
-//       formattedQuery: {
-//         match: {
-//           filters: [
-//             { _id: '000000000000000000000001' },
-//             { optionalRelation: [1, 2] },
-//             { _isDeleted: false },
-//           ],
-//           query: [
-//             { indexedString: 'test' },
-//           ],
-//         },
-//       } as unknown as FormattedQuery,
-//     })));
-//     const searchBody = {
-//       filters: { _id: new Id('000000000000000000000001') },
-//       query: { on: new Set(['indexedString']), text: 'test' },
-//     };
-//     const response = await databaseClient.search('test', searchBody);
-//     expect(databaseClient.parseFields).toHaveBeenCalledTimes(2);
-//     expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set(['_id', 'indexedString']), 3);
-//     expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set(['_id', 'indexedString']), 3, {
-//       query: { on: new Set(['indexedString']), text: 'test' },
-//       filters: { _id: new Id('000000000000000000000001'), _isDeleted: false },
-//     }, undefined);
-//     const query = 'WITH searchResults AS (\nSQL_QUERY\n),\ncount AS (\n  SELECT\n    COUNT(_id)'
-//       + ' AS total\n  FROM\n    searchResults\n),\npagination AS (\n  SELECT\n    _id,\n    '
-//       + 'ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT 20\n  OFFSET 0\n)'
-//       + '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination'
-//       + '\nON 1 = 1\nLEFT JOIN (\nSQL_QUERY\n) AS results\nON results._id = pagination._id'
-//       + '\nORDER BY pagination.row_num;';
-//     const log1 = '[PostgreSQLDatabaseClient][search] Performing the following SQL query on database:';
-//     const log2 = `[PostgreSQLDatabaseClient][search]\n\n${query}\n`;
-//     const log3 = '[PostgreSQLDatabaseClient][search] [\n  test,\n  000000000000000000000001,\n  1,\n  2,\n  false\n]\n';
-//     expect(logger.debug).toHaveBeenCalledTimes(3);
-//     expect(logger.debug).toHaveBeenCalledWith(log1);
-//     expect(logger.debug).toHaveBeenCalledWith(log2);
-//     expect(logger.debug).toHaveBeenCalledWith(log3);
-//     expect(databaseClient.client.query).toHaveBeenCalledOnce();
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query, [
-//       'test',
-//       '000000000000000000000001',
-//       1,
-//       2,
-//       false,
-//     ]);
-//     expect(response).toEqual({ total: 10, results: [] });
+      const column = '"test"."indexedString"';
+      // `NULL` never compares equal to anything, not even to itself.
+      expect(queries._search.where).toContainEqual({
+        operator: 'OR',
+        conditions: [
+          { column, operator: '=', value: ['first'] },
+          `${column} IS NULL`,
+        ],
+      });
+      expect(noValue._search.where).toContainEqual('FALSE');
+    });
 
-//     // Covers other specific use cases.
-//     process.env.NO_RESULT = 'true';
-//     await databaseClient.search('test', { filters: null, query: null }, { limit: 0 });
-//   });
+    test('searches resources against a single token', ({ client }) => {
+      const { queries } = client.planQueries('test', 'LIST', null, {
+        filters: null,
+        query: { on: ['indexedString'], text: 'john' },
+      } as SearchBody, {});
 
-//   test('[list]', async () => {
-//     vi.spyOn(databaseClient, 'formatResources').mockImplementation(vi.fn(() => []));
-//     vi.spyOn(databaseClient, 'generateQuery').mockImplementation(vi.fn(() => 'SQL_QUERY'));
-//     vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//     vi.spyOn(databaseClient, 'parseFields').mockImplementation(vi.fn(() => ({
-//       mapping: new Map([['_id', '_id']]),
-//       projections: 'PROJECTIONS' as unknown,
-//       formattedQuery: {
-//         match: {
-//           filters: [
-//             { _isDeleted: false },
-//           ],
-//           query: [],
-//         },
-//       } as unknown as FormattedQuery,
-//     })));
-//     const response = await databaseClient.list('test');
-//     expect(databaseClient.parseFields).toHaveBeenCalledTimes(2);
-//     expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set(), 3);
-//     expect(databaseClient.parseFields).toHaveBeenCalledWith('test', new Set(), 3);
-//     const query = 'WITH searchResults AS (\nSQL_QUERY\n),\ncount AS (\n  SELECT\n    COUNT(_id)'
-//       + ' AS total\n  FROM\n    searchResults\n),\npagination AS (\n  SELECT\n    _id,\n    '
-//       + 'ROW_NUMBER() OVER () AS row_num\n  FROM\n    searchResults\n  LIMIT 20\n  OFFSET 0\n)'
-//       + '\nSELECT\n  count.total AS __total,\n  results.*\nFROM\n  count\nLEFT JOIN\n  pagination'
-//       + '\nON 1 = 1\nLEFT JOIN (\nSQL_QUERY\n) AS results\nON results._id = pagination._id'
-//       + '\nORDER BY pagination.row_num;';
-//     const log1 = '[PostgreSQLDatabaseClient][list] Performing the following SQL query on database:';
-//     const log2 = `[PostgreSQLDatabaseClient][list]\n\n${query}\n`;
-//     const log3 = '[PostgreSQLDatabaseClient][list] [\n  false\n]\n';
-//     expect(logger.debug).toHaveBeenCalledTimes(3);
-//     expect(logger.debug).toHaveBeenCalledWith(log1);
-//     expect(logger.debug).toHaveBeenCalledWith(log2);
-//     expect(logger.debug).toHaveBeenCalledWith(log3);
-//     expect(databaseClient.client.query).toHaveBeenCalledOnce();
-//     expect(databaseClient.client.query).toHaveBeenCalledWith(query, [false]);
-//     expect(response).toEqual({ total: 10, results: [] });
-//     // Covers other specific use cases.
-//     process.env.NO_RESULT = 'true';
-//     await databaseClient.list('test');
-//   });
+      expect(queries._search.where).toContainEqual({
+        operator: 'OR',
+        conditions: [{
+          operator: 'ILIKE',
+          value: '%john%',
+          column: '"test"."indexedString"',
+        }],
+      });
+    });
 
-//   describe('[delete]', () => {
-//     test('error', async () => {
-//       process.env.DATABASE_ERROR = 'true';
-//       const connection = await databaseClient.client.connect();
-//       vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//       await expect(async () => {
-//         await databaseClient.delete('test', new Id('000000000000000000000001'));
-//       }).rejects.toEqual(new Error('ERROR'));
-//       expect(connection.query).toHaveBeenCalledTimes(7);
-//       expect(connection.query).toHaveBeenCalledWith('ROLLBACK');
-//       expect(connection.release).toHaveBeenCalledOnce();
-//     });
+    test('ignores a search query containing no usable token, or targeting no field', ({ client }) => {
+      const { queries } = client.planQueries('test', 'LIST', null, {
+        filters: null,
+        query: { on: ['indexedString'], text: ' , ' },
+      } as SearchBody, {});
+      const { queries: untargeted } = client.planQueries('test', 'LIST', null, {
+        filters: null,
+        query: { text: 'john' },
+      } as SearchBody, {});
 
-//     test('no error', async () => {
-//       const connection = await databaseClient.client.connect();
-//       vi.spyOn(databaseClient, 'handleError').mockImplementation((callback) => callback());
-//       await databaseClient.delete('test', new Id('000000000000000000000001'));
-//       const query1 = 'DELETE FROM "_test_4" WHERE "_resourceId" = $1;';
-//       const query2 = 'DELETE FROM "_test_3" WHERE "_resourceId" = $1;';
-//       const query3 = 'DELETE FROM "_test_2" WHERE "_resourceId" = $1;';
-//       const query4 = 'DELETE FROM "_test_1" WHERE "_resourceId" = $1;';
-//       const query5 = 'DELETE FROM "test" WHERE "_id" = $1;';
-//       const log1 = '[PostgreSQLDatabaseClient][delete] Performing the following SQL query on database:';
-//       const log2 = `[PostgreSQLDatabaseClient][delete]\n\n${query1}\n`;
-//       const log3 = '[PostgreSQLDatabaseClient][delete] [\n  000000000000000000000001\n]\n';
-//       const log4 = `[PostgreSQLDatabaseClient][delete]\n\n${query2}\n`;
-//       const log5 = '[PostgreSQLDatabaseClient][delete] [\n  000000000000000000000001\n]\n';
-//       const log6 = `[PostgreSQLDatabaseClient][delete]\n\n${query3}\n`;
-//       const log7 = '[PostgreSQLDatabaseClient][delete] [\n  000000000000000000000001\n]\n';
-//       const log8 = `[PostgreSQLDatabaseClient][delete]\n\n${query4}\n`;
-//       const log9 = '[PostgreSQLDatabaseClient][delete] [\n  000000000000000000000001\n]\n';
-//       const log10 = `[PostgreSQLDatabaseClient][delete]\n\n${query5}\n`;
-//       const log11 = '[PostgreSQLDatabaseClient][delete] [\n  000000000000000000000001\n]\n';
-//       expect(logger.debug).toHaveBeenCalledTimes(15);
-//       expect(logger.debug).toHaveBeenCalledWith(log1);
-//       expect(logger.debug).toHaveBeenCalledWith(log2);
-//       expect(logger.debug).toHaveBeenCalledWith(log3);
-//       expect(logger.debug).toHaveBeenCalledWith(log4);
-//       expect(logger.debug).toHaveBeenCalledWith(log5);
-//       expect(logger.debug).toHaveBeenCalledWith(log6);
-//       expect(logger.debug).toHaveBeenCalledWith(log7);
-//       expect(logger.debug).toHaveBeenCalledWith(log8);
-//       expect(logger.debug).toHaveBeenCalledWith(log9);
-//       expect(logger.debug).toHaveBeenCalledWith(log10);
-//       expect(logger.debug).toHaveBeenCalledWith(log11);
-//       expect(connection.query).toHaveBeenCalledTimes(7);
-//       expect(connection.query).toHaveBeenCalledWith('BEGIN');
-//       expect(connection.query).toHaveBeenCalledWith('COMMIT');
-//       expect(connection.query).toHaveBeenCalledWith(query1, ['000000000000000000000001']);
-//       expect(connection.query).toHaveBeenCalledWith(query2, ['000000000000000000000001']);
-//       expect(connection.query).toHaveBeenCalledWith(query3, ['000000000000000000000001']);
-//       expect(connection.query).toHaveBeenCalledWith(query4, ['000000000000000000000001']);
-//       expect(connection.query).toHaveBeenCalledWith(query5, ['000000000000000000000001']);
-//       expect(connection.release).toHaveBeenCalledOnce();
-//     });
-//   });
-// });
+      expect(queries._search.where).toEqual(['"test"."_isDeleted" = FALSE']);
+      expect(untargeted._search.where).toEqual(['"test"."_isDeleted" = FALSE']);
+    });
+
+    test('filters resources on a field contained in an array', ({ client }) => {
+      const { queries } = client.planQueries('test', 'LIST', null, {
+        filters: { 'objectOne.optionalRelations._createdAt': new Date('2025-01-01') },
+        query: null,
+      } as SearchBody, {});
+
+      const relationAlias = 'test_objectOne_optionalRelations';
+      const [, condition] = queries._search.where as [unknown, { value: SelectQuery; }];
+      expect(condition.value.table).toBe('otherTest');
+      expect(condition.value.as).toBe(relationAlias);
+      expect(condition.value.fields).toEqual(['1']);
+      expect(condition.value.where?.[0]).toEqual({
+        operator: '=',
+        value: new Date('2025-01-01'),
+        column: `"${relationAlias}"."_createdAt"`,
+      });
+      expect(condition.value.where?.[1]).toEqual({
+        operator: 'IN',
+        column: `"${relationAlias}"."_id"`,
+        value: expect.objectContaining({
+          table: '_test_objectOne_optionalRelations',
+        }) as SelectQuery,
+      });
+    });
+
+    test('excludes soft-deleted resources from filters and sorting on relations', ({ client }) => {
+      const { queries } = client.planQueries('otherTest', 'LIST', null, {
+        filters: { 'optionalRelation.indexedString': 'test', 'data.optionalRelation': null },
+        query: null,
+      } as SearchBody, {
+        fields: ['optionalRelation.indexedString'],
+        sortBy: { 'optionalRelation.indexedString': -1 },
+      });
+
+      const rootAlias = 'otherTest';
+      const relationAlias = 'otherTest_optionalRelation';
+      expect(queries._search.orderBy).toContainEqual({
+        direction: 'DESC',
+        field: `"${relationAlias}"."indexedString"`,
+      });
+      expect(queries._search.join).toEqual([{
+        type: 'LEFT',
+        table: 'test',
+        as: relationAlias,
+        on: `"${relationAlias}"."_id" = "${rootAlias}"."optionalRelation" AND "${relationAlias}"."_isDeleted" = FALSE`,
+      }]);
+      expect((queries.otherTest).join).toEqual([{
+        type: 'LEFT',
+        table: 'test',
+        as: relationAlias,
+        on: `"${relationAlias}"."_id" = "${rootAlias}"."optionalRelation"`,
+      }]);
+    });
+
+    test('throws when a payload field does not exist in data model', ({ client }) => {
+      expect(() => client.planQueries('otherTest', 'CREATE', null, {
+        ...otherTestPayload,
+        unknownField: true,
+      } as DataModel['otherTest'], {})).toThrow('UNKNOWN_FIELD');
+    });
+
+    test('throws when a payload is missing a required field', ({ client }) => {
+      expect(() => client.planQueries('otherTest', 'CREATE', null, {
+        _id: resourceId,
+      } as DataModel['otherTest'], {})).toThrow('MISSING_FIELD');
+    });
+
+    test('throws when a queried field does not exist in data model', ({ client }) => {
+      expect(() => client.planQueries('test', 'LIST', null, null, { fields: ['unknownField'] }))
+        .toThrow('UNKNOWN_QUERY_FIELD');
+      expect(() => client.planQueries('test', 'LIST', null, null, { fields: ['__proto__'] }))
+        .toThrow('UNKNOWN_QUERY_FIELD');
+      expect(() => client.planQueries('test', 'LIST', null, null, { fields: ['indexedString.nested'] }))
+        .toThrow('UNKNOWN_QUERY_FIELD');
+    });
+
+    test('throws when a queried field is not a leaf of the data model', ({ client }) => {
+      expect(() => client.planQueries('test', 'LIST', null, null, { fields: ['objectOne'] }))
+        .toThrow('INVALID_QUERY_FIELD');
+    });
+
+    test('throws when a filtered field is not indexed', ({ client }) => {
+      expect(() => client.planQueries('otherTest', 'LIST', null, {
+        filters: { enum: 'ONE' },
+        query: null,
+      } as SearchBody, {})).toThrow('UNINDEXED_FIELD');
+    });
+
+    test('throws when a searched field does not contain text', ({ client }) => {
+      expect(() => client.planQueries('test', 'LIST', null, {
+        filters: null,
+        query: { on: ['objectOne.optionalRelations._createdAt'], text: 'john' },
+      } as SearchBody, {})).toThrow('UNSEARCHABLE_FIELD');
+    });
+
+    test('throws when a sorted field is contained in an array', ({ client }) => {
+      expect(() => client.planQueries('test', 'LIST', null, null, {
+        sortBy: { 'objectOne.optionalRelations._createdAt': 1 },
+      })).toThrow('UNSORTABLE_FIELD');
+    });
+
+    test('throws when maximum resources depth is exceeded', ({ client }) => {
+      expect(() => client.planQueries('otherTest', 'LIST', null, null, {
+        maximumDepth: 1,
+        fields: ['optionalRelation.indexedString'],
+      })).toThrow('MAXIMUM_QUERY_FIELDS_DEPTH_EXCEEDED');
+    });
+  });
+
+  describe('[compileQueries]', () => {
+    test('compiles a SELECT query', ({ client }) => {
+      const { select } = client.compileQueries({
+        select: {
+          as: 'a',
+          limit: 10,
+          offset: 20,
+          type: 'SELECT',
+          table: 'test',
+          fields: ['"a"."_id"'],
+          join: [
+            { table: 'other', as: 'b', on: '"b"."_id" = "a"."other"' },
+            { table: 'other', as: 'b', on: '"b"."_id" = "a"."other"' },
+            { table: 'third', type: 'INNER', on: '"third"."_id" = "a"."third"' },
+          ],
+          orderBy: [{ field: '"a"."_id"', direction: 'DESC' }],
+          where: [{ column: '"a"."name"', operator: '=', value: 'test' }],
+        },
+      });
+
+      expect(select.query).toBe(`SELECT
+  "a"."_id"
+FROM
+  "test" AS "a"
+LEFT JOIN
+  "other" AS "b"
+ON
+  "b"."_id" = "a"."other"
+INNER JOIN
+  "third"
+ON
+  "third"."_id" = "a"."third"
+WHERE
+  "a"."name" = $1
+ORDER BY
+  "a"."_id" DESC
+LIMIT $2
+OFFSET $3;`);
+      expect(select.values).toEqual(['test', 10, 20]);
+    });
+
+    test('compiles an INSERT query', ({ client }) => {
+      const { insert } = client.compileQueries({
+        insert: {
+          type: 'INSERT',
+          table: 'test',
+          fields: ['_id', 'name'],
+          values: [[resourceId, 'first'], [resourceId, 'second']],
+        },
+      });
+
+      expect(insert.query).toBe(`INSERT INTO
+  "test" (
+    "_id",
+    "name"
+  )
+VALUES
+  (
+    $1,
+    $2
+  ),
+  (
+    $3,
+    $4
+  );`);
+      expect(insert.values).toEqual(['000000000000000000000001', 'first', '000000000000000000000001', 'second']);
+    });
+
+    test('compiles an UPDATE query', ({ client }) => {
+      const { update } = client.compileQueries({
+        update: {
+          as: 'a',
+          type: 'UPDATE',
+          table: 'test',
+          fields: { name: 'test' },
+          where: [{ column: '"a"."_id"', operator: '=', value: resourceId }],
+        },
+      });
+
+      expect(update.query).toBe(`UPDATE
+  "test" AS "a"
+SET
+  "name" = $1
+WHERE
+  "a"."_id" = $2;`);
+    });
+
+    test('compiles a DELETE query', ({ client }) => {
+      const { remove } = client.compileQueries({
+        remove: {
+          type: 'DELETE',
+          table: 'test',
+          where: [{ column: '"test"."_id"', operator: '=', value: resourceId }],
+        },
+      });
+
+      expect(remove.query).toBe(`DELETE FROM
+  "test"
+WHERE
+  "test"."_id" = $1;`);
+      expect(remove.values).toEqual([String(resourceId)]);
+    });
+
+    test('compiles common table expressions', ({ client }) => {
+      const { select } = client.compileQueries({
+        select: {
+          type: 'SELECT',
+          table: 'ids',
+          fields: ['"ids"."_id"'],
+          with: [{
+            as: 'ids',
+            query: {
+              type: 'SELECT',
+              table: 'test',
+              fields: ['"_id"'],
+              where: [{ column: '"name"', operator: '=', value: 'test' }],
+            },
+          }],
+        },
+      });
+
+      expect(select.query).toBe(`WITH
+  "ids" AS (
+    SELECT
+      "_id"
+    FROM
+      "test"
+    WHERE
+      "name" = $1
+  )
+SELECT
+  "ids"."_id"
+FROM
+  "ids";`);
+      expect(select.values).toEqual(['test']);
+    });
+
+    test('compiles all kinds of conditions', ({ client }) => {
+      const subQuery = {
+        type: 'SELECT' as const,
+        table: 'other',
+        fields: ['"_id"'],
+        where: [{ column: '"name"', operator: '=' as const, value: 'test' }],
+      };
+      const { select } = client.compileQueries({
+        select: {
+          type: 'SELECT',
+          table: 'test',
+          fields: ['"_id"'],
+          where: [
+            '"a"."raw" IS NULL',
+            { operator: 'AND', conditions: [{ column: '"a"."single"', operator: '=', value: 1 }] },
+            {
+              operator: 'OR',
+              conditions: [
+                { column: '"a"."first"', operator: '=', value: 1 },
+                { column: '"a"."second"', operator: '=', value: 2 },
+              ],
+            },
+            { operator: 'EXISTS', value: subQuery },
+            { operator: 'NOT EXISTS', value: '"a"."_id" IS NULL' },
+            { operator: 'IN', column: '"a"."_id"', value: subQuery },
+            { operator: 'NOT IN', column: '"a"."_id"', value: '"a"."other"' },
+            { column: '"a"."sub"', operator: '=', value: subQuery },
+          ],
+        },
+      });
+
+      expect(select.query).toContain('  "a"."raw" IS NULL\n  AND "a"."single" = $1');
+      expect(select.query).toContain('AND (\n    "a"."first" = $2\n    OR "a"."second" = $3\n  )');
+      expect(select.query).toContain('AND EXISTS (\n    SELECT');
+      expect(select.query).toContain('AND NOT EXISTS (\n"a"."_id" IS NULL\n  )');
+      expect(select.query).toContain('AND "a"."_id" IN (\n    SELECT');
+      expect(select.query).toContain('AND "a"."_id" NOT IN ("a"."other")');
+      expect(select.query).toContain('AND "a"."sub" = (\n    SELECT');
+    });
+
+    test('compares a column to a list of values with a quantifier', ({ client }) => {
+      const { select } = client.compileQueries({
+        select: {
+          type: 'SELECT',
+          table: 'test',
+          fields: ['"_id"'],
+          where: [
+            { column: '"a"."any"', operator: '=', value: ['first', 'second'] },
+            { column: '"a"."all"', operator: '!=', value: ['third'] },
+          ],
+        },
+      });
+
+      expect(select.query).toContain('"a"."any" = ANY($1)');
+      expect(select.query).toContain('"a"."all" != ALL($2)');
+    });
+
+    test('throws when comparing a column to a list of values with an unsupported operator', ({ client }) => {
+      expect(() => client.compileQueries({
+        select: {
+          type: 'SELECT',
+          table: 'test',
+          fields: ['"_id"'],
+          where: [{ column: '"a"."name"', operator: 'ILIKE', value: ['first'] }],
+        },
+      })).toThrow('UNSUPPORTED_ARRAY_OPERATOR');
+    });
+
+    test('throws when a query binds too many values', ({ client }) => {
+      expect(() => client.compileQueries({
+        insert: {
+          type: 'INSERT',
+          table: 'test',
+          fields: ['name'],
+          values: new Array<unknown[]>(65536).fill(['test']),
+        },
+      })).toThrow('TOO_MANY_QUERY_PARAMETERS');
+    });
+  });
+
+  describe('[formatRows]', () => {
+    test('formats rows into resources, with their relations and arrays', ({ client }) => {
+      const formatted = client.formatRows('test', {
+        _id: 1,
+        indexedString: 1,
+        objectOne: { boolean: 1, optionalRelations: { _id: 1, _createdAt: 1 } },
+      }, {
+        test: [{
+          test__id: '000000000000000000000001',
+          test_indexedString: 'test',
+          test_objectOne_boolean: true,
+          test_objectOne_optionalRelations: true,
+        }],
+        test_objectOne_optionalRelations: [
+          {
+            test_objectOne_optionalRelations__itemId: '000000000000000000000010',
+            test_objectOne_optionalRelations__parentId: '000000000000000000000001',
+            test_objectOne_optionalRelations__id: '000000000000000000000020',
+            test_objectOne_optionalRelations__value: '000000000000000000000020',
+            test_objectOne_optionalRelations__createdAt: new Date('2025-01-01'),
+          },
+          {
+            test_objectOne_optionalRelations__itemId: '000000000000000000000011',
+            test_objectOne_optionalRelations__parentId: '000000000000000000000001',
+            test_objectOne_optionalRelations__id: null,
+          },
+        ],
+      });
+
+      expect(formatted).toEqual([{
+        _id: new Id('000000000000000000000001'),
+        indexedString: 'test',
+        objectOne: {
+          boolean: true,
+          optionalRelations: [
+            { _id: new Id('000000000000000000000020'), _createdAt: new Date('2025-01-01') },
+            null,
+          ],
+        },
+      }]);
+    });
+
+    test('groups the rows of an array by the row owning it', ({ client }) => {
+      const formatted = client.formatRows('test', {
+        _id: 1,
+        objectOne: { optionalRelations: 1 },
+      }, {
+        test: [
+          {
+            test__id: '000000000000000000000001',
+            test_objectOne_optionalRelations: true,
+          },
+          {
+            test__id: '000000000000000000000002',
+            test_objectOne_optionalRelations: true,
+          },
+          {
+            test__id: '000000000000000000000003',
+            test_objectOne_optionalRelations: true,
+          },
+        ],
+        test_objectOne_optionalRelations: [{
+          test_objectOne_optionalRelations__id: '000000000000000000000010',
+          test_objectOne_optionalRelations__parentId: '000000000000000000000002',
+          test_objectOne_optionalRelations: '000000000000000000000020',
+        }],
+      });
+
+      expect(formatted).toEqual([
+        {
+          _id: new Id('000000000000000000000001'),
+          objectOne: { optionalRelations: [] },
+        },
+        {
+          _id: new Id('000000000000000000000002'),
+          objectOne: { optionalRelations: [new Id('000000000000000000000020')] },
+        },
+        {
+          _id: new Id('000000000000000000000003'),
+          objectOne: { optionalRelations: [] },
+        },
+      ]);
+    });
+
+    test('formats a null relation and a null object as null', ({ client }) => {
+      const formatted = client.formatRows('otherTest', {
+        _id: 1,
+        optionalRelation: { indexedString: 1 },
+        data: { optionalRelation: 1 },
+      }, {
+        otherTest: [{
+          otherTest__id: '000000000000000000000001',
+          otherTest_data: null,
+          otherTest_optionalRelation: null,
+        }],
+      });
+
+      expect(formatted).toEqual([{
+        _id: new Id('000000000000000000000001'),
+        optionalRelation: null,
+        data: null,
+      }]);
+    });
+  });
+
+  describe('[query]', () => {
+    test('runs the query on the given pool', async ({ connectedClient }) => {
+      const response = await connectedClient.query({ query: 'SELECT 1;', values: [1] });
+
+      expect(poolClient.query).toHaveBeenCalledWith('SELECT 1;', [1]);
+      expect(response.rowCount).toBe(1);
+    });
+
+    test('runs the query on the given session', async ({ client }) => {
+      await client.withSession(async (session) => {
+        poolClient.query.mockClear();
+        await client.query({ query: 'SELECT 1;', poolOrSession: session });
+      });
+
+      expect(poolClient.query).toHaveBeenCalledWith('SELECT 1;', []);
+    });
+
+    test('connects to the pool a query targets when it is not connected yet', async ({ telemetry, client }) => {
+      expect(await client.delete('otherTest', resourceId, { poolOrSession: 'default' })).toBe(true);
+      expect(Pool).toHaveBeenCalledOnce();
+      expect(Pool).toHaveBeenCalledWith(expect.objectContaining({
+        max: 10,
+        database: 'test',
+        query_timeout: 5000,
+        statement_timeout: 5000,
+        connectionTimeoutMillis: 2000,
+        options: ' -c lc_messages=C',
+      }));
+      expect(telemetry.info).toHaveBeenCalledWith('Connecting to database...', expect.objectContaining({
+        'db.namespace': 'test',
+        'server.port': 5432,
+      }));
+    });
+
+    test('lets the database server apply its own defaults for unset connection settings', async ({ model, telemetry }) => {
+      const cache = new CacheClient(telemetry, { cachePath: '/.cache', requestTimeout: 0 });
+      const client = new PostgreSQLDatabaseClient<DataModel>(model, telemetry, cache, {
+        ...settings,
+        pools: {
+          default: {
+            ...defaultPool,
+            port: null,
+            user: null,
+            password: null,
+          },
+        },
+      });
+
+      await client.delete('otherTest', resourceId, {});
+
+      expect(Pool).toHaveBeenCalledWith(expect.objectContaining({
+        port: undefined,
+        user: undefined,
+        password: undefined,
+      }));
+    });
+
+    test('re-uses the pool it is already connected to', async ({ connectedClient }) => {
+      await connectedClient.delete('otherTest', resourceId, {});
+      await connectedClient.withSession(async () => Promise.resolve());
+
+      expect(Pool).not.toHaveBeenCalled();
+      expect(pool.on).toHaveBeenCalledWith('error', expect.any(Function));
+    });
+
+    test('logs errors happening on idle connections instead of crashing', ({ connectedClient, telemetry }) => {
+      const error = new Error('CONNECTION_LOST');
+
+      expect(() => { emit('error', error); }).not.toThrow();
+      expect(telemetry.error).toHaveBeenCalledWith(error, expect.objectContaining({
+        'db.client.connection.pool.name': 'default',
+      }));
+      expect(connectedClient).toBeInstanceOf(PostgreSQLDatabaseClient);
+    });
+
+    test('observes the connections of each pool when metrics are collected', async ({ client, telemetry }) => {
+      const observe = vi.fn();
+      await client.withSession(async () => Promise.resolve());
+
+      observeMetric(telemetry, 'db.client.connection.count')(observe);
+
+      expect(observe).toHaveBeenCalledWith(2, {
+        'db.client.connection.state': 'used',
+        'db.client.connection.pool.name': 'default',
+      });
+      expect(observe).toHaveBeenCalledWith(1, {
+        'db.client.connection.state': 'idle',
+        'db.client.connection.pool.name': 'default',
+      });
+    });
+
+    test('observes the requests waiting for a connection when metrics are collected', async ({ client, telemetry }) => {
+      const observe = vi.fn();
+      await client.withSession(async () => Promise.resolve());
+
+      observeMetric(telemetry, 'db.client.connection.pending_requests')(observe);
+
+      expect(observe).toHaveBeenCalledWith(2, { 'db.client.connection.pool.name': 'default' });
+    });
+
+    test('records the time it took to obtain a connection from the pool', async ({ connectedClient, telemetry }) => {
+      vi.mocked(pool.connect).mockClear();
+      poolClient.release.mockClear();
+
+      await connectedClient.query({ query: 'SELECT 1;' });
+
+      // Connections are acquired manually, which is what makes that wait measurable: it is the
+      // signal telling that the pool ran out of connections, whatever the collection interval.
+      expect(pool.connect).toHaveBeenCalledOnce();
+      expect(poolClient.release).toHaveBeenCalledOnce();
+      expect(telemetry.measure).toHaveBeenCalledWith('db.client.connection.wait_time', 0.5, {
+        'db.client.connection.pool.name': 'default',
+      });
+    });
+
+    test('does not acquire a new connection for a query running within a session', async ({ client, telemetry }) => {
+      await client.withSession(async (session) => {
+        vi.mocked(pool.connect).mockClear();
+        vi.mocked(telemetry.measure).mockClear();
+        await client.query({ query: 'SELECT 1;', poolOrSession: session });
+      });
+
+      expect(pool.connect).not.toHaveBeenCalled();
+      expect(telemetry.measure).not.toHaveBeenCalledWith('db.client.connection.wait_time', expect.anything(), expect.anything());
+    });
+
+    test('throws when the targeted pool has no connection settings registered', async ({ client }) => {
+      await expect(client.query({ query: 'SELECT 1;', poolOrSession: 'unknown' }))
+        .rejects.toThrow('POOL_NOT_FOUND');
+    });
+
+    test('translates a unique constraint violation', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.reject(Object.assign(new Error('duplicate key'), {
+        code: '23505',
+        detail: 'Key (indexedString)=(test) already exists.',
+      })));
+
+      await expect(connectedClient.query({ query: 'SELECT 1;' })).rejects.toEqual(
+        expect.objectContaining({ code: 'RESOURCE_EXISTS', details: { path: 'indexedString' } }),
+      );
+    });
+
+    test('translates a foreign key constraint violation', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.reject(Object.assign(new Error('still referenced'), {
+        code: '23503',
+        detail: 'Key (_id)=(000000000000000000000001) is still referenced.',
+      })));
+
+      await expect(connectedClient.query({ query: 'SELECT 1;' })).rejects.toEqual(
+        expect.objectContaining({ code: 'RESOURCE_REFERENCED', details: { path: '_id' } }),
+      );
+    });
+
+    test('translates any other database error', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.reject(Object.assign(new Error('out of memory'), {
+        code: '53200',
+      })));
+
+      await expect(connectedClient.query({ query: 'SELECT 1;' })).rejects.toEqual(
+        expect.objectContaining({
+          code: 'DATABASE_ERROR',
+          details: { code: '53200', message: 'out of memory' },
+        }),
+      );
+    });
+
+    test('translates a constraint violation whose details cannot be parsed', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.reject(Object.assign(new Error('duplicate key'), {
+        code: '23505',
+      })));
+
+      await expect(connectedClient.query({ query: 'SELECT 1;' })).rejects.toThrow('DATABASE_ERROR');
+    });
+
+    test('propagates a failure happening while recording the query metrics', async ({ connectedClient, telemetry }) => {
+      const error = new Error('TELEMETRY_ERROR');
+      vi.mocked(telemetry.measure).mockImplementationOnce(() => { throw error; });
+
+      await expect(connectedClient.query({ query: 'SELECT 1;' })).rejects.toThrow(error);
+    });
+
+    test('rethrows an error that does not come from the database server', async ({ connectedClient }) => {
+      const error = new Error('SOCKET_CLOSED');
+      poolClient.query.mockImplementation(() => Promise.reject(error));
+
+      await expect(connectedClient.query({ query: 'SELECT 1;' })).rejects.toThrow(error);
+    });
+  });
+
+  describe('[withSession]', () => {
+    test('commits the transaction and returns the callback result', async ({ client }) => {
+      const response = await client.withSession(async (session) => Promise.resolve(session));
+
+      expect(response).toEqual(expect.any(String));
+      expect(poolClient.query).toHaveBeenCalledWith('BEGIN;', []);
+      expect(poolClient.query).toHaveBeenCalledWith('COMMIT;', []);
+      expect(poolClient.release).toHaveBeenCalledWith(undefined);
+    });
+
+    test('rolls the transaction back and rethrows when the callback fails', async ({ client }) => {
+      const error = new Error('CALLBACK_ERROR');
+
+      await expect(client.withSession(() => Promise.reject(error))).rejects.toThrow(error);
+      expect(poolClient.query).toHaveBeenCalledWith('ROLLBACK;', []);
+      expect(poolClient.query).not.toHaveBeenCalledWith('COMMIT;', []);
+      // The rollback succeeded, so the connection is back to a clean state and can be re-used:
+      // releasing it with an error would destroy it for nothing.
+      expect(poolClient.release).toHaveBeenCalledWith(undefined);
+    });
+
+    test('does not commit the transaction when it has been cancelled', async ({ client }) => {
+      await client.withSession(async (_, cancel) => cancel());
+
+      expect(poolClient.query).toHaveBeenCalledWith('ROLLBACK;', []);
+      expect(poolClient.query).not.toHaveBeenCalledWith('COMMIT;', []);
+    });
+
+    test('propagates a failure happening while releasing the connection', async ({ client }) => {
+      const error = new Error('RELEASE_ERROR');
+      poolClient.release.mockImplementationOnce(() => { throw error; });
+
+      await expect(client.withSession(async () => Promise.resolve())).rejects.toThrow(error);
+    });
+
+    test('propagates the original error when rolling back also fails', async ({ client, telemetry }) => {
+      const error = new Error('CALLBACK_ERROR');
+      poolClient.query.mockImplementation((sqlQuery: string) => (
+        (sqlQuery === 'ROLLBACK;')
+          ? Promise.reject(new Error('ROLLBACK_ERROR'))
+          : Promise.resolve({ rowCount: 1, rows: [] })
+      ));
+
+      await expect(client.withSession(() => Promise.reject(error))).rejects.toThrow(error);
+      expect(telemetry.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'ROLLBACK_ERROR' }), expect.anything());
+    });
+
+    test('rolls the transaction back when it cannot be committed', async ({ client }) => {
+      const error = new Error('COMMIT_ERROR');
+      poolClient.query.mockImplementation((sqlQuery: string) => (
+        (sqlQuery === 'COMMIT;')
+          ? Promise.reject(error)
+          : Promise.resolve({ rowCount: 1, rows: [] })
+      ));
+
+      await expect(client.withSession(async () => Promise.resolve())).rejects.toThrow(error);
+      expect(poolClient.query).toHaveBeenCalledWith('ROLLBACK;', []);
+    });
+  });
+
+  describe('[create]', () => {
+    test('inserts the resource row and its arrays rows in a single transaction', async ({ client }) => {
+      await client.create('otherTest', otherTestPayload as never, {});
+
+      expect(poolClient.query).toHaveBeenCalledWith('BEGIN;', []);
+      expect(poolClient.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO\n  "otherTest"'), expect.any(Array));
+      expect(poolClient.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO\n  "_otherTest_data_optionalFlatArray"'), expect.any(Array));
+      expect(poolClient.query).toHaveBeenCalledWith('COMMIT;', []);
+    });
+
+    test('re-uses the given session instead of opening a new one', async ({ client }) => {
+      await client.withSession(async (session) => {
+        poolClient.query.mockClear();
+        await client.create('otherTest', otherTestPayload as never, { poolOrSession: session });
+      });
+
+      expect(poolClient.query).not.toHaveBeenCalledWith('BEGIN;', []);
+    });
+  });
+
+  describe('[update]', () => {
+    test('updates the resource row, then replaces its arrays rows', async ({ client }) => {
+      const calls: string[] = [];
+      poolClient.query.mockImplementation((sqlQuery: string) => {
+        calls.push(sqlQuery.split('\n')[0]);
+        return Promise.resolve({ rowCount: 1, rows: [] });
+      });
+
+      expect(await client.update('otherTest', resourceId, { data: { optionalFlatArray: ['test3'] } } as never, {})).toBe(true);
+      expect(calls).toEqual(['BEGIN;', 'UPDATE', 'DELETE FROM', 'INSERT INTO', 'COMMIT;']);
+    });
+
+    test('locks the resource row when the payload does not change it', async ({ client }) => {
+      await client.update('otherTest', resourceId, {} as never, {});
+
+      expect(poolClient.query).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE;'), expect.any(Array));
+    });
+
+    test('returns false and cancels the transaction when the resource does not exist', async ({ client }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({ rowCount: 0, rows: [] }));
+
+      expect(await client.update('otherTest', resourceId, otherTestPayload as never, {})).toBe(false);
+      expect(poolClient.query).toHaveBeenCalledWith('ROLLBACK;', []);
+    });
+
+    test('re-uses the given session instead of opening a new one', async ({ client }) => {
+      await client.withSession(async (session) => {
+        poolClient.query.mockClear();
+        expect(await client.update('otherTest', resourceId, otherTestPayload as never, {
+          poolOrSession: session,
+        })).toBe(true);
+      });
+
+      expect(poolClient.query).not.toHaveBeenCalledWith('BEGIN;', []);
+    });
+  });
+
+  describe('[delete]', () => {
+    test('returns true when the resource has been deleted', async ({ connectedClient }) => {
+      expect(await connectedClient.delete('otherTest', resourceId, {})).toBe(true);
+      expect(poolClient.query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM'), ['000000000000000000000001']);
+    });
+
+    test('returns false when the resource does not exist', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({ rowCount: null, rows: [] }));
+
+      expect(await connectedClient.delete('otherTest', resourceId, {})).toBe(false);
+    });
+  });
+
+  describe('[view]', () => {
+    test('returns the resource', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({
+        rowCount: 1,
+        rows: [{
+          test__id: '000000000000000000000001',
+          test_indexedString: 'test',
+        }],
+      }));
+
+      expect(await connectedClient.view('test', resourceId, { fields: ['indexedString'] })).toEqual({
+        _id: new Id('000000000000000000000001'),
+        indexedString: 'test',
+      });
+    });
+
+    test('fetches the arrays of the resource in their own queries', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation((sqlQuery: string) => (
+        sqlQuery.includes('FROM\n  "_test_objectOne_optionalRelations"')
+          ? Promise.resolve({
+            rowCount: 1,
+            rows: [{
+              test_objectOne_optionalRelations__itemId: '000000000000000000000010',
+              test_objectOne_optionalRelations__parentId: '000000000000000000000001',
+              test_objectOne_optionalRelations: '000000000000000000000020',
+            }],
+          })
+          : Promise.resolve({
+            rowCount: 1,
+            rows: [{
+              test__id: '000000000000000000000001',
+              test_objectOne_optionalRelations: true,
+            }],
+          })
+      ));
+
+      expect(await connectedClient.view('test', resourceId, {
+        fields: ['objectOne.optionalRelations'],
+      })).toEqual({
+        _id: new Id('000000000000000000000001'),
+        objectOne: { optionalRelations: [new Id('000000000000000000000020')] },
+      });
+    });
+
+    test('returns null when the resource does not exist', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({ rowCount: 0, rows: [] }));
+
+      expect(await connectedClient.view('test', resourceId, { fields: ['indexedString'] })).toBeNull();
+    });
+  });
+
+  describe('[list]', () => {
+    test('returns the total number of resources, along with the current page', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation((sqlQuery: string) => (
+        sqlQuery.includes('COUNT(*) OVER ()')
+          ? Promise.resolve({ rowCount: 1, rows: [{ __total: '42', _id: '000000000000000000000001' }] })
+          : Promise.resolve({
+            rowCount: 1,
+            rows: [{
+              test__id: '000000000000000000000001',
+              test_indexedString: 'test',
+            }],
+          })
+      ));
+
+      expect(await connectedClient.list('test', { filters: null, query: null }, {
+        fields: ['indexedString'],
+      })).toEqual({
+        total: 42,
+        results: [{ _id: new Id('000000000000000000000001'), indexedString: 'test' }],
+      });
+    });
+
+    test('reports no resource at all when the total is missing from the results', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({
+        rowCount: 1,
+        rows: [{ __total: null, _id: '000000000000000000000001', test__id: '000000000000000000000001' }],
+      }));
+
+      expect(await connectedClient.list('test', { filters: null, query: null }, {})).toEqual({
+        total: 0,
+        results: [{ _id: new Id('000000000000000000000001') }],
+      });
+    });
+
+    test('returns an empty list when no resource matches', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({ rowCount: 0, rows: [] }));
+
+      expect(await connectedClient.list('test', { filters: null, query: null }, {
+        fields: ['indexedString'],
+      })).toEqual({ total: 0, results: [] });
+    });
+
+    test('counts the total number of resources when the requested page is past the last one', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation((sqlQuery: string) => (
+        sqlQuery.includes('COUNT(*) AS __total')
+          ? Promise.resolve({ rowCount: 1, rows: [{ __total: '42' }] })
+          : Promise.resolve({ rowCount: 0, rows: [] })
+      ));
+
+      expect(await connectedClient.list('test', { filters: null, query: null }, {
+        offset: 100,
+        fields: ['indexedString'],
+      })).toEqual({ total: 42, results: [] });
+      expect(poolClient.query).toHaveBeenCalledWith(expect.stringContaining('COUNT(*) AS __total'), expect.any(Array));
+    });
+
+    test('reports no resource at all when the count of a page past the last one is missing', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({ rowCount: 0, rows: [] }));
+
+      expect(await connectedClient.list('test', { filters: null, query: null }, {
+        offset: 100,
+        fields: ['indexedString'],
+      })).toEqual({ total: 0, results: [] });
+    });
+  });
+
+  describe('[checkRelations]', () => {
+    test('does nothing when there is no relation to check', async ({ connectedClient }) => {
+      await connectedClient.checkRelations('test', new Map());
+
+      expect(poolClient.query).not.toHaveBeenCalled();
+    });
+
+    test('checks all relations in a single query', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({
+        rowCount: 1,
+        rows: [{ _id: '000000000000000000000001', path: 'optionalRelation' }],
+      }));
+
+      await connectedClient.checkRelations('otherTest', new Map([
+        ['optionalRelation', { resource: 'test', filters: { _id: [resourceId] } }],
+      ]), { excludeDeletedResources: false });
+
+      const [[sqlQuery]] = poolClient.query.mock.calls;
+      expect(sqlQuery).toContain('DISTINCT "test"."_id"');
+      expect(sqlQuery).not.toContain('ORDER BY');
+      expect(sqlQuery).not.toContain('LIMIT');
+      expect(sqlQuery).not.toContain('_isDeleted');
+    });
+
+    test('throws when a relation references a resource that does not exist', async ({ connectedClient }) => {
+      poolClient.query.mockImplementation(() => Promise.resolve({ rowCount: 0, rows: [] }));
+
+      await expect(connectedClient.checkRelations('otherTest', new Map([
+        ['optionalRelation', { resource: 'test', filters: { _id: [resourceId] } }],
+        ['data.optionalRelation', { resource: 'test', filters: { _id: [resourceId] } }],
+      ]))).rejects.toThrow('NO_RESOURCE');
+    });
+  });
+
+  describe('[shutdown]', () => {
+    test('ends all the pools it is connected to', async ({ connectedClient }) => {
+      await connectedClient.shutdown();
+
+      expect(pool.end).toHaveBeenCalledOnce();
+    });
+  });
+});

@@ -96,6 +96,7 @@ async function run() {
         platform: 'node',
         outdir: distPath,
         metafile: true,
+        keepNames: true,
         splitting: devKitConfig.splitChunks !== false,
         external: Object.keys(packageJson.dependencies ?? {})
           .concat(Object.keys(packageJson.peerDependencies ?? {})),
