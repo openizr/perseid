@@ -8,28 +8,24 @@
 
 import fs from 'fs';
 import path from 'path';
-import { defineConfig } from 'vite';
+import {
+  isInstalled,
+  projectRootPath,
+  getDevKitConfig,
+  findProjectConfig,
+  logConfigSources,
+} from './helpers/project.js';
 import { fileURLToPath } from 'url';
 import autoprefixer from 'autoprefixer';
 import { visualizer } from 'rollup-plugin-visualizer';
-import validateConfig from '../helpers/validateConfig.js';
 import postCssSortMediaQueries from 'postcss-sort-media-queries';
-import { projectRootPath, packageJson, isInstalled } from '../helpers/paths.js';
+import { defineConfig as viteDefineConfig, mergeConfig, loadConfigFromFile } from 'vite';
 
-const { devKitConfig } = packageJson;
+const devKitConfig = getDevKitConfig();
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
-
 const srcSubDirectories = fs.readdirSync(srcPath, { withFileTypes: true })
-  .filter((fileOrDirectory) => fileOrDirectory.isDirectory())
+  .filter((entry) => entry.isDirectory())
   .map((directory) => directory.name);
-
-try {
-  validateConfig(devKitConfig);
-} catch (error) {
-  // eslint-disable-next-line no-console
-  console.error(error);
-  process.exit(1);
-}
 
 /**
  * Adds the banner on top of every bundled file. Rolldown's `output.banner` is stripped by the
@@ -38,7 +34,6 @@ try {
 const bannerPlugin = (banner) => ({
   name: 'dev-kit:banner',
   async writeBundle(options, bundle) {
-    const bannerLines = banner.split('\n').length;
     await Promise.all(Object.values(bundle).map(async (file) => {
       const isChunk = file.type === 'chunk';
       if (!isChunk && !(/\.css$/.test(file.fileName))) {
@@ -47,67 +42,57 @@ const bannerPlugin = (banner) => ({
       const filePath = path.join(options.dir, file.fileName);
       await fs.promises.writeFile(filePath, `${banner}\n${await fs.promises.readFile(filePath, 'utf-8')}`);
       // Keeps sourcemaps aligned by offsetting them by the banner's lines.
-      const mapPath = `${filePath}.map`;
-      if (isChunk && fs.existsSync(mapPath)) {
-        const map = JSON.parse(await fs.promises.readFile(mapPath, 'utf-8'));
-        map.mappings = `${';'.repeat(bannerLines)}${map.mappings}`;
-        await fs.promises.writeFile(mapPath, JSON.stringify(map));
+      if (isChunk && fs.existsSync(`${filePath}.map`)) {
+        const map = JSON.parse(await fs.promises.readFile(`${filePath}.map`, 'utf-8'));
+        map.mappings = `${';'.repeat(banner.split('\n').length)}${map.mappings}`;
+        await fs.promises.writeFile(`${filePath}.map`, JSON.stringify(map));
       }
     }));
   },
 });
 
-export default defineConfig(async () => {
-  const plugins = [];
+const devKitViteConfig = viteDefineConfig(async () => {
+  const env = process.env.ENV;
   const hasSvelte = isInstalled('svelte');
+  const plugins = [];
 
   if (hasSvelte) {
     plugins.push((await import('@sveltejs/vite-plugin-svelte')).svelte({
-      configFile: path.join(path.dirname(fileURLToPath(new URL(import.meta.url))), './svelte.config.js'),
+      configFile: findProjectConfig('svelte') ?? fileURLToPath(new URL('./svelte.config.js', import.meta.url)),
     }));
   }
-
   if (isInstalled('vue')) {
     plugins.push((await import('@vitejs/plugin-vue')).default());
   }
-
   if (isInstalled('react')) {
     plugins.push((await import('@vitejs/plugin-react')).default());
   }
-
-  if (process.env.ENV === 'production' && devKitConfig.banner !== undefined) {
-    plugins.push(bannerPlugin(devKitConfig.banner));
+  if (env === 'production') {
+    plugins.push(visualizer({ filename: path.join(projectRootPath, 'report.html') }));
+    if (devKitConfig.banner !== undefined) {
+      plugins.push(bannerPlugin(devKitConfig.banner));
+    }
   }
 
-  if (process.env.ENV === 'production') {
-    plugins.push(visualizer({
-      filename: path.join(projectRootPath, 'report.html'),
-    }));
-  }
-
-  return ({
-    // This switch is necessary to make vitest find root `__mocks__` directory in source directory.
-    root: process.env.ENV === 'test' ? srcPath : projectRootPath,
+  return {
+    // Vitest must find the root `__mocks__` directory in the source directory.
+    root: env === 'test' ? srcPath : projectRootPath,
     base: devKitConfig.publicPath ?? '/',
     cacheDir: path.join(projectRootPath, 'node_modules/.vite'),
     resolve: {
-      // Allows absolute imports resolution (e.g. `import 'styles/index.scss'`).
-      alias: srcSubDirectories.reduce((aliases, directory) => ({
-        ...aliases, [directory]: path.join(srcPath, directory),
-      }), {}),
+      // Absolute imports (e.g. `import 'styles/index.scss'`).
+      alias: Object.fromEntries(srcSubDirectories.map((directory) => [directory, path.join(srcPath, directory)])),
       // Vitest resolves packages with node conditions: svelte would load its server build.
-      ...(process.env.ENV === 'test' && hasSvelte) ? { conditions: ['browser', 'module', 'development|production'] } : {},
+      ...(env === 'test' && hasSvelte) ? { conditions: ['browser', 'module', 'development|production'] } : {},
     },
     // Svelte testing library ships `.svelte` files, so it must go through the svelte plugin.
-    ...(process.env.ENV === 'test' && hasSvelte) ? { ssr: { noExternal: [/@testing-library\/svelte/] } } : {},
+    ...(env === 'test' && hasSvelte) ? { ssr: { noExternal: [/@testing-library\/svelte/] } } : {},
     server: {
       host: devKitConfig.devServer?.host,
       port: process.env[devKitConfig.devServer?.port] ?? devKitConfig.devServer?.port,
     },
     css: {
-      postcss: {
-        plugins: [autoprefixer].concat((process.env.ENV === 'production') ? [postCssSortMediaQueries] : []),
-      },
+      postcss: { plugins: [autoprefixer].concat(env === 'production' ? [postCssSortMediaQueries] : []) },
     },
     build: {
       target: 'es2015',
@@ -137,9 +122,43 @@ export default defineConfig(async () => {
       },
     },
     // Statically replaces environment variables in JS code.
-    define: Object.keys(devKitConfig.env?.[process.env.ENV] ?? {}).reduce((envVars, key) => (
-      Object.assign(envVars, { [`process.env.${key}`]: JSON.stringify(devKitConfig.env[process.env.ENV][key]) })
-    ), {}),
+    define: Object.fromEntries(Object.entries(devKitConfig.env?.[env] ?? {}).map(([key, value]) => [`process.env.${key}`, JSON.stringify(value)])),
     plugins,
-  });
+  };
 });
+
+/**
+ * Dev-kit defaults deep-merged with project overrides (object, or function of Vite's env).
+ *
+ * @param overrides Project-specific Vite/Vitest config.
+ *
+ * @returns Vite config.
+ */
+export function defineConfig(overrides = {}) {
+  return viteDefineConfig(async (env) => mergeConfig(
+    await devKitViteConfig(env),
+    typeof overrides === 'function' ? await overrides(env) : overrides,
+  ));
+}
+
+/**
+ * Loads the config used by scripts: the project's `vite.config.*` when present, else the defaults.
+ *
+ * @param command Vite command.
+ *
+ * @param mode Vite mode.
+ *
+ * @returns Resolved inline config.
+ */
+export async function loadViteConfig(command, mode) {
+  const env = { command, mode, isSsrBuild: false, isPreview: false };
+  const projectConfig = findProjectConfig('vite');
+  logConfigSources();
+  const config = (projectConfig === undefined)
+    ? await devKitViteConfig(env)
+    : (await loadConfigFromFile(env, projectConfig, projectRootPath)).config;
+  // Prevents Vite from loading the project's config file a second time.
+  return { ...config, configFile: false };
+}
+
+export default devKitViteConfig;

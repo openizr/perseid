@@ -6,20 +6,55 @@
  *
  */
 
+import fs from 'fs';
 import path from 'path';
 import globals from 'globals';
 import { createRequire } from 'module';
 import tseslint from 'typescript-eslint';
 import { fixupPluginRules } from '@eslint/compat';
+import { defineConfig as eslintDefineConfig } from 'eslint/config';
 import reactPlugin from 'eslint-plugin-react';
 import stylisticPlugin from '@stylistic/eslint-plugin';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import confusingBrowserGlobals from 'confusing-browser-globals';
-import { isAvailable } from './helpers/paths.js';
-import createSourceResolver from './helpers/importResolver.js';
+import { isAvailable } from './helpers/project.js';
 
 const extensions = ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.d.ts', '.vue', '.svelte', '.json'];
+
+/** Source directory of the project containing `file` (closest `package.json`), cached. */
+const sourceDirectories = new Map();
+const findSourceDirectory = (file) => {
+  let directory = path.dirname(file);
+  while (!sourceDirectories.has(directory)) {
+    const packageJsonPath = path.join(directory, 'package.json');
+    const parent = path.dirname(directory);
+    if (fs.existsSync(packageJsonPath)) {
+      const { devKitConfig } = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      sourceDirectories.set(directory, path.join(directory, devKitConfig?.srcPath ?? 'src'));
+    } else if (parent === directory) {
+      sourceDirectories.set(directory, null);
+    } else {
+      directory = parent;
+    }
+  }
+  return sourceDirectories.get(directory);
+};
+
+// Resolves the dev-kit's absolute imports (`scripts/...`) from the project's source directory, like
+// Vite's aliases and the tsconfig `paths`, without depending on the working directory.
+const sourceResolver = {
+  interfaceVersion: 3,
+  name: 'dev-kit:source',
+  resolve(source, file) {
+    const sourceDirectory = (source.startsWith('.') || source.startsWith('node:') || path.isAbsolute(source)) ? null : findSourceDirectory(file);
+    const base = sourceDirectory === null ? null : path.join(sourceDirectory, source);
+    const found = base === null ? undefined : [base]
+      .concat(extensions.map((extension) => `${base}${extension}`), extensions.map((extension) => path.join(base, `index${extension}`)))
+      .find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+    return found === undefined ? { found: false } : { found: true, path: found };
+  },
+};
 
 // React hooks rules make no sense in Vue/Svelte components.
 const noReactHooksRules = Object.fromEntries(
@@ -81,7 +116,7 @@ async function createConfig() {
         'import-x/core-modules': [],
         'import-x/external-module-folders': ['node_modules', 'node_modules/@types'],
         'import-x/parsers': { '@typescript-eslint/parser': ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.d.ts'] },
-        'import-x/resolver-next': [createSourceResolver(extensions)].concat(
+        'import-x/resolver-next': [sourceResolver].concat(
           createTypeScriptImportResolver === null ? [] : [createTypeScriptImportResolver({ extensions })],
         ),
       },
@@ -662,4 +697,17 @@ async function createConfig() {
   return config;
 }
 
-export default createConfig();
+const config = createConfig();
+
+/**
+ * Dev-kit defaults plus project overrides (flat config objects or arrays), appended last.
+ *
+ * @param overrides Project-specific config objects.
+ *
+ * @returns ESLint flat config.
+ */
+export async function defineConfig(...overrides) {
+  return eslintDefineConfig(await config, ...overrides);
+}
+
+export default config;

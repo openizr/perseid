@@ -1,1 +1,3 @@
-export { default } from '@perseid/dev-kit/eslint.config.js';
+import { defineConfig } from '@perseid/dev-kit/eslint.config.js';
+
+export default defineConfig();

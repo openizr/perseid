@@ -6,21 +6,6 @@
  *
  */
 
-import '../config/env.js';
-import path from 'path';
 import checkFiles from '../helpers/checkFiles.js';
-import { projectRootPath, packageJson } from '../helpers/paths.js';
 
-const fixMode = process.argv.indexOf('-f') >= 0;
-const watchMode = process.argv.indexOf('-w') >= 0;
-const { devKitConfig } = packageJson;
-const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
-
-/**
- * Runs `check` CLI command's script.
- */
-async function run() {
-  await checkFiles(projectRootPath, packageJson, srcPath, watchMode, fixMode);
-}
-
-run();
+checkFiles(process.argv.includes('-w'), process.argv.includes('-f'));

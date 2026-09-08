@@ -21,15 +21,43 @@ See https://perseid.dev/.
 
 ## ESLint
 
-Linting runs when the project has an `eslint.config.js` (type-checking, when it has a
-`tsconfig.json`). The config is identical for every project:
+Linting runs when the project has an `eslint.config.js`, type-checking when it has a
+`tsconfig.json`. Overrides are appended to the dev-kit defaults:
 
 ```js
-export { default } from '@perseid/dev-kit/eslint.config.js';
+import { defineConfig } from '@perseid/dev-kit/eslint.config.js';
+
+export default defineConfig({ rules: { 'no-console': 'off' } });
 ```
 
-To add rules: `import devKit from '@perseid/dev-kit/eslint.config.js'` and export
-`[...(await devKit), { rules: { /* ... */ } }]`.
+
+## Vite / Vitest
+
+Without a `vite.config.js`, the dev-kit defaults are used. To fine-tune them (deep merge):
+
+```js
+import { defineConfig } from '@perseid/dev-kit/vite.config.js';
+
+export default defineConfig({ server: { port: 3000 } });
+```
+
+
+## Svelte
+
+svelte-check and the Svelte IDE extension read `svelte.config.js` from the project's root:
+
+```js
+export { default } from '@perseid/dev-kit/svelte.config.js';
+```
+
+`defineConfig({ /* overrides */ })` is also exported to fine-tune it (preprocessors are appended).
+
+
+## TypeScript
+
+```json
+{ "extends": "./node_modules/@perseid/dev-kit/tsconfig.json" }
+```
 
 In VS Code, when the opened folder is not the project itself (monorepo), add to
 `.vscode/settings.json`:

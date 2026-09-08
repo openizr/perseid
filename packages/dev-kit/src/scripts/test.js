@@ -6,31 +6,17 @@
  *
  */
 
-import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
-import { resolveBin } from '../helpers/paths.js';
+import { resolveBin, findProjectConfig, logConfigSources } from '../helpers/project.js';
 
-const watchMode = process.argv.indexOf('-w') >= 0;
-const configPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '../config/vite.config.js');
-
-/**
- * Runs `test` CLI command's script.
- */
-function run() {
-  const vitest = spawn(process.execPath, [
-    resolveBin('vitest'),
-    watchMode ? 'watch' : 'run',
-    '--passWithNoTests',
-    `--config=${configPath}`,
-    '--coverage',
-  ], {
-    stdio: 'inherit',
-    env: { ...process.env, ENV: 'test', NODE_ENV: 'test' },
-  });
-  vitest.on('exit', (code) => {
-    process.exit(code ?? 1);
-  });
-}
-
-run();
+logConfigSources();
+const configPath = findProjectConfig('vite') ?? fileURLToPath(new URL('../vite.config.js', import.meta.url));
+spawn(process.execPath, [
+  resolveBin('vitest'),
+  process.argv.includes('-w') ? 'watch' : 'run',
+  '--passWithNoTests',
+  `--config=${configPath}`,
+  '--coverage',
+], { stdio: 'inherit', env: { ...process.env, ENV: 'test', NODE_ENV: 'test' } })
+  .on('exit', (code) => process.exit(code ?? 1));
