@@ -41,9 +41,13 @@ export default async function checkFiles(
   const tsConfigFilePath = path.join(projectRootPath, 'tsconfig.json');
   const cliArguments = watchMode ? ['--watch'] : [];
 
+  // Checks are opt-in: no `eslint.config.*` means no linting, no `tsconfig.json` means no type-checking.
+  const hasEslintConfig = fs.readdirSync(projectRootPath).some((file) => /^eslint\.config\.[cm]?[jt]s$/.test(file));
+  const hasTsConfig = fs.existsSync(tsConfigFilePath);
+
   // Running ESlint...
   // ESLint's cache ignores tsconfig changes, so they are part of the cache name.
-  const tsConfigHash = createHash('sha256').update(fs.readFileSync(tsConfigFilePath)).digest('hex').slice(0, 8);
+  const tsConfigHash = createHash('sha256').update(hasTsConfig ? fs.readFileSync(tsConfigFilePath) : '').digest('hex').slice(0, 8);
   const cacheLocation = path.join(projectRootPath, `node_modules/.eslintcache-${tsConfigHash}`);
   const eslint = new ESLint({
     cache: true,
@@ -71,8 +75,6 @@ export default async function checkFiles(
     }
   };
 
-  // ESLint flat config must live at the project's root (`eslint.config.{js,mjs,cjs,ts,mts,cts}`).
-  const hasEslintConfig = fs.readdirSync(projectRootPath).some((file) => /^eslint\.config\.[cm]?[jt]s$/.test(file));
   if (hasEslintConfig) {
     await lint();
     if (watchMode) {
@@ -89,7 +91,7 @@ export default async function checkFiles(
 
   // Running TypeScript type-checker with native TypeScript 7. typescript-eslint still needs the
   // TypeScript 6 JS API (none in 7.0): revisit dropping `typescript@6` once TypeScript 7.1 ships it.
-  const tscPromise = new Promise((resolve) => {
+  const tscPromise = (!hasTsConfig) ? Promise.resolve() : new Promise((resolve) => {
     const typeChecker = spawn(process.execPath, [resolveBin('typescript-native', 'tsc')].concat(cliArguments, ['--project', tsConfigFilePath]));
     typeChecker.stdout.on('data', (data) => {
       // Prevents `tsc` from automatically clearing terminal.
@@ -123,7 +125,7 @@ export default async function checkFiles(
   });
 
   // Running svelte type-checker if necessary...
-  const svelteCheckPromise = (!runSvelteChecker)
+  const svelteCheckPromise = (!runSvelteChecker || !hasTsConfig)
     ? Promise.resolve()
     : new Promise((resolve) => {
       const svelteChecker = spawn(

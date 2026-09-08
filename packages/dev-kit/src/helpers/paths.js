@@ -38,6 +38,16 @@ export const isInstalled = (name) => {
   }
 };
 
+/** Whether a package is resolvable from the dev-kit itself (its dependencies and optional peers). */
+export const isAvailable = (name) => {
+  try {
+    devKitRequire.resolve(`${name}/package.json`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Absolute path to a dev-kit dependency's executable (`bin` is rarely exported by packages).
  *
