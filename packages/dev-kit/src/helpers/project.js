@@ -75,6 +75,7 @@ const validators = {
   banner: optional(isString),
   runInDev: optional((value) => typeof value === 'boolean'),
   splitChunks: optional((value) => typeof value === 'boolean'),
+  extraPackageJsonKeys: optional((value) => Array.isArray(value) && value.every(isString)),
   env: optional((value) => typeof value === 'object' && [value.development, value.production].every(optional((env) => typeof env === 'object'))),
 };
 

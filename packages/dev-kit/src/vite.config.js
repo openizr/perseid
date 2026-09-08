@@ -95,7 +95,7 @@ const devKitViteConfig = viteDefineConfig(async () => {
       postcss: { plugins: [autoprefixer].concat(env === 'production' ? [postCssSortMediaQueries] : []) },
     },
     build: {
-      target: 'es2015',
+      target: 'es2022',
       outDir: '__dist__',
       sourcemap: true,
       chunkSizeWarningLimit: 250,

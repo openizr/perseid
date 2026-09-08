@@ -3,7 +3,7 @@
   "license": "MIT",
   "type": "module",
   "devDependencies": {
-    "@perseid/dev-kit": "file:../../../dist#../../../dist::hash=713fbc&locator=root-workspace-0b6124%40workspace%3A."
+    "@perseid/dev-kit": "file:../../../dist#../../../dist::hash=90af31&locator=root-workspace-0b6124%40workspace%3A."
   },
   "dependencies": {
     "ajv": "^8.20.0",

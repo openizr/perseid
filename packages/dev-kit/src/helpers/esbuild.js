@@ -6,16 +6,16 @@
  *
  */
 
-import fs from 'fs';
-import path from 'path';
-import { createHash } from 'crypto';
-import { pathToFileURL, fileURLToPath } from 'url';
 import {
   packageJson,
   isInstalled,
   projectRootPath,
   getDevKitConfig,
 } from './project.js';
+import fs from 'fs';
+import path from 'path';
+import { createHash } from 'crypto';
+import { pathToFileURL, fileURLToPath } from 'url';
 
 const devKitConfig = getDevKitConfig();
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
@@ -95,7 +95,9 @@ async function vuePlugin(production) {
   };
 }
 
-/** Svelte 5 compiles TypeScript natively: only `<style lang="scss|sass">` blocks need work. */
+/**
+ * Svelte 5 compiles TypeScript natively: only `<style lang="scss|sass">` blocks need work.
+ */
 async function sveltePlugin(production) {
   const sass = await import('sass');
   return (await import('esbuild-svelte')).default({
@@ -134,7 +136,7 @@ export async function getEsbuildOptions(production, plugins = []) {
     loader: Object.fromEntries(assetExtensions.map((extension) => [`.${extension}`, 'file'])),
     banner: (production && devKitConfig.banner !== undefined) ? { js: devKitConfig.banner, css: devKitConfig.banner } : undefined,
     bundle: true,
-    target: 'es6',
+    target: 'es2022',
     format: 'esm',
     platform: 'node',
     outdir: distPath,
@@ -143,7 +145,9 @@ export async function getEsbuildOptions(production, plugins = []) {
     metafile: production,
     keepNames: production,
     splitting: devKitConfig.splitChunks !== false,
-    external: Object.keys(packageJson.dependencies ?? {}).concat(Object.keys(packageJson.peerDependencies ?? {})),
+    external: Object.keys(packageJson.dependencies ?? {})
+      .concat(Object.keys(packageJson.peerDependencies ?? {}))
+      .concat(['*.scss', '*.css']),
     plugins: plugins
       .concat(isInstalled('vue') ? [await vuePlugin(production)] : [])
       .concat(isInstalled('svelte') ? [await sveltePlugin(production)] : []),
@@ -152,11 +156,31 @@ export async function getEsbuildOptions(production, plugins = []) {
 
 /**
  * Writes the distributable `package.json` (and README/LICENSE when present) into `distPath`.
+ * `devKitConfig.extraPackageJsonKeys` lists additional keys to copy over (e.g. `sideEffects`).
  *
  * @param version Package version to publish.
  */
 export function writeDistFiles(version) {
-  const keys = ['name', 'main', 'type', 'types', 'bugs', 'author', 'exports', 'engines', 'license', 'keywords', 'homepage', 'repository', 'description', 'contributors', 'dependencies', 'peerDependencies', 'peerDependenciesMeta'];
+  const keys = [
+    'name',
+    'main',
+    'type',
+    'types',
+    'bugs',
+    'author',
+    'exports',
+    'engines',
+    'license',
+    'keywords',
+    'homepage',
+    'repository',
+    'sideEffects',
+    'description',
+    'contributors',
+    'dependencies',
+    'peerDependencies',
+    'peerDependenciesMeta',
+  ].concat(devKitConfig.extraPackageJsonKeys ?? []);
   const distPackageJson = { ...Object.fromEntries(keys.map((key) => [key, packageJson[key]])), version };
   fs.writeFileSync(path.join(distPath, 'package.json'), `${JSON.stringify(distPackageJson, null, 2)}\n`);
   ['README.md', 'LICENSE'].forEach((file) => {

@@ -922,9 +922,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@perseid/dev-kit@file:../../../dist#../../../dist::hash=713fbc&locator=root-workspace-0b6124%40workspace%3A.":
+"@perseid/dev-kit@file:../../../dist#../../../dist::hash=90af31&locator=root-workspace-0b6124%40workspace%3A.":
   version: 11.0.0
-  resolution: "@perseid/dev-kit@file:../../../dist#../../../dist::hash=b94c04&locator=root-workspace-0b6124%40workspace%3A."
+  resolution: "@perseid/dev-kit@file:../../../dist#../../../dist::hash=90af31&locator=root-workspace-0b6124%40workspace%3A."
   dependencies:
     "@eslint/compat": "npm:^2.1.1"
     "@stylistic/eslint-plugin": "npm:^5.10.0"
@@ -971,7 +971,7 @@ __metadata:
       optional: true
     vue:
       optional: true
-  checksum: 10c0/e73e13f3ed461a26f9af53c794edca25506a0b48a5590312ee93119eceed75e6e7319c829a2f4e6898fd140293ce0a5013d0df14b80f1f8032119cd734853654
+  checksum: 10c0/b23cdaa9fa38571c96805b7dc9475f95466d0f5e3b98cf250909b036312e1284de4e143cd8d4fbed611414a5453ded7fa831fb9a356e5f07d753806e1b30c626
   languageName: node
   linkType: hard
 
@@ -4983,7 +4983,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@perseid/dev-kit": "file:../../../dist#../../../dist::hash=713fbc&locator=root-workspace-0b6124%40workspace%3A."
+    "@perseid/dev-kit": "file:../../../dist#../../../dist::hash=90af31&locator=root-workspace-0b6124%40workspace%3A."
     ajv: "npm:^8.20.0"
     ajv-errors: "npm:^3.0.0"
     fastify: "npm:^5.12.3"

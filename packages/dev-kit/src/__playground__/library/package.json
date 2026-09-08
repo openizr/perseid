@@ -64,7 +64,10 @@
     },
     "srcPath": "src",
     "distPath": "dist",
-    "banner": "/*!\n * Copyright (c) Openizr.\n * All rights reserved.\n */"
+    "banner": "/*!\n * Copyright (c) Openizr.\n * All rights reserved.\n */",
+    "extraPackageJsonKeys": [
+      "sideEffects"
+    ]
   },
   "scripts": {
     "test": "node node_modules/@perseid/dev-kit/scripts/test.js",
@@ -74,5 +77,6 @@
   },
   "dependencies": {
     "biuty": "^2.0.0"
-  }
+  },
+  "sideEffects": false
 }
