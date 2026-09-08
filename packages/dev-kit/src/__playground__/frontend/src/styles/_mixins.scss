@@ -35,9 +35,8 @@ $breakpoints: (
 
     // Retrieve the real value in px
     $value: if(
-      meta.type-of($breakpoint) == 'string',
-      map.get($breakpoints, $breakpoint),
-      $breakpoint
+      sass(meta.type-of($breakpoint) == 'string'): map.get($breakpoints, $breakpoint);
+      else: $breakpoint
     );
 
     @if ($value > $max) {
@@ -51,9 +50,8 @@ $breakpoints: (
   @each $breakpoint in $bps {
     // Retrieve the real value in px
     $value: if(
-      meta.type-of($breakpoint) == 'string',
-      map.get($breakpoints, $breakpoint),
-      $breakpoint
+      sass(meta.type-of($breakpoint) == 'string'): map.get($breakpoints, $breakpoint);
+      else: $breakpoint
     );
 
     // Build a max-width if needed

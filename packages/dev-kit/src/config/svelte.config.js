@@ -6,8 +6,9 @@
  *
  */
 
-import sveltePreprocess from 'svelte-preprocess';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
+// Svelte 5 handles TypeScript natively: only style languages need Vite's CSS pipeline.
 export default {
-  preprocess: sveltePreprocess(),
+  preprocess: vitePreprocess(),
 };

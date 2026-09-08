@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { UIP } from 'biuty/react';
 import PropTypes, { type InferProps } from 'prop-types';
 

@@ -8,17 +8,15 @@
 
 import '../config/env.js';
 import path from 'path';
-import fs from 'fs-extra';
+import fs from 'fs';
 import { build } from 'vite';
 import esbuild from 'esbuild';
 import colors from 'picocolors';
-import { fileURLToPath } from 'url';
 import viteConfig from '../config/vite.config.js';
 import checkFiles from '../helpers/checkFiles.js';
+import { projectRootPath, packageJson, isInstalled } from '../helpers/paths.js';
 
 const { log, error } = console;
-const projectRootPath = path.resolve(path.dirname(fileURLToPath(new URL(import.meta.url))), '../../../../');
-const packageJson = JSON.parse(fs.readFileSync(path.join(projectRootPath, 'package.json')));
 const readmePath = path.join(projectRootPath, 'README.md');
 const licensePath = path.join(projectRootPath, 'LICENSE');
 const { devKitConfig } = packageJson;
@@ -44,38 +42,32 @@ async function run() {
       // Front-end projects: we use Vite as a bundler.
       const publicAssetsPath = path.join(distPath, 'assets');
       const publicIndexHtmlPath = path.join(distPath, 'index.html');
-      await fs.copy(path.resolve(srcPath, devKitConfig.html), path.join(projectRootPath, 'index.html'));
-      await fs.remove(publicIndexHtmlPath);
-      await fs.remove(publicAssetsPath);
+      await fs.promises.copyFile(path.resolve(srcPath, devKitConfig.html), path.join(projectRootPath, 'index.html'));
+      await fs.promises.rm(publicIndexHtmlPath, { force: true });
+      await fs.promises.rm(publicAssetsPath, { recursive: true, force: true });
       await build(await viteConfig());
-      await fs.remove(distPath);
-      await fs.remove(path.join(projectRootPath, 'index.html'));
-      await fs.rename(path.join(projectRootPath, '__dist__'), distPath);
+      await fs.promises.rm(distPath, { recursive: true, force: true });
+      await fs.promises.rm(path.join(projectRootPath, 'index.html'), { force: true });
+      await fs.promises.rename(path.join(projectRootPath, '__dist__'), distPath);
     } else {
       // Back-end/NPM package projects: we directly use esbuild.
 
       let vuePlugin = null;
-      try {
-        await import('vue');
-        vuePlugin = (await import('esbuild-plugin-vue-next')).default;
-      } catch (e) {
-        // No-op.
+      if (isInstalled('vue')) {
+        vuePlugin = await (await import('../helpers/esbuildVuePlugin.js')).default();
       }
 
       let sveltePlugin = null;
-      try {
-        await import('svelte');
-        const sveltePreprocess = (await import('svelte-preprocess')).default;
+      if (isInstalled('svelte')) {
+        const sveltePreprocess = (await import('../helpers/sveltePreprocess.js')).default;
         sveltePlugin = (await import('esbuild-svelte')).default({
           compilerOptions: { css: 'external' },
-          preprocess: sveltePreprocess(),
+          preprocess: sveltePreprocess(srcPath),
         });
-      } catch (e) {
-        // No-op.
       }
 
       let startTimestamp = 0;
-      await fs.remove(distPath);
+      await fs.promises.rm(distPath, { recursive: true, force: true });
       startTimestamp = Date.now();
       const result = await esbuild.build({
         entryPoints: Object.keys(devKitConfig.entries).reduce((entrypoints, entrypoint) => ({
@@ -102,13 +94,13 @@ async function run() {
           .concat(Object.keys(packageJson.peerDependencies ?? {})),
         sourcemap: true,
         plugins: []
-          .concat(vuePlugin !== null ? [vuePlugin()] : [])
+          .concat(vuePlugin !== null ? [vuePlugin] : [])
           .concat(sveltePlugin !== null ? [sveltePlugin] : []),
       });
       const analysis = await esbuild.analyzeMetafile(result.metafile);
       log(analysis);
       // Writing distributable `package.json` file into `dist` directory...
-      await fs.writeJson(path.join(distPath, 'package.json'), {
+      await fs.promises.writeFile(path.join(distPath, 'package.json'), `${JSON.stringify({
         name: packageJson.name,
         main: packageJson.main,
         type: packageJson.type,
@@ -127,21 +119,21 @@ async function run() {
         dependencies: packageJson.dependencies,
         peerDependencies: packageJson.peerDependencies,
         peerDependenciesMeta: packageJson.peerDependenciesMeta,
-      }, { spaces: 2 });
+      }, null, 2)}\n`);
       // Writing distributable `README.md` file into `dist` directory...
-      const readmeExists = await fs.pathExists(readmePath);
-      if (readmeExists) {
-        await fs.copy(readmePath, path.resolve(distPath, 'README.md'));
+      if (fs.existsSync(readmePath)) {
+        await fs.promises.copyFile(readmePath, path.resolve(distPath, 'README.md'));
       }
       // Writing distributable `LICENSE` file into `dist` directory...
-      const licenseExists = await fs.pathExists(licensePath);
-      if (licenseExists) {
-        await fs.copy(licensePath, path.resolve(distPath, 'LICENSE'));
+      if (fs.existsSync(licensePath)) {
+        await fs.promises.copyFile(licensePath, path.resolve(distPath, 'LICENSE'));
       }
       log(colors.green(`${colors.bold('\n[esbuild]: ')}Successfully built in ${Date.now() - startTimestamp}ms (${result.errors.length} errors, ${result.warnings.length} warnings).\n`));
     }
   } catch (e) {
     error(colors.red(colors.bold('\n✖ Build failed.\n')));
+    // Vite 8 wraps bundling errors into a `BundleError`.
+    (e.errors ?? [e]).forEach((err) => error(colors.red(err.message ?? err)));
     process.exit(1);
   }
 }

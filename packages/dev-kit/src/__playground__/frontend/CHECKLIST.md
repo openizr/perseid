@@ -1,5 +1,10 @@
+# Package managers
+  `npm`
+  `yarn` 4 (node-modules linker)
+  `pnpm`
+
 # Yarn commands
-  Work on nodeJS 18+
+  Work on nodeJS 22+
   `yarn`
   `yarn run dev`
   `yarn run test`

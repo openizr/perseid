@@ -7,11 +7,13 @@
  */
 
 import '../config/env.js';
+import fs from 'fs';
 import path from 'path';
-import chokidar from 'chokidar';
 import { ESLint } from 'eslint';
 import colors from 'picocolors';
+import { createHash } from 'crypto';
 import { spawn } from 'child_process';
+import { resolveBin } from './paths.js';
 
 const { log, error } = console;
 
@@ -40,8 +42,15 @@ export default async function checkFiles(
   const cliArguments = watchMode ? ['--watch'] : [];
 
   // Running ESlint...
-  const cacheLocation = path.join(projectRootPath, 'node_modules/.eslintcache');
-  const eslint = new ESLint({ cache: true, cacheLocation, fix: fixMode });
+  // ESLint's cache ignores tsconfig changes, so they are part of the cache name.
+  const tsConfigHash = createHash('sha256').update(fs.readFileSync(tsConfigFilePath)).digest('hex').slice(0, 8);
+  const cacheLocation = path.join(projectRootPath, `node_modules/.eslintcache-${tsConfigHash}`);
+  const eslint = new ESLint({
+    cache: true,
+    cacheLocation,
+    fix: fixMode,
+    cwd: projectRootPath,
+  });
 
   const lint = async () => {
     process.stdout.write('\x1Bc');
@@ -62,22 +71,26 @@ export default async function checkFiles(
     }
   };
 
-  if (packageJson.eslintConfig !== undefined) {
+  // ESLint flat config must live at the project's root (`eslint.config.{js,mjs,cjs,ts,mts,cts}`).
+  const hasEslintConfig = fs.readdirSync(projectRootPath).some((file) => /^eslint\.config\.[cm]?[jt]s$/.test(file));
+  if (hasEslintConfig) {
     await lint();
     if (watchMode) {
-      const patterns = ['js', 'jsx', 'ts', 'tsx', 'svelte', 'vue'].map((extension) => `${srcPath}/**/*.${extension}`);
-      const watcher = chokidar.watch(patterns, { ignoreInitial: true });
-      watcher.on('add', lint);
-      watcher.on('change', lint);
-      watcher.on('unlink', lint);
-      watcher.on('addDir', lint);
-      watcher.on('unlinkDir', lint);
+      // Events come in bursts (editors write several times), hence the debounce.
+      let timeout = null;
+      fs.watch(srcPath, { recursive: true }, (_event, filename) => {
+        if (filename === null || /\.(js|jsx|ts|tsx|svelte|vue)$/.test(filename)) {
+          clearTimeout(timeout);
+          timeout = setTimeout(lint, 100);
+        }
+      });
     }
   }
 
-  // Running TypeScript type-checker...
+  // Running TypeScript type-checker with native TypeScript 7. typescript-eslint still needs the
+  // TypeScript 6 JS API (none in 7.0): revisit dropping `typescript@6` once TypeScript 7.1 ships it.
   const tscPromise = new Promise((resolve) => {
-    const typeChecker = spawn(path.join(projectRootPath, 'node_modules/typescript/bin/tsc'), cliArguments.concat(['--project', tsConfigFilePath]));
+    const typeChecker = spawn(process.execPath, [resolveBin('typescript-native', 'tsc')].concat(cliArguments, ['--project', tsConfigFilePath]));
     typeChecker.stdout.on('data', (data) => {
       // Prevents `tsc` from automatically clearing terminal.
       const message = data.toString().trim().replace('\x1Bc', '');
@@ -114,8 +127,8 @@ export default async function checkFiles(
     ? Promise.resolve()
     : new Promise((resolve) => {
       const svelteChecker = spawn(
-        path.join(projectRootPath, 'node_modules/svelte-check/bin/svelte-check'),
-        cliArguments.concat([
+        process.execPath,
+        [resolveBin('svelte-check')].concat(cliArguments, [
           '--workspace',
           srcPath,
           '--tsconfig',

@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`svelte/Router > renders correctly - loading page 1`] = `<!---->`;
+
+exports[`svelte/Router > renders correctly - page found 1`] = `<!---->`;
+
+exports[`svelte/Router > renders correctly - page not found 1`] = `<!---->`;

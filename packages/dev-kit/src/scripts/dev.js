@@ -6,18 +6,21 @@
  *
  */
 
+import {
+  packageJson,
+  isInstalled,
+  resolvePackage,
+  projectRootPath,
+} from '../helpers/paths.js';
 import path from 'path';
-import fs from 'fs-extra';
+import fs from 'fs';
 import esbuild from 'esbuild';
 import colors from 'picocolors';
-import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import viteConfig from '../config/vite.config.js';
 import { send, createServer, createLogger } from 'vite';
 
-const projectRootPath = path.resolve(path.dirname(fileURLToPath(new URL(import.meta.url))), '../../../../');
-const packageJson = JSON.parse(fs.readFileSync(path.join(projectRootPath, 'package.json')));
-const vitePackageJson = JSON.parse(fs.readFileSync(path.join(projectRootPath, 'node_modules/vite/package.json')));
+const vitePackageJson = JSON.parse(fs.readFileSync(path.join(resolvePackage('vite'), 'package.json')));
 
 let nodeProcess = null;
 const { log, error } = console;
@@ -35,30 +38,29 @@ async function run() {
     // We manually create the dev server as we want to get control over its built-in
     // middlewares (404 and indexHtml).
     try {
-      const server = await createServer(await viteConfig());
-
-      // We replace Vite's built-in indexHtml middleware to provide a wider catch-all routing logic,
-      // and serve a pre-processed `index.html` located wherever we want.
-      server.middlewares.stack.splice(server.middlewares.stack.length - 3, 1, {
-        route: '',
-        handle: async function customViteIndexHtmlMiddleware(request, response, next) {
-          if (response.writableEnded) {
-            return next();
-          }
-
-          try {
-            // IF WE EVER NEED IT: special markup syntax regexp is
-            // /<__TDK_PRODUCTION__>((?!__TDK_PRODUCTION__)(\n|.)*?)<\/__TDK_PRODUCTION__>/m
-            // p1.trim().replace(/\n\s+/g, '');
-            const indexHtmlPath = path.join(srcPath, devKitConfig.html);
-            let html = await fs.readFile(indexHtmlPath, 'utf-8');
-            html = await server.transformIndexHtml(request.url, html, request.originalUrl);
-            return send(request, response, html, 'html', { headers: server.config.server.headers });
-          } catch (e) {
-            return next(e);
-          }
+      const config = await viteConfig();
+      // Replaces Vite's built-in indexHtml middleware to provide a wider catch-all routing logic,
+      // and serve a pre-processed `index.html` located wherever we want. `configureServer` post
+      // hooks run right before Vite's html middlewares, which is the supported way to do it.
+      config.plugins.push({
+        name: 'dev-kit:index-html',
+        configureServer(server) {
+          return () => server.middlewares.use(async (request, response, next) => {
+            if (response.writableEnded || request.method !== 'GET') {
+              return next();
+            }
+            try {
+              const indexHtmlPath = path.join(srcPath, devKitConfig.html);
+              let html = await fs.promises.readFile(indexHtmlPath, 'utf-8');
+              html = await server.transformIndexHtml(request.url, html, request.originalUrl);
+              return send(request, response, html, 'html', { headers: server.config.server.headers });
+            } catch (e) {
+              return next(e);
+            }
+          });
         },
       });
+      const server = await createServer(config);
 
       if (!server.httpServer) {
         throw new Error('HTTP server not available');
@@ -104,7 +106,7 @@ async function run() {
           if (result.errors.length === 0) {
             log(colors.green(`${colors.bold('[esbuild]: ')}Successfully built in ${Date.now() - startTimestamp}ms (${result.errors.length} errors, ${result.warnings.length} warnings).\n`));
             // Writing distributable `package.json` file into `dist` directory...
-            fs.writeJsonSync(path.join(distPath, 'package.json'), {
+            fs.writeFileSync(path.join(distPath, 'package.json'), `${JSON.stringify({
               name: packageJson.name,
               main: packageJson.main,
               types: packageJson.types,
@@ -124,7 +126,7 @@ async function run() {
               dependencies: packageJson.dependencies,
               peerDependencies: packageJson.peerDependencies,
               peerDependenciesMeta: packageJson.peerDependenciesMeta,
-            }, { spaces: 2 });
+            }, null, 2)}\n`);
 
             // Executing main entrypoint if necessary (this is especially useful when developing
             // a NodeJS server for instance)...
@@ -152,26 +154,20 @@ async function run() {
       },
     };
 
-    await fs.remove(distPath);
+    await fs.promises.rm(distPath, { recursive: true, force: true });
 
     let vuePlugin = null;
-    try {
-      await import('vue');
-      vuePlugin = (await import('esbuild-plugin-vue-next')).default;
-    } catch (e) {
-      // No-op.
+    if (isInstalled('vue')) {
+      vuePlugin = await (await import('../helpers/esbuildVuePlugin.js')).default();
     }
 
     let sveltePlugin = null;
-    try {
-      await import('svelte');
-      const sveltePreprocess = (await import('svelte-preprocess')).default;
+    if (isInstalled('svelte')) {
+      const sveltePreprocess = (await import('../helpers/sveltePreprocess.js')).default;
       sveltePlugin = (await import('esbuild-svelte')).default({
         compilerOptions: { css: 'injected' },
-        preprocess: sveltePreprocess(),
+        preprocess: sveltePreprocess(srcPath),
       });
-    } catch (e) {
-      // No-op.
     }
 
     startTimestamp = Date.now();
@@ -194,7 +190,7 @@ async function run() {
       external: Object.keys(packageJson.dependencies ?? {})
         .concat(Object.keys(packageJson.peerDependencies ?? {})),
       plugins: [devKitPlugin]
-        .concat(vuePlugin !== null ? [vuePlugin()] : [])
+        .concat(vuePlugin !== null ? [vuePlugin] : [])
         .concat(sveltePlugin !== null ? [sveltePlugin] : []),
     });
 

@@ -6,33 +6,9 @@
     "@perseid/dev-kit": "file:../../../dist"
   },
   "dependencies": {
-    "ajv": "^8.12.0",
+    "ajv": "^8.20.0",
     "ajv-errors": "^3.0.0",
-    "fastify": "^5.3.2"
-  },
-  "eslintConfig": {
-    "extends": [
-      "./node_modules/@perseid/dev-kit/main.cjs"
-    ],
-    "overrides": [
-      {
-        "files": [
-          "*.ts",
-          "*.js"
-        ],
-        "rules": {
-          "@typescript-eslint/no-floating-promises": "off"
-        }
-      },
-      {
-        "files": [
-          "*.js"
-        ],
-        "rules": {
-          "@typescript-eslint/use-unknown-in-catch-callback-variable": "off"
-        }
-      }
-    ]
+    "fastify": "^5.12.3"
   },
   "devKitConfig": {
     "target": "node",
@@ -47,10 +23,10 @@
     "distPath": "dist"
   },
   "scripts": {
-    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "test": "node node_modules/@perseid/dev-kit/scripts/test.js",
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "build": "node node_modules/@perseid/dev-kit/scripts/build.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
-    "postinstall": "rm -f node_modules/.eslintcache"
+    "postinstall": "rm -f node_modules/.eslintcache*"
   }
 }

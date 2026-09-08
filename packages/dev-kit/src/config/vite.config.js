@@ -14,9 +14,8 @@ import autoprefixer from 'autoprefixer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import validateConfig from '../helpers/validateConfig.js';
 import postCssSortMediaQueries from 'postcss-sort-media-queries';
+import { projectRootPath, packageJson, isInstalled } from '../helpers/paths.js';
 
-const projectRootPath = path.resolve(path.dirname(fileURLToPath(new URL(import.meta.url))), '../../../../');
-const packageJson = JSON.parse(fs.readFileSync(path.join(projectRootPath, 'package.json')));
 const { devKitConfig } = packageJson;
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
 
@@ -32,31 +31,52 @@ try {
   process.exit(1);
 }
 
+/**
+ * Adds the banner on top of every bundled file. Rolldown's `output.banner` is stripped by the
+ * minifier and Vite prepends its own preamble in `generateBundle`, so files are patched on disk.
+ */
+const bannerPlugin = (banner) => ({
+  name: 'dev-kit:banner',
+  async writeBundle(options, bundle) {
+    const bannerLines = banner.split('\n').length;
+    await Promise.all(Object.values(bundle).map(async (file) => {
+      const isChunk = file.type === 'chunk';
+      if (!isChunk && !(/\.css$/.test(file.fileName))) {
+        return;
+      }
+      const filePath = path.join(options.dir, file.fileName);
+      await fs.promises.writeFile(filePath, `${banner}\n${await fs.promises.readFile(filePath, 'utf-8')}`);
+      // Keeps sourcemaps aligned by offsetting them by the banner's lines.
+      const mapPath = `${filePath}.map`;
+      if (isChunk && fs.existsSync(mapPath)) {
+        const map = JSON.parse(await fs.promises.readFile(mapPath, 'utf-8'));
+        map.mappings = `${';'.repeat(bannerLines)}${map.mappings}`;
+        await fs.promises.writeFile(mapPath, JSON.stringify(map));
+      }
+    }));
+  },
+});
+
 export default defineConfig(async () => {
   const plugins = [];
+  const hasSvelte = isInstalled('svelte');
 
-  try {
-    await import('svelte');
+  if (hasSvelte) {
     plugins.push((await import('@sveltejs/vite-plugin-svelte')).svelte({
-      experimental: { useVitePreprocess: true },
       configFile: path.join(path.dirname(fileURLToPath(new URL(import.meta.url))), './svelte.config.js'),
     }));
-  } catch (e) {
-    // No-op.
   }
 
-  try {
-    await import('vue');
+  if (isInstalled('vue')) {
     plugins.push((await import('@vitejs/plugin-vue')).default());
-  } catch (e) {
-    // No-op.
   }
 
-  try {
-    await import('react');
+  if (isInstalled('react')) {
     plugins.push((await import('@vitejs/plugin-react')).default());
-  } catch (e) {
-    // No-op.
+  }
+
+  if (process.env.ENV === 'production' && devKitConfig.banner !== undefined) {
+    plugins.push(bannerPlugin(devKitConfig.banner));
   }
 
   if (process.env.ENV === 'production') {
@@ -69,12 +89,17 @@ export default defineConfig(async () => {
     // This switch is necessary to make vitest find root `__mocks__` directory in source directory.
     root: process.env.ENV === 'test' ? srcPath : projectRootPath,
     base: devKitConfig.publicPath ?? '/',
+    cacheDir: path.join(projectRootPath, 'node_modules/.vite'),
     resolve: {
       // Allows absolute imports resolution (e.g. `import 'styles/index.scss'`).
       alias: srcSubDirectories.reduce((aliases, directory) => ({
         ...aliases, [directory]: path.join(srcPath, directory),
       }), {}),
+      // Vitest resolves packages with node conditions: svelte would load its server build.
+      ...(process.env.ENV === 'test' && hasSvelte) ? { conditions: ['browser', 'module', 'development|production'] } : {},
     },
+    // Svelte testing library ships `.svelte` files, so it must go through the svelte plugin.
+    ...(process.env.ENV === 'test' && hasSvelte) ? { ssr: { noExternal: [/@testing-library\/svelte/] } } : {},
     server: {
       host: devKitConfig.devServer?.host,
       port: process.env[devKitConfig.devServer?.port] ?? devKitConfig.devServer?.port,
@@ -85,15 +110,14 @@ export default defineConfig(async () => {
       },
     },
     build: {
-      target: 'es6',
+      target: 'es2015',
       outDir: '__dist__',
       sourcemap: true,
       chunkSizeWarningLimit: 250,
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          banner: devKitConfig.banner,
           format: (devKitConfig.splitChunks === false) ? 'iife' : 'esm',
-          inlineDynamicImports: devKitConfig.splitChunks === false,
+          ...(devKitConfig.splitChunks === false) ? { codeSplitting: false } : {},
           assetFileNames: 'assets/[ext]/[name].[hash][extname]',
           entryFileNames: 'assets/js/[name].[hash].js',
           chunkFileNames: 'assets/js/[name].[hash].js',
@@ -104,13 +128,11 @@ export default defineConfig(async () => {
       globals: true,
       passWithNoTests: true,
       include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-      cacheDir: path.join(projectRootPath, 'node_modules/.vitest'),
       coverage: {
-        all: true,
-        src: srcPath,
-        allowExternal: true,
+        // Uncovered files must be listed explicitly since vitest 4.
+        include: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx,vue,svelte}'],
+        exclude: ['**/__mocks__/**', '**/__tests__/**', '**/*.d.ts'],
         reporter: ['text', 'lcov'],
-        exclude: ['**/__mocks__', '**/__tests__', '**/*.d.ts'],
         reportsDirectory: path.join(projectRootPath, 'coverage'),
       },
     },
