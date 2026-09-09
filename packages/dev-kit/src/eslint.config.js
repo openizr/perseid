@@ -95,7 +95,6 @@ async function createConfig() {
     importPlugin = (await import('eslint-plugin-import-x')).default;
     ({ createTypeScriptImportResolver } = await import('eslint-import-resolver-typescript'));
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.warn(`[@perseid/dev-kit] import rules disabled, native resolver unavailable: ${error.message}`);
   }
 
@@ -701,7 +700,7 @@ async function createConfig() {
     config.forEach((entry) => {
       Object.keys(entry.rules ?? {}).forEach((rule) => {
         if (rule.startsWith('import/')) {
-          delete entry.rules[rule]; // eslint-disable-line no-param-reassign
+          delete entry.rules[rule];
         }
       });
     });

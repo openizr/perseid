@@ -29,6 +29,7 @@
   Keeps `extraPackageJsonKeys` in the generated package.json
 
 # Production mode
+  Generates typings in `distPath` when `generateTypings` is true
   ES2022+ support
   ESLint Airbnb
   Optimized bundle

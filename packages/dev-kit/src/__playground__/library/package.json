@@ -1,16 +1,16 @@
 {
   "name": "library",
   "main": "./main.js",
-  "types": "./types.d.ts",
+  "types": "./main.d.ts",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
-      "types": "./types.d.ts",
+      "types": "./main.d.ts",
       "default": "./main.js"
     },
     "./react": {
-      "types": "./types.d.ts",
+      "types": "./react.d.ts",
       "default": "./react.js"
     }
   },
@@ -67,7 +67,8 @@
     "banner": "/*!\n * Copyright (c) Openizr.\n * All rights reserved.\n */",
     "extraPackageJsonKeys": [
       "sideEffects"
-    ]
+    ],
+    "generateTypings": true
   },
   "scripts": {
     "test": "node node_modules/@perseid/dev-kit/scripts/test.js",

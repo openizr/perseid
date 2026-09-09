@@ -19,6 +19,7 @@
     "banner": "/* TEST */",
     "splitChunks": false,
     "runInDev": true,
+    "generateTypings": true,
     "srcPath": "src",
     "distPath": "dist"
   },
