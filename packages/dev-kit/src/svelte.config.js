@@ -19,7 +19,11 @@ const devKitSvelteConfig = { preprocess: [vitePreprocess()] };
  * @returns Svelte config.
  */
 export function defineConfig(overrides = {}) {
-  return { ...devKitSvelteConfig, ...overrides, preprocess: devKitSvelteConfig.preprocess.concat(overrides.preprocess ?? []) };
+  return {
+    ...devKitSvelteConfig,
+    ...overrides,
+    preprocess: devKitSvelteConfig.preprocess.concat(overrides.preprocess ?? []),
+  };
 }
 
 export default devKitSvelteConfig;

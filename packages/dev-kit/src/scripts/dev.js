@@ -26,13 +26,20 @@ const indexHtmlPlugin = {
   name: 'dev-kit:index-html',
   configureServer(server) {
     return () => server.middlewares.use(async (request, response, next) => {
-      const isNavigation = request.headers['sec-fetch-dest'] === 'document' || /text\/html/.test(request.headers.accept ?? '');
+      const isNavigation = (
+        request.headers['sec-fetch-dest'] === 'document'
+        || /text\/html/.test(request.headers.accept ?? '')
+      );
       if (response.writableEnded || request.method !== 'GET' || !isNavigation) {
         return next();
       }
       try {
         const html = await fs.promises.readFile(path.join(srcPath, devKitConfig.html), 'utf-8');
-        return send(request, response, await server.transformIndexHtml(request.url, html, request.originalUrl), 'html', { headers: server.config.server.headers });
+        return send(request, response, await server.transformIndexHtml(
+          request.url,
+          html,
+          request.originalUrl,
+        ), 'html', { headers: server.config.server.headers });
       } catch (e) {
         return next(e);
       }

@@ -6,12 +6,6 @@
  *
  */
 
-import fs from 'fs';
-import path from 'path';
-import { ESLint } from 'eslint';
-import colors from 'picocolors';
-import { createHash } from 'crypto';
-import { spawn } from 'child_process';
 import {
   isInstalled,
   resolveBin,
@@ -19,6 +13,12 @@ import {
   getDevKitConfig,
   findProjectConfig,
 } from './project.js';
+import fs from 'fs';
+import path from 'path';
+import { ESLint } from 'eslint';
+import colors from 'picocolors';
+import { createHash } from 'crypto';
+import { spawn } from 'child_process';
 
 const { log, error } = console;
 const srcPath = path.join(projectRootPath, getDevKitConfig().srcPath);
@@ -44,7 +44,9 @@ const runChecker = (name, args, colorize, watchMode) => new Promise((resolve) =>
       log(colors[colorize(message)](`${colors.bold(`[${name}]:\n`)}${message}\n`));
     }
   });
-  checker.stderr.on('data', (data) => error(colors.red(`${colors.bold(`✖ [${name}]:\n`)}${data.toString().trim()}\n`)));
+  checker.stderr.on('data', (data) => (
+    error(colors.red(`${colors.bold(`✖ [${name}]:\n`)}${data.toString().trim()}\n`))
+  ));
   checker.on('error', (err) => {
     error(colors.red(`${colors.bold(`✖ [${name}]:\n`)}${err}\n`));
     if (!watchMode) process.exit(1);
@@ -65,31 +67,37 @@ const runChecker = (name, args, colorize, watchMode) => new Promise((resolve) =>
  * @param fixMode Whether to apply ESLint fixes.
  */
 export default async function checkFiles(watchMode, fixMode) {
-  const hasEslintConfig = findProjectConfig('eslint') !== undefined;
-  const hasTsConfig = fs.existsSync(tsConfigPath);
   const cliArguments = watchMode ? ['--watch'] : [];
+  const hasTsConfig = fs.existsSync(tsConfigPath);
+  const hasEslintConfig = findProjectConfig('eslint') !== undefined;
+
   if (!hasEslintConfig) {
     log(colors.cyan('No eslint.config.js in this project: linting disabled.\n'));
   }
+
   if (!hasTsConfig) {
     log(colors.cyan('No tsconfig.json in this project: type-checking disabled.\n'));
   }
 
   if (hasEslintConfig) {
     // ESLint's cache ignores tsconfig changes, so they are part of the cache name.
-    const tsConfigHash = createHash('sha256').update(hasTsConfig ? fs.readFileSync(tsConfigPath) : '').digest('hex').slice(0, 8);
+    const tsConfig = hasTsConfig ? fs.readFileSync(tsConfigPath) : '';
+    const tsConfigHash = createHash('sha256').update(tsConfig).digest('hex').slice(0, 8);
     const cacheDirectory = path.join(projectRootPath, 'node_modules');
+
     fs.readdirSync(cacheDirectory).forEach((file) => {
       if (file.startsWith('.eslintcache-') && file !== `.eslintcache-${tsConfigHash}`) {
         fs.rmSync(path.join(cacheDirectory, file));
       }
     });
+
     const eslint = new ESLint({
       cache: true,
       fix: fixMode,
       cwd: projectRootPath,
       cacheLocation: path.join(cacheDirectory, `.eslintcache-${tsConfigHash}`),
     });
+
     const lint = async () => {
       process.stdout.write('\x1Bc');
       log(colors.magenta(colors.bold('Checking files...')));
@@ -102,24 +110,26 @@ export default async function checkFiles(watchMode, fixMode) {
         process.exit(1);
       }
     };
+
     await lint();
+
     if (watchMode) {
       // Events come in bursts (editors write several times), hence the debounce. A change during a
       // run queues one more run instead of overlapping outputs.
       let timeout = null;
-      let running = false;
-      let pending = false;
+      let isRunning = false;
+      let isPending = false;
       const scheduleLint = async () => {
-        if (running) {
-          pending = true;
+        if (isRunning) {
+          isPending = true;
           return;
         }
-        running = true;
+        isRunning = true;
         do {
-          pending = false;
+          isPending = false;
           await lint();
-        } while (pending);
-        running = false;
+        } while (isPending);
+        isRunning = false;
       };
       fs.watch(srcPath, { recursive: true }, (_event, filename) => {
         if (filename === null || /\.([cm]?[jt]s|jsx|tsx|svelte|vue)$/.test(filename)) {
@@ -133,13 +143,27 @@ export default async function checkFiles(watchMode, fixMode) {
   if (hasTsConfig) {
     // Native TypeScript 7 for type-checking. typescript-eslint still needs the TypeScript 6 JS API
     // (none in 7.0): revisit dropping `typescript@6` once TypeScript 7.1 ships it.
-    const checkers = [runChecker('tsc', [resolveBin('typescript-native', 'tsc'), ...cliArguments, '--project', tsConfigPath], (message) => (/error TS/.test(message) ? 'red' : 'cyan'), watchMode)];
+    const checkers = [runChecker('tsc', [
+      resolveBin('typescript-native', 'tsc'),
+      ...cliArguments,
+      '--project',
+      tsConfigPath,
+    ], (message) => (/error TS/.test(message) ? 'red' : 'cyan'), watchMode)];
+
     if (isInstalled('svelte')) {
-      checkers.push(runChecker('svelte-check', [resolveBin('svelte-check'), ...cliArguments, '--workspace', srcPath, '--tsconfig', tsConfigPath], (message) => {
+      checkers.push(runChecker('svelte-check', [
+        resolveBin('svelte-check'),
+        ...cliArguments,
+        '--workspace',
+        srcPath,
+        '--tsconfig',
+        tsConfigPath,
+      ], (message) => {
         if (/Error:/.test(message)) return 'red';
         return /Hint:/.test(message) ? 'yellow' : 'blue';
       }, watchMode));
     }
+
     await Promise.all(checkers);
   }
 }

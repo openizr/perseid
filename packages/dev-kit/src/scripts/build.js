@@ -6,6 +6,12 @@
  *
  */
 
+import {
+  resolveBin,
+  packageJson,
+  projectRootPath,
+  getDevKitConfig,
+} from '../helpers/project.js';
 import fs from 'fs';
 import path from 'path';
 import { build } from 'vite';
@@ -15,12 +21,6 @@ import { spawnSync } from 'child_process';
 import checkFiles from '../helpers/checkFiles.js';
 import { loadViteConfig } from '../vite.config.js';
 import { getEsbuildOptions, writeDistFiles } from '../helpers/esbuild.js';
-import {
-  resolveBin,
-  packageJson,
-  projectRootPath,
-  getDevKitConfig,
-} from '../helpers/project.js';
 
 const { log, error } = console;
 const devKitConfig = getDevKitConfig();
@@ -54,23 +54,40 @@ function generateTypings() {
       outDir: devKitConfig.distPath,
     },
   }));
-  const tsc = spawnSync(process.execPath, [resolveBin('typescript-native', 'tsc'), '--project', typingsConfigPath], { stdio: 'inherit' });
+
+  const tsc = spawnSync(process.execPath, [
+    resolveBin('typescript-native', 'tsc'),
+    '--project', typingsConfigPath,
+  ], { stdio: 'inherit' });
+
   fs.rmSync(typingsConfigPath);
+
   if (tsc.status !== 0) {
     throw new Error('Typings generation failed.');
   }
+
   // Entries' common directory (esbuild's `outbase`), flattened into `distPath`.
-  const entries = Object.values(devKitConfig.entries ?? {}).map((entry) => path.relative(srcPath, path.dirname(path.resolve(srcPath, entry))));
+  const entries = Object.values(devKitConfig.entries ?? {}).map((entry) => (
+    path.relative(srcPath, path.dirname(path.resolve(srcPath, entry)))
+  ));
+
   const entriesDirectory = entries.reduce((common, directory) => {
     let candidate = directory;
-    while (candidate !== '' && candidate !== common && !common.startsWith(`${candidate}/`)) candidate = path.dirname(candidate).replace('.', '');
+    while (candidate !== '' && candidate !== common && !common.startsWith(`${candidate}/`)) {
+      candidate = path.dirname(candidate).replace('.', '');
+    }
     return candidate;
   }, entries[0] ?? '');
-  const outputPath = (srcRelativePath) => path.join(distPath, srcRelativePath.startsWith(`${entriesDirectory}/`) ? srcRelativePath.slice(entriesDirectory.length + 1) : srcRelativePath);
+
+  const outputPath = (srcRelativePath) => path.join(distPath, srcRelativePath.startsWith(`${entriesDirectory}/`)
+    ? srcRelativePath.slice(entriesDirectory.length + 1)
+    : srcRelativePath);
+
   if (entriesDirectory !== '' && fs.existsSync(path.join(distPath, entriesDirectory))) {
     fs.cpSync(path.join(distPath, entriesDirectory), distPath, { recursive: true });
     fs.rmSync(path.join(distPath, entriesDirectory.split('/')[0]), { recursive: true });
   }
+
   const aliases = fs.readdirSync(srcPath, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   listTypings(distPath).forEach((file) => {
     const source = fs.readFileSync(file, 'utf-8');

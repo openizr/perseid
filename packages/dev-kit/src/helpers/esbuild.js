@@ -18,10 +18,13 @@ import { createHash } from 'crypto';
 import { pathToFileURL, fileURLToPath } from 'url';
 
 const devKitConfig = getDevKitConfig();
+const isStylesheet = (file) => /\.(css|scss|sass)$/.test(file);
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
 const distPath = path.join(projectRootPath, devKitConfig.distPath);
-const assetExtensions = ['woff', 'woff2', 'eot', 'ttf', 'otf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'flac', 'aac', 'txt'];
-const isStylesheet = (file) => /\.(css|scss|sass)$/.test(file);
+const assetExtensions = [
+  'woff', 'woff2', 'eot', 'ttf', 'otf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'mp4',
+  'webm', 'ogg', 'mp3', 'wav', 'flac', 'aac', 'txt',
+];
 
 /**
  * Source stylesheets are shipped as-is (see `writeDistFiles`): imports stay, pointing to their copy.
@@ -31,10 +34,14 @@ const stylesheetsPlugin = {
   name: 'dev-kit:stylesheets',
   setup(build) {
     build.onResolve({ filter: /\.(css|scss|sass)$/ }, (args) => {
-      const file = args.path.startsWith('.') ? path.resolve(args.resolveDir, args.path) : path.join(srcPath, args.path);
+      const file = args.path.startsWith('.')
+        ? path.resolve(args.resolveDir, args.path)
+        : path.join(srcPath, args.path);
+
       if (!file.startsWith(`${srcPath}${path.sep}`) || !fs.existsSync(file)) {
         return undefined;
       }
+
       return { path: `./${path.relative(srcPath, file).split(path.sep).join('/')}`, external: true };
     });
   },
@@ -59,7 +66,11 @@ async function vuePlugin(production) {
     name: 'dev-kit:vue',
     setup(build) {
       // `<style>` blocks are exposed as virtual CSS files, bundled by esbuild.
-      build.onResolve({ filter: /\.vue\?type=style/ }, (args) => ({ path: args.path, namespace: 'vue-style' }));
+      build.onResolve({ filter: /\.vue\?type=style/ }, (args) => ({
+        path: args.path,
+        namespace: 'vue-style',
+      }));
+
       build.onLoad({ filter: /.*/, namespace: 'vue-style' }, async (args) => {
         const [filename, query] = args.path.split('?');
         const { descriptor, id } = descriptors.get(filename);
@@ -71,21 +82,35 @@ async function vuePlugin(production) {
           scoped: style.scoped,
           preprocessLang: style.lang,
         });
-        return { loader: 'css', contents: code, resolveDir: path.dirname(filename), errors: errors.map((error) => ({ text: error.message })) };
+        return {
+          loader: 'css',
+          contents: code,
+          resolveDir: path.dirname(filename),
+          errors: errors.map((error) => ({ text: error.message })),
+        };
       });
 
       build.onLoad({ filter: /\.vue$/ }, async (args) => {
-        const { descriptor, errors } = parse(await fs.promises.readFile(args.path, 'utf-8'), { filename: args.path });
+        const { descriptor, errors } = parse(await fs.promises.readFile(args.path, 'utf-8'), {
+          filename: args.path,
+        });
+
         if (errors.length > 0) {
           return { errors: errors.map((error) => ({ text: error.message })) };
         }
-        const id = createHash('sha256').update(path.relative(projectRootPath, args.path)).digest('hex').slice(0, 8);
+
+        const relativePath = path.relative(projectRootPath, args.path);
+        const id = createHash('sha256').update(relativePath).digest('hex').slice(0, 8);
         descriptors.set(args.path, { descriptor, id });
         const scoped = descriptor.styles.some((style) => style.scoped);
         const isTs = [descriptor.script?.lang, descriptor.scriptSetup?.lang].includes('ts');
         const hasScript = descriptor.script !== null || descriptor.scriptSetup !== null;
-        const script = hasScript ? compileScript(descriptor, { id, isProd: production, sourceMap: false }) : null;
-        let contents = hasScript ? rewriteDefault(script.content, '_sfc_main', isTs ? ['typescript'] : []) : 'const _sfc_main = {};';
+        const script = hasScript
+          ? compileScript(descriptor, { id, isProd: production, sourceMap: false })
+          : null;
+        let contents = hasScript
+          ? rewriteDefault(script.content, '_sfc_main', isTs ? ['typescript'] : [])
+          : 'const _sfc_main = {};';
 
         if (descriptor.template !== null) {
           const template = compileTemplate({
@@ -131,8 +156,12 @@ async function sveltePlugin(production) {
           url: pathToFileURL(filename),
           syntax: attributes.lang === 'sass' ? 'indented' : 'scss',
         });
-        const dependencies = result.loadedUrls.filter((url) => url.protocol === 'file:').map((url) => fileURLToPath(url));
-        return { code: result.css, map: result.sourceMap, dependencies: dependencies.filter((file) => file !== filename) };
+        const dependencies = result.loadedUrls.filter((url) => url.protocol === 'file:').map(fileURLToPath);
+        return {
+          code: result.css,
+          map: result.sourceMap,
+          dependencies: dependencies.filter((file) => file !== filename),
+        };
       },
     },
   });
@@ -150,9 +179,14 @@ async function sveltePlugin(production) {
 export async function getEsbuildOptions(production, plugins = []) {
   await fs.promises.rm(distPath, { recursive: true, force: true });
   return {
-    entryPoints: Object.fromEntries(Object.entries(devKitConfig.entries).map(([name, entry]) => [name, path.join(srcPath, entry)])),
+    entryPoints: Object.fromEntries(Object.entries(devKitConfig.entries).map(([name, entry]) => [
+      name,
+      path.join(srcPath, entry),
+    ])),
     loader: Object.fromEntries(assetExtensions.map((extension) => [`.${extension}`, 'file'])),
-    banner: (production && devKitConfig.banner !== undefined) ? { js: devKitConfig.banner, css: devKitConfig.banner } : undefined,
+    banner: (production && devKitConfig.banner !== undefined)
+      ? { js: devKitConfig.banner, css: devKitConfig.banner }
+      : undefined,
     bundle: true,
     target: 'es2022',
     format: 'esm',

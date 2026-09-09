@@ -20,7 +20,9 @@ const devKitRequire = createRequire(import.meta.url);
 const packageJsonPath = path.join(projectRootPath, 'package.json');
 
 // Missing when ESLint runs from an IDE's workspace folder: only scripts need it.
-export const packageJson = fs.existsSync(packageJsonPath) ? JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) : {};
+export const packageJson = fs.existsSync(packageJsonPath)
+  ? JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
+  : {};
 
 const tryResolve = (require, name) => {
   try {
@@ -74,10 +76,16 @@ const isSubPath = (value) => {
 const validators = {
   target: (value) => ['node', 'web'].includes(value),
   srcPath: isSubPath,
-  distPath: (value, config) => isSubPath(value) && path.resolve(projectRootPath, value) !== path.resolve(projectRootPath, config.srcPath),
+  distPath: (value, config) => (
+    isSubPath(value)
+    && path.resolve(projectRootPath, value) !== path.resolve(projectRootPath, config.srcPath)
+  ),
   html: (value, config) => config.target === 'node' || isString(value),
   entries: (value, config) => config.target === 'web' || isObject(value),
-  devServer: (value, config) => config.target === 'node' || (isString(value?.host) && Number.isInteger(resolvePort(value.port))),
+  devServer: (value, config) => (
+    config.target === 'node'
+    || (isString(value?.host) && Number.isInteger(resolvePort(value.port)))
+  ),
   publicPath: optional(isString),
   banner: optional(isString),
   runInDev: optional((value) => typeof value === 'boolean' && (!value || isString(packageJson.main))),
