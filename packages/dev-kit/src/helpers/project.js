@@ -9,7 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import colors from 'picocolors';
-import { createRequire } from 'module';
+import { createRequire, builtinModules } from 'module';
 
 // Package managers run scripts from the project's root. This file's location would resolve into
 // `.pnpm` with pnpm/npm symlinks.
@@ -49,9 +49,6 @@ export const resolveBin = (name, binName = name) => {
   return path.join(path.dirname(pkgPath), typeof bin === 'string' ? bin : bin[binName]);
 };
 
-/** Absolute path to a dev-kit dependency's directory. */
-export const resolvePackage = (name) => path.dirname(devKitRequire.resolve(`${name}/package.json`));
-
 /** Tells the user which configs are in use. */
 export function logConfigSources() {
   if (findProjectConfig('vite') === undefined) {
@@ -63,21 +60,38 @@ export function logConfigSources() {
 }
 
 const isString = (value) => typeof value === 'string';
+const isObject = (value) => typeof value === 'object' && value !== null;
 const optional = (check) => (value) => value === undefined || check(value);
+
+/** Port number, or the value of the environment variable named by `port`. */
+export const resolvePort = (port) => (port === undefined ? undefined : Number(isString(port) ? process.env[port] : port));
+
+// Paths are deleted recursively: they must stay strictly inside the project.
+const isSubPath = (value) => {
+  const relative = isString(value) ? path.relative(projectRootPath, path.resolve(projectRootPath, value)) : '';
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+};
 const validators = {
   target: (value) => ['node', 'web'].includes(value),
-  srcPath: isString,
-  distPath: isString,
+  srcPath: isSubPath,
+  distPath: (value, config) => isSubPath(value) && path.resolve(projectRootPath, value) !== path.resolve(projectRootPath, config.srcPath),
   html: (value, config) => config.target === 'node' || isString(value),
-  entries: (value, config) => config.target === 'web' || typeof value === 'object',
-  devServer: (value, config) => config.target === 'node' || (isString(value?.host) && ['number', 'string'].includes(typeof value.port)),
+  entries: (value, config) => config.target === 'web' || isObject(value),
+  devServer: (value, config) => config.target === 'node' || (isString(value?.host) && Number.isInteger(resolvePort(value.port))),
   publicPath: optional(isString),
   banner: optional(isString),
-  runInDev: optional((value) => typeof value === 'boolean'),
+  runInDev: optional((value) => typeof value === 'boolean' && (!value || isString(packageJson.main))),
   splitChunks: optional((value) => typeof value === 'boolean'),
   extraPackageJsonKeys: optional((value) => Array.isArray(value) && value.every(isString)),
-  env: optional((value) => typeof value === 'object' && [value.development, value.production].every(optional((env) => typeof env === 'object'))),
+  env: optional((value) => isObject(value) && [value.development, value.production].every(optional(isObject))),
 };
+
+const fail = (message) => {
+  console.error(colors.red(message));
+  process.exit(1);
+};
+
+let devKitConfig = null;
 
 /**
  * Validated project `devKitConfig`. Misconfigured paths would have bad side effects (directories
@@ -86,12 +100,21 @@ const validators = {
  * @returns Project configuration.
  */
 export function getDevKitConfig() {
+  if (devKitConfig !== null) {
+    return devKitConfig;
+  }
   const config = packageJson.devKitConfig ?? {};
   Object.entries(validators).forEach(([key, isValid]) => {
     if (!isValid(config[key], config)) {
-      console.error(colors.red(`Invalid "devKitConfig.${key}" in package.json.`));
-      process.exit(1);
+      fail(`Invalid "devKitConfig.${key}" in package.json.`);
     }
   });
+  // Top-level source directories are importable by name (aliases): they must not hide a package.
+  fs.readdirSync(path.join(projectRootPath, config.srcPath), { withFileTypes: true }).forEach((entry) => {
+    if (entry.isDirectory() && (builtinModules.includes(entry.name) || isInstalled(entry.name))) {
+      fail(`"${config.srcPath}/${entry.name}" hides the "${entry.name}" package: rename it.`);
+    }
+  });
+  devKitConfig = config;
   return config;
 }

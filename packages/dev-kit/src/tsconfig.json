@@ -8,8 +8,7 @@
     "lib": [
       "ES2022",
       "DOM",
-      "DOM.Iterable",
-      "ScriptHost"
+      "DOM.Iterable"
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",

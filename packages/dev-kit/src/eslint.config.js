@@ -22,19 +22,32 @@ import { isAvailable } from './helpers/project.js';
 
 const extensions = ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.d.ts', '.vue', '.svelte', '.json'];
 
-/** Source directory of the project containing `file` (closest `package.json`), cached. */
+const readDevKitConfig = (packageJsonPath) => {
+  try {
+    return JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')).devKitConfig;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Source directory of the project containing `file`: closest `package.json` with a `devKitConfig`,
+ * else closest `package.json` (nested ones, e.g. `{ "type": "commonjs" }`, are skipped). Cached.
+ */
 const sourceDirectories = new Map();
 const findSourceDirectory = (file) => {
   let directory = path.dirname(file);
+  let fallback = null;
   while (!sourceDirectories.has(directory)) {
     const packageJsonPath = path.join(directory, 'package.json');
     const parent = path.dirname(directory);
-    if (fs.existsSync(packageJsonPath)) {
-      const { devKitConfig } = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-      sourceDirectories.set(directory, path.join(directory, devKitConfig?.srcPath ?? 'src'));
+    const devKitConfig = readDevKitConfig(packageJsonPath);
+    if (devKitConfig !== undefined) {
+      sourceDirectories.set(directory, path.join(directory, devKitConfig.srcPath ?? 'src'));
     } else if (parent === directory) {
-      sourceDirectories.set(directory, null);
+      sourceDirectories.set(directory, fallback === null ? null : path.join(fallback, 'src'));
     } else {
+      fallback ??= fs.existsSync(packageJsonPath) ? directory : null;
       directory = parent;
     }
   }
@@ -48,10 +61,11 @@ const sourceResolver = {
   name: 'dev-kit:source',
   resolve(source, file) {
     const sourceDirectory = (source.startsWith('.') || source.startsWith('node:') || path.isAbsolute(source)) ? null : findSourceDirectory(file);
-    const base = sourceDirectory === null ? null : path.join(sourceDirectory, source);
+    // Packages (`react`, `@scope/x`) are ruled out with one stat on the first path segment.
+    const base = (sourceDirectory === null || !fs.existsSync(path.join(sourceDirectory, source.split('/')[0]))) ? null : path.join(sourceDirectory, source);
     const found = base === null ? undefined : [base]
       .concat(extensions.map((extension) => `${base}${extension}`), extensions.map((extension) => path.join(base, `index${extension}`)))
-      .find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+      .find((candidate) => fs.statSync(candidate, { throwIfNoEntry: false })?.isFile());
     return found === undefined ? { found: false } : { found: true, path: found };
   },
 };
@@ -336,7 +350,7 @@ async function createConfig() {
         'no-plusplus': 'error',
         'no-restricted-syntax': ['error',
           { selector: 'ForInStatement', message: 'for..in loops iterate over the entire prototype chain, which is virtually never what you want. Use Object.{keys,values,entries}, and iterate over the resulting array.' },
-          { selector: 'ForOfStatement', message: 'iterators/generators require regenerator-runtime, which is too heavyweight for this guide to allow them. Separately, loops should be avoided in favor of array iterations.' },
+          { selector: 'ForOfStatement', message: 'Loops should be avoided in favor of array iterations (map, forEach, ...).' },
           { selector: 'LabeledStatement', message: 'Labels are a form of GOTO; using them makes code confusing and hard to maintain and understand.' },
           { selector: 'WithStatement', message: '`with` is disallowed in strict mode because it makes code impossible to predict and optimize.' },
         ],
@@ -430,14 +444,13 @@ async function createConfig() {
         'import/first': 'error',
         'import/group-exports': 'off',
         'import/max-dependencies': ['off', { max: 10 }],
-        'import/named': 'error',
         'import/namespace': 'off',
         'import/newline-after-import': 'error',
         'import/no-absolute-path': 'error',
         'import/no-amd': 'error',
         'import/no-anonymous-default-export': ['off', { allowArray: false, allowArrowFunction: false, allowAnonymousClass: false, allowAnonymousFunction: false, allowCallExpression: true, allowLiteral: false, allowObject: false }],
         'import/no-commonjs': 'off',
-        'import/no-cycle': ['error', { maxDepth: Infinity, ignoreExternal: false }],
+        'import/no-cycle': ['error', { maxDepth: Infinity, ignoreExternal: true }],
         'import/no-default-export': 'off',
         'import/no-deprecated': 'off',
         'import/no-duplicates': 'error',
@@ -677,7 +690,7 @@ async function createConfig() {
         '@stylistic/no-multiple-empty-lines': ['error', { max: 2, maxBOF: 2, maxEOF: 0 }],
         'no-restricted-syntax': ['error',
           { selector: 'ForInStatement', message: 'for..in loops iterate over the entire prototype chain, which is virtually never what you want. Use Object.{keys,values,entries}, and iterate over the resulting array.' },
-          { selector: 'ForOfStatement', message: 'iterators/generators require regenerator-runtime, which is too heavyweight for this guide to allow them. Separately, loops should be avoided in favor of array iterations.' },
+          { selector: 'ForOfStatement', message: 'Loops should be avoided in favor of array iterations (map, forEach, ...).' },
           { selector: 'WithStatement', message: '`with` is disallowed in strict mode because it makes code impossible to predict and optimize.' },
         ],
       },

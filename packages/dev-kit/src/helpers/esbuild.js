@@ -20,7 +20,25 @@ import { pathToFileURL, fileURLToPath } from 'url';
 const devKitConfig = getDevKitConfig();
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
 const distPath = path.join(projectRootPath, devKitConfig.distPath);
-const assetExtensions = ['woff', 'woff2', 'eot', 'ttf', 'otf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'flac', 'aac', 'scss', 'txt'];
+const assetExtensions = ['woff', 'woff2', 'eot', 'ttf', 'otf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'flac', 'aac', 'txt'];
+const isStylesheet = (file) => /\.(css|scss|sass)$/.test(file);
+
+/**
+ * Source stylesheets are shipped as-is (see `writeDistFiles`): imports stay, pointing to their copy.
+ * Bundles and copies both start at `distPath` root.
+ */
+const stylesheetsPlugin = {
+  name: 'dev-kit:stylesheets',
+  setup(build) {
+    build.onResolve({ filter: /\.(css|scss|sass)$/ }, (args) => {
+      const file = args.path.startsWith('.') ? path.resolve(args.resolveDir, args.path) : path.join(srcPath, args.path);
+      if (!file.startsWith(`${srcPath}${path.sep}`) || !fs.existsSync(file)) {
+        return undefined;
+      }
+      return { path: `./${path.relative(srcPath, file).split(path.sep).join('/')}`, external: true };
+    });
+  },
+};
 
 /**
  * Minimal esbuild plugin compiling Vue single file components with `vue/compiler-sfc`. Third-party
@@ -148,14 +166,16 @@ export async function getEsbuildOptions(production, plugins = []) {
     external: Object.keys(packageJson.dependencies ?? {})
       .concat(Object.keys(packageJson.peerDependencies ?? {}))
       .concat(['*.scss', '*.css']),
-    plugins: plugins
+    plugins: [stylesheetsPlugin]
+      .concat(plugins)
       .concat(isInstalled('vue') ? [await vuePlugin(production)] : [])
       .concat(isInstalled('svelte') ? [await sveltePlugin(production)] : []),
   };
 }
 
 /**
- * Writes the distributable `package.json` (and README/LICENSE when present) into `distPath`.
+ * Writes the distributable `package.json` (and README/LICENSE when present) into `distPath`, and
+ * copies source stylesheets untouched, keeping their layout.
  * `devKitConfig.extraPackageJsonKeys` lists additional keys to copy over (e.g. `sideEffects`).
  *
  * @param version Package version to publish.
@@ -187,5 +207,9 @@ export function writeDistFiles(version) {
     if (fs.existsSync(path.join(projectRootPath, file))) {
       fs.copyFileSync(path.join(projectRootPath, file), path.join(distPath, file));
     }
+  });
+  fs.readdirSync(srcPath, { recursive: true }).filter((file) => isStylesheet(file)).forEach((file) => {
+    fs.mkdirSync(path.dirname(path.join(distPath, file)), { recursive: true });
+    fs.copyFileSync(path.join(srcPath, file), path.join(distPath, file));
   });
 }

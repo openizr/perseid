@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   isInstalled,
+  resolvePort,
   projectRootPath,
   getDevKitConfig,
   findProjectConfig,
@@ -89,7 +90,7 @@ const devKitViteConfig = viteDefineConfig(async () => {
     ...(env === 'test' && hasSvelte) ? { ssr: { noExternal: [/@testing-library\/svelte/] } } : {},
     server: {
       host: devKitConfig.devServer?.host,
-      port: process.env[devKitConfig.devServer?.port] ?? devKitConfig.devServer?.port,
+      port: resolvePort(devKitConfig.devServer?.port),
     },
     css: {
       postcss: { plugins: [autoprefixer].concat(env === 'production' ? [postCssSortMediaQueries] : []) },

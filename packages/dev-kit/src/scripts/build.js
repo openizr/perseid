@@ -36,11 +36,16 @@ async function run() {
     if (devKitConfig.target === 'web') {
       // Front-end projects: Vite bundles from a root `index.html`.
       const indexHtmlPath = path.join(projectRootPath, 'index.html');
+      const buildPath = path.join(projectRootPath, '__dist__');
       await fs.promises.copyFile(path.resolve(srcPath, devKitConfig.html), indexHtmlPath);
-      await build(await loadViteConfig('build', 'production'));
-      await fs.promises.rm(distPath, { recursive: true, force: true });
-      await fs.promises.rm(indexHtmlPath, { force: true });
-      await fs.promises.rename(path.join(projectRootPath, '__dist__'), distPath);
+      try {
+        await build(await loadViteConfig('build', 'production'));
+        await fs.promises.rm(distPath, { recursive: true, force: true });
+        await fs.promises.rename(buildPath, distPath);
+      } finally {
+        await fs.promises.rm(indexHtmlPath, { force: true });
+        await fs.promises.rm(buildPath, { recursive: true, force: true });
+      }
     } else {
       // Back-end/NPM package projects: esbuild.
       const startTimestamp = Date.now();

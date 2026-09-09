@@ -11,12 +11,13 @@ import { spawn } from 'child_process';
 import { resolveBin, findProjectConfig, logConfigSources } from '../helpers/project.js';
 
 logConfigSources();
+const watchMode = process.argv.includes('-w');
 const configPath = findProjectConfig('vite') ?? fileURLToPath(new URL('../vite.config.js', import.meta.url));
 spawn(process.execPath, [
   resolveBin('vitest'),
-  process.argv.includes('-w') ? 'watch' : 'run',
-  '--passWithNoTests',
+  watchMode ? 'watch' : 'run',
   `--config=${configPath}`,
-  '--coverage',
+  // Coverage slows down each re-run: opt-in (`-c`) in watch mode.
+  ...(!watchMode || process.argv.includes('-c')) ? ['--coverage'] : [],
 ], { stdio: 'inherit', env: { ...process.env, ENV: 'test', NODE_ENV: 'test' } })
   .on('exit', (code) => process.exit(code ?? 1));

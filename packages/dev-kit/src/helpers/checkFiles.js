@@ -17,6 +17,7 @@ import {
   resolveBin,
   projectRootPath,
   getDevKitConfig,
+  findProjectConfig,
 } from './project.js';
 
 const { log, error } = console;
@@ -44,11 +45,14 @@ const runChecker = (name, args, colorize, watchMode) => new Promise((resolve) =>
     }
   });
   checker.stderr.on('data', (data) => error(colors.red(`${colors.bold(`✖ [${name}]:\n`)}${data.toString().trim()}\n`)));
-  checker.on('error', (err) => error(colors.red(`${colors.bold(`✖ [${name}]:\n`)}${err}\n`)));
+  checker.on('error', (err) => {
+    error(colors.red(`${colors.bold(`✖ [${name}]:\n`)}${err}\n`));
+    if (!watchMode) process.exit(1);
+  });
   if (watchMode) {
     resolve();
   } else {
-    checker.on('exit', (code) => (code === 0 ? resolve() : process.exit(1)));
+    checker.on('close', (code) => (code === 0 ? resolve() : process.exit(1)));
   }
 });
 
@@ -61,7 +65,7 @@ const runChecker = (name, args, colorize, watchMode) => new Promise((resolve) =>
  * @param fixMode Whether to apply ESLint fixes.
  */
 export default async function checkFiles(watchMode, fixMode) {
-  const hasEslintConfig = fs.readdirSync(projectRootPath).some((file) => /^eslint\.config\.[cm]?[jt]s$/.test(file));
+  const hasEslintConfig = findProjectConfig('eslint') !== undefined;
   const hasTsConfig = fs.existsSync(tsConfigPath);
   const cliArguments = watchMode ? ['--watch'] : [];
   if (!hasEslintConfig) {
@@ -74,11 +78,17 @@ export default async function checkFiles(watchMode, fixMode) {
   if (hasEslintConfig) {
     // ESLint's cache ignores tsconfig changes, so they are part of the cache name.
     const tsConfigHash = createHash('sha256').update(hasTsConfig ? fs.readFileSync(tsConfigPath) : '').digest('hex').slice(0, 8);
+    const cacheDirectory = path.join(projectRootPath, 'node_modules');
+    fs.readdirSync(cacheDirectory).forEach((file) => {
+      if (file.startsWith('.eslintcache-') && file !== `.eslintcache-${tsConfigHash}`) {
+        fs.rmSync(path.join(cacheDirectory, file));
+      }
+    });
     const eslint = new ESLint({
       cache: true,
       fix: fixMode,
       cwd: projectRootPath,
-      cacheLocation: path.join(projectRootPath, `node_modules/.eslintcache-${tsConfigHash}`),
+      cacheLocation: path.join(cacheDirectory, `.eslintcache-${tsConfigHash}`),
     });
     const lint = async () => {
       process.stdout.write('\x1Bc');
@@ -94,12 +104,27 @@ export default async function checkFiles(watchMode, fixMode) {
     };
     await lint();
     if (watchMode) {
-      // Events come in bursts (editors write several times), hence the debounce.
+      // Events come in bursts (editors write several times), hence the debounce. A change during a
+      // run queues one more run instead of overlapping outputs.
       let timeout = null;
+      let running = false;
+      let pending = false;
+      const scheduleLint = async () => {
+        if (running) {
+          pending = true;
+          return;
+        }
+        running = true;
+        do {
+          pending = false;
+          await lint();
+        } while (pending);
+        running = false;
+      };
       fs.watch(srcPath, { recursive: true }, (_event, filename) => {
-        if (filename === null || /\.(js|jsx|ts|tsx|svelte|vue)$/.test(filename)) {
+        if (filename === null || /\.([cm]?[jt]s|jsx|tsx|svelte|vue)$/.test(filename)) {
           clearTimeout(timeout);
-          timeout = setTimeout(lint, 100);
+          timeout = setTimeout(scheduleLint, 100);
         }
       });
     }

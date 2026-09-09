@@ -12,21 +12,22 @@ import esbuild from 'esbuild';
 import colors from 'picocolors';
 import { spawn } from 'child_process';
 import { loadViteConfig } from '../vite.config.js';
-import { send, createServer, createLogger } from 'vite';
 import { getEsbuildOptions, writeDistFiles } from '../helpers/esbuild.js';
-import { projectRootPath, getDevKitConfig, resolvePackage } from '../helpers/project.js';
+import { send, createServer, createLogger, version } from 'vite';
+import { packageJson, projectRootPath, getDevKitConfig } from '../helpers/project.js';
 
 const { log, error } = console;
 const devKitConfig = getDevKitConfig();
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
 const distPath = path.join(projectRootPath, devKitConfig.distPath);
 
-/** Serves the project's `index.html` for any route. Post hooks run right before Vite's html middlewares. */
+/** Serves the project's `index.html` for any page navigation. Post hooks run right before Vite's html middlewares. */
 const indexHtmlPlugin = {
   name: 'dev-kit:index-html',
   configureServer(server) {
     return () => server.middlewares.use(async (request, response, next) => {
-      if (response.writableEnded || request.method !== 'GET') {
+      const isNavigation = request.headers['sec-fetch-dest'] === 'document' || /text\/html/.test(request.headers.accept ?? '');
+      if (response.writableEnded || request.method !== 'GET' || !isNavigation) {
         return next();
       }
       try {
@@ -42,8 +43,8 @@ const indexHtmlPlugin = {
 /** Restarts the built entry on each rebuild (e.g. a Node server). */
 let nodeProcess = null;
 const runMainEntry = (main) => {
-  nodeProcess?.kill('SIGKILL');
-  nodeProcess = spawn('node', ['--enable-source-maps', path.join(distPath, main)]);
+  nodeProcess?.kill();
+  nodeProcess = spawn(process.execPath, ['--enable-source-maps', path.join(distPath, main)]);
   nodeProcess.stdout.on('data', (data) => log(`${data.toString()}\n`));
   nodeProcess.stderr.on('data', (data) => error(colors.red(colors.bold('✖ Error occurred in main entry:\n')), `${data.toString().trim()}\n`));
   nodeProcess.on('error', (err) => error(colors.red(colors.bold('✖ Could not run main entry:\n')), err, ''));
@@ -60,7 +61,6 @@ async function run() {
       const config = await loadViteConfig('serve', 'development');
       const server = await createServer({ ...config, plugins: [...(config.plugins ?? []), indexHtmlPlugin] });
       await server.listen();
-      const { version } = JSON.parse(fs.readFileSync(path.join(resolvePackage('vite'), 'package.json')));
       server.config.logger.info(colors.cyan(`\n  vite v${version}`) + colors.green(' dev server running at:\n'), { clear: !server.config.logger.hasWarned });
       server.printUrls();
       server.config.logger.info('');
@@ -70,7 +70,6 @@ async function run() {
     }
   } else {
     let startTimestamp = 0;
-    const { main } = JSON.parse(fs.readFileSync(path.join(projectRootPath, 'package.json'), 'utf-8'));
     const random = () => Math.floor(Math.random() * 10);
     const devKitPlugin = {
       name: 'dev-kit',
@@ -85,7 +84,7 @@ async function run() {
             // A random version invalidates NPM caches, allowing real-time package testing.
             writeDistFiles([random(), random(), random()].join('.'));
             if (devKitConfig.runInDev === true) {
-              runMainEntry(main);
+              runMainEntry(packageJson.main);
             }
           }
         });
