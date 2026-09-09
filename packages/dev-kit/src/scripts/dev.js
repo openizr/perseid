@@ -57,48 +57,41 @@ const runMainEntry = (main) => {
   nodeProcess.on('error', (err) => error(colors.red(colors.bold('✖ Could not run main entry:\n')), err, ''));
 };
 
-/**
- * Runs `dev` CLI command's script.
- */
-async function run() {
-  process.env.ENV ??= 'development';
-  process.env.NODE_ENV ??= 'development';
-  if (devKitConfig.target === 'web') {
-    try {
-      const config = await loadViteConfig('serve', 'development');
-      const server = await createServer({ ...config, plugins: [...(config.plugins ?? []), indexHtmlPlugin] });
-      await server.listen();
-      server.config.logger.info(colors.cyan(`\n  vite v${version}`) + colors.green(' dev server running at:\n'), { clear: !server.config.logger.hasWarned });
-      server.printUrls();
-      server.config.logger.info('');
-    } catch (e) {
-      createLogger().error(colors.red(`error when starting dev server:\n${e.stack}`), { error: e });
-      process.exit(1);
-    }
-  } else {
-    let startTimestamp = 0;
-    const random = () => Math.floor(Math.random() * 10);
-    const devKitPlugin = {
-      name: 'dev-kit',
-      setup(build) {
-        build.onStart(() => {
-          process.stdout.write('\x1Bc');
-          startTimestamp = Date.now();
-        });
-        build.onEnd((result) => {
-          if (result.errors.length === 0) {
-            log(colors.green(`${colors.bold('[esbuild]: ')}Successfully built in ${Date.now() - startTimestamp}ms (${result.errors.length} errors, ${result.warnings.length} warnings).\n`));
-            // A random version invalidates NPM caches, allowing real-time package testing.
-            writeDistFiles([random(), random(), random()].join('.'));
-            if (devKitConfig.runInDev === true) {
-              runMainEntry(packageJson.main);
-            }
-          }
-        });
-      },
-    };
-    await (await esbuild.context(await getEsbuildOptions(false, [devKitPlugin]))).watch();
-  }
-}
+process.env.ENV ??= 'development';
+process.env.NODE_ENV ??= 'development';
 
-run();
+if (devKitConfig.target === 'web') {
+  try {
+    const config = await loadViteConfig('serve', 'development');
+    const server = await createServer({ ...config, plugins: [...(config.plugins ?? []), indexHtmlPlugin] });
+    await server.listen();
+    server.config.logger.info(colors.cyan(`\n  vite v${version}`) + colors.green(' dev server running at:\n'), { clear: !server.config.logger.hasWarned });
+    server.printUrls();
+    server.config.logger.info('');
+  } catch (e) {
+    createLogger().error(colors.red(`error when starting dev server:\n${e.stack}`), { error: e });
+    process.exit(1);
+  }
+} else {
+  let startTimestamp = 0;
+  const devKitPlugin = {
+    name: 'dev-kit',
+    setup(build) {
+      build.onStart(() => {
+        process.stdout.write('\x1Bc');
+        startTimestamp = Date.now();
+      });
+      build.onEnd((result) => {
+        if (result.errors.length === 0) {
+          log(colors.green(`${colors.bold('[esbuild]: ')}Successfully built in ${Date.now() - startTimestamp}ms (${result.errors.length} errors, ${result.warnings.length} warnings).\n`));
+          // A new version on each build invalidates package managers' caches (real-time package testing).
+          writeDistFiles(`0.0.${Date.now()}`);
+          if (devKitConfig.runInDev === true) {
+            runMainEntry(packageJson.main);
+          }
+        }
+      });
+    },
+  };
+  await (await esbuild.context(await getEsbuildOptions(false, [devKitPlugin]))).watch();
+}

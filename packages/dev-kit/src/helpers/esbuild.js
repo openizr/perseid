@@ -21,7 +21,7 @@ const devKitConfig = getDevKitConfig();
 const isStylesheet = (file) => /\.(css|scss|sass)$/.test(file);
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
 const distPath = path.join(projectRootPath, devKitConfig.distPath);
-const assetExtensions = [
+export const assetExtensions = [
   'woff', 'woff2', 'eot', 'ttf', 'otf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'mp4',
   'webm', 'ogg', 'mp3', 'wav', 'flac', 'aac', 'txt',
 ];
