@@ -28,6 +28,8 @@ const tsConfigPath = path.join(projectRootPath, 'tsconfig.json');
 const hasTsConfig = fs.existsSync(tsConfigPath);
 const hasEslintConfig = findProjectConfig('eslint') !== undefined;
 
+process.stdout.write('\x1Bc');
+
 /**
  * Spawns a checker, prefixing its output. Blocking (exits on failure) unless in watch mode.
  *
@@ -55,9 +57,16 @@ const runChecker = (name, args, colorize) => new Promise((resolve) => {
   });
   if (watchMode) {
     resolve();
-  } else {
-    checker.on('close', (code) => (code === 0 ? resolve() : process.exit(1)));
   }
+  checker.on('close', (code) => {
+    if (code === 0) {
+      resolve();
+    } else if (!watchMode) {
+      process.exit(1);
+    } else {
+      error(colors.red(`${colors.bold(`✖ [${name}]:`)} stopped (exit code ${code}).\n`));
+    }
+  });
 });
 
 // Each check is opt-in: no `eslint.config.*` means no linting, no `tsconfig.json` no type-checking.
@@ -89,7 +98,6 @@ if (hasEslintConfig) {
   });
 
   const lint = async () => {
-    process.stdout.write('\x1Bc');
     log(colors.magenta(colors.bold('Checking files...')));
     const results = await eslint.lintFiles(srcPath);
     if (fixMode) {

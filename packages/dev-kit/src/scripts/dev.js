@@ -50,12 +50,20 @@ const indexHtmlPlugin = {
 /** Restarts the built entry on each rebuild (e.g. a Node server). */
 let nodeProcess = null;
 const runMainEntry = (main) => {
-  nodeProcess?.kill();
-  nodeProcess = spawn(process.execPath, ['--enable-source-maps', path.join(distPath, main)]);
-  nodeProcess.stdout.on('data', (data) => log(`${data.toString()}\n`));
-  nodeProcess.stderr.on('data', (data) => error(colors.red(colors.bold('✖ Error occurred in main entry:\n')), `${data.toString().trim()}\n`));
+  const previous = nodeProcess;
+  if (previous !== null && previous.exitCode === null && previous.signalCode === null) {
+    // Ports may still be held: the restart waits for the exit.
+    previous.removeAllListeners('exit').once('exit', () => runMainEntry(main));
+    previous.kill();
+    setTimeout(() => previous.kill('SIGKILL'), 2000).unref();
+    return;
+  }
+  nodeProcess = spawn(process.execPath, ['--enable-source-maps', path.join(distPath, main)], { stdio: 'inherit' });
   nodeProcess.on('error', (err) => error(colors.red(colors.bold('✖ Could not run main entry:\n')), err, ''));
 };
+// Stdio is inherited: the main entry would outlive this script.
+process.on('exit', () => nodeProcess?.kill());
+['SIGINT', 'SIGTERM'].forEach((signal) => process.on(signal, () => process.exit()));
 
 process.env.ENV ??= 'development';
 process.env.NODE_ENV ??= 'development';

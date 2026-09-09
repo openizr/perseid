@@ -59,6 +59,9 @@ export { default } from '@perseid/dev-kit/svelte.config.js';
 { "extends": "./node_modules/@perseid/dev-kit/tsconfig.json" }
 ```
 
+This config assumes `devKitConfig.srcPath` is `src`. Otherwise, also override `compilerOptions.paths`
+and `include` with your own directory.
+
 In VS Code, when the opened folder is not the project itself (monorepo), add to
 `.vscode/settings.json`:
 

@@ -254,15 +254,8 @@ async function createConfig() {
         'use-isnan': 'error',
         'valid-typeof': ['error', { requireStringLiterals: true }],
 
-        // Node
-        'global-require': 'error',
-        'no-buffer-constructor': 'error',
-        'no-new-require': 'error',
-        'no-path-concat': 'error',
-
         // Strict
         strict: ['error', 'never'],
-        'lines-around-directive': ['error', { before: 'always', after: 'always' }],
 
         // Variables
         'no-delete-var': 'error',

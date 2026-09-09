@@ -199,7 +199,7 @@ export async function getEsbuildOptions(production, plugins = []) {
     splitting: devKitConfig.splitChunks !== false,
     external: Object.keys(packageJson.dependencies ?? {})
       .concat(Object.keys(packageJson.peerDependencies ?? {}))
-      .concat(['*.scss', '*.css']),
+      .concat(['*.css', '*.scss', '*.sass']),
     plugins: [stylesheetsPlugin]
       .concat(plugins)
       .concat(isInstalled('vue') ? [await vuePlugin(production)] : [])

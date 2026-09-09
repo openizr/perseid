@@ -68,20 +68,30 @@ const optional = (check) => (value) => value === undefined || check(value);
 /** Port number, or the value of the environment variable named by `port`. */
 export const resolvePort = (port) => (port === undefined ? undefined : Number(isString(port) ? process.env[port] : port));
 
-// Paths are deleted recursively: they must stay strictly inside the project.
-const isSubPath = (value) => {
-  const relative = isString(value) ? path.relative(projectRootPath, path.resolve(projectRootPath, value)) : '';
+// Paths are deleted recursively: they must stay strictly inside `root`.
+const isSubPath = (value, root = projectRootPath) => {
+  const relative = isString(value) ? path.relative(root, path.resolve(projectRootPath, value)) : '';
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
 };
+
 const validators = {
   target: (value) => ['node', 'web'].includes(value),
-  srcPath: isSubPath,
+  srcPath: (value) => (
+    isSubPath(value)
+    && fs.statSync(path.join(projectRootPath, value), { throwIfNoEntry: false })?.isDirectory() === true
+  ),
+  // Neither directory may contain the other.
   distPath: (value, config) => (
     isSubPath(value)
     && path.resolve(projectRootPath, value) !== path.resolve(projectRootPath, config.srcPath)
+    && !isSubPath(value, path.resolve(projectRootPath, config.srcPath))
+    && !isSubPath(config.srcPath, path.resolve(projectRootPath, value))
   ),
   html: (value, config) => config.target === 'node' || isString(value),
-  entries: (value, config) => config.target === 'web' || isObject(value),
+  // Bundles must all land at the `distPath` root (see `stylesheetsPlugin`): no nested entry names.
+  entries: (value, config) => config.target === 'web' || (
+    isObject(value) && Object.entries(value).every(([name, entry]) => !name.includes('/') && isString(entry))
+  ),
   devServer: (value, config) => (
     config.target === 'node'
     || (isString(value?.host) && Number.isInteger(resolvePort(value.port)))
@@ -115,7 +125,7 @@ export function getDevKitConfig() {
   const config = packageJson.devKitConfig ?? {};
   Object.entries(validators).forEach(([key, isValid]) => {
     if (!isValid(config[key], config)) {
-      fail(`Invalid "devKitConfig.${key}" in package.json.`);
+      fail(`Invalid "devKitConfig.${key}" in package.json (got ${JSON.stringify(config[key])}).`);
     }
   });
   // Top-level source directories are importable by name (aliases): they must not hide a package.

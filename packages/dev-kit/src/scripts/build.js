@@ -28,12 +28,6 @@ const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
 const distPath = path.join(projectRootPath, devKitConfig.distPath);
 const tsConfigPath = path.join(projectRootPath, 'tsconfig.json');
 
-/** Recursively lists `.d.ts` files under `directory`. */
-const listTypings = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-  const entryPath = path.join(directory, entry.name);
-  return entry.isDirectory() ? listTypings(entryPath) : [entryPath].filter((file) => file.endsWith('.d.ts'));
-});
-
 /**
  * Emits declaration files into `distPath`, laid out like esbuild's outputs (entries' directory as
  * root). Absolute imports (`scripts/...`) are rewritten to relative ones and assets imports dropped,
@@ -80,12 +74,19 @@ function generateTypings() {
 
   if (entriesDirectory !== '' && fs.existsSync(path.join(distPath, entriesDirectory))) {
     fs.cpSync(path.join(distPath, entriesDirectory), distPath, { recursive: true });
-    fs.rmSync(path.join(distPath, entriesDirectory.split('/')[0]), { recursive: true });
+    fs.rmSync(path.join(distPath, entriesDirectory), { recursive: true });
+    // Empty parents left behind.
+    let parent = path.dirname(path.join(distPath, entriesDirectory));
+    while (parent !== distPath && fs.readdirSync(parent).length === 0) {
+      fs.rmSync(parent, { recursive: true });
+      parent = path.dirname(parent);
+    }
   }
 
   const aliases = fs.readdirSync(srcPath, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   const assetImport = new RegExp(`^import\\s+['"][^'"]+\\.(${assetExtensions.concat('css', 'scss', 'sass', 'less', 'json').join('|')})['"];?\\n`, 'gm');
-  listTypings(distPath).forEach((file) => {
+  fs.readdirSync(distPath, { recursive: true }).filter((file) => file.endsWith('.d.ts')).forEach((relativePath) => {
+    const file = path.join(distPath, relativePath);
     const source = fs.readFileSync(file, 'utf-8');
     const rewritten = source
       .replace(assetImport, '')
@@ -140,6 +141,6 @@ try {
 } catch (e) {
   error(colors.red(colors.bold('\n✖ Build failed.\n')));
   // Vite wraps bundling errors into a `BundleError`.
-  (e.errors ?? [e]).forEach((err) => error(colors.red(err.message ?? err)));
+  (e.errors ?? [e]).forEach((err) => error(colors.red(err.message ?? err.text ?? err)));
   process.exit(1);
 }
