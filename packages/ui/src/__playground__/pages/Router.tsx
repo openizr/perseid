@@ -22,11 +22,12 @@ console.log(generateTypeDefinitions({
   breakpoints,
   shorthands,
 }));
+
 console.log(generateSassVariables({
   gridColumns,
   breakpoints,
   shorthands,
-}));
+}, true));
 
 export default function Router(): JSX.Element {
   const routing = useCombiner<RoutingContext>('router');

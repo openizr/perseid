@@ -9,11 +9,11 @@
 /**
  * Number of columns available in the grid system.
  */
-$perseid-grid-columns-number: 12;
+$perseid-grid-columns-number: 12 !default;
 
 /**
-  * Breakpoints used to generate media queries.
-  */
+ * Breakpoints used to generate media queries.
+ */
 $perseid-breakpoints: (
   xxs: 0px,
   xs: 376px,
@@ -21,11 +21,11 @@ $perseid-breakpoints: (
   m: 768px,
   l: 992px,
   xl: 1200px
-);
+) !default;
 
 /**
-  * Gaps used to generate the grid system.
-  */
+ * Gaps used to generate the grid system.
+ */
 $perseid-gaps: (
   0: 0rem,
   1: 0.25rem,
@@ -35,7 +35,7 @@ $perseid-gaps: (
   5: 4rem,
   6: 8rem,
   7: 12rem
-);
+) !default;
 
 //**************************************************************************************************
 // Built-in internal variables - DO NOT USE THEM DIRECTLY, USE THE `layout` MIXIN INSTEAD.
@@ -1212,4 +1212,4 @@ $perseid-shorthands: (
       'xl:hgap-7'
     )
   )
-);
+) !default;
