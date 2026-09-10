@@ -133,9 +133,6 @@ export function generateSassVariables(configuration: {
   };
 
   let generatedScssContent = '';
-  generatedScssContent += '/**\n * Number of columns available in the grid system.\n */\n';
-  generatedScssContent += `$perseid-grid-columns-number: ${String(columns)}${isDefault ? ' !default' : ''};`;
-  generatedScssContent += '\n\n';
   generatedScssContent += '/**\n * Breakpoints used to generate media queries.\n */\n';
   generatedScssContent += `$perseid-breakpoints: (\n${Object.entries(configuration.breakpoints ?? breakpoints).map(([key, value]) => `  ${key}: ${value}`).join(',\n')}\n)${isDefault ? ' !default' : ''};`;
   generatedScssContent += '\n\n';
