@@ -139,9 +139,9 @@
     @if $breakpoint-index {
       $splitted-shorthand: string.split($shorthand, ':');
 
-      @include query(nth($splitted-shorthand, 1)) {
+      @include query(list.nth($splitted-shorthand, 1)) {
         $css-declaration: map.get(
-          map.get($perseid-shorthands, nth($splitted-shorthand, 2)),
+          map.get($perseid-shorthands, list.nth($splitted-shorthand, 2)),
           'property'
         );
 
@@ -149,7 +149,7 @@
           @error "Invalid Perseid shorthand: #{$shorthand}";
         }
 
-        #{nth($css-declaration, 1)}: #{nth($css-declaration, 2)};
+        #{list.nth($css-declaration, 1)}: #{list.nth($css-declaration, 2)};
       }
     } @else {
       $css-declaration: map.get(map.get($perseid-shorthands, $shorthand), 'property');
@@ -158,7 +158,7 @@
         @error "Invalid Perseid shorthand: #{$shorthand}";
       }
 
-      #{nth($css-declaration, 1)}: #{nth($css-declaration, 2)};
+      #{list.nth($css-declaration, 1)}: #{list.nth($css-declaration, 2)};
     }
   }
 }
