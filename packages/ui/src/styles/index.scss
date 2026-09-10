@@ -6,5 +6,4 @@
  *
  */
 
-@import './core/index';
-@import './templates/index';
+@forward './core';

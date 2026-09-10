@@ -6,100 +6,1210 @@
  *
  */
 
-// Number of columns available in a grid.
-$gridColumnsNumber: 12;
+/**
+ * Number of columns available in the grid system.
+ */
+$perseid-grid-columns-number: 12;
 
-$breakpoints: (
+/**
+  * Breakpoints used to generate media queries.
+  */
+$perseid-breakpoints: (
   xxs: 0px,
   xs: 376px,
   s: 576px,
   m: 768px,
   l: 992px,
   xl: 1200px
-) !default;
+);
 
-$variables: (
-  gaps: (
-    0: 0,
-    1: 0.25rem,
-    2: 0.5rem,
-    3: 1rem,
-    4: 2rem,
-    5: 4rem,
-    6: 8rem,
-    7: 12rem
-  ),
-  shp: (
-    default: 4px
-  ),
-  shd: (
-    1: (
-      1px 1px 6px #0000001a,
-      0px 1px 5px 0px #0000001a,
-      0px 1px 0px 0px #0000001a
+/**
+  * Gaps used to generate the grid system.
+  */
+$perseid-gaps: (
+  0: 0rem,
+  1: 0.25rem,
+  2: 0.5rem,
+  3: 1rem,
+  4: 2rem,
+  5: 4rem,
+  6: 8rem,
+  7: 12rem
+);
+
+//**************************************************************************************************
+// Built-in internal variables - DO NOT USE THEM DIRECTLY, USE THE `layout` MIXIN INSTEAD.
+//**************************************************************************************************
+
+$perseid-shorthands: (
+  'grid': (
+    'property': (
+      'display',
+      'grid'
     ),
-    2: (
-      0px 4px 5px -2px #0000001a,
-      0px 7px 10px 1px #0000001a,
-      0px 2px 16px 1px #0000001a
-    ),
-    3: (
-      0px 7px 8px -4px #0000001a,
-      0px 13px 19px 2px #0000001a,
-      0px 5px 24px 4px #0000001a
-    ),
-    4: (
-      0px 9px 12px -6px #0000001a,
-      0px 19px 29px 2px #0000001a,
-      0px 7px 36px 6px #0000001a
-    ),
-    5: (
-      0px 11px 15px -7px #0000001a,
-      0px 24px 38px 3px #0000001a,
-      0px 9px 46px 8px #0000001a
+    'variants': (
+      'grid',
+      'xxs:grid',
+      'xs:grid',
+      's:grid',
+      'm:grid',
+      'l:grid',
+      'xl:grid'
     )
   ),
-  clr: (
-    greys-100: hsl(0, 0%, 10%),
-    greys-200: hsl(0, 0%, 20%),
-    greys-300: hsl(0, 0%, 27%),
-    greys-400: hsl(0, 0%, 35%),
-    greys-500: hsl(0, 0%, 40%),
-    greys-600: hsl(0, 0%, 60%),
-    greys-700: hsl(0, 0%, 80%),
-    greys-800: hsl(0 0% 93%),
-    greys-900: hsl(0, 0%, 99%),
-    primary-100: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
-    primary-200: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
-    primary-300: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
-    primary-400: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
-    primary-500: linear-gradient(45deg, hsl(315, 100%, 54%), hsl(12, 98%, 57%)),
-    primary-600: linear-gradient(45deg, hsl(315, 100%, 60%), hsl(12, 100%, 63%)),
-    primary-700: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
-    primary-800: linear-gradient(45deg, hsl(315, 98%, 54%), hsl(12, 94%, 58%)),
-    primary-900: linear-gradient(45deg, hsl(315, 100%, 90%), hsl(11, 100%, 90%)),
-    secondary-100: hsl(240, 63%, 9%),
-    secondary-200: hsl(240, 64%, 16%),
-    secondary-300: hsl(240, 51%, 21%),
-    secondary-400: hsl(240, 55%, 27%),
-    secondary-500: hsl(240 63% 47%),
-    secondary-600: hsl(240 68% 57%),
-    secondary-700: hsl(240 70% 70%),
-    secondary-800: hsl(240 72% 90%),
-    secondary-900: hsl(240 75% 97%),
-    accent-1-100: hsl(0, 75%, 10%),
-    accent-1-200: hsl(0, 74%, 20%),
-    accent-1-300: hsl(0, 74%, 30%),
-    accent-1-400: hsl(0, 74%, 35%),
-    accent-1-500: hsl(0, 74%, 49%),
-    accent-1-600: hsl(0, 74%, 55%),
-    accent-1-700: hsl(0, 74%, 70%),
-    accent-1-800: hsl(0, 74%, 80%),
-    accent-1-900: hsl(0, 74%, 95%)
+  'flex': (
+    'property': (
+      'display',
+      'flex'
+    ),
+    'variants': (
+      'flex',
+      'xxs:flex',
+      'xs:flex',
+      's:flex',
+      'm:flex',
+      'l:flex',
+      'xl:flex'
+    )
   ),
-  ff: (
-    title: Roboto,
-    default:
-      '"Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"'
+  'none': (
+    'property': (
+      'display',
+      'none'
+    ),
+    'variants': (
+      'none',
+      'xxs:none',
+      'xs:none',
+      's:none',
+      'm:none',
+      'l:none',
+      'xl:none'
+    )
+  ),
+  'block': (
+    'property': (
+      'display',
+      'block'
+    ),
+    'variants': (
+      'block',
+      'xxs:block',
+      'xs:block',
+      's:block',
+      'm:block',
+      'l:block',
+      'xl:block'
+    )
+  ),
+  'inline': (
+    'property': (
+      'display',
+      'inline'
+    ),
+    'variants': (
+      'inline',
+      'xxs:inline',
+      'xs:inline',
+      's:inline',
+      'm:inline',
+      'l:inline',
+      'xl:inline'
+    )
+  ),
+  'inline-flex': (
+    'property': (
+      'display',
+      'inline-flex'
+    ),
+    'variants': (
+      'inline-flex',
+      'xxs:inline-flex',
+      'xs:inline-flex',
+      's:inline-flex',
+      'm:inline-flex',
+      'l:inline-flex',
+      'xl:inline-flex'
+    )
+  ),
+  'inline-grid': (
+    'property': (
+      'display',
+      'inline-grid'
+    ),
+    'variants': (
+      'inline-grid',
+      'xxs:inline-grid',
+      'xs:inline-grid',
+      's:inline-grid',
+      'm:inline-grid',
+      'l:inline-grid',
+      'xl:inline-grid'
+    )
+  ),
+  'flex-wrap': (
+    'property': (
+      'flex-wrap',
+      'wrap'
+    ),
+    'variants': (
+      'flex-wrap',
+      'xxs:flex-wrap',
+      'xs:flex-wrap',
+      's:flex-wrap',
+      'm:flex-wrap',
+      'l:flex-wrap',
+      'xl:flex-wrap'
+    )
+  ),
+  'flex-nowrap': (
+    'property': (
+      'flex-wrap',
+      'nowrap'
+    ),
+    'variants': (
+      'flex-nowrap',
+      'xxs:flex-nowrap',
+      'xs:flex-nowrap',
+      's:flex-nowrap',
+      'm:flex-nowrap',
+      'l:flex-nowrap',
+      'xl:flex-nowrap'
+    )
+  ),
+  'flex-wrap-rev': (
+    'property': (
+      'flex-wrap',
+      'wrap-reverse'
+    ),
+    'variants': (
+      'flex-wrap-rev',
+      'xxs:flex-wrap-rev',
+      'xs:flex-wrap-rev',
+      's:flex-wrap-rev',
+      'm:flex-wrap-rev',
+      'l:flex-wrap-rev',
+      'xl:flex-wrap-rev'
+    )
+  ),
+  'flex-row': (
+    'property': (
+      'flex-direction',
+      'row'
+    ),
+    'variants': (
+      'flex-row',
+      'xxs:flex-row',
+      'xs:flex-row',
+      's:flex-row',
+      'm:flex-row',
+      'l:flex-row',
+      'xl:flex-row'
+    )
+  ),
+  'flex-col': (
+    'property': (
+      'flex-direction',
+      'column'
+    ),
+    'variants': (
+      'flex-col',
+      'xxs:flex-col',
+      'xs:flex-col',
+      's:flex-col',
+      'm:flex-col',
+      'l:flex-col',
+      'xl:flex-col'
+    )
+  ),
+  'flex-col-rev': (
+    'property': (
+      'flex-direction',
+      'column-reverse'
+    ),
+    'variants': (
+      'flex-col-rev',
+      'xxs:flex-col-rev',
+      'xs:flex-col-rev',
+      's:flex-col-rev',
+      'm:flex-col-rev',
+      'l:flex-col-rev',
+      'xl:flex-col-rev'
+    )
+  ),
+  'flex-row-rev': (
+    'property': (
+      'flex-direction',
+      'row-reverse'
+    ),
+    'variants': (
+      'flex-row-rev',
+      'xxs:flex-row-rev',
+      'xs:flex-row-rev',
+      's:flex-row-rev',
+      'm:flex-row-rev',
+      'l:flex-row-rev',
+      'xl:flex-row-rev'
+    )
+  ),
+  'grid-row': (
+    'property': (
+      'grid-auto-flow',
+      'row'
+    ),
+    'variants': (
+      'grid-row',
+      'xxs:grid-row',
+      'xs:grid-row',
+      's:grid-row',
+      'm:grid-row',
+      'l:grid-row',
+      'xl:grid-row'
+    )
+  ),
+  'grid-col': (
+    'property': (
+      'grid-auto-flow',
+      'column'
+    ),
+    'variants': (
+      'grid-col',
+      'xxs:grid-col',
+      'xs:grid-col',
+      's:grid-col',
+      'm:grid-col',
+      'l:grid-col',
+      'xl:grid-col'
+    )
+  ),
+  'grid-dense': (
+    'property': (
+      'grid-auto-flow',
+      'dense'
+    ),
+    'variants': (
+      'grid-dense',
+      'xxs:grid-dense',
+      'xs:grid-dense',
+      's:grid-dense',
+      'm:grid-dense',
+      'l:grid-dense',
+      'xl:grid-dense'
+    )
+  ),
+  'flex-none': (
+    'property': (
+      'flex',
+      'none'
+    ),
+    'variants': (
+      'flex-none',
+      'xxs:flex-none',
+      'xs:flex-none',
+      's:flex-none',
+      'm:flex-none',
+      'l:flex-none',
+      'xl:flex-none'
+    )
+  ),
+  'flex-auto': (
+    'property': (
+      'flex',
+      '1 1 auto'
+    ),
+    'variants': (
+      'flex-auto',
+      'xxs:flex-auto',
+      'xs:flex-auto',
+      's:flex-auto',
+      'm:flex-auto',
+      'l:flex-auto',
+      'xl:flex-auto'
+    )
+  ),
+  'justify-between': (
+    'property': (
+      'justify-content',
+      'space-between'
+    ),
+    'variants': (
+      'justify-between',
+      'xxs:justify-between',
+      'xs:justify-between',
+      's:justify-between',
+      'm:justify-between',
+      'l:justify-between',
+      'xl:justify-between'
+    )
+  ),
+  'justify-start': (
+    'property': (
+      'justify-content',
+      'flex-start'
+    ),
+    'variants': (
+      'justify-start',
+      'xxs:justify-start',
+      'xs:justify-start',
+      's:justify-start',
+      'm:justify-start',
+      'l:justify-start',
+      'xl:justify-start'
+    )
+  ),
+  'justify-end': (
+    'property': (
+      'justify-content',
+      'flex-end'
+    ),
+    'variants': (
+      'justify-end',
+      'xxs:justify-end',
+      'xs:justify-end',
+      's:justify-end',
+      'm:justify-end',
+      'l:justify-end',
+      'xl:justify-end'
+    )
+  ),
+  'justify-stretch': (
+    'property': (
+      'justify-content',
+      'stretch'
+    ),
+    'variants': (
+      'justify-stretch',
+      'xxs:justify-stretch',
+      'xs:justify-stretch',
+      's:justify-stretch',
+      'm:justify-stretch',
+      'l:justify-stretch',
+      'xl:justify-stretch'
+    )
+  ),
+  'justify-center': (
+    'property': (
+      'justify-content',
+      'center'
+    ),
+    'variants': (
+      'justify-center',
+      'xxs:justify-center',
+      'xs:justify-center',
+      's:justify-center',
+      'm:justify-center',
+      'l:justify-center',
+      'xl:justify-center'
+    )
+  ),
+  'items-center': (
+    'property': (
+      'align-items',
+      'center'
+    ),
+    'variants': (
+      'items-center',
+      'xxs:items-center',
+      'xs:items-center',
+      's:items-center',
+      'm:items-center',
+      'l:items-center',
+      'xl:items-center'
+    )
+  ),
+  'items-start': (
+    'property': (
+      'align-items',
+      'flex-start'
+    ),
+    'variants': (
+      'items-start',
+      'xxs:items-start',
+      'xs:items-start',
+      's:items-start',
+      'm:items-start',
+      'l:items-start',
+      'xl:items-start'
+    )
+  ),
+  'items-end': (
+    'property': (
+      'align-items',
+      'flex-end'
+    ),
+    'variants': (
+      'items-end',
+      'xxs:items-end',
+      'xs:items-end',
+      's:items-end',
+      'm:items-end',
+      'l:items-end',
+      'xl:items-end'
+    )
+  ),
+  'items-stretch': (
+    'property': (
+      'align-items',
+      'stretch'
+    ),
+    'variants': (
+      'items-stretch',
+      'xxs:items-stretch',
+      'xs:items-stretch',
+      's:items-stretch',
+      'm:items-stretch',
+      'l:items-stretch',
+      'xl:items-stretch'
+    )
+  ),
+  'self-center': (
+    'property': (
+      'align-self',
+      'center'
+    ),
+    'variants': (
+      'self-center',
+      'xxs:self-center',
+      'xs:self-center',
+      's:self-center',
+      'm:self-center',
+      'l:self-center',
+      'xl:self-center'
+    )
+  ),
+  'self-start': (
+    'property': (
+      'align-self',
+      'flex-start'
+    ),
+    'variants': (
+      'self-start',
+      'xxs:self-start',
+      'xs:self-start',
+      's:self-start',
+      'm:self-start',
+      'l:self-start',
+      'xl:self-start'
+    )
+  ),
+  'self-end': (
+    'property': (
+      'align-self',
+      'flex-end'
+    ),
+    'variants': (
+      'self-end',
+      'xxs:self-end',
+      'xs:self-end',
+      's:self-end',
+      'm:self-end',
+      'l:self-end',
+      'xl:self-end'
+    )
+  ),
+  'self-stretch': (
+    'property': (
+      'align-self',
+      'stretch'
+    ),
+    'variants': (
+      'self-stretch',
+      'xxs:self-stretch',
+      'xs:self-stretch',
+      's:self-stretch',
+      'm:self-stretch',
+      'l:self-stretch',
+      'xl:self-stretch'
+    )
+  ),
+  'text-left': (
+    'property': (
+      'text-align',
+      'left'
+    ),
+    'variants': (
+      'text-left',
+      'xxs:text-left',
+      'xs:text-left',
+      's:text-left',
+      'm:text-left',
+      'l:text-left',
+      'xl:text-left'
+    )
+  ),
+  'text-right': (
+    'property': (
+      'text-align',
+      'right'
+    ),
+    'variants': (
+      'text-right',
+      'xxs:text-right',
+      'xs:text-right',
+      's:text-right',
+      'm:text-right',
+      'l:text-right',
+      'xl:text-right'
+    )
+  ),
+  'text-center': (
+    'property': (
+      'text-align',
+      'center'
+    ),
+    'variants': (
+      'text-center',
+      'xxs:text-center',
+      'xs:text-center',
+      's:text-center',
+      'm:text-center',
+      'l:text-center',
+      'xl:text-center'
+    )
+  ),
+  'text-justify': (
+    'property': (
+      'text-align',
+      'justify'
+    ),
+    'variants': (
+      'text-justify',
+      'xxs:text-justify',
+      'xs:text-justify',
+      's:text-justify',
+      'm:text-justify',
+      'l:text-justify',
+      'xl:text-justify'
+    )
+  ),
+  'w-full': (
+    'property': (
+      'width',
+      '100%'
+    ),
+    'variants': (
+      'w-full',
+      'xxs:w-full',
+      'xs:w-full',
+      's:w-full',
+      'm:w-full',
+      'l:w-full',
+      'xl:w-full'
+    )
+  ),
+  'h-full': (
+    'property': (
+      'height',
+      '100%'
+    ),
+    'variants': (
+      'h-full',
+      'xxs:h-full',
+      'xs:h-full',
+      's:h-full',
+      'm:h-full',
+      'l:h-full',
+      'xl:h-full'
+    )
+  ),
+  'col-1': (
+    'property': (
+      'grid-column',
+      'span 1'
+    ),
+    'variants': (
+      'col-1',
+      'xxs:col-1',
+      'xs:col-1',
+      's:col-1',
+      'm:col-1',
+      'l:col-1',
+      'xl:col-1'
+    )
+  ),
+  'col-2': (
+    'property': (
+      'grid-column',
+      'span 2'
+    ),
+    'variants': (
+      'col-2',
+      'xxs:col-2',
+      'xs:col-2',
+      's:col-2',
+      'm:col-2',
+      'l:col-2',
+      'xl:col-2'
+    )
+  ),
+  'col-3': (
+    'property': (
+      'grid-column',
+      'span 3'
+    ),
+    'variants': (
+      'col-3',
+      'xxs:col-3',
+      'xs:col-3',
+      's:col-3',
+      'm:col-3',
+      'l:col-3',
+      'xl:col-3'
+    )
+  ),
+  'col-4': (
+    'property': (
+      'grid-column',
+      'span 4'
+    ),
+    'variants': (
+      'col-4',
+      'xxs:col-4',
+      'xs:col-4',
+      's:col-4',
+      'm:col-4',
+      'l:col-4',
+      'xl:col-4'
+    )
+  ),
+  'col-5': (
+    'property': (
+      'grid-column',
+      'span 5'
+    ),
+    'variants': (
+      'col-5',
+      'xxs:col-5',
+      'xs:col-5',
+      's:col-5',
+      'm:col-5',
+      'l:col-5',
+      'xl:col-5'
+    )
+  ),
+  'col-6': (
+    'property': (
+      'grid-column',
+      'span 6'
+    ),
+    'variants': (
+      'col-6',
+      'xxs:col-6',
+      'xs:col-6',
+      's:col-6',
+      'm:col-6',
+      'l:col-6',
+      'xl:col-6'
+    )
+  ),
+  'col-7': (
+    'property': (
+      'grid-column',
+      'span 7'
+    ),
+    'variants': (
+      'col-7',
+      'xxs:col-7',
+      'xs:col-7',
+      's:col-7',
+      'm:col-7',
+      'l:col-7',
+      'xl:col-7'
+    )
+  ),
+  'col-8': (
+    'property': (
+      'grid-column',
+      'span 8'
+    ),
+    'variants': (
+      'col-8',
+      'xxs:col-8',
+      'xs:col-8',
+      's:col-8',
+      'm:col-8',
+      'l:col-8',
+      'xl:col-8'
+    )
+  ),
+  'col-9': (
+    'property': (
+      'grid-column',
+      'span 9'
+    ),
+    'variants': (
+      'col-9',
+      'xxs:col-9',
+      'xs:col-9',
+      's:col-9',
+      'm:col-9',
+      'l:col-9',
+      'xl:col-9'
+    )
+  ),
+  'col-10': (
+    'property': (
+      'grid-column',
+      'span 10'
+    ),
+    'variants': (
+      'col-10',
+      'xxs:col-10',
+      'xs:col-10',
+      's:col-10',
+      'm:col-10',
+      'l:col-10',
+      'xl:col-10'
+    )
+  ),
+  'col-11': (
+    'property': (
+      'grid-column',
+      'span 11'
+    ),
+    'variants': (
+      'col-11',
+      'xxs:col-11',
+      'xs:col-11',
+      's:col-11',
+      'm:col-11',
+      'l:col-11',
+      'xl:col-11'
+    )
+  ),
+  'col-12': (
+    'property': (
+      'grid-column',
+      'span 12'
+    ),
+    'variants': (
+      'col-12',
+      'xxs:col-12',
+      'xs:col-12',
+      's:col-12',
+      'm:col-12',
+      'l:col-12',
+      'xl:col-12'
+    )
+  ),
+  'cols-1': (
+    'property': (
+      'grid-template-columns',
+      'repeat(1, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-1',
+      'xxs:cols-1',
+      'xs:cols-1',
+      's:cols-1',
+      'm:cols-1',
+      'l:cols-1',
+      'xl:cols-1'
+    )
+  ),
+  'cols-2': (
+    'property': (
+      'grid-template-columns',
+      'repeat(2, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-2',
+      'xxs:cols-2',
+      'xs:cols-2',
+      's:cols-2',
+      'm:cols-2',
+      'l:cols-2',
+      'xl:cols-2'
+    )
+  ),
+  'cols-3': (
+    'property': (
+      'grid-template-columns',
+      'repeat(3, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-3',
+      'xxs:cols-3',
+      'xs:cols-3',
+      's:cols-3',
+      'm:cols-3',
+      'l:cols-3',
+      'xl:cols-3'
+    )
+  ),
+  'cols-4': (
+    'property': (
+      'grid-template-columns',
+      'repeat(4, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-4',
+      'xxs:cols-4',
+      'xs:cols-4',
+      's:cols-4',
+      'm:cols-4',
+      'l:cols-4',
+      'xl:cols-4'
+    )
+  ),
+  'cols-5': (
+    'property': (
+      'grid-template-columns',
+      'repeat(5, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-5',
+      'xxs:cols-5',
+      'xs:cols-5',
+      's:cols-5',
+      'm:cols-5',
+      'l:cols-5',
+      'xl:cols-5'
+    )
+  ),
+  'cols-6': (
+    'property': (
+      'grid-template-columns',
+      'repeat(6, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-6',
+      'xxs:cols-6',
+      'xs:cols-6',
+      's:cols-6',
+      'm:cols-6',
+      'l:cols-6',
+      'xl:cols-6'
+    )
+  ),
+  'cols-7': (
+    'property': (
+      'grid-template-columns',
+      'repeat(7, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-7',
+      'xxs:cols-7',
+      'xs:cols-7',
+      's:cols-7',
+      'm:cols-7',
+      'l:cols-7',
+      'xl:cols-7'
+    )
+  ),
+  'cols-8': (
+    'property': (
+      'grid-template-columns',
+      'repeat(8, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-8',
+      'xxs:cols-8',
+      'xs:cols-8',
+      's:cols-8',
+      'm:cols-8',
+      'l:cols-8',
+      'xl:cols-8'
+    )
+  ),
+  'cols-9': (
+    'property': (
+      'grid-template-columns',
+      'repeat(9, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-9',
+      'xxs:cols-9',
+      'xs:cols-9',
+      's:cols-9',
+      'm:cols-9',
+      'l:cols-9',
+      'xl:cols-9'
+    )
+  ),
+  'cols-10': (
+    'property': (
+      'grid-template-columns',
+      'repeat(10, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-10',
+      'xxs:cols-10',
+      'xs:cols-10',
+      's:cols-10',
+      'm:cols-10',
+      'l:cols-10',
+      'xl:cols-10'
+    )
+  ),
+  'cols-11': (
+    'property': (
+      'grid-template-columns',
+      'repeat(11, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-11',
+      'xxs:cols-11',
+      'xs:cols-11',
+      's:cols-11',
+      'm:cols-11',
+      'l:cols-11',
+      'xl:cols-11'
+    )
+  ),
+  'cols-12': (
+    'property': (
+      'grid-template-columns',
+      'repeat(12, minmax(0, 1fr))'
+    ),
+    'variants': (
+      'cols-12',
+      'xxs:cols-12',
+      'xs:cols-12',
+      's:cols-12',
+      'm:cols-12',
+      'l:cols-12',
+      'xl:cols-12'
+    )
+  ),
+  'vgap-0': (
+    'property': (
+      'row-gap',
+      'var(--gap-0)'
+    ),
+    'variants': (
+      'vgap-0',
+      'xxs:vgap-0',
+      'xs:vgap-0',
+      's:vgap-0',
+      'm:vgap-0',
+      'l:vgap-0',
+      'xl:vgap-0'
+    )
+  ),
+  'vgap-1': (
+    'property': (
+      'row-gap',
+      'var(--gap-1)'
+    ),
+    'variants': (
+      'vgap-1',
+      'xxs:vgap-1',
+      'xs:vgap-1',
+      's:vgap-1',
+      'm:vgap-1',
+      'l:vgap-1',
+      'xl:vgap-1'
+    )
+  ),
+  'vgap-2': (
+    'property': (
+      'row-gap',
+      'var(--gap-2)'
+    ),
+    'variants': (
+      'vgap-2',
+      'xxs:vgap-2',
+      'xs:vgap-2',
+      's:vgap-2',
+      'm:vgap-2',
+      'l:vgap-2',
+      'xl:vgap-2'
+    )
+  ),
+  'vgap-3': (
+    'property': (
+      'row-gap',
+      'var(--gap-3)'
+    ),
+    'variants': (
+      'vgap-3',
+      'xxs:vgap-3',
+      'xs:vgap-3',
+      's:vgap-3',
+      'm:vgap-3',
+      'l:vgap-3',
+      'xl:vgap-3'
+    )
+  ),
+  'vgap-4': (
+    'property': (
+      'row-gap',
+      'var(--gap-4)'
+    ),
+    'variants': (
+      'vgap-4',
+      'xxs:vgap-4',
+      'xs:vgap-4',
+      's:vgap-4',
+      'm:vgap-4',
+      'l:vgap-4',
+      'xl:vgap-4'
+    )
+  ),
+  'vgap-5': (
+    'property': (
+      'row-gap',
+      'var(--gap-5)'
+    ),
+    'variants': (
+      'vgap-5',
+      'xxs:vgap-5',
+      'xs:vgap-5',
+      's:vgap-5',
+      'm:vgap-5',
+      'l:vgap-5',
+      'xl:vgap-5'
+    )
+  ),
+  'vgap-6': (
+    'property': (
+      'row-gap',
+      'var(--gap-6)'
+    ),
+    'variants': (
+      'vgap-6',
+      'xxs:vgap-6',
+      'xs:vgap-6',
+      's:vgap-6',
+      'm:vgap-6',
+      'l:vgap-6',
+      'xl:vgap-6'
+    )
+  ),
+  'vgap-7': (
+    'property': (
+      'row-gap',
+      'var(--gap-7)'
+    ),
+    'variants': (
+      'vgap-7',
+      'xxs:vgap-7',
+      'xs:vgap-7',
+      's:vgap-7',
+      'm:vgap-7',
+      'l:vgap-7',
+      'xl:vgap-7'
+    )
+  ),
+  'hgap-0': (
+    'property': (
+      'column-gap',
+      'var(--gap-0)'
+    ),
+    'variants': (
+      'hgap-0',
+      'xxs:hgap-0',
+      'xs:hgap-0',
+      's:hgap-0',
+      'm:hgap-0',
+      'l:hgap-0',
+      'xl:hgap-0'
+    )
+  ),
+  'hgap-1': (
+    'property': (
+      'column-gap',
+      'var(--gap-1)'
+    ),
+    'variants': (
+      'hgap-1',
+      'xxs:hgap-1',
+      'xs:hgap-1',
+      's:hgap-1',
+      'm:hgap-1',
+      'l:hgap-1',
+      'xl:hgap-1'
+    )
+  ),
+  'hgap-2': (
+    'property': (
+      'column-gap',
+      'var(--gap-2)'
+    ),
+    'variants': (
+      'hgap-2',
+      'xxs:hgap-2',
+      'xs:hgap-2',
+      's:hgap-2',
+      'm:hgap-2',
+      'l:hgap-2',
+      'xl:hgap-2'
+    )
+  ),
+  'hgap-3': (
+    'property': (
+      'column-gap',
+      'var(--gap-3)'
+    ),
+    'variants': (
+      'hgap-3',
+      'xxs:hgap-3',
+      'xs:hgap-3',
+      's:hgap-3',
+      'm:hgap-3',
+      'l:hgap-3',
+      'xl:hgap-3'
+    )
+  ),
+  'hgap-4': (
+    'property': (
+      'column-gap',
+      'var(--gap-4)'
+    ),
+    'variants': (
+      'hgap-4',
+      'xxs:hgap-4',
+      'xs:hgap-4',
+      's:hgap-4',
+      'm:hgap-4',
+      'l:hgap-4',
+      'xl:hgap-4'
+    )
+  ),
+  'hgap-5': (
+    'property': (
+      'column-gap',
+      'var(--gap-5)'
+    ),
+    'variants': (
+      'hgap-5',
+      'xxs:hgap-5',
+      'xs:hgap-5',
+      's:hgap-5',
+      'm:hgap-5',
+      'l:hgap-5',
+      'xl:hgap-5'
+    )
+  ),
+  'hgap-6': (
+    'property': (
+      'column-gap',
+      'var(--gap-6)'
+    ),
+    'variants': (
+      'hgap-6',
+      'xxs:hgap-6',
+      'xs:hgap-6',
+      's:hgap-6',
+      'm:hgap-6',
+      'l:hgap-6',
+      'xl:hgap-6'
+    )
+  ),
+  'hgap-7': (
+    'property': (
+      'column-gap',
+      'var(--gap-7)'
+    ),
+    'variants': (
+      'hgap-7',
+      'xxs:hgap-7',
+      'xs:hgap-7',
+      's:hgap-7',
+      'm:hgap-7',
+      'l:hgap-7',
+      'xl:hgap-7'
+    )
   )
-) !default;
+);

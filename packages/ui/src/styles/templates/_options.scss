@@ -6,6 +6,8 @@
  *
  */
 
+@use '../core' as *;
+
 .ui-options {
   user-select: none;
 
@@ -14,7 +16,7 @@
   }
 
   @include modifiers(select) {
-    @include extend(flex flex-col vgap-2);
+    @include layout('flex flex-col vgap-2');
   }
 
   @include modifiers(select, &) {
@@ -39,7 +41,7 @@
         &__option {
           cursor: pointer;
           transition: background 250ms ease-in;
-          padding: var(--gaps-2) var(--gaps-2);
+          padding: var(--gap-2) var(--gap-2);
 
           &:hover,
           &:focus {
@@ -64,11 +66,11 @@
   }
 
   &__wrapper {
-    margin: var(--gaps-1);
+    margin: var(--gap-1);
   }
 
   &__wrapper__option {
-    @include extend(flex hgap-3);
+    @include layout('flex hgap-3');
   }
 
   &__wrapper__button {
