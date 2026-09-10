@@ -29,8 +29,8 @@ const distPath = path.join(projectRootPath, devKitConfig.distPath);
 const tsConfigPath = path.join(projectRootPath, 'tsconfig.json');
 
 /**
- * Emits declaration files into `distPath`, laid out like esbuild's outputs (entries' directory as
- * root). Absolute imports (`scripts/...`) are rewritten to relative ones and assets imports dropped,
+ * Emits declaration files into `distPath`, laid out like esbuild's outputs (entries at the root,
+ * the rest mirroring `srcPath`). Absolute imports (`scripts/...`) are rewritten to relative ones and assets imports dropped,
  * as consumers cannot resolve them.
  */
 function generateTypings() {
@@ -60,28 +60,17 @@ function generateTypings() {
     throw new Error('Typings generation failed.');
   }
 
-  // Entries' deepest common directory (esbuild's implicit `outbase`), flattened into `distPath`.
-  const entriesDirectories = Object.values(devKitConfig.entries ?? {}).map((entry) => (
-    path.relative(srcPath, path.dirname(path.resolve(srcPath, entry))).split(path.sep).filter(Boolean)
-  ));
-  const [first = []] = entriesDirectories;
-  const divergence = first.findIndex((segment, index) => entriesDirectories.some((directory) => directory[index] !== segment));
-  const entriesDirectory = first.slice(0, divergence === -1 ? first.length : divergence).join('/');
-
-  const outputPath = (srcRelativePath) => path.join(distPath, srcRelativePath.startsWith(`${entriesDirectory}/`)
-    ? srcRelativePath.slice(entriesDirectory.length + 1)
-    : srcRelativePath);
-
-  if (entriesDirectory !== '' && fs.existsSync(path.join(distPath, entriesDirectory))) {
-    fs.cpSync(path.join(distPath, entriesDirectory), distPath, { recursive: true });
-    fs.rmSync(path.join(distPath, entriesDirectory), { recursive: true });
-    // Empty parents left behind.
-    let parent = path.dirname(path.join(distPath, entriesDirectory));
-    while (parent !== distPath && fs.readdirSync(parent).length === 0) {
-      fs.rmSync(parent, { recursive: true });
-      parent = path.dirname(parent);
+  // Like esbuild, only entries are flattened into `distPath`; other typings mirror `srcPath`.
+  const entryOutputs = Object.fromEntries(Object.entries(devKitConfig.entries ?? {}).map(([name, entry]) => [
+    path.relative(srcPath, path.resolve(srcPath, entry)).replace(/\.[cm]?[jt]sx?$/, ''),
+    name,
+  ]));
+  const outputPath = (srcRelativePath) => path.join(distPath, entryOutputs[srcRelativePath] ?? srcRelativePath);
+  Object.entries(entryOutputs).forEach(([srcRelativePath, name]) => {
+    if (fs.existsSync(path.join(distPath, `${srcRelativePath}.d.ts`))) {
+      fs.renameSync(path.join(distPath, `${srcRelativePath}.d.ts`), path.join(distPath, `${name}.d.ts`));
     }
-  }
+  });
 
   const aliases = fs.readdirSync(srcPath, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   const assetImport = new RegExp(`^import\\s+['"][^'"]+\\.(${assetExtensions.concat('css', 'scss', 'sass', 'less', 'json').join('|')})['"];?\\n`, 'gm');
