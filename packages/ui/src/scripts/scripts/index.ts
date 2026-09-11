@@ -208,7 +208,7 @@ export function generateTypeDefinitions(configuration: {
   generatedTypeDefinitionsContent += '  /**\n   * Adds native autocomplete for `data-layout` attribute to all React elements.\n   */\n';
   generatedTypeDefinitionsContent += '  namespace React {';
   generatedTypeDefinitionsContent += '\n';
-  generatedTypeDefinitionsContent += '    interface HTMLAttributes<T> extends AriaAttributes, DOMAttributes<T> {';
+  generatedTypeDefinitionsContent += '    interface HTMLAttributes<T> extends React.AriaAttributes, React.DOMAttributes<T> {';
   generatedTypeDefinitionsContent += '\n';
   generatedTypeDefinitionsContent += '      \'data-layout\'?: Shorthand | `${';
   generatedTypeDefinitionsContent += 'Breakpoint}:${';

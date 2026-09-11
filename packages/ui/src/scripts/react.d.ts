@@ -179,7 +179,7 @@ declare namespace React {
   /**
    * Adds native autocomplete for `data-layout` attribute to all React elements.
    */
-  interface HTMLAttributes<T> extends AriaAttributes, DOMAttributes<T> {
+  interface HTMLAttributes<T> extends React.AriaAttributes, React.DOMAttributes<T> {
     'data-layout'?: Shorthand | `${Breakpoint}:${Shorthand}` | (string & Record<never, never>);
   }
 }
