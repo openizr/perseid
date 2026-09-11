@@ -1,9 +1,11 @@
+@use '../mixins';
+
 .button {
-  @include resp(m) {
+  @include mixins.resp(m) {
     padding: 16px 20px;
   }
 
-  @include resp(l) {
+  @include mixins.resp(l) {
     width: auto;
   }
 }

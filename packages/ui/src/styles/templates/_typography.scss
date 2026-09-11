@@ -6,6 +6,8 @@
  *
  */
 
+@use '../core' as *;
+
 .ui-title {
   font-family: var(--ff-title);
 

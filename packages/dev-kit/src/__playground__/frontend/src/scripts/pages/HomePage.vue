@@ -1,11 +1,10 @@
 <!-- Home page. -->
 
 <script lang="ts" setup>
-import { type Locale } from 'basx/i18n';
 import AppMessage from 'scripts/components/AppMessage.vue';
 
 defineProps<{
-  locale: Locale;
+  locale: Record<string, string>;
 }>();
 </script>
 

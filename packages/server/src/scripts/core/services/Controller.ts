@@ -17,30 +17,21 @@ import {
   type ObjectSchema,
   type StringSchema,
   type BinarySchema,
+  type UserDataModel,
   type BooleanSchema,
-  type DefaultDataModel,
 } from '@perseid/core';
 import os from 'os';
 import { join } from 'path';
-import jwt from 'jsonwebtoken';
 import ajvErrors from 'ajv-errors';
 import multiparty from 'multiparty';
 import { createWriteStream } from 'fs';
 import { type IncomingMessage } from 'http';
-import Logger from 'scripts/core/services/Logger';
+import { PerseidError } from '@perseid/core';
 import Ajv, { type KeywordDefinition } from 'ajv';
-import NotFound from 'scripts/core/errors/NotFound';
-import Conflict from 'scripts/core/errors/Conflict';
-import EngineError from 'scripts/core/errors/Engine';
-import Forbidden from 'scripts/core/errors/Forbidden';
-import BadRequest from 'scripts/core/errors/BadRequest';
-import type BaseModel from 'scripts/core/services/Model';
-import DatabaseError from 'scripts/core/errors/Database';
-import Unauthorized from 'scripts/core/errors/Unauthorized';
-import NotAcceptable from 'scripts/core/errors/NotAcceptable';
-import type UsersEngine from 'scripts/core/services/UsersEngine';
-import UnprocessableEntity from 'scripts/core/errors/UnprocessableEntity';
-import RequestEntityTooLarge from 'scripts/core/errors/RequestEntityTooLarge';
+import type Model from 'scripts/core/services/Model';
+import Telemetry from 'scripts/core/services/Telemetry';
+import ControllerError from 'scripts/core/errors/Controller';
+import type AuthEngine from 'scripts/core/services/AuthEngine';
 
 interface Validate { errors: { keyword: string; }[]; }
 
@@ -51,10 +42,29 @@ const parseValueToInt = (value: string): number => parseInt(value, 10);
  * Uploaded file.
  */
 export interface UploadedFile {
+  /**
+   * File unique identifier.
+   */
   id: string;
+
+  /**
+   * File size, in bytes.
+   */
   size: number;
+
+  /**
+   * File MIME type.
+   */
   type: string;
+
+  /**
+   * File path.
+   */
   path: string;
+
+  /**
+   * File name.
+   */
   name: string;
 }
 
@@ -67,99 +77,205 @@ export type FormDataFields = Record<string, string | UploadedFile[]>;
  * Multipart/form-data parser options.
  */
 export interface FormDataOptions {
+  /**
+   * Maximum number of allowed fields. Defaults to 1000.
+   */
   maxFields?: number;
-  maxFileSize?: number;
+
+  /**
+   * Maximum allowed size per field, in bytes. Defaults to 2MB.
+   */
+  maxFieldSize?: number;
+
+  /**
+   * Maximum total size, in bytes. Defaults to 10MB.
+   */
   maxTotalSize?: number;
-  maxFieldsSize?: number;
+
+  /**
+   * List of allowed MIME types for files.
+   */
   allowedMimeTypes?: string[];
 }
 
-/** Built-in endpoint type. */
-export type EndpointType = 'search' | 'view' | 'list' | 'create' | 'update' | 'delete';
+/**
+ * Built-in endpoint type.
+ */
+export type EndpointType = (
+  'search'
+  | 'view'
+  | 'list'
+  | 'create'
+  | 'update'
+  | 'delete'
+);
 
-/** Build-in endpoint configuration. */
+/**
+ * Build-in endpoint configuration.
+ */
 export interface BuiltInEndpoint {
-  /** API route for this endpoint. */
+  /**
+   * API path on which to expose this endpoint.
+   */
   path: string;
 
-  /** Maximum allowed level of resources depth for this endpoint. */
+  /**
+   * Maximum allowed level of resources depth for this endpoint.
+   */
   maximumDepth?: number;
 }
 
 /**
  * Custom endpoint configuration.
  */
-export interface CustomEndpoint<DataModel extends DefaultDataModel> {
-  /** Whether to authenticate user for that endpoint. */
-  authenticate?: boolean;
-
-  /**
-   * Whether to ignore access token expiration. Useful for endpoints like refresh token.
-   * Defaults to `false`.
-   */
-  ignoreExpiration?: boolean;
-
+export interface CustomEndpoint {
   /**
    * Request body model schema, for data validation.
    */
   body?: {
-    /** Whether to allow partial payloads, or require all fields. */
-    allowPartial?: boolean;
+    /**
+     * Whether to allow partial payloads, or require all fields. Defaults to `true`.
+     * - When partial payloads are allowed, non-required fields won't take any default value
+     * - In the other case, non-required fields will take a default value of `null`
+     *
+     * For instance, on resource creation, if a non-required field is not provided in the request
+     * body, it will be automatically set to `null`. On resource update however, that same field
+     * will simply not exist in the payload.
+     */
+    requireAllFields?: boolean;
 
-    /** Body fields schemas. */
-    fields: Record<string, FieldSchema<DataModel>>;
+    /**
+     * Body fields schemas.
+     */
+    fields: Record<string, FieldSchema<Record<string, unknown>>>;
   };
 
   /**
    * Request query model schema, for data validation.
    */
   query?: {
-    /** Whether to allow partial payloads, or require all fields. */
-    allowPartial?: boolean;
+    /**
+     * Whether to allow partial payloads, or require all fields. Defaults to `false`.
+     * - When partial payloads are allowed, non-required fields won't take any default value
+     * - In the other case, non-required fields will take a default value of `null`
+     *
+     * For instance, on resource creation, if a non-required field is not provided in the request
+     * body, it will be automatically set to `null`. On resource update however, that same field
+     * will simply not exist in the payload.
+     */
+    requireAllFields?: boolean;
 
-    /** Query fields schemas. */
-    fields: Record<string, FieldSchema<DataModel>>;
+    /**
+     * Query fields schemas.
+     */
+    fields: Record<string, FieldSchema<Record<string, unknown>>>;
   };
 
   /**
    * Request headers model schema, for data validation.
    */
   headers?: {
-    /** Whether to allow partial payloads, or require all fields. */
-    allowPartial?: boolean;
+    /**
+     * Whether to allow partial payloads, or require all fields. Defaults to `true`.
+     * - When partial payloads are allowed, non-required fields won't take any default value
+     * - In the other case, non-required fields will take a default value of `null`
+     *
+     * For instance, on resource creation, if a non-required field is not provided in the request
+     * body, it will be automatically set to `null`. On resource update however, that same field
+     * will simply not exist in the payload.
+     */
+    requireAllFields?: boolean;
 
-    /** Headers fields schemas. */
-    fields: Record<string, FieldSchema<DataModel>>;
+    /**
+     * Headers fields schemas.
+     */
+    fields: Record<string, FieldSchema<Record<string, unknown>>>;
   };
 
   /**
    * Request params model schema, for data validation.
    */
   params?: {
-    /** Whether to allow partial payloads, or require all fields. */
-    allowPartial?: boolean;
+    /**
+     * Whether to allow partial payloads, or require all fields. Defaults to `true`.
+     * - When partial payloads are allowed, non-required fields won't take any default value
+     * - In the other case, non-required fields will take a default value of `null`
+     *
+     * For instance, on resource creation, if a non-required field is not provided in the request
+     * body, it will be automatically set to `null`. On resource update however, that same field
+     * will simply not exist in the payload.
+     */
+    requireAllFields?: boolean;
 
-    /** Params fields schemas. */
-    fields: Record<string, FieldSchema<DataModel>>;
+    /**
+     * Params fields schemas.
+     */
+    fields: Record<string, FieldSchema<Record<string, unknown>>>;
   };
 }
 
-/** Built-in endpoints to register for a specific resource type. */
+/**
+ * Built-in endpoints to register for a specific resource type.
+ */
 export type ResourceBuiltInEndpoints = Partial<Record<EndpointType, BuiltInEndpoint>>;
 
-/** List of all available built-in endpoints. */
+/**
+ * List of all available built-in endpoints.
+ */
 export interface BuiltInEndpoints<DataModel> {
+  /**
+   * Auth-related endpoints.
+   */
   auth: {
+    /**
+     * Sign-up endpoint.
+     */
     signUp?: BuiltInEndpoint;
+
+    /**
+     * Sign-in endpoint.
+     */
     signIn?: BuiltInEndpoint;
+
+    /**
+     * User info endpoint.
+     */
     viewMe?: BuiltInEndpoint;
+
+    /**
+     * Sign-out endpoint.
+     */
     signOut?: BuiltInEndpoint;
+
+    /**
+     * Email verification endpoint.
+     */
     verifyEmail?: BuiltInEndpoint;
+
+    /**
+     * Access token refresh endpoint.
+     */
     refreshToken?: BuiltInEndpoint;
+
+    /**
+     * Password reset endpoint.
+     */
     resetPassword?: BuiltInEndpoint;
+
+    /**
+     * Password reset request endpoint.
+     */
     requestPasswordReset?: BuiltInEndpoint;
+
+    /**
+     * Email verification request endpoint.
+     */
     requestEmailVerification?: BuiltInEndpoint;
   };
+
+  /**
+   * Resources-related endpoints.
+   */
   resources: Partial<Record<keyof DataModel, ResourceBuiltInEndpoints>>;
 }
 
@@ -204,15 +320,54 @@ export interface AjvValidationSchema {
  * Controller settings.
  */
 export interface ControllerSettings<DataModel> {
-  /** Release version. Will be sent back along with responses through the "X-Api-Version" header. */
+  /**
+   * Release version. Will be sent back along with responses through the "X-Api-Version" header.
+   */
   version: string;
 
-  /** List of built-in endpoints to register. */
+  /**
+   * List of built-in endpoints to register.
+   */
   endpoints: BuiltInEndpoints<DataModel>;
 
-  /** Whether to automatically handle CORS (usually in development mode). */
+  /**
+   * Whether to automatically handle CORS (usually in development mode).
+   */
   handleCORS: boolean;
+
+  /**
+   * Whether to instrument all endpoints with OpenTelemetry. If set to `false`, only endpoints
+   * created using `createEndpoint` will be wrapped within a span, and global requests won't be
+   * instrumented. If you want to manually instrument global requests, you can link Perseid endpoint
+   * root span to the global request span by adding a `telemetry` property to the request object,
+   * containing the parent span to which you want to link the endpoint root span.
+   *
+   * @example
+   * ```ts
+   * const request = new FastifyRequest({
+   *   method: 'GET',
+   *   url: '/api/v1/users',
+   * });
+   * request.telemetry = { span: parentSpan };
+   */
+  instrumentEndpoints: boolean;
 }
+
+/**
+ * List of available HTTP status codes for responses.
+ */
+export const HTTP_STATUS_CODES = {
+  GONE: 410,
+  CONFLICT: 409,
+  NOT_FOUND: 404,
+  FORBIDDEN: 403,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  NOT_ACCEPTABLE: 406,
+  TOO_MANY_REQUESTS: 429,
+  UNPROCESSABLE_ENTITY: 422,
+  REQUEST_ENTITY_TOO_LARGE: 413,
+};
 
 /**
  * Abstract controller, to use as a blueprint for framework-specific implementations.
@@ -220,70 +375,96 @@ export interface ControllerSettings<DataModel> {
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/core/services/Controller.ts
  */
 export default class Controller<
-  /** Data model types definitions. */
-  DataModel extends DefaultDataModel = DefaultDataModel,
+  /**
+   * Data model type definition.
+   */
+  DataModelType extends UserDataModel = UserDataModel,
 
-  /** Model class types definitions. */
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  /**
+   * Telemetry system type definition.
+   */
+  TelemetryType extends Telemetry = Telemetry,
 
-  /** Database client types definition. */
-  Engine extends UsersEngine<DataModel> = UsersEngine<DataModel>,
+  /**
+   * Model class type definition.
+   */
+  ModelType extends Model<DataModelType> = Model<DataModelType>,
+
+  /**
+   * Database client types definition.
+   */
+  EngineType extends AuthEngine<DataModelType> = AuthEngine<DataModelType>,
 > {
-  /** HTTP 404 error code. */
-  protected readonly NOT_FOUND_CODE = 'NOT_FOUND';
-
-  /** `fields` built-in query param schema. */
-  protected readonly FIELDS_QUERY_PARAM_SCHEMA: StringSchema = {
-    type: 'string',
-    pattern: /^([^ ]+)(,([^ ]+))*$/,
-    errorMessages: {
-      type: 'must be a coma-separated list of fields paths',
-      pattern: 'must be a coma-separated list of fields paths',
+  /**
+   * Common headers to require for all requests. Defaults to 'User-Agent' and 'X-Device-Id' headers.
+   */
+  protected readonly COMMON_HEADERS: Record<string, FieldSchema<unknown>> = {
+    'user-agent': {
+      type: 'string',
+      isRequired: true,
+      description: 'User Agent',
+      maxLength: 500,
+      errorMessages: {
+        type: 'must be a valid user agent',
+      },
+    },
+    'x-device-id': {
+      type: 'string',
+      isRequired: true,
+      maxLength: 255,
+      description: 'Device ID',
+      errorMessages: {
+        type: 'must be a valid device id',
+        pattern: 'must be a valid device id',
+      },
     },
   };
 
-  /** `limit` built-in query param schema. */
-  protected readonly LIMIT_QUERY_PARAM_SCHEMA: NumberSchema = {
-    type: 'integer',
-    minimum: 0,
-    maximum: 100,
-    errorMessages: {
-      type: 'must be a valid length',
-      minimum: 'must be valid length',
-      maximum: 'cannot be greater than 100',
-    },
-  };
+  /**
+   * List of known engine/database errors and their corresponding error message/code to send back.
+   * For instance, if the engine throws a `NO_RESOURCE` error, the controller will generate a
+   * clean 404 HTTP response containing additional details.
+   */
+  protected readonly KNOWN_ERRORS: Partial<Record<string, (error: PerseidError) => (
+    [number, string, string]
+  )>> = {
+      FORBIDDEN: (error) => [
+        HTTP_STATUS_CODES.FORBIDDEN,
+        error.code,
+        (error.details.permission === null)
+          ? 'You are not allowed to perform this operation.'
+          : `You are missing "${error.details.permission as string}" permission to perform this operation.`,
+      ],
+      NO_USER: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'User not found.'],
+      INVALID_DEVICE_ID: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid device id.'],
+      INVALID_TOKEN: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid access token.'],
+      PASSWORDS_MISMATCH: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, 'Passwords mismatch.'],
+      INVALID_CREDENTIALS: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid credentials.'],
+      TOKEN_EXPIRED: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Access token has expired.'],
+      EMAIL_ALREADY_VERIFIED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, 'Email already verified.'],
+      INVALID_RESET_TOKEN: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid or expired reset token.'],
+      INVALID_REFRESH_TOKEN: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid or expired refresh token.'],
+      TOO_MANY_FIELDS: (error) => [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY, error.code, 'Maximum number of fields exceeded.'],
+      FILES_TOO_LARGE: (error) => [HTTP_STATUS_CODES.REQUEST_ENTITY_TOO_LARGE, error.code, 'Maximum total files size exceeded.'],
+      INVALID_VERIFICATION_TOKEN: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid or expired verification token.'],
+      MISSING_CONTENT_TYPE_HEADER: (error) => [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY, error.code, 'Missing "Content-Type" header.'],
+      FIELD_TOO_LARGE: (error) => [HTTP_STATUS_CODES.REQUEST_ENTITY_TOO_LARGE, error.code, 'Maximum non-file fields size exceeded.'],
+      UNINDEXED_FIELD: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Field "${String(error.details.path)}" is not indexed.`],
+      UNSORTABLE_FIELD: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Field "${String(error.details.path)}" is not sortable.`],
+      UNKNOWN_QUERY_FIELD: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Requested field "${String(error.details.path)}" does not exist.`],
+      USER_NOT_VERIFIED: (error) => [HTTP_STATUS_CODES.FORBIDDEN, error.code, 'Please verify your email address before performing this operation.'],
+      RESOURCE_REFERENCED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Resource is still referenced in "${String(error.details.path)}".`],
+      DUPLICATE_RESOURCE: (error) => [HTTP_STATUS_CODES.CONFLICT, error.code, `Resource with field value "${String(error.details.value)}" already exists.`],
+      INVALID_SORT_QUERY: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, '"query.sortBy" and "query.sortOrder" must contain the same number of items.'],
+      FILE_TOO_LARGE: (error) => [HTTP_STATUS_CODES.REQUEST_ENTITY_TOO_LARGE, error.code, `Maximum size exceeded for file "${String(error.details.filename)}".`],
+      MAXIMUM_DEPTH_EXCEEDED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Maximum level of depth exceeded for field "${String(error.details.path)}".`],
+      INVALID_FILE_TYPE: (error) => [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY, error.code, `Invalid file type "${String(error.details.contentType)}" for file "${String(error.details.filename)}".`],
+      NO_RESOURCE: (error) => [HTTP_STATUS_CODES.NOT_FOUND, error.code, `Resource with id "${String(error.details.id)}" does not exist or does not match required criteria.`],
+    };
 
-  /** `offset` built-in query param schema. */
-  protected readonly OFFSET_QUERY_PARAM_SCHEMA: NumberSchema = {
-    type: 'integer',
-    minimum: 0,
-    errorMessages: {
-      type: 'must be a valid offset',
-      minimum: 'must be valid offset',
-    },
-  };
-
-  /** `sortBy` built-in query param schema. */
-  protected readonly SORT_BY_QUERY_PARAM_SCHEMA: StringSchema = {
-    type: 'string',
-    pattern: /^([^ ]+)(,([^ ]+))*$/,
-    errorMessages: {
-      type: 'must be a coma-separated list of fields paths',
-      pattern: 'must be a coma-separated list of fields paths',
-    },
-  };
-
-  /** `sortOrder` built-in query param schema. */
-  protected readonly SORT_ORDER_QUERY_PARAM_SCHEMA: StringSchema = {
-    type: 'string',
-    pattern: /^(-1|1)(,(-1|1))*$/,
-    errorMessages: {
-      type: 'must be a coma-separated list of sorting orders',
-    },
-  };
-
-  /** List of special Ajv keywords, used to format special types on the fly. */
+  /**
+   * List of special Ajv keywords, used to format special types on the fly.
+   */
   protected readonly AJV_KEYWORDS: KeywordDefinition[] = [
     {
       keyword: 'isBinary',
@@ -339,7 +520,10 @@ export default class Controller<
         if ((schema as { type?: string[]; }).type?.[1] === 'null' && value === null) {
           return true;
         }
-        if (!/^[0-9a-fA-F]{24}$/.test(String(value))) {
+        if (
+          (Id.FORMAT === 'SNOWFLAKE' && !/^[0-9a-fA-F]{24}$/.test(String(value)))
+          || (Id.FORMAT === 'UUID' && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(String(value)))
+        ) {
           (validate as unknown as Validate).errors.push({ keyword: 'pattern' });
           return false;
         }
@@ -356,24 +540,30 @@ export default class Controller<
     } as KeywordDefinition,
   ];
 
-  /** List of Ajv formatters, used to format a perseid data model into its Ajv equivalent. */
+  /**
+   * List of Ajv formatters, used to format a perseid data model into its Ajv equivalent.
+   */
   protected readonly AJV_FORMATTERS: Record<string, (
-    model: FieldSchema<DataModel>,
+    model: FieldSchema<Record<string, unknown>>,
     requireAllFields: boolean,
+    isRoot?: boolean,
   ) => AjvValidationSchema> = {
       null() {
         return { type: 'null', errorMessage: {} };
       },
-      id(schema) {
+      id(schema, requireAllFields) {
         const {
           isRequired,
           errorMessages,
           enum: enumerations,
-        } = schema as IdSchema<DataModel>;
+        } = schema as IdSchema<DataModelType>;
         const fieldSchema: AjvValidationSchema = {
           isId: true,
-          pattern: /^[0-9a-fA-F]{24}$/.source,
+          pattern: (Id.FORMAT === 'SNOWFLAKE')
+            ? /^[0-9a-fA-F]{24}$/.source
+            : /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.source,
           type: isRequired ? 'string' : ['string', 'null'],
+          default: !isRequired && requireAllFields ? null : undefined,
         };
         fieldSchema.errorMessage = errorMessages ?? {};
         fieldSchema.errorMessage.type ??= `must be a valid id${isRequired ? '' : ', or null'}`;
@@ -387,30 +577,35 @@ export default class Controller<
         }
         return fieldSchema;
       },
-      binary(schema) {
+      binary(schema, requireAllFields) {
         const { errorMessages, isRequired } = schema as BinarySchema;
         const fieldSchema: AjvValidationSchema = {
           minLength: 10,
           isBinary: true,
           type: isRequired ? 'string' : ['string', 'null'],
+          default: !isRequired && requireAllFields ? null : undefined,
         };
         fieldSchema.errorMessage = errorMessages ?? {};
         fieldSchema.errorMessage.type ??= `must be a base64-encoded binary${isRequired ? '' : ', or null'}`;
         return fieldSchema;
       },
-      boolean(schema) {
+      boolean(schema, requireAllFields) {
         const { errorMessages, isRequired } = schema as BooleanSchema;
-        const fieldSchema: AjvValidationSchema = { type: isRequired ? 'boolean' : ['boolean', 'null'] };
+        const fieldSchema: AjvValidationSchema = {
+          type: isRequired ? 'boolean' : ['boolean', 'null'],
+          default: !isRequired && requireAllFields ? null : undefined,
+        };
         fieldSchema.errorMessage = errorMessages ?? {};
-        fieldSchema.errorMessage.type ??= `must be a boolean${schema.isRequired ? '' : ', or null'}`;
+        fieldSchema.errorMessage.type ??= `must be a boolean${isRequired ? '' : ', or null'}`;
         return fieldSchema;
       },
-      date(schema) {
+      date(schema, requireAllFields) {
         const { enum: enumerations, errorMessages, isRequired } = schema as DateSchema;
         const fieldSchema: AjvValidationSchema = {
           isDate: true,
           type: isRequired ? 'string' : ['string', 'null'],
           pattern: /[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z/.source,
+          default: !isRequired && requireAllFields ? null : undefined,
         };
         fieldSchema.errorMessage = errorMessages ?? {};
         fieldSchema.errorMessage.type ??= `must be a valid date${isRequired ? '' : ', or null'}`;
@@ -424,7 +619,7 @@ export default class Controller<
         }
         return fieldSchema;
       },
-      float(schema) {
+      float(schema, requireAllFields) {
         const {
           minimum,
           maximum,
@@ -435,7 +630,10 @@ export default class Controller<
           exclusiveMaximum,
           enum: enumerations,
         } = schema as NumberSchema;
-        const fieldSchema: AjvValidationSchema = { type: isRequired ? 'number' : ['number', 'null'] };
+        const fieldSchema: AjvValidationSchema = {
+          type: isRequired ? 'number' : ['number', 'null'],
+          default: !isRequired && requireAllFields ? null : undefined,
+        };
         fieldSchema.errorMessage = errorMessages ?? {};
         fieldSchema.errorMessage.type ??= `must be a float${isRequired ? '' : ', or null'}`;
         if (minimum !== undefined) {
@@ -467,7 +665,7 @@ export default class Controller<
         }
         return fieldSchema;
       },
-      integer(schema) {
+      integer(schema, requireAllFields) {
         const {
           minimum,
           maximum,
@@ -478,7 +676,10 @@ export default class Controller<
           exclusiveMaximum,
           enum: enumerations,
         } = schema as NumberSchema;
-        const fieldSchema: AjvValidationSchema = { type: isRequired ? 'integer' : ['integer', 'null'] };
+        const fieldSchema: AjvValidationSchema = {
+          type: isRequired ? 'integer' : ['integer', 'null'],
+          default: !isRequired && requireAllFields ? null : undefined,
+        };
         fieldSchema.errorMessage = errorMessages ?? {};
         fieldSchema.errorMessage.type ??= `must be an integer${isRequired ? '' : ', or null'}`;
         if (minimum !== undefined) {
@@ -510,7 +711,7 @@ export default class Controller<
         }
         return fieldSchema;
       },
-      string(schema) {
+      string(schema, requireAllFields) {
         const {
           pattern,
           maxLength,
@@ -520,13 +721,14 @@ export default class Controller<
           enum: enumerations,
         } = schema as StringSchema;
         const realMinLength = isRequired ? Math.max(minLength ?? 1, 1) : minLength;
-        const fieldSchema: AjvValidationSchema = { type: isRequired ? 'string' : ['string', 'null'] };
+        const fieldSchema: AjvValidationSchema = {
+          type: isRequired ? 'string' : ['string', 'null'],
+          default: !isRequired && requireAllFields ? null : undefined,
+        };
         fieldSchema.errorMessage = errorMessages ?? {};
         fieldSchema.errorMessage.type ??= `must be a string${isRequired ? '' : ', or null'}`;
-        if (maxLength !== undefined) {
-          fieldSchema.maxLength = maxLength;
-          fieldSchema.errorMessage.maxLength ??= `must be no longer than ${String(maxLength)} characters`;
-        }
+        fieldSchema.maxLength = maxLength;
+        fieldSchema.errorMessage.maxLength ??= `must be no longer than ${String(maxLength)} characters`;
         if (realMinLength !== undefined) {
           fieldSchema.minLength = realMinLength;
           fieldSchema.errorMessage.minLength ??= `must be no shorter than ${String(realMinLength)} characters`;
@@ -544,12 +746,12 @@ export default class Controller<
         }
         return fieldSchema;
       },
-      object: (schema, requireAllFields) => {
+      object: (schema, requireAllFields, isRoot = true) => {
         const {
           fields,
           isRequired,
           errorMessages,
-        } = schema as ObjectSchema<DataModel>;
+        } = schema as ObjectSchema<DataModelType>;
         const requiredFields: string[] = [];
         const requireAllSubfields = requireAllFields || !isRequired;
         const exposedFields = Object.keys(fields).filter((fieldName) => {
@@ -562,9 +764,10 @@ export default class Controller<
         const fieldSchema: AjvValidationSchema = {
           additionalProperties: false,
           type: isRequired ? 'object' : ['object', 'null'],
+          default: !isRoot && !isRequired && requireAllFields ? null : undefined,
           properties: exposedFields.reduce((properties, key) => ({
             ...properties,
-            [key]: this.AJV_FORMATTERS[fields[key].type](fields[key], requireAllSubfields),
+            [key]: this.AJV_FORMATTERS[fields[key].type](fields[key], requireAllSubfields, false),
           }), {}),
         };
         fieldSchema.errorMessage = errorMessages ?? {};
@@ -574,7 +777,7 @@ export default class Controller<
         }
         return fieldSchema;
       },
-      array: (schema) => {
+      array: (schema, requireAllFields) => {
         const {
           fields,
           maxItems,
@@ -582,12 +785,13 @@ export default class Controller<
           isRequired,
           uniqueItems,
           errorMessages,
-        } = schema as ArraySchema<DataModel>;
+        } = schema as ArraySchema<DataModelType>;
         const fieldSchema: AjvValidationSchema = {
           minItems,
           maxItems,
           type: isRequired ? 'array' : ['array', 'null'],
-          items: this.AJV_FORMATTERS[fields.type](fields, true),
+          default: !isRequired && requireAllFields ? null : undefined,
+          items: this.AJV_FORMATTERS[fields.type](fields, true, false),
         };
         fieldSchema.errorMessage = errorMessages ?? {};
         fieldSchema.errorMessage.type ??= `must be a valid array${isRequired ? '' : ', or null'}`;
@@ -609,72 +813,72 @@ export default class Controller<
       },
     };
 
-  /** Data model to use. */
-  protected model: Model;
+  /**
+   * Model instance to use.
+   */
+  protected model: ModelType;
 
-  /** Logging system to use. */
-  protected logger: Logger;
+  /**
+   * Telemetry instance to use.
+   */
+  protected telemetry: TelemetryType;
 
-  /** Engine to use. */
-  protected engine: Engine;
+  /**
+   * Engine instance to use.
+   */
+  protected engine: EngineType;
 
-  /** Release version. Will be sent back along with responses through the "X-Api-Version" header. */
+  /**
+   * Release version. Will be sent back along with responses through the "X-Api-Version" header.
+   */
   protected version: string;
 
-  /** List of built-in endpoints to register. */
-  protected endpoints: BuiltInEndpoints<DataModel>;
+  /**
+   * List of built-in endpoints to register.
+   */
+  protected endpoints: BuiltInEndpoints<DataModelType>;
 
-  /** Parses `value` into an integer. */
+  /**
+   * Parses `value` into an integer.
+   */
   protected parseInt = parseValueToInt;
 
-  /** Used to format ArrayBuffers into strings. */
+  /**
+   * Used to format ArrayBuffers into strings.
+   */
   protected textDecoder = new TextDecoder('utf-8');
 
-  /** Increment used for `multipart/form-data` payloads parsing. */
+  /**
+   * Increment used for `multipart/form-data` payloads parsing.
+   */
   protected increment = 0;
 
-  /** Ajv instance for payloads validation. */
+  /**
+   * Ajv instance for payloads validation.
+   */
   protected ajv: Ajv;
 
-  /** Whether to automatically handle CORS (usually in development mode). */
+  /**
+   * Whether to automatically handle CORS (usually in development mode).
+   */
   protected handleCORS: boolean;
 
   /**
-   * Handles HTTP 404 errors.
+   * Whether to instrument all endpoints with OpenTelemetry. If set to `false`, only endpoints
+   * created using `createEndpoint` will be wrapped within a span, and global requests won't be
+   * instrumented. If you want to manually instrument global requests, you can link Perseid endpoint
+   * root span to the global request span by adding a `telemetry` property to the request object,
+   * containing the parent span to which you want to link the endpoint root span.
+   *
+   * @example
+   * ```ts
+   * const request = new FastifyRequest({
+   *   method: 'GET',
+   *   url: '/api/v1/users',
+   * });
+   * request.telemetry = { span: parentSpan };
    */
-  protected handleNotFound(): void {
-    throw new NotFound(this.NOT_FOUND_CODE, 'Not Found.');
-  }
-
-  /**
-   * Formats `error`.
-   *
-   * @param error Error to format.
-   *
-   * @param payloadType Type of payload that failed validation.
-   *
-   * @returns Formatted error.
-   */
-  protected formatError(error: unknown, payloadType: string): BadRequest {
-    this.logger.silent('');
-
-    let { message } = error as { message?: string; };
-    const { keyword, instancePath, params } = error as {
-      keyword?: string;
-      instancePath?: string;
-      params?: Record<string, unknown>;
-    };
-
-    const fullPath = `${payloadType}${(String(instancePath)).replace(/\//g, '.')}`;
-    message = `"${fullPath}" ${message as unknown as string}.`;
-    if (keyword === 'required') {
-      message = `"${fullPath}.${params?.missingProperty as string}" is required.`;
-    } else if (keyword === 'additionalProperties') {
-      message = `Unknown field "${fullPath}.${params?.additionalProperty as string}".`;
-    }
-
-    return new BadRequest('INVALID_PAYLOAD', message);
-  }
+  protected instrumentEndpoints: boolean;
 
   /**
    * Formats `output` to match fastify data types specifications.
@@ -697,10 +901,10 @@ export default class Controller<
       return this.textDecoder.decode(output);
     }
     if (isPlainObject(output)) {
-      return Object.keys(output as Record<string, unknown>)
+      return Object.keys(output)
         .reduce((formattedResource, key) => ({
           ...formattedResource,
-          [key]: this.formatOutput((output as Record<string, unknown>)[key]),
+          [key]: this.formatOutput((output)[key]),
         }), {});
     }
     return output;
@@ -732,8 +936,7 @@ export default class Controller<
         const sortOrder = query.sortOrder?.split(',').map(this.parseInt) ?? [];
 
         if (sortBy.length !== sortOrder.length) {
-          const message = '"query.sortBy" and "query.sortOrder" must contain the same number of items.';
-          throw new BadRequest('INVALID_PAYLOAD', message);
+          throw new ControllerError('INVALID_SORT_QUERY');
         }
 
         parsedQuery[key] = sortBy.reduce((finalSortBy, path, index) => ({
@@ -752,13 +955,19 @@ export default class Controller<
    *
    * @param payload Request payload.
    *
-   * @param options Parser options. Defaults to `{
-   *  allowedMimeTypes: [],
-   *  maxTotalSize: 10000000,
-   *  maxFileSize: 2000000,
-   * }`.
+   * @param options Parser options.
    *
    * @returns Parsed payload.
+   *
+   * @throws If any of the field is too large.
+   *
+   * @throws If the payload contains too many fields.
+   *
+   * @throws If the payload is missing the "Content-Type" header.
+   *
+   * @throws If the payload contains an invalid field type.
+   *
+   * @throws If total size of the payload is too large.
    */
   protected parseFormData(
     payload: IncomingMessage,
@@ -767,8 +976,8 @@ export default class Controller<
     let totalSize = 0;
     let totalFiles = 0;
     const allowedMimeTypes = options.allowedMimeTypes ?? [];
-    const maxTotalSize = options.maxTotalSize ?? 10000000;
-    const maxFileSize = options.maxFileSize ?? 2000000;
+    const maxTotalSize = options.maxTotalSize ?? 10 * 1024 * 1024;
+    const maxFieldSize = options.maxFieldSize ?? 2 * 1024 * 1024;
     return new Promise((resolve, reject) => {
       const fields: FormDataFields = {};
       let parserClosed = false;
@@ -777,7 +986,7 @@ export default class Controller<
 
       const parser = new multiparty.Form({
         maxFields: options.maxFields,
-        maxFieldsSize: options.maxFieldsSize,
+        maxFieldsSize: options.maxTotalSize,
       });
 
       parser.on('close', () => {
@@ -795,11 +1004,11 @@ export default class Controller<
       // Global payload errors handling.
       parser.on('error', (error) => {
         if (/maxFieldsSize/i.test(error.message)) {
-          reject(new RequestEntityTooLarge('FIELD_TOO_LARGE', 'Maximum non-file fields size exceeded.'));
+          reject(new ControllerError('FIELD_TOO_LARGE'));
         } else if (/maxFields/i.test(error.message)) {
-          reject(new RequestEntityTooLarge('TOO_MANY_FIELDS', 'Maximum number of fields exceeded.'));
+          reject(new ControllerError('TOO_MANY_FIELDS'));
         } else if (/missing content-type header/i.test(error.message)) {
-          reject(new UnprocessableEntity('MISSING_CONTENT_TYPE_HEADER', 'Missing "Content-Type" header.'));
+          reject(new ControllerError('MISSING_CONTENT_TYPE_HEADER'));
         } else {
           reject(error);
         }
@@ -810,7 +1019,7 @@ export default class Controller<
         numberOfParts += 1;
         const headers = part.headers as Record<string, string>;
         if (!allowedMimeTypes.includes(headers['content-type'])) {
-          reject(new BadRequest('INVALID_FILE_TYPE', `Invalid file type "${headers['content-type']}" for file "${part.filename}".`));
+          reject(new ControllerError('INVALID_FILE_TYPE'));
         } else {
           const fileIndex = totalFiles;
           totalFiles += 1;
@@ -846,10 +1055,10 @@ export default class Controller<
             totalSize += size;
             uploadedFiles[fileIndex].size += size;
             if (totalSize > maxTotalSize) {
-              reject(new RequestEntityTooLarge('FILES_TOO_LARGE', 'Maximum total files size exceeded.'));
+              reject(new ControllerError('FILES_TOO_LARGE'));
             }
-            if (uploadedFiles[fileIndex].size > maxFileSize) {
-              reject(new RequestEntityTooLarge('FILE_TOO_LARGE', `Maximum size exceeded for file "${part.filename}".`));
+            if (uploadedFiles[fileIndex].size > maxFieldSize) {
+              reject(new ControllerError('FILE_TOO_LARGE', { filename: part.filename }));
             }
             fileStream.write(stream);
           });
@@ -862,155 +1071,29 @@ export default class Controller<
   }
 
   /**
-   * Verifies `accessToken` and `deviceId` to authenticate a user.
-   *
-   * @param accessToken Access token to verify.
-   *
-   * @param deviceId Device id to verify.
-   *
-   * @param ignoreExpiration Whether to ignore errors when token has expired. Defaults to `false`.
-   *
-   * @returns Authenticated user.
-   *
-   * @throws If user specified in the access token does not exist, or if device does not exist
-   * for this user.
-   */
-  protected async auth(
-    accessToken: string,
-    deviceId: string,
-    ignoreExpiration = false,
-  ): Promise<DataModel['users']> {
-    let user: DataModel['users'];
-    const context = { deviceId } as CommandContext<DataModel>;
-    const userId = await this.engine.verifyToken(accessToken, ignoreExpiration, context);
-    // As `engine.generateContext` throws an error if user does not exist (e.g, a user that has just
-    //  been deleted, but tries to sign-in), we need to wrap the statement inside a try...catch.
-    try {
-      user = (await this.engine.generateContext(userId)).user;
-      if (!user._devices.some((device) => device._id === deviceId)) {
-        throw new EngineError('NO_RESOURCE');
-      }
-    } catch (error) {
-      if (error instanceof EngineError && error.code === 'NO_RESOURCE') {
-        throw new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.');
-      }
-      throw error;
-    }
-
-    return user;
-  }
-
-  /**
-   * Catches and handles most common API errors thrown by `callback`.
-   *
-   * @param callback Callback to wrap.
-   *
-   * @returns Wrapped callback.
-   */
-  protected async catchErrors<T>(callback: () => Promise<T>): Promise<T> {
-    try {
-      return await callback();
-    } catch (error) {
-      this.logger.silent('');
-      if (error instanceof jwt.TokenExpiredError) {
-        throw new Unauthorized('TOKEN_EXPIRED', 'Access token has expired.');
-      }
-      if (error instanceof jwt.JsonWebTokenError) {
-        throw new Unauthorized('INVALID_TOKEN', 'Invalid access token.');
-      }
-      if (error instanceof EngineError && error.code === 'INVALID_DEVICE_ID') {
-        throw new Unauthorized('INVALID_DEVICE_ID', 'Invalid device id.');
-      }
-      if (error instanceof EngineError && error.code === 'PASSWORDS_MISMATCH') {
-        throw new BadRequest('PASSWORDS_MISMATCH', 'Passwords mismatch.');
-      }
-      if (error instanceof EngineError && error.code === 'NO_USER') {
-        throw new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.');
-      }
-      if (error instanceof EngineError && error.code === 'INVALID_CREDENTIALS') {
-        throw new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.');
-      }
-      if (error instanceof EngineError && error.code === 'EMAIL_ALREADY_VERIFIED') {
-        throw new NotAcceptable('EMAIL_ALREADY_VERIFIED', 'User email is already verified.');
-      }
-      if (error instanceof EngineError && error.code === 'INVALID_VERIFICATION_TOKEN') {
-        throw new Unauthorized('INVALID_VERIFICATION_TOKEN', 'Invalid or expired verification token.');
-      }
-      if (error instanceof EngineError && error.code === 'INVALID_RESET_TOKEN') {
-        throw new Unauthorized('INVALID_RESET_TOKEN', 'Invalid or expired reset token.');
-      }
-      if (error instanceof EngineError && error.code === 'INVALID_REFRESH_TOKEN') {
-        throw new Unauthorized('INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token.');
-      }
-      if (error instanceof EngineError && error.code === 'NO_RESOURCE') {
-        const message = `Resource with id "${error.details.id as string}" does not exist or does not match required criteria.`;
-        throw new NotFound('NO_RESOURCE', message);
-      }
-      if (error instanceof EngineError && error.code === 'USER_NOT_VERIFIED') {
-        const message = 'Please verify your email address before performing this operation.';
-        throw new Forbidden('USER_NOT_VERIFIED', message);
-      }
-      if (error instanceof EngineError && error.code === 'FORBIDDEN') {
-        const message = (error.details.permission === null)
-          ? 'You are not allowed to perform this operation.'
-          : `You are missing "${error.details.permission as string}" permission to perform this operation.`;
-        throw new Forbidden('FORBIDDEN', message);
-      }
-      if (error instanceof EngineError && error.code === 'UNKNOWN_FIELD') {
-        throw new BadRequest('UNKNOWN_FIELD', `Requested field "${error.details.path as string}" does not exist.`);
-      }
-      if (error instanceof EngineError && error.code === 'MAXIMUM_DEPTH_EXCEEDED') {
-        const message = `Maximum level of depth exceeded for field "${error.details.path as string}".`;
-        throw new BadRequest('MAXIMUM_DEPTH_EXCEEDED', message);
-      }
-      if (error instanceof DatabaseError && error.code === 'DUPLICATE_RESOURCE') {
-        const message = `Resource with field value "${error.details.value as string}" already exists.`;
-        throw new Conflict('DUPLICATE_RESOURCE', message);
-      }
-      if (error instanceof DatabaseError && error.code === 'RESOURCE_REFERENCED') {
-        const message = `Resource is still referenced in "${error.details.path as string}".`;
-        throw new BadRequest('RESOURCE_REFERENCED', message);
-      }
-      if (error instanceof DatabaseError && error.code === 'NO_RESOURCE') {
-        const message = `Resource with id "${error.details.id as string}" does not exist or does not match required criteria.`;
-        throw new BadRequest('NO_RESOURCE', message);
-      }
-      if (error instanceof DatabaseError && error.code === 'UNSORTABLE_FIELD') {
-        const message = `Field "${error.details.path as string}" is not sortable.`;
-        throw new BadRequest('UNSORTABLE_FIELD', message);
-      }
-      if (error instanceof DatabaseError && error.code === 'UNINDEXED_FIELD') {
-        const message = `Field "${error.details.path as string}" is not indexed.`;
-        throw new BadRequest('UNINDEXED_FIELD', message);
-      }
-
-      throw error;
-    }
-  }
-
-  /**
    * Class constructor.
    *
    * @param model Data model to use.
    *
-   * @param logger Logging system to use.
+   * @param telemetry Logging system to use.
    *
    * @param engine Engine to use.
    *
    * @param settings Controller settings.
    */
   public constructor(
-    model: Model,
-    logger: Logger,
-    engine: Engine,
-    settings: ControllerSettings<DataModel>,
+    model: ModelType,
+    telemetry: TelemetryType,
+    engine: EngineType,
+    settings: ControllerSettings<DataModelType>,
   ) {
     this.model = model;
-    this.logger = logger;
     this.engine = engine;
+    this.telemetry = telemetry;
     this.version = settings.version;
     this.endpoints = settings.endpoints;
     this.handleCORS = settings.handleCORS;
+    this.instrumentEndpoints = settings.instrumentEndpoints;
     this.ajv = new Ajv({
       allErrors: true,
       useDefaults: true,
@@ -1021,5 +1104,35 @@ export default class Controller<
 
     // Adding Ajv keywords to handle special types...
     this.AJV_KEYWORDS.forEach((keyword) => this.ajv.addKeyword(keyword));
+
+    if (this.instrumentEndpoints) {
+      this.telemetry.createUpDownCounter('http.server.active_requests', {
+        valueType: 1, // DOUBLE
+        unit: '{request}',
+        description: 'Number of active HTTP server requests.',
+      });
+      this.telemetry.createHistogram('http.server.request.duration', {
+        description: 'Duration of HTTP server requests.',
+        unit: 's',
+        advice: {
+          explicitBucketBoundaries: [
+            0.005,
+            0.01,
+            0.025,
+            0.05,
+            0.075,
+            0.1,
+            0.25,
+            0.5,
+            0.75,
+            1,
+            2.5,
+            5,
+            7.5,
+            10,
+          ],
+        },
+      });
+    }
   }
 }

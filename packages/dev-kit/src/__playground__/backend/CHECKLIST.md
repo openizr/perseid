@@ -1,5 +1,10 @@
+# Package managers
+  `npm`
+  `yarn` 4 (node-modules linker)
+  `pnpm`
+
 # Yarn commands
-  Work on nodeJS 18+
+  Work on nodeJS 22+
   `yarn`
   `yarn run dev`
   `yarn run test`
@@ -11,7 +16,7 @@
   Finds mocked node modules in `src`
 
 # Development mode
-  ES7+ support
+  ES2022+ support
   ESLint Airbnb
   Watch mode
   Sourcemaps support
@@ -22,10 +27,10 @@
   Runs the generated bundle when `runInDev` is `true`
 
 # Production mode
-  ES7+ support
+  ES2022+ support
   ESLint Airbnb
   Optimized bundle
-  Transpiles to ES6
+  Transpiles to ES2022
   Sourcemaps support
   Checks TS/Svelte types
   Supports both TS and JS

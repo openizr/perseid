@@ -6,143 +6,130 @@
  *
  */
 
-import '../config/env.js';
+import {
+  resolveBin,
+  packageJson,
+  projectRootPath,
+  getDevKitConfig,
+} from '../helpers/project.js';
+import fs from 'fs';
 import path from 'path';
-import fs from 'fs-extra';
 import { build } from 'vite';
 import esbuild from 'esbuild';
 import colors from 'picocolors';
 import { fileURLToPath } from 'url';
-import viteConfig from '../config/vite.config.js';
-import checkFiles from '../helpers/checkFiles.js';
+import { spawnSync } from 'child_process';
+import { loadViteConfig } from '../vite.config.js';
+import { getEsbuildOptions, writeDistFiles, assetExtensions } from '../helpers/esbuild.js';
 
 const { log, error } = console;
-const projectRootPath = path.resolve(path.dirname(fileURLToPath(new URL(import.meta.url))), '../../../../');
-const packageJson = JSON.parse(fs.readFileSync(path.join(projectRootPath, 'package.json')));
-const readmePath = path.join(projectRootPath, 'README.md');
-const licensePath = path.join(projectRootPath, 'LICENSE');
-const { devKitConfig } = packageJson;
+const devKitConfig = getDevKitConfig();
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
 const distPath = path.join(projectRootPath, devKitConfig.distPath);
+const tsConfigPath = path.join(projectRootPath, 'tsconfig.json');
 
 /**
- * Runs `build` CLI command's script.
+ * Emits declaration files into `distPath`, laid out like esbuild's outputs (entries at the root,
+ * the rest mirroring `srcPath`). Absolute imports (`scripts/...`) are rewritten to relative ones and assets imports dropped,
+ * as consumers cannot resolve them.
  */
-async function run() {
-  process.stdout.write('\x1Bc');
-  const force = process.argv.includes('--force');
+function generateTypings() {
+  log(colors.magenta(colors.bold('Generating typings...\n')));
+  // Tests and mocks are left out of the program (their inferred types point at test tooling).
+  const typingsConfigPath = path.join(projectRootPath, 'tsconfig.typings.json');
+  fs.writeFileSync(typingsConfigPath, JSON.stringify({
+    extends: './tsconfig.json',
+    exclude: ['**/__tests__/**', '**/__mocks__/**', '**/*.test.*', '**/*.spec.*'],
+    compilerOptions: {
+      noEmit: false,
+      declaration: true,
+      emitDeclarationOnly: true,
+      rootDir: devKitConfig.srcPath,
+      outDir: devKitConfig.distPath,
+    },
+  }));
 
-  // Checking files...
-  if (!force) {
-    log(colors.magenta(colors.bold('Checking files...\n')));
-    await checkFiles(projectRootPath, packageJson, srcPath, false);
+  const tsc = spawnSync(process.execPath, [
+    resolveBin('typescript-native', 'tsc'),
+    '--project', typingsConfigPath,
+  ], { stdio: 'inherit' });
+
+  fs.rmSync(typingsConfigPath);
+
+  if (tsc.status !== 0) {
+    throw new Error('Typings generation failed.');
   }
 
-  log(colors.magenta(colors.bold('Building...\n')));
-  try {
-    if (devKitConfig.target === 'web') {
-      // Front-end projects: we use Vite as a bundler.
-      const publicAssetsPath = path.join(distPath, 'assets');
-      const publicIndexHtmlPath = path.join(distPath, 'index.html');
-      await fs.copy(path.resolve(srcPath, devKitConfig.html), path.join(projectRootPath, 'index.html'));
-      await fs.remove(publicIndexHtmlPath);
-      await fs.remove(publicAssetsPath);
-      await build(await viteConfig());
-      await fs.remove(distPath);
-      await fs.remove(path.join(projectRootPath, 'index.html'));
-      await fs.rename(path.join(projectRootPath, '__dist__'), distPath);
-    } else {
-      // Back-end/NPM package projects: we directly use esbuild.
-
-      let vuePlugin = null;
-      try {
-        await import('vue');
-        vuePlugin = (await import('esbuild-plugin-vue-next')).default;
-      } catch (e) {
-        // No-op.
-      }
-
-      let sveltePlugin = null;
-      try {
-        await import('svelte');
-        const sveltePreprocess = (await import('svelte-preprocess')).default;
-        sveltePlugin = (await import('esbuild-svelte')).default({
-          compilerOptions: { css: 'external' },
-          preprocess: sveltePreprocess(),
-        });
-      } catch (e) {
-        // No-op.
-      }
-
-      let startTimestamp = 0;
-      await fs.remove(distPath);
-      startTimestamp = Date.now();
-      const result = await esbuild.build({
-        entryPoints: Object.keys(devKitConfig.entries).reduce((entrypoints, entrypoint) => ({
-          ...entrypoints,
-          [entrypoint]: path.join(srcPath, devKitConfig.entries[entrypoint]),
-        }), {}),
-        loader: ['woff', 'woff2', 'eot', 'ttf', 'otf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'flac', 'aac', 'scss', 'txt'].reduce((extensions, extension) => ({
-          ...extensions, [`.${extension}`]: 'file',
-        }), {}),
-        banner: (devKitConfig.banner === undefined) ? undefined : {
-          js: devKitConfig.banner,
-          css: devKitConfig.banner,
-        },
-        bundle: true,
-        target: 'es6',
-        minify: true,
-        format: 'esm',
-        platform: 'node',
-        outdir: distPath,
-        metafile: true,
-        splitting: devKitConfig.splitChunks !== false,
-        external: Object.keys(packageJson.dependencies ?? {})
-          .concat(Object.keys(packageJson.peerDependencies ?? {})),
-        sourcemap: true,
-        plugins: []
-          .concat(vuePlugin !== null ? [vuePlugin()] : [])
-          .concat(sveltePlugin !== null ? [sveltePlugin] : []),
-      });
-      const analysis = await esbuild.analyzeMetafile(result.metafile);
-      log(analysis);
-      // Writing distributable `package.json` file into `dist` directory...
-      await fs.writeJson(path.join(distPath, 'package.json'), {
-        name: packageJson.name,
-        main: packageJson.main,
-        type: packageJson.type,
-        types: packageJson.types,
-        bugs: packageJson.bugs,
-        author: packageJson.author,
-        exports: packageJson.exports,
-        version: packageJson.version,
-        engines: packageJson.engines,
-        license: packageJson.license,
-        keywords: packageJson.keywords,
-        homepage: packageJson.homepage,
-        repository: packageJson.repository,
-        description: packageJson.description,
-        contributors: packageJson.contributors,
-        dependencies: packageJson.dependencies,
-        peerDependencies: packageJson.peerDependencies,
-        peerDependenciesMeta: packageJson.peerDependenciesMeta,
-      }, { spaces: 2 });
-      // Writing distributable `README.md` file into `dist` directory...
-      const readmeExists = await fs.pathExists(readmePath);
-      if (readmeExists) {
-        await fs.copy(readmePath, path.resolve(distPath, 'README.md'));
-      }
-      // Writing distributable `LICENSE` file into `dist` directory...
-      const licenseExists = await fs.pathExists(licensePath);
-      if (licenseExists) {
-        await fs.copy(licensePath, path.resolve(distPath, 'LICENSE'));
-      }
-      log(colors.green(`${colors.bold('\n[esbuild]: ')}Successfully built in ${Date.now() - startTimestamp}ms (${result.errors.length} errors, ${result.warnings.length} warnings).\n`));
+  // Like esbuild, only entries are flattened into `distPath`; other typings mirror `srcPath`.
+  const entryOutputs = Object.fromEntries(Object.entries(devKitConfig.entries ?? {}).map(([name, entry]) => [
+    path.relative(srcPath, path.resolve(srcPath, entry)).replace(/\.[cm]?[jt]sx?$/, ''),
+    name,
+  ]));
+  const outputPath = (srcRelativePath) => path.join(distPath, entryOutputs[srcRelativePath] ?? srcRelativePath);
+  Object.entries(entryOutputs).forEach(([srcRelativePath, name]) => {
+    if (fs.existsSync(path.join(distPath, `${srcRelativePath}.d.ts`))) {
+      fs.renameSync(path.join(distPath, `${srcRelativePath}.d.ts`), path.join(distPath, `${name}.d.ts`));
     }
-  } catch (e) {
-    error(colors.red(colors.bold('\n✖ Build failed.\n')));
-    process.exit(1);
-  }
+  });
+
+  const aliases = fs.readdirSync(srcPath, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const assetImport = new RegExp(`^import\\s+['"][^'"]+\\.(${assetExtensions.concat('css', 'scss', 'sass', 'less', 'json').join('|')})['"];?\\n`, 'gm');
+  fs.readdirSync(distPath, { recursive: true }).filter((file) => file.endsWith('.d.ts')).forEach((relativePath) => {
+    const file = path.join(distPath, relativePath);
+    const source = fs.readFileSync(file, 'utf-8');
+    const rewritten = source
+      .replace(assetImport, '')
+      .replace(/((?:from|import)\s*\(?\s*)(['"])([^'"]+)\2/g, (match, prefix, quote, specifier) => {
+        if (!aliases.some((name) => specifier === name || specifier.startsWith(`${name}/`))) {
+          return match;
+        }
+        const relative = path.relative(path.dirname(file), outputPath(specifier)).replace(/\\/g, '/');
+        return `${prefix}${quote}${relative.startsWith('.') ? relative : `./${relative}`}${quote}`;
+      });
+    if (rewritten !== source) {
+      fs.writeFileSync(file, rewritten);
+    }
+  });
 }
 
-run();
+process.env.ENV = 'production';
+process.env.NODE_ENV = 'production';
+process.stdout.write('\x1Bc');
+
+if (!process.argv.includes('--force')) {
+  const check = spawnSync(process.execPath, [fileURLToPath(new URL('./check.js', import.meta.url))], { stdio: 'inherit' });
+  if (check.status !== 0) process.exit(1);
+}
+
+log(colors.magenta(colors.bold('Building...\n')));
+try {
+  if (devKitConfig.target === 'web') {
+    // Front-end projects: Vite bundles from a root `index.html`.
+    const indexHtmlPath = path.join(projectRootPath, 'index.html');
+    const buildPath = path.join(projectRootPath, '__dist__');
+    await fs.promises.copyFile(path.resolve(srcPath, devKitConfig.html), indexHtmlPath);
+    try {
+      await build(await loadViteConfig('build', 'production'));
+      await fs.promises.rm(distPath, { recursive: true, force: true });
+      await fs.promises.rename(buildPath, distPath);
+    } finally {
+      await fs.promises.rm(indexHtmlPath, { force: true });
+      await fs.promises.rm(buildPath, { recursive: true, force: true });
+    }
+  } else {
+    // Back-end/NPM package projects: esbuild.
+    const startTimestamp = Date.now();
+    const result = await esbuild.build(await getEsbuildOptions(true));
+    log(await esbuild.analyzeMetafile(result.metafile));
+    writeDistFiles(packageJson.version);
+    log(colors.green(`${colors.bold('\n[esbuild]: ')}Successfully built in ${Date.now() - startTimestamp}ms (${result.errors.length} errors, ${result.warnings.length} warnings).\n`));
+  }
+  if (devKitConfig.generateTypings === true && fs.existsSync(tsConfigPath)) {
+    generateTypings();
+  }
+} catch (e) {
+  error(colors.red(colors.bold('\n✖ Build failed.\n')));
+  // Vite wraps bundling errors into a `BundleError`.
+  (e.errors ?? [e]).forEach((err) => error(colors.red(err.message ?? err.text ?? err)));
+  process.exit(1);
+}

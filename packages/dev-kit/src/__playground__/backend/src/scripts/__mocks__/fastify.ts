@@ -39,7 +39,6 @@ const fastify = vi.fn(() => ({
 }));
 
 export {
-  fastify,
   addHook,
   register,
   listen,

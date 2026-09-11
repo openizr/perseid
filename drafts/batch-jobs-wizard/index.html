@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Jobs</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="wizard">
+    <!-- Progress bar -->
+    <div class="progress">
+      <div class="progress__bar"></div>
+      <span class="progress__text">Step <span id="currentStep">1</span> of 5</span>
+    </div>
+
+    <!-- Step 1: How many jobs -->
+    <section class="step" data-step="1">
+      <h1 class="step__title">📋 Create Jobs</h1>
+      <p class="step__subtitle">How many jobs do you want to create?</p>
+
+      <div class="quantity-selector">
+        <button class="quantity-btn" data-value="1">1</button>
+        <button class="quantity-btn" data-value="5">5</button>
+        <button class="quantity-btn active" data-value="10">10</button>
+        <button class="quantity-btn" data-value="25">25</button>
+        <div class="quantity-custom">
+          <input type="number" class="quantity-input" placeholder="Other..." min="1" max="500">
+        </div>
+      </div>
+
+      <div class="step__actions">
+        <button class="btn btn--primary" onclick="goToStep(2)">Continue →</button>
+      </div>
+    </section>
+
+    <!-- Step 2: Fill first job -->
+    <section class="step step--hidden" data-step="2">
+      <h1 class="step__title">✏️ Fill in the first job</h1>
+      <p class="step__subtitle">This will be your template for all jobs</p>
+
+      <form class="form">
+        <div class="form__group">
+          <label class="form__label">Title</label>
+          <input type="text" class="form__input" value="Weekly Cleaning" placeholder="e.g. Weekly Cleaning">
+        </div>
+
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label">Location</label>
+            <select class="form__select">
+              <option>Building A</option>
+              <option>Building B</option>
+              <option>Building C</option>
+              <option>Warehouse</option>
+            </select>
+          </div>
+          <div class="form__group">
+            <label class="form__label">Assignee</label>
+            <select class="form__select">
+              <option>Alice Martin</option>
+              <option>Bob Johnson</option>
+              <option>Carol Smith</option>
+              <option>David Lee</option>
+              <option>Emma Wilson</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label">Start date</label>
+            <input type="date" class="form__input" value="2026-02-03">
+          </div>
+          <div class="form__group">
+            <label class="form__label">Start time</label>
+            <select class="form__select">
+              <option>8:00 AM</option>
+              <option selected>9:00 AM</option>
+              <option>10:00 AM</option>
+              <option>11:00 AM</option>
+              <option>12:00 PM</option>
+              <option>1:00 PM</option>
+              <option>2:00 PM</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label">End date</label>
+            <input type="date" class="form__input" value="2026-02-03">
+          </div>
+          <div class="form__group">
+            <label class="form__label">End time</label>
+            <select class="form__select">
+              <option>10:00 AM</option>
+              <option selected>11:00 AM</option>
+              <option>12:00 PM</option>
+              <option>1:00 PM</option>
+              <option>2:00 PM</option>
+              <option>3:00 PM</option>
+              <option>4:00 PM</option>
+              <option>5:00 PM</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label">Repeats</label>
+            <select class="form__select">
+              <option>Never</option>
+              <option>Every day</option>
+              <option selected>Every week</option>
+              <option>Every 2 weeks</option>
+              <option>Every month</option>
+            </select>
+          </div>
+          <div class="form__group">
+            <label class="form__label">Minimum duration</label>
+            <select class="form__select">
+              <option>30 minutes</option>
+              <option>1 hour</option>
+              <option selected>2 hours</option>
+              <option>3 hours</option>
+              <option>4 hours</option>
+              <option>Full day</option>
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <div class="step__actions">
+        <button class="btn btn--secondary" onclick="goToStep(1)">← Back</button>
+        <button class="btn btn--primary" onclick="goToStep(3)">Continue →</button>
+      </div>
+    </section>
+
+    <!-- Step 3: What varies -->
+    <section class="step step--hidden" data-step="3">
+      <h1 class="step__title">🔄 What changes between jobs?</h1>
+      <p class="step__subtitle">Select everything that's different for each job</p>
+
+      <div class="checklist">
+        <label class="checklist__item">
+          <input type="checkbox" class="checklist__checkbox">
+          <span class="checklist__box"></span>
+          <span class="checklist__text">Different <strong>title</strong> for each job</span>
+        </label>
+        <label class="checklist__item">
+          <input type="checkbox" class="checklist__checkbox" checked>
+          <span class="checklist__box"></span>
+          <span class="checklist__text">Different <strong>person assigned</strong></span>
+        </label>
+        <label class="checklist__item">
+          <input type="checkbox" class="checklist__checkbox">
+          <span class="checklist__box"></span>
+          <span class="checklist__text">Different <strong>location</strong></span>
+        </label>
+        <label class="checklist__item">
+          <input type="checkbox" class="checklist__checkbox" checked>
+          <span class="checklist__box"></span>
+          <span class="checklist__text">Different <strong>start/end times</strong></span>
+        </label>
+        <label class="checklist__item">
+          <input type="checkbox" class="checklist__checkbox">
+          <span class="checklist__box"></span>
+          <span class="checklist__text">Different <strong>recurrence</strong></span>
+        </label>
+      </div>
+
+      <div class="hint">
+        <span class="hint__icon">💡</span>
+        <span class="hint__text">Everything you don't select will be the same as the first job</span>
+      </div>
+
+      <div class="step__actions">
+        <button class="btn btn--secondary" onclick="goToStep(2)">← Back</button>
+        <button class="btn btn--primary" onclick="goToStep(4)">Continue →</button>
+      </div>
+    </section>
+
+    <!-- Step 4: Fill variations -->
+    <section class="step step--hidden" data-step="4">
+      <h1 class="step__title">👥 Assign each job</h1>
+      <p class="step__subtitle">Select who gets each job and when it starts</p>
+
+      <div class="variations">
+        <div class="variation variation--first">
+          <div class="variation__number">1</div>
+          <div class="variation__fields">
+            <select class="form__select">
+              <option selected>Alice Martin</option>
+              <option>Bob Johnson</option>
+              <option>Carol Smith</option>
+              <option>David Lee</option>
+              <option>Emma Wilson</option>
+            </select>
+            <input type="date" class="form__input" value="2026-02-03">
+            <select class="form__select form__select--time">
+              <option selected>9:00 AM</option>
+              <option>10:00 AM</option>
+              <option>11:00 AM</option>
+            </select>
+          </div>
+          <div class="variation__status">✓ First job</div>
+        </div>
+
+        <div class="variation">
+          <div class="variation__number">2</div>
+          <div class="variation__fields">
+            <select class="form__select">
+              <option>Alice Martin</option>
+              <option selected>Bob Johnson</option>
+              <option>Carol Smith</option>
+              <option>David Lee</option>
+              <option>Emma Wilson</option>
+            </select>
+            <input type="date" class="form__input" value="2026-02-03">
+            <select class="form__select form__select--time">
+              <option selected>9:00 AM</option>
+              <option>10:00 AM</option>
+              <option>11:00 AM</option>
+            </select>
+          </div>
+          <button class="variation__copy" title="Copy from above">⬆️ Same time</button>
+        </div>
+
+        <div class="variation">
+          <div class="variation__number">3</div>
+          <div class="variation__fields">
+            <select class="form__select">
+              <option>Alice Martin</option>
+              <option>Bob Johnson</option>
+              <option selected>Carol Smith</option>
+              <option>David Lee</option>
+              <option>Emma Wilson</option>
+            </select>
+            <input type="date" class="form__input" value="2026-02-03">
+            <select class="form__select form__select--time">
+              <option selected>9:00 AM</option>
+              <option>10:00 AM</option>
+              <option>11:00 AM</option>
+            </select>
+          </div>
+          <button class="variation__copy" title="Copy from above">⬆️ Same time</button>
+        </div>
+
+        <div class="variation">
+          <div class="variation__number">4</div>
+          <div class="variation__fields">
+            <select class="form__select">
+              <option>Alice Martin</option>
+              <option>Bob Johnson</option>
+              <option>Carol Smith</option>
+              <option selected>David Lee</option>
+              <option>Emma Wilson</option>
+            </select>
+            <input type="date" class="form__input" value="2026-02-04">
+            <select class="form__select form__select--time">
+              <option>9:00 AM</option>
+              <option selected>10:00 AM</option>
+              <option>11:00 AM</option>
+            </select>
+          </div>
+          <button class="variation__copy" title="Copy from above">⬆️ Same time</button>
+        </div>
+
+        <div class="variation">
+          <div class="variation__number">5</div>
+          <div class="variation__fields">
+            <select class="form__select">
+              <option>Alice Martin</option>
+              <option>Bob Johnson</option>
+              <option>Carol Smith</option>
+              <option>David Lee</option>
+              <option selected>Emma Wilson</option>
+            </select>
+            <input type="date" class="form__input" value="2026-02-04">
+            <select class="form__select form__select--time">
+              <option>9:00 AM</option>
+              <option selected>10:00 AM</option>
+              <option>11:00 AM</option>
+            </select>
+          </div>
+          <button class="variation__copy" title="Copy from above">⬆️ Same time</button>
+        </div>
+      </div>
+
+      <div class="step__actions">
+        <button class="btn btn--secondary" onclick="goToStep(3)">← Back</button>
+        <button class="btn btn--primary" onclick="goToStep(5)">Continue →</button>
+      </div>
+    </section>
+
+    <!-- Step 5: Review -->
+    <section class="step step--hidden" data-step="5">
+      <h1 class="step__title">✅ Review your 5 jobs</h1>
+      <p class="step__subtitle">Make sure everything looks correct</p>
+
+      <div class="job-cards">
+        <div class="job-card">
+          <div class="job-card__title">📋 Weekly Cleaning</div>
+          <div class="job-card__details">
+            <span>👤 Alice Martin</span>
+            <span>📍 Building A</span>
+          </div>
+          <div class="job-card__schedule">
+            <span>📅 Feb 3, 9:00 - 11:00 AM</span>
+            <span>🔄 Every week</span>
+          </div>
+        </div>
+
+        <div class="job-card">
+          <div class="job-card__title">📋 Weekly Cleaning</div>
+          <div class="job-card__details">
+            <span>👤 Bob Johnson</span>
+            <span>📍 Building A</span>
+          </div>
+          <div class="job-card__schedule">
+            <span>📅 Feb 3, 9:00 - 11:00 AM</span>
+            <span>🔄 Every week</span>
+          </div>
+        </div>
+
+        <div class="job-card">
+          <div class="job-card__title">📋 Weekly Cleaning</div>
+          <div class="job-card__details">
+            <span>👤 Carol Smith</span>
+            <span>📍 Building A</span>
+          </div>
+          <div class="job-card__schedule">
+            <span>📅 Feb 3, 9:00 - 11:00 AM</span>
+            <span>🔄 Every week</span>
+          </div>
+        </div>
+
+        <div class="job-card">
+          <div class="job-card__title">📋 Weekly Cleaning</div>
+          <div class="job-card__details">
+            <span>👤 David Lee</span>
+            <span>📍 Building A</span>
+          </div>
+          <div class="job-card__schedule">
+            <span>📅 Feb 4, 10:00 AM - 12:00 PM</span>
+            <span>🔄 Every week</span>
+          </div>
+        </div>
+
+        <div class="job-card">
+          <div class="job-card__title">📋 Weekly Cleaning</div>
+          <div class="job-card__details">
+            <span>👤 Emma Wilson</span>
+            <span>📍 Building A</span>
+          </div>
+          <div class="job-card__schedule">
+            <span>📅 Feb 4, 10:00 AM - 12:00 PM</span>
+            <span>🔄 Every week</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step__actions">
+        <button class="btn btn--secondary" onclick="goToStep(4)">← Back to edit</button>
+        <button class="btn btn--success">Create 5 jobs ✓</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function goToStep(step) {
+      // Hide all steps
+      document.querySelectorAll('.step').forEach(s => s.classList.add('step--hidden'));
+      // Show target step
+      document.querySelector(`[data-step="${step}"]`).classList.remove('step--hidden');
+      // Update progress
+      document.getElementById('currentStep').textContent = step;
+      document.querySelector('.progress__bar').style.setProperty('--progress', `${(step / 5) * 100}%`);
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Quantity buttons
+    document.querySelectorAll('.quantity-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.quantity-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelector('.quantity-input').value = '';
+      });
+    });
+
+    document.querySelector('.quantity-input').addEventListener('input', (e) => {
+      document.querySelectorAll('.quantity-btn').forEach(b => b.classList.remove('active'));
+    });
+  </script>
+</body>
+
+</html>

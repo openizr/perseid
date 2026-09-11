@@ -10,15 +10,15 @@ import {
   Id,
   type Ids,
   type Authors,
-  type Version,
   type Deletion,
   type Timestamps,
+  type UserDataModel,
   type DataModelSchema,
-  type DefaultDataModel,
 } from '@perseid/core';
 
-export interface DataModel extends DefaultDataModel {
-  test: Ids & Deletion & Version & Authors & Timestamps & {
+export interface DataModel extends UserDataModel {
+  notImplemented: Ids;
+  test: Ids & Deletion & Authors & Timestamps & {
     indexedString: string;
     objectOne: {
       boolean: boolean;
@@ -52,10 +52,10 @@ export interface DataModel extends DefaultDataModel {
 
 export default {
   test: {
-    version: 1,
     enableDeletion: false,
     enableAuthors: true,
     enableTimestamps: true,
+    allowedOperations: ['CREATE', 'VIEW', 'LIST', 'UPDATE', 'DELETE'],
     fields: {
       _id: {
         type: 'id',
@@ -151,6 +151,7 @@ export default {
   },
   otherTest: {
     enableDeletion: true,
+    allowedOperations: ['CREATE', 'VIEW', 'LIST', 'UPDATE', 'DELETE'],
     fields: {
       _id: {
         type: 'id',
@@ -195,6 +196,19 @@ export default {
             },
           },
         },
+      },
+    },
+  },
+  notImplemented: {
+    enableAuthors: true,
+    enableDeletion: false,
+    enableTimestamps: false,
+    allowedOperations: [],
+    fields: {
+      _id: {
+        type: 'id',
+        isUnique: true,
+        isRequired: true,
       },
     },
   },

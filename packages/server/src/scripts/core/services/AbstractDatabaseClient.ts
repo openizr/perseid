@@ -8,9 +8,10 @@
 
 import {
   Id,
-  isPlainObject,
+  type Ids,
   type Results,
   type IdSchema,
+  isPlainObject,
   type DateSchema,
   type FieldSchema,
   type ArraySchema,
@@ -19,11 +20,18 @@ import {
   type StringSchema,
   type ObjectSchema,
   type BooleanSchema,
-  type DefaultDataModel,
 } from '@perseid/core';
-import type Logger from 'scripts/core/services/Logger';
+import type {
+  Payload,
+  SearchBody,
+  QueryOptions,
+  SearchFilters,
+  ViewQueryOptions,
+  ListQueryOptions,
+} from 'scripts/core/types';
 import DatabaseError from 'scripts/core/errors/Database';
 import type BaseModel from 'scripts/core/services/Model';
+import type Telemetry from 'scripts/core/services/Telemetry';
 import type CacheClient from 'scripts/core/services/CacheClient';
 
 /**
@@ -31,27 +39,43 @@ import type CacheClient from 'scripts/core/services/CacheClient';
  */
 export type StructuredPayload = Record<string, Record<string, unknown>[]>;
 
-/** DBMS-specific formatted query. */
+/**
+ * DBMS-specific formatted query.
+ */
 export interface FormattedQuery {
-  /** Name of the structure on which to perform the query. */
+  /**
+   * Name of the structure on which to perform the query.
+   */
   structure: string;
 
-  /** When performing a join with another structure, name of the local field to use. */
+  /**
+   * When performing a join with another structure, name of the local field to use.
+   */
   localField: string | null;
 
-  /** When performing a join with another structure, name of the foreign field to use. */
+  /**
+   * When performing a join with another structure, name of the foreign field to use.
+   */
   foreignField: string | null;
 
-  /** List of fields to retrieve from database. */
+  /**
+   * List of fields to retrieve from database.
+   */
   fields: Record<string, string>;
 
-  /** When performing a sort, list of fields to use, along with the sorting order. */
+  /**
+   * When performing a sort, list of fields to use, along with the sorting order.
+   */
   sort: Record<string, 1 | -1> | null;
 
-  /** List of sub-joins to perform with this structure. */
+  /**
+   * List of sub-joins to perform with this structure.
+   */
   lookups: Record<string, FormattedQuery>;
 
-  /** When filtering results, list of constraints to use. */
+  /**
+   * When filtering results, list of constraints to use.
+   */
   match: { query: Record<string, unknown>[]; filters: Record<string, unknown>[]; } | null;
 }
 
@@ -60,10 +84,14 @@ export interface FormattedQuery {
  * create database structures.
  */
 export interface ResourceMetadata {
-  /** Name of the primary structure. */
+  /**
+   * Name of the primary structure.
+   */
   structure: string;
 
-  /** Names of sub-structures associated with the primary structure (e.g. in relational DBMS). */
+  /**
+   * Names of sub-structures associated with the primary structure (e.g. in relational DBMS).
+   */
   subStructures: string[];
 
   /**
@@ -80,7 +108,9 @@ export interface ResourceMetadata {
    */
   invertedRelations: Map<string, string[]>;
 
-  /** List of indexes definitions for the structure. */
+  /**
+   * List of indexes definitions for the structure.
+   */
   indexes: { path: string; unique: boolean; }[];
 
   /**
@@ -89,7 +119,9 @@ export interface ResourceMetadata {
    */
   constraints: { path: string; relation: string; }[];
 
-  /** List of structure fields definitions. */
+  /**
+   * List of structure fields definitions.
+   */
   fields: unknown;
 }
 
@@ -97,29 +129,50 @@ export interface ResourceMetadata {
  * Database client settings.
  */
 export interface DatabaseClientSettings {
-  /** Protocol to use for database connection. */
-  protocol: string;
+  /**
+   * Connection settings for each available pool.
+   */
+  pools: Record<string, {
+    /**
+     * Protocol to use for database connection.
+     */
+    protocol: string;
 
-  /** Database hostname. */
-  host: string;
+    /**
+     * Database hostname.
+     */
+    host: string;
 
-  /** Database port. */
-  port: number | null;
+    /**
+     * Database port.
+     */
+    port: number | null;
 
-  /** Username to use to connect to the database. */
-  user: string | null;
+    /**
+     * Username to use to connect to the database.
+     */
+    user: string | null;
 
-  /** Password to use to connect to the database. */
-  password: string | null;
+    /**
+     * Password to use to connect to the database.
+     */
+    password: string | null;
 
-  /** Database name. */
-  database: string;
+    /**
+     * Database name.
+     */
+    database: string;
 
-  /** Maximum number of ms after which to generate a timeout when connecting to the database. */
-  connectTimeout: number;
+    /**
+     * Maximum number of ms after which to generate a timeout when connecting to the database.
+     */
+    connectTimeout: number;
 
-  /** Maximum number of connections to create at once in the connections pool. */
-  connectionLimit: number;
+    /**
+     * Maximum number of connections to create at once in the connections pool.
+     */
+    connectionLimit: number;
+  }>;
 }
 
 /**
@@ -128,34 +181,54 @@ export interface DatabaseClientSettings {
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/core/services/AbstractDatabaseClient.ts
  */
 export default abstract class AbstractDatabaseClient<
-  /** Data model types definitions. */
-  DataModel extends DefaultDataModel = DefaultDataModel,
+  /**
+   * Data model types definitions.
+   */
+  DataModel extends object,
 
-  /** Model class types definitions. */
+  /**
+   * Query results types definitions.
+   */
+  QueryResults extends Record<string, Ids> = Record<string, Ids>,
+
+  /**
+   * Model class types definitions.
+   */
   Model extends BaseModel<DataModel> = BaseModel<DataModel>,
 > {
-  /** Pattern used to split full-text search queries into separate tokens. */
-  protected readonly SPLITTING_TOKENS = /[ \-,.?=*\\/()'"`|+!:;[\]{}]/;
+  /**
+   * Pattern used to split full-text search queries into separate tokens.
+   */
+  protected readonly SPLITTING_TOKENS = /[ \-,.?=*\\/()'"`|+!:;[\]{}&@]/ig;
 
-  /** Default pagination offset value. */
+  /**
+   * Default pagination offset value.
+   */
   protected readonly DEFAULT_OFFSET = 0;
 
-  /** Default pagination limit value. */
+  /**
+   * Default pagination limit value.
+   */
   protected readonly DEFAULT_LIMIT = 20;
 
-  /** Default maximum level of resources depth. */
+  /**
+   * Default maximum level of resources depth.
+   */
   protected readonly DEFAULT_MAXIMUM_DEPTH = 3;
 
-  /** Default search command options. */
-  protected readonly DEFAULT_SEARCH_COMMAND_OPTIONS: SearchCommandOptions = {};
+  /**
+   * Default list command options.
+   */
+  protected readonly DEFAULT_LIST_COMMAND_OPTIONS: ListQueryOptions = {};
 
-  /** Default list command options. */
-  protected readonly DEFAULT_LIST_COMMAND_OPTIONS: ListCommandOptions = {};
+  /**
+   * Default view command options.
+   */
+  protected readonly DEFAULT_VIEW_COMMAND_OPTIONS: ViewQueryOptions = {};
 
-  /** Default view command options. */
-  protected readonly DEFAULT_VIEW_COMMAND_OPTIONS: ViewCommandOptions = {};
-
-  /** List of payload validators, used to check payloads integrity. */
+  /**
+   * List of payload validators, used to check payloads integrity.
+   */
   protected readonly VALIDATORS: Record<string, (
     path: string,
     payload: unknown,
@@ -294,7 +367,7 @@ export default abstract class AbstractDatabaseClient<
         }
 
         if (payload !== null) {
-          if (maxLength !== undefined && payload.length > maxLength) {
+          if (payload.length > maxLength) {
             throw new DatabaseError('FIELD_VALUE_TOO_LONG', { path });
           }
 
@@ -346,22 +419,29 @@ export default abstract class AbstractDatabaseClient<
       },
     };
 
-  /** Logging system. */
-  protected logger: Logger;
+  /**
+   * Telemetry system to use.
+   */
+  protected telemetry: Telemetry;
 
-  /** Cache client, used for results caching. */
+  /**
+   * Cache client, used for results caching.
+   */
   protected cache: CacheClient;
 
-  /** Database to use. */
-  protected database: string;
-
-  /** Perseid data model to use. */
+  /**
+   * Perseid data model to use.
+   */
   protected model: Model;
 
-  /** Whether database client is connected to the server. */
+  /**
+   * Whether database client is connected to the server.
+   */
   protected isConnected: boolean;
 
-  /** Resources metadata, used to generate database structure and handle resources deletion. */
+  /**
+   * Resources metadata, used to generate database structure and handle resources deletion.
+   */
   protected resourcesMetadata: Record<string, ResourceMetadata>;
 
   /**
@@ -377,127 +457,28 @@ export default abstract class AbstractDatabaseClient<
   ): void;
 
   /**
-   * Returns DBMS-specific formatted query metadata and projections from `fields`.
-   *
-   * @param resource Type of resource to query.
-   *
-   * @param fields List of fields to fetch from database.
-   *
-   * @param maximumDepth Maximum allowed level of resources depth.
-   *
-   * @param searchBody Optional search body to apply to the request. Defaults to `null`.
-   *
-   * @param sortBy Optional sorting to apply to the request. Defaults to `{}`.
-   *
-   * @returns Formatted query, along with projections.
-   *
-   * @throws If field path does not exist in data model.
-   *
-   * @throws If field path is not a leaf in data model.
-   *
-   * @throws If any field path in search body is not indexed.
-   *
-   * @throws If any field path in sorting is not sortable.
-   *
-   * @throws If maximum level of resources depth is exceeded.
-   */
-  protected abstract parseFields<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    fields: Set<string>,
-    maximumDepth: number,
-    searchBody?: SearchBody | null,
-    sortBy?: Partial<Record<string, 1 | -1>>,
-  ): { projections: unknown; formattedQuery: FormattedQuery; };
-
-  /**
-   * Generates the final DBMS-specific query from `formattedQuery`.
-   *
-   * @param resource Type of resource for which to generate database query.
-   *
-   * @param formattedQuery Formatted query to generate database query from.
-   *
-   * @returns Final DBMS-specific query.
-   */
-  protected abstract generateQuery<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    formattedQuery: FormattedQuery,
-  ): unknown;
-
-  /**
-   * Recursively formats `payload` into a structured format for database storage.
-   *
-   * @param resource Type of resource to format.
-   *
-   * @param resourceId Id of the related resource.
-   *
-   * @param payload Payload to format.
-   *
-   * @param mode Whether to structure payload for creation, or just a partial update.
-   *
-   * @returns Structured format for database storage.
-   */
-  protected abstract structurePayload<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    resourceId: Id,
-    payload: Payload<DataModel[Resource]>,
-    mode: 'CREATE' | 'UPDATE',
-  ): StructuredPayload;
-
-  /**
-   * Formats `results` into a database-agnostic structure, containing only requested fields.
-   *
-   * @param resource Type of resource to format.
-   *
-   * @param results List of database raw results to format.
-   *
-   * @param fields Fields tree used to format results.
-   *
-   * @param mapping Mapping between DBMS-specific field name and real field path.
-   *
-   * @returns Formatted results.
-   */
-  protected abstract formatResources<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    results: unknown[],
-    fields: unknown,
-    mapping: Map<string, string>
-  ): DataModel[Resource][];
-
-  /**
-   * Connects database client to the database server before performing any query, and handles common
-   * database server errors. You should always use this method to wrap your code.
-   *
-   * @param callback Callback to wrap in the error handler.
-   *
-   * @throws If connection to the server failed.
-   *
-   * @throws Transformed database error if applicable, original error otherwise.
-   */
-  protected abstract handleError<T>(callback: () => Promise<T>): Promise<T>;
-
-  /**
    * Class constructor.
    *
    * @param model Data model to use.
    *
-   * @param logger Logging system to use.
+   * @param telemetry Telemetry system to use.
    *
-   * @param cache Cache client instance to use for results caching.
+   * @param cache Cache client to use for results caching.
    *
    * @param settings Database client settings.
    */
   public constructor(
     model: Model,
-    logger: Logger,
+    telemetry: Telemetry,
     cache: CacheClient,
     settings: DatabaseClientSettings,
   ) {
     this.cache = cache;
     this.model = model;
-    this.logger = logger;
+    this.telemetry = telemetry;
     this.isConnected = false;
     this.resourcesMetadata = {};
-    this.database = settings.database;
+    this.telemetry.debug(settings.pools.default.database);
     // This step is necessary to make sure all resource metadata skeletons exist before updating
     // their `invertedRelations` in `generateResourceMetadata` method.
     this.model.getResources().forEach((resource) => {
@@ -513,36 +494,41 @@ export default abstract class AbstractDatabaseClient<
     });
   }
 
-  /**
-   * Drops the entire database.
-   */
-  public abstract dropDatabase(): Promise<void>;
+  // /**
+  //  * Drops the entire database.
+  //  */
+  // public abstract dropDatabase(): Promise<void>;
+
+  // /**
+  //  * Creates the database.
+  //  */
+  // public abstract createDatabase(): Promise<void>;
+
+  // /**
+  //  * Creates missing database structures for current data model.
+  //  */
+  // public abstract createMissingStructures(): Promise<void>;
+
+  // /**
+  //  * Resets the whole underlying database, re-creating structures, indexes, and such.
+  //  */
+  // public abstract reset(): Promise<void>;
 
   /**
-   * Creates the database.
-   */
-  public abstract createDatabase(): Promise<void>;
-
-  /**
-   * Creates missing database structures for current data model.
-   */
-  public abstract createMissingStructures(): Promise<void>;
-
-  /**
-   * Resets the whole underlying database, re-creating structures, indexes, and such.
-   */
-  public abstract reset(): Promise<void>;
-
-  /**
-   * Makes sure that `foreignIds` reference existing resources that match specific conditions.
+   * Makes sure that `relations` reference existing resources that match specific conditions.
    *
-   * @param foreignIds Foreign ids to check in database.
+   * @param resource Type of resource to check relations for.
+   *
+   * @param relations Foreign ids to check in database.
+   *
+   * @param options Query options. Defaults to `{}`.
    *
    * @throws If any foreign id does not exist.
    */
-  public abstract checkForeignIds<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    foreignIds: Map<string, { resource: keyof DataModel & string; filters: SearchFilters; }>,
+  public abstract checkRelations<Resource extends keyof DataModel>(
+    _resource: Resource,
+    relations: Map<string, { resource: keyof DataModel; filters: SearchFilters | null; }>,
+    options?: QueryOptions,
   ): Promise<void>;
 
   /**
@@ -551,10 +537,13 @@ export default abstract class AbstractDatabaseClient<
    * @param resource Type of resource to create.
    *
    * @param payload New resource payload.
+   *
+   * @param options Query options. Defaults to `{}`.
    */
-  public abstract create<Resource extends keyof DataModel & string>(
-    resource: Resource,
+  public abstract create<Resource extends keyof DataModel>(
+    resource: Resource & string,
     payload: DataModel[Resource],
+    options?: ViewQueryOptions,
   ): Promise<void>;
 
   /**
@@ -566,12 +555,15 @@ export default abstract class AbstractDatabaseClient<
    *
    * @param payload Updated resource payload.
    *
+   * @param options Query options. Defaults to `{}`.
+   *
    * @returns `true` if resource has been successfully updated, `false` otherwise.
    */
-  public abstract update<Resource extends keyof DataModel & string>(
+  public abstract update<Resource extends keyof DataModel>(
     resource: Resource,
     id: Id,
     payload: Payload<DataModel[Resource]>,
+    options?: ViewQueryOptions,
   ): Promise<boolean>;
 
   /**
@@ -585,11 +577,14 @@ export default abstract class AbstractDatabaseClient<
    *
    * @returns Resource if it exists, `null` otherwise.
    */
-  public abstract view<Resource extends keyof DataModel & string>(
-    resource: Resource,
+  public abstract view<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel = keyof DataModel
+  >(
+    resource: Resource & string,
     id: Id,
-    options?: ViewCommandOptions,
-  ): Promise<DataModel[Resource] | null>;
+    options?: ViewQueryOptions,
+  ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null>;
 
   /**
    * Fetches a paginated list of resources from database, that match specific filters/query.
@@ -602,25 +597,14 @@ export default abstract class AbstractDatabaseClient<
    *
    * @returns Paginated list of resources.
    */
-  public abstract search<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    body: SearchBody,
-    options?: SearchCommandOptions,
-  ): Promise<Results<DataModel[Resource]>>;
-
-  /**
-   * Fetches a paginated list of resources from database.
-   *
-   * @param resource Type of resources to fetch.
-   *
-   * @param options Query options. Defaults to `{}`.
-   *
-   * @returns Paginated list of resources.
-   */
-  public abstract list<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    options?: ListCommandOptions,
-  ): Promise<Results<DataModel[Resource]>>;
+  public abstract list<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel = keyof DataModel
+  >(
+    resource: Resource & string,
+    searchBody: SearchBody,
+    options?: ListQueryOptions,
+  ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>>;
 
   /**
    * Deletes resource with id `id` from database.
@@ -629,10 +613,13 @@ export default abstract class AbstractDatabaseClient<
    *
    * @param id Resource id.
    *
+   * @param options Query options. Defaults to `{}`.
+   *
    * @returns `true` if resource has been successfully deleted, `false` otherwise.
    */
-  public abstract delete<Resource extends keyof DataModel & string>(
+  public abstract delete<Resource extends keyof DataModel>(
     resource: Resource,
     id: Id,
+    options?: QueryOptions,
   ): Promise<boolean>;
 }

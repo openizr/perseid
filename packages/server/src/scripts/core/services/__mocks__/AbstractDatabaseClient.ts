@@ -6,6 +6,8 @@
  *
  */
 
+import type { QueryOptions } from 'scripts/core';
+
 /**
  * `core/services/AbstractDatabaseClient` mock.
  */
@@ -31,11 +33,9 @@ export default class {
 
   protected readonly DEFAULT_MAXIMUM_DEPTH = 3;
 
-  protected readonly DEFAULT_SEARCH_COMMAND_OPTIONS: SearchCommandOptions = {};
+  protected readonly DEFAULT_LIST_COMMAND_OPTIONS: QueryOptions = {};
 
-  protected readonly DEFAULT_LIST_COMMAND_OPTIONS: ListCommandOptions = {};
-
-  protected readonly DEFAULT_VIEW_COMMAND_OPTIONS: ViewCommandOptions = {};
+  protected readonly DEFAULT_VIEW_COMMAND_OPTIONS: QueryOptions = {};
 
   protected VALIDATORS = {
     object: vi.fn(),

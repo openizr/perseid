@@ -1,4 +1,3 @@
-import { deepMerge } from 'basx';
 import schema from 'scripts/lib/baseSchema';
 
 /**
@@ -8,9 +7,9 @@ export default {
   handler: async (_request, response) => {
     await response.send();
   },
-  schema: deepMerge(
-    schema,
-    {
+  schema: {
+    ...schema,
+    ...{
       body: {
         type: 'object',
         required: ['message'],
@@ -34,5 +33,5 @@ export default {
         },
       },
     },
-  ),
+  },
 };
