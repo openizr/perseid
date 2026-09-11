@@ -196,10 +196,6 @@ export function generateTypeDefinitions(configuration: {
     }), {}),
   };
 
-  const fullShorthand = '`$'
-    + '{Breakpoint}:'
-    + '${'
-    + 'Shorthand}`';
   let generatedTypeDefinitionsContent = '';
   generatedTypeDefinitionsContent += 'declare global {';
   generatedTypeDefinitionsContent += '\n';
@@ -209,15 +205,14 @@ export function generateTypeDefinitions(configuration: {
   generatedTypeDefinitionsContent += '  /**\n   * Perseid built-in shorthand.\n   */\n';
   generatedTypeDefinitionsContent += `  type Shorthand = (\n    ${Object.keys(allShorthands).map((key) => `'${key}'`).join('\n    | ')}\n  );`;
   generatedTypeDefinitionsContent += '\n\n';
-  generatedTypeDefinitionsContent += '  /**\n   * Any available Perseid built-in layout shorthand.\n   */\n';
-  generatedTypeDefinitionsContent += `  type LayoutValue = Shorthand | ${fullShorthand};`;
-  generatedTypeDefinitionsContent += '\n\n';
   generatedTypeDefinitionsContent += '  /**\n   * Adds native autocomplete for `data-layout` attribute to all React elements.\n   */\n';
   generatedTypeDefinitionsContent += '  namespace React {';
   generatedTypeDefinitionsContent += '\n';
-  generatedTypeDefinitionsContent += '    interface HTMLAttributes {';
+  generatedTypeDefinitionsContent += '    interface HTMLAttributes<T> extends AriaAttributes, DOMAttributes<T> {';
   generatedTypeDefinitionsContent += '\n';
-  generatedTypeDefinitionsContent += '      \'data-layout\'?: LayoutValue | (string & Record<never, never>);';
+  generatedTypeDefinitionsContent += '      \'data-layout\'?: Shorthand | `${';
+  generatedTypeDefinitionsContent += 'Breakpoint}:${';
+  generatedTypeDefinitionsContent += 'Shorthand}` | (string & Record<never, never>);';
   generatedTypeDefinitionsContent += '\n';
   generatedTypeDefinitionsContent += '    }';
   generatedTypeDefinitionsContent += '\n';

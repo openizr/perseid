@@ -177,11 +177,9 @@ declare namespace React {
   );
 
   /**
-   * Any available Perseid built-in layout shorthand.
+   * Adds native autocomplete for `data-layout` attribute to all React elements.
    */
-  type LayoutValue = Shorthand | `${Breakpoint}:${Shorthand}`;
-
   interface HTMLAttributes<T> extends AriaAttributes, DOMAttributes<T> {
-    'data-layout'?: LayoutValue | (string & Record<never, never>);
+    'data-layout'?: Shorthand | `${Breakpoint}:${Shorthand}` | (string & Record<never, never>);
   }
 }
