@@ -6,14 +6,31 @@
  *
  */
 
+@use 'sass:map';
+@use 'sass:meta';
+@use 'sass:list';
+@use 'sass:string';
+@use './variables' as *;
+
 /**
- * Applies given style to `modifiers` BEM+ modifier.
- *
- * @param {string} name BEM+ modifiers names to apply style to.
- *
- * @param {string} [children = false] Whether to use the mixin for modifiers' children, or the
- * modifiers themselves.
- */
+  * Applies given style to BEM+ `modifiers`.
+  *
+  * @param {string} name BEM+ modifiers names to apply style to.
+  *
+  * @param {string} [children = false] Whether to use the mixin for the element itself, or for its
+  * children. Defaults to `false`.
+  *
+  * @example
+  * ```scss
+  *   .element {
+  *     @include modifiers('modifier1', &) {
+  *       &__child {
+  *         background-color: red;
+  *       }
+  *     }
+  *   }
+  * ```
+  */
 @mixin modifiers($modifiers, $children: false) {
   $selectors: '';
   @each $modifier in $modifiers {
@@ -32,98 +49,45 @@
 }
 
 /**
- * Makes the calling selector inherit given built-in classes.
- *
- * @param {string[]} classes List of built-in classes to inherit properties from.
- */
-@mixin extend($classes) {
-  @each $class in $classes {
-    @if (str-index($class, flex)) {
-      @extend %flex;
-    }
-
-    @if (str-index($class, col-)) {
-      @extend %col;
-    }
-
-    @if (str-index($class, grid)) {
-      @extend %grid;
-    }
-
-    @if (str-index($class, grid) or str-index($class, flex)) {
-      @extend %grid-flex;
-    }
-
-    @if (str-index($class, none) or str-index($class, block)) {
-      @extend %none-block;
-    }
-
-    @if (str-index($class, self)) {
-      @extend %self;
-    }
-
-    @if (str-index($class, w-full)) {
-      @extend %width;
-    }
-
-    @if (str-index($class, h-full)) {
-      @extend %height;
-    }
-
-    @if (str-index($class, text)) {
-      @extend %text;
-    }
-
-    @extend %#{$class};
-  }
-}
-
-/**
- * Integrates given style into a media query based on `firstBreakpoint` and `secondBreakpoint`.
- * If only one breakpoint is passed, the media query will be of type "min-width". Otherwise, it will
- * be of type "min-width" and "max-width". Highest breakpoint value will be considered as the
- * max-width, while the other one will be min-width.
- *
- * @param {string|number} firstBreakpoint First breakpoint. Can be a predefined value (like `xl`),
- * or an absolute value (like `1200px`).
- *
- * @param {string|number} [secondBreakpoint = ''] Second breakpoint. Can be a predefined value
- * (like `xl`), or an absolute value (like `1200px`).
- */
+  * Integrates given style into a media query based on `firstBreakpoint` and `secondBreakpoint`.
+  * If only one breakpoint is passed, the media query will be of type "min-width". Otherwise, it will
+  * be of type "min-width" and "max-width". Highest breakpoint value will be considered as the
+  * max-width, while the other one will be min-width.
+  *
+  * @param {string|number} firstBreakpoint First breakpoint. Can be a predefined value (like `xl`),
+  * or an absolute value (like `1200px`).
+  *
+  * @param {string|number} [secondBreakpoint = ''] Second breakpoint. Can be a predefined value
+  * (like `xl`), or an absolute value (like `1200px`).
+  */
 @mixin query($firstBreakpoint, $secondBreakpoint: '') {
-  $firstValue: if(
-    map-has-key($breakpoints, $firstBreakpoint),
-    map-get($breakpoints, $firstBreakpoint),
-    $firstBreakpoint
-  );
-  $secondValue: if(
-    map-has-key($breakpoints, $secondBreakpoint),
-    map-get($breakpoints, $secondBreakpoint),
-    $secondBreakpoint
-  );
+  $firstValue: map.get($perseid-breakpoints, $firstBreakpoint) or $firstBreakpoint;
+  $secondValue: map.get($perseid-breakpoints, $secondBreakpoint) or $secondBreakpoint;
 
-  @if (type-of($firstValue) != 'number') {
+  @if (meta.type-of($firstValue) != 'number') {
     @error "#{$firstValue} is not a valid breakpoint.";
   }
 
-  @if ($secondValue != '' and type-of($firstValue) != 'number') {
+  @if ($secondValue != '' and meta.type-of($secondValue) != 'number') {
     @error "#{$secondValue} is not a valid breakpoint.";
   }
 
   // For '0px' breakpoint, we don't need to write a media query. The @content code is rendered.
-  @if ($firstValue==0px and $secondValue== '') {
+  @if ($firstValue == 0px and $secondValue == '') {
     @content;
   }
 
   // Build a max-width if needed
   @else if ($secondValue != '') {
-    $query: if(
-      $firstValue <=$secondValue,
-      '(min-width:#{$firstValue}) and (max-width:#{$secondValue - 1})',
-      '(min-width:#{$secondValue}) and (max-width:#{$firstValue - 1})'
-    );
+    $min: $firstValue;
+    $max: $secondValue;
 
-    @media screen and #{$query} {
+    @if ($firstValue > $secondValue) {
+      $min: $secondValue;
+      $max: $firstValue;
+    }
+
+    @media screen and (min-width:#{$min}) and (max-width:#{$max - 1}) {
       @content;
     }
   }
@@ -137,167 +101,208 @@
 }
 
 /**
- * Generates all the built-in CSS classes and variables. You should call this mixin in your main
- * style entrypoint, but not in additional files that are dynamically imported, to avoid unecessary
- * CSS duplication.
- */
-@mixin init() {
-  * {
-    // Number of columns set in a layout scope.
-    --cols: 1;
+  * Integrates given style into a container query based on `width`.
+  *
+  * @param {number} width Minimum width from which to apply the style.
+  *
+  * @example
+  * ```scss
+  *   .element {
+  *     @include container(100px) {
+  *       .child {
+  *         background-color: red;
+  *       }
+  *     }
+  *   }
+  * ```
+  */
+@mixin container($width) {
+  container-type: inline-size;
 
-    // Gap between columns set in a layout scope.
-    --hgap: initial;
-    --vgap: initial;
-
-    // Number of columns spaning set in a layout item scope.
-    --span: 1;
-
-    // Layout properties.
-    --flow: initial;
-    --disp: initial;
-    --just: initial;
-    --items: initial;
-    --self: initial;
-
-    // Flex properties.
-    --wrap: initial;
-    --dir: initial;
-    --flex: none;
-
-    // Text properties.
-    --text: initial;
-
-    // Size properties.
-    --width: initial;
-    --height: initial;
+  @container (min-width: #{$width}) {
+    @content;
   }
+}
 
-  // Generating breakpoints-based built-in classes...
-  @each $breakpoint, $value in $breakpoints {
-    @include query($breakpoint) {
-      $class-bp: if($breakpoint==xxs, '', #{$breakpoint}#{'\\:'});
+/**
+  * Makes the calling selector inherit given built-in shorthands.
+  *
+  * @param {string} shorthands List of built-in shorthands to inherit properties from.
+  */
+@mixin layout($shorthands) {
+  $splitted-shorthands: string.split($shorthands, ' ');
 
-      @each $class, $val in $classes {
-        .#{$class-bp}#{$class} {
-          @extend %#{$class-bp}#{$class};
+  // For each shorthand of the list...
+  @each $shorthand in $splitted-shorthands {
+    $breakpoint-index: string.index($shorthand, ':');
+
+    @if $breakpoint-index {
+      $splitted-shorthand: string.split($shorthand, ':');
+
+      @include query(list.nth($splitted-shorthand, 1)) {
+        $css-declaration: map.get(
+          map.get($perseid-shorthands, list.nth($splitted-shorthand, 2)),
+          'property'
+        );
+
+        @if not $css-declaration {
+          @error "Invalid Perseid shorthand: #{$shorthand}";
+        }
+
+        #{list.nth($css-declaration, 1)}: #{list.nth($css-declaration, 2)};
+      }
+    } @else {
+      $css-declaration: map.get(map.get($perseid-shorthands, $shorthand), 'property');
+
+      @if not $css-declaration {
+        @error "Invalid Perseid shorthand: #{$shorthand}";
+      }
+
+      #{list.nth($css-declaration, 1)}: #{list.nth($css-declaration, 2)};
+    }
+  }
+}
+
+/*
+  * Text ellipsis.
+  */
+@mixin ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
+  * Disabled element.
+  */
+@mixin disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/*
+  * Interactive field's label.
+  */
+@mixin label {
+  cursor: pointer;
+  font-weight: 300;
+  user-select: none;
+  font-size: 0.75rem;
+  margin-bottom: var(--gap-1);
+}
+
+/**
+  * Generates all the built-in CSS classes and variables. You should call this mixin in your main
+  * CSS entrypoint, but not in additional files that are dynamically imported, to avoid unecessary
+  * CSS declarations duplication.
+  */
+@mixin perseid() {
+  @layer perseid {
+    :root {
+      // Especially useful to uniformize the gap values across the layout.
+      @each $key, $gap in $perseid-gaps {
+        --gap-#{$key}: #{$gap};
+      }
+    }
+
+    // Generating breakpoints-based built-in layout selectors...
+    @each $shorthand, $data in $perseid-shorthands {
+      @each $breakpoint-shorthand in map.get($data, 'variants') {
+        [data-layout~='#{$breakpoint-shorthand}'] {
+          @include layout('#{$breakpoint-shorthand}');
         }
       }
     }
-  }
 
-  [class*='grid'] {
-    @extend %grid;
-  }
-
-  [class*='grid'],
-  [class*='flex'] {
-    @extend %grid-flex;
-  }
-
-  [class*='none'],
-  [class*='block'] {
-    @extend %none-block;
-  }
-
-  [class*='self'] {
-    @extend %self;
-  }
-
-  [class*='text-'] {
-    @extend %text;
-  }
-
-  [class*='w-full'] {
-    @extend %width;
-  }
-
-  [class*='h-full'] {
-    @extend %height;
-  }
-
-  [class*='flex'] {
-    @extend %flex;
-  }
-
-  [class*='col-'] {
-    @extend %col;
-  }
-
-  body {
-    @each $variable, $values in $variables {
-      @each $key, $value in $values {
-        --#{$variable}-#{$key}: #{$value};
-      }
-    }
-
-    &:before {
-      position: fixed;
-      z-index: 1000;
-      content: 'Your browser is outdated and might not be able to display this page.';
-      bottom: 0;
+    body:before {
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
-      width: 80vw;
-      max-width: 20rem;
+      z-index: 1000;
       padding: 1.5em;
+      position: fixed;
+      max-width: 20rem;
       font-weight: bold;
       text-align: center;
-      box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1);
       background: white;
-    }
+      width: max(80vw, 100%);
+      box-sizing: border-box;
+      border: 2px solid red;
+      transform: translateX(-50%) translateY(-50%);
+      content: 'Your browser is outdated and cannot display this page correctly.';
 
-    @supports (--css: variables) and (display: grid) {
-      &:before {
-        display: none;
+      @supports (--css: variables) and (display: grid) {
+        & {
+          display: none;
+        }
       }
     }
-  }
 
-  // Resets annoying default browsers' CSS properties.
-  * {
-    margin: 0;
-    padding: 0;
-    text-decoration: none;
-    box-sizing: border-box;
-    scroll-behavior: smooth;
+    // Resets inconvenient default browsers' CSS properties.
+    * {
+      margin: 0;
+      padding: 0;
+      text-decoration: none;
+      box-sizing: border-box;
+      scroll-behavior: smooth;
 
-    &:focus {
+      &:focus {
+        outline: none;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      p {
+        margin: 0;
+        line-height: 1;
+        font-size: 1rem;
+        font-weight: normal;
+      }
+
+      iframe {
+        border: none;
+      }
+    }
+
+    input,
+    input:focus {
+      border: none;
       outline: none;
     }
-  }
 
-  input,
-  input:focus {
-    border: none;
-    outline: none;
-  }
-
-  button {
-    border: none;
-    cursor: pointer;
-    background: none;
-
-    &::-moz-focus-inner {
-      padding: 0;
+    button {
       border: none;
+      cursor: pointer;
+      background: none;
+
+      &::-moz-focus-inner {
+        padding: 0;
+        border: none;
+      }
     }
-  }
 
-  ul {
-    list-style: none;
-  }
+    ul {
+      list-style: none;
+    }
 
-  a {
-    color: inherit;
-    text-decoration: inherit;
-  }
+    a {
+      color: inherit;
+      text-decoration: inherit;
+    }
 
-  body {
-    word-break: break-word;
-  }
+    body {
+      word-break: break-word;
+    }
 
-  *:hover {
-    -webkit-tap-highlight-color: transparent;
+    *:hover {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body:before {
+      display: none;
+    }
   }
 }

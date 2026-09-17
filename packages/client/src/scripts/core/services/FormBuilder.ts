@@ -116,6 +116,7 @@ export default class FormBuilder<
         };
       }
       if (relation !== undefined) {
+        // TODO WHAT IF THE RELATION DOESNT HAVE SUB FIELDS (LIKE I'M JUST PUTTING 'ROLES' IN FIELDS IN THE CONFIG, NOT 'ROLES.NAME') => ERROR
         const keys = Object.keys(extraFieldsTree);
         const fields = keys.length === 0 ? ['_id'] : keys;
         const labelFn = (resource: Record<string, unknown> | null): string => {

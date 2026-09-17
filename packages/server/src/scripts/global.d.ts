@@ -1,0 +1,1 @@
+type AnyValue = any;

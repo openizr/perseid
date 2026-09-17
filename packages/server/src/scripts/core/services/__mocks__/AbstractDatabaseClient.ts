@@ -6,6 +6,8 @@
  *
  */
 
+import type { QueryOptions } from 'scripts/core';
+
 /**
  * `core/services/AbstractDatabaseClient` mock.
  */
@@ -16,6 +18,8 @@ export default class {
   protected model: unknown;
 
   protected logger: unknown;
+
+  protected telemetry: unknown;
 
   protected database: unknown;
 
@@ -31,11 +35,9 @@ export default class {
 
   protected readonly DEFAULT_MAXIMUM_DEPTH = 3;
 
-  protected readonly DEFAULT_SEARCH_COMMAND_OPTIONS: SearchCommandOptions = {};
+  protected readonly DEFAULT_LIST_COMMAND_OPTIONS: QueryOptions = {};
 
-  protected readonly DEFAULT_LIST_COMMAND_OPTIONS: ListCommandOptions = {};
-
-  protected readonly DEFAULT_VIEW_COMMAND_OPTIONS: ViewCommandOptions = {};
+  protected readonly DEFAULT_VIEW_COMMAND_OPTIONS: QueryOptions = {};
 
   protected VALIDATORS = {
     object: vi.fn(),
@@ -52,12 +54,13 @@ export default class {
 
   public constructor(
     model: unknown,
-    logger: unknown,
+    telemetry: unknown,
     cache: unknown,
   ) {
     this.cache = cache;
     this.model = model;
-    this.logger = logger;
+    this.logger = telemetry;
+    this.telemetry = telemetry;
     this.database = 'test';
     this.isConnected = false;
     this.resourcesMetadata = {

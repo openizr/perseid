@@ -2,7 +2,7 @@
 
 exports[`svelte/SvelteTsButton > renders correctly - basic 1`] = `
 <button
-  class="svelte-1s0j9nk"
+  class="svelte-jp40if"
 >
   Hello
 </button>

@@ -6,6 +6,8 @@
  *
  */
 
+@use '../core' as *;
+
 .ui-image {
   user-select: none;
   position: relative;
@@ -24,7 +26,7 @@
       top: 0;
       left: 0;
       object-fit: cover;
-      @include extend(h-full w-full);
+      @include layout('h-full w-full');
     }
   }
 

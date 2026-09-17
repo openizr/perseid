@@ -2,6 +2,11 @@
   "extends": "./node_modules/@perseid/dev-kit/tsconfig.json",
   "compilerOptions": {
     "baseUrl": "src",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "scripts/*": [
+        "scripts/*"
+      ]
+    }
   }
 }

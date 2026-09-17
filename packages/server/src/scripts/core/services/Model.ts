@@ -14,10 +14,10 @@ import {
   type StringSchema,
   type ObjectSchema,
   Model as BaseModel,
+  type UserDataModel,
   type ResourceSchema,
   type DataModelSchema,
-  type DefaultDataModel,
-  type DataModelMetadata,
+  type NumberSchema,
 } from '@perseid/core';
 
 /**
@@ -26,72 +26,69 @@ import {
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/core/services/Model.ts
  */
 export default class Model<
-  /** Data model types definitions. */
-  DataModel extends DefaultDataModel = DefaultDataModel,
+  /**
+   * Data model type definition.
+   */
+  DataModel extends object,
 > extends BaseModel<DataModel> {
-  /** Public data model schema, used for data model introspection on front-end. */
+  /**
+   * Public data model schema, used for data model introspection on front-end.
+   */
   protected publicSchema: DataModelSchema<DataModel>;
 
-  /** List of relations per resource, along with their respective path in the model. */
-  protected relationsPerResource: { [Resource in keyof DataModel]: Set<string> };
+  /**
+   * List of relations per resource, along with their respective path in the model.
+   */
+  protected relationsPerResource: Partial<Record<keyof DataModel, Set<keyof DataModel & string>>>;
 
-  /** Default data model schema. */
-  public static readonly DEFAULT_MODEL: DataModelSchema<DefaultDataModel> = {
-    // TODO create a specific 'point' type and proper index type in @perseid.
-    // _location: {
-    //   type: 'object',
-    //   isRequired: true,
-    //   fields: {
-    //     type: {
-    //       type: 'string',
-    //       enum: ['Point'],
-    //       isRequired: true,
-    //     },
-    //     coordinates: {
-    //       type: 'array',
-    //       isRequired: true,
-    //       maxItems: 2,
-    //       minItems: 2,
-    //       fields: {
-    //         type: 'float',
-    //         maximum: 90,
-    //         minimum: -90,
-    //         isRequired: true,
-    //       },
-    //     },
-    //   },
-    // },
+  /**
+   * Users-related data model schema.
+   */
+  public static readonly USERS_MODEL: DataModelSchema<UserDataModel> = {
     users: {
-      version: 1,
       enableAuthors: true,
       enableDeletion: false,
       enableTimestamps: true,
+      description: 'User information.',
       fields: {
         _verifiedAt: {
           isIndexed: true,
           type: 'date',
+          description: 'User verification date.',
         },
+        // TODO rename into sessions
         _devices: {
           type: 'array',
           isRequired: true,
+          permission: 'USERS.VIEW_DETAILS',
           fields: {
             type: 'object',
             isRequired: true,
+            description: 'Device information.',
             fields: {
-              _userAgent: { type: 'string', isRequired: true },
-              _expiration: { type: 'date', isRequired: true },
-              _refreshToken: { type: 'string', isRequired: true },
-              _id: { type: 'string', pattern: /^[0-9a-fA-F]{24}$/, isRequired: true },
+              _id: Model.token(),
+              _expiration: {
+                type: 'date',
+                isRequired: true,
+                description: 'Device refresh token expiration date.',
+              },
+              _userAgent: {
+                type: 'string',
+                maxLength: 256,
+                isRequired: true,
+                description: 'Device user agent.',
+              },
+              _refreshToken: {
+                type: 'string',
+                maxLength: 24,
+                isRequired: true,
+                description: 'Device refresh token to use for that device.',
+              },
             },
           },
         },
-        _apiKeys: {
-          type: 'array',
-          isRequired: true,
-          fields: Model.token(),
-        },
         email: Model.email({ isUnique: true }),
-        password: Model.password(),
+        password: Model.password({ permission: null }),
         roles: {
           type: 'array',
           isRequired: true,
@@ -100,15 +97,16 @@ export default class Model<
             isIndexed: true,
             isRequired: true,
             relation: 'roles',
+            description: 'Role ID.',
           },
         },
       },
     },
     roles: {
-      version: 1,
       enableAuthors: true,
       enableDeletion: true,
       enableTimestamps: true,
+      description: 'Role information.',
       fields: {
         name: Model.tinyText({ isUnique: true, pattern: /^[0-9A-Z_]+$/ }),
         permissions: {
@@ -118,7 +116,8 @@ export default class Model<
             type: 'string',
             isRequired: true,
             maxLength: 256,
-            pattern: /^[0-9A-Z_]+$/,
+            description: 'Permission name.',
+            pattern: /^[0-9A-Z_.]+$/,
           },
         },
       },
@@ -172,8 +171,10 @@ export default class Model<
     schema: FieldSchema<DataModel>,
     relations = new Set<string>(),
   ): FieldSchema<DataModel> {
-    const { errorMessages, type, ...rest } = this.serializeSchema(schema);
-    if (errorMessages) {
+    const {
+      errorMessages, description, type, ...rest
+    } = this.serializeSchema(schema);
+    if (errorMessages || description) {
       // No-op.
     }
     if (type === 'array') {
@@ -195,13 +196,13 @@ export default class Model<
         }), {}),
       } as FieldSchema<DataModel>;
     }
-    const relation = (schema as IdSchema<DataModel>).relation as string | undefined;
+    const { relation } = (schema as IdSchema<DataModel>);
     if (type === 'id' && relation !== undefined) {
       const isRelationAlreadyProcessed = relations.has(relation);
-      const data = this.get(relation) as DataModelMetadata<ResourceSchema<DataModel>>;
+      const data = this.get(relation);
       if (!isRelationAlreadyProcessed) {
         relations.add(relation);
-        this.generatePublicSchemaFrom({ type: 'object', fields: data.schema.fields }, relations);
+        this.generatePublicSchemaFrom({ type: 'object', fields: data.schema.fields, description: data.schema.description }, relations);
       }
     }
     const { isUnique, isIndexed, ...subRest } = rest as Omit<StringSchema, 'type'>;
@@ -223,6 +224,7 @@ export default class Model<
   public static email(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
+      description: 'Resource email address.',
       errorMessages: {
         type: 'must be a valid email',
         pattern: 'must be a valid email',
@@ -235,7 +237,8 @@ export default class Model<
   }
 
   /**
-   * `tinyText` custom data model schema type generator. TODO describe what is a tiny/short/... text
+   * `tinyText` custom data model schema type generator.
+   * A tiny text can be up to 50 characters long.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ isRequired: true }`.
@@ -246,6 +249,7 @@ export default class Model<
     return {
       maxLength: 50,
       type: 'string',
+      description: 'Resource tiny text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -253,6 +257,7 @@ export default class Model<
 
   /**
    * `shortText` custom data model schema type generator.
+   * A short text can be up to 100 characters long.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ isRequired: true }`.
@@ -263,6 +268,7 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 100,
+      description: 'Resource short text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -270,6 +276,7 @@ export default class Model<
 
   /**
    * `mediumText` custom data model schema type generator.
+   * A medium text can be up to 500 characters long.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ isRequired: true }`.
@@ -280,6 +287,7 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 500,
+      description: 'Resource medium text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -287,6 +295,7 @@ export default class Model<
 
   /**
    * `longText` custom data model schema type generator.
+   * A long text can be up to 2,500 characters long.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ isRequired: true }`.
@@ -297,6 +306,7 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 2500,
+      description: 'Resource long text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
@@ -304,6 +314,7 @@ export default class Model<
 
   /**
    * `hugeText` custom data model schema type generator.
+   * A huge text can be up to 10,000 characters long.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ isRequired: true }`.
@@ -314,13 +325,16 @@ export default class Model<
     return {
       type: 'string',
       maxLength: 10000,
+      description: 'Resource huge text.',
       isRequired: overrides.isRequired !== false,
       ...overrides,
     };
   }
 
   /**
-   * `token` custom data model schema type generator.
+   * `token` custom data model schema type generator. A token:
+   * - can be up to 50 characters long
+   * - can contain only hexadecimal characters and hyphens
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ isRequired: true }`.
@@ -330,8 +344,9 @@ export default class Model<
   public static token(overrides: Partial<StringSchema> = {}): StringSchema {
     return {
       type: 'string',
-      maxLength: 24,
-      pattern: /^[0-9A-Za-z]{24}$/,
+      maxLength: 50,
+      pattern: /^[0-9A-Za-z-]{1,50}$/,
+      description: 'Resource token.',
       errorMessages: {
         type: 'must be a valid token',
         pattern: 'must be a valid token',
@@ -342,7 +357,154 @@ export default class Model<
   }
 
   /**
-   * `password` custom data model schema type generator.
+   * `id` custom data model schema type generator.
+   * An ID can be either a UUID or a Snowflake generated ID.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: true }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static id(overrides: Partial<IdSchema<unknown>> = {}): IdSchema<unknown> {
+    return {
+      type: 'id',
+      description: 'Resource ID.',
+      errorMessages: {
+        type: 'must be a valid ID',
+        pattern: 'must be a valid ID',
+      },
+      isRequired: overrides.isRequired !== false,
+      ...overrides,
+    };
+  }
+
+  /**
+   * `queryFields` custom data model schema type generator.
+   * A comma-separated list of fields paths to include in the response.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static queryFields(overrides: Partial<StringSchema> = {}): StringSchema {
+    return {
+      type: 'string',
+      maxLength: 5000,
+      pattern: /^([^ ]+)(,([^ ]+))*$/,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Comma-separated list of fields paths to include in the response.',
+      errorMessages: {
+        type: 'must be a coma-separated list of fields paths',
+        pattern: 'must be a coma-separated list of fields paths',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `queryLimit` custom data model schema type generator.
+   * Maximum number of resources to return.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static queryLimit(overrides: Partial<NumberSchema> = {}): NumberSchema {
+    return {
+      type: 'integer',
+      minimum: 0,
+      maximum: 100,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Maximum number of resources to return.',
+      errorMessages: {
+        type: 'must be a valid length',
+        minimum: 'must be valid length',
+        maximum: 'cannot be greater than 100',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `queryOffset` custom data model schema type generator.
+   * Results pagination offset to apply.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static queryOffset(overrides: Partial<NumberSchema> = {}): NumberSchema {
+    return {
+      type: 'integer',
+      minimum: 0,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Results pagination offset to apply.',
+      errorMessages: {
+        type: 'must be a valid offset',
+        minimum: 'must be valid offset',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `sortBy` custom data model schema type generator.
+   * Comma-separated list of fields paths to sort the resources by.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static sortBy(overrides: Partial<StringSchema> = {}): StringSchema {
+    return {
+      type: 'string',
+      maxLength: 5000,
+      pattern: /^([^ ]+)(,([^ ]+))*$/,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Comma-separated list of fields paths to sort the resources by.',
+      errorMessages: {
+        type: 'must be a coma-separated list of fields paths',
+        pattern: 'must be a coma-separated list of fields paths',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `sortOrder` custom data model schema type generator.
+   * Comma-separated list of sorting orders.
+   *
+   * @param overrides Additional parameters to override field with.
+   * Defaults to `{ isRequired: false }`.
+   *
+   * @returns Generated custom data model schema.
+   */
+  public static sortOrder(overrides: Partial<StringSchema> = {}): StringSchema {
+    return {
+      type: 'string',
+      maxLength: 5000,
+      pattern: /^(-1|1)(,(-1|1))*$/,
+      isRequired: overrides.isRequired ?? false,
+      description: 'Comma-separated list of sorting orders.',
+      errorMessages: {
+        type: 'must be a coma-separated list of sorting orders',
+      },
+      ...overrides,
+    };
+  }
+
+  /**
+   * `password` custom data model schema type generator. A password must contain at least:
+   * - 8 characters
+   * - one number
+   * - one uppercase letter
+   * - one lowercase letter
+   * - one special character
+   * Password length is limited to 500 characters.
    *
    * @param overrides Additional parameters to override field with.
    * Defaults to `{ isRequired: true }`.
@@ -354,6 +516,7 @@ export default class Model<
       type: 'string',
       maxLength: 500,
       pattern: /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,}$/,
+      description: 'Resource password.',
       errorMessages: {
         type: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
         pattern: 'must be a valid password (8 chars minimum, containing lower case, upper case, number and special char)',
@@ -376,18 +539,21 @@ export default class Model<
   ): ObjectSchema<unknown> {
     return {
       type: 'object',
+      description: 'Resource credentials.',
       fields: {
         deviceId: Model.token(),
         refreshToken: Model.token(),
         expiresIn: {
           type: 'integer',
           minimum: 0,
+          description: 'Resource refresh token expiration time in seconds.',
         },
         accessToken: {
           type: 'string',
           minLength: 10,
           maxLength: 500,
           isRequired: true,
+          description: 'Resource access token.',
         },
       },
       isRequired: overrides.isRequired !== false,
@@ -398,23 +564,24 @@ export default class Model<
   /**
    * Class constructor.
    *
-   * @param schema Schema from which to generate data model.
+   * @param schemaFragment Data model schema to generate data model from.
+   * Can be the complete schema, or just a fragment of it. Defaults to `{}`.
    */
-  constructor(schema: DataModelSchema<DataModel>) {
-    super(schema);
-    const resources = Object.keys(schema);
+  constructor(schemaFragment?: Partial<DataModelSchema<DataModel>>) {
+    super(schemaFragment);
     const publicSchema = {} as DataModelSchema<DataModel>;
-    const relationsPerResource = {} as { [Resource in keyof DataModel]: Set<string> };
-    (resources as (keyof DataModel)[]).forEach((resource) => {
-      relationsPerResource[resource] = new Set();
-      const { fields } = this.schema[resource];
+    const resources = Object.keys(this.schema) as (keyof DataModel & string)[];
+    const relations: Partial<Record<keyof DataModel, Set<keyof DataModel & string>>> = {};
+    resources.forEach((resource) => {
+      relations[resource] = new Set();
+      const { fields } = (this.schema as DataModelSchema<DataModel>)[resource];
       publicSchema[resource] = this.generatePublicSchemaFrom(
-        { type: 'object', fields },
-        relationsPerResource[resource],
+        { type: 'object', fields, description: '' },
+        relations[resource],
       ) as ResourceSchema<DataModel>;
     });
     this.publicSchema = publicSchema;
-    this.relationsPerResource = relationsPerResource;
+    this.relationsPerResource = relations;
   }
 
   /**
@@ -424,12 +591,11 @@ export default class Model<
    *
    * @returns Public data model schema for all related resources if they exist, `null` otherwise.
    */
-  public getPublicSchema(resource: keyof DataModel): DataModelSchema<DataModel> | null {
-    const relations = this.relationsPerResource as unknown as Record<keyof DataModel, unknown>;
-    if (relations[resource] === undefined) {
+  public getPublicSchema(resource: keyof DataModel & string): DataModelSchema<DataModel> | null {
+    if (this.relationsPerResource[resource] === undefined) {
       return null;
     }
-    const resources = [...this.relationsPerResource[resource]] as (keyof DataModel)[];
+    const resources = [...this.relationsPerResource[resource]];
     return resources.reduce((finalSchema, currentResource) => ({
       ...finalSchema,
       [currentResource]: this.publicSchema[currentResource],

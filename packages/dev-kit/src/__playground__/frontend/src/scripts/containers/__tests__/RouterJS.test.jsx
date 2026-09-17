@@ -18,9 +18,7 @@ vi.mock('react', () => {
 
 vi.mock('scripts/store/routes', () => ({
   default: {
-    // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires
     '/': () => import('scripts/pages/Home'),
-    // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires
     '/js': () => import('scripts/pages/HomeJS'),
   },
 }));

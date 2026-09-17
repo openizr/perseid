@@ -6,6 +6,8 @@
  *
  */
 
+@use '../core' as *;
+
 .ui-button {
   max-width: 100%;
   overflow: hidden;
@@ -14,14 +16,14 @@
   font-size: 0.875em;
   transition: all 250ms;
   border-radius: var(--shp-default);
-  padding: var(--gaps-2) var(--gaps-3);
-  @include extend(flex items-center hgap-2 justify-center);
+  padding: var(--gap-2) var(--gap-3);
+  @include layout('flex items-center hgap-2 justify-center');
 
   &__label {
     max-width: 100%;
     line-height: 1.5;
     @extend %ellipsis;
-    @include extend(text-center);
+    @include layout('text-center');
   }
 
   .ui-icon {
@@ -36,7 +38,7 @@
   }
 
   @include modifiers(icon) {
-    padding: var(--gaps-2);
+    padding: var(--gap-2);
   }
 
   @include modifiers(disabled) {
@@ -46,8 +48,8 @@
   @include modifiers(floating) {
     z-index: 1;
     position: absolute;
-    right: var(--gaps-4);
-    bottom: var(--gaps-4);
+    right: var(--gap-4);
+    bottom: var(--gap-4);
   }
 
   @each $color in (primary, secondary, greys) {

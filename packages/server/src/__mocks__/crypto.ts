@@ -11,4 +11,8 @@
  */
 
 export const randomBytes = vi.fn(() => '12345azerty');
-export const createHash = vi.fn(() => ({ update: vi.fn(() => ({ digest: vi.fn(() => 'abcde8997') })) }));
+export const createHash = vi.fn(() => ({
+  update: vi.fn((value: string) => ({
+    digest: vi.fn(() => (value.length <= 18 ? value : value.slice(0, 9) + value.slice(-9))),
+  })),
+}));
