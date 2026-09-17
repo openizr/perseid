@@ -722,7 +722,7 @@ export default class PostgreSQLDatabaseClient<
       orderBy: [{ field: `"${tableAlias}"."_id"`, direction: 'ASC' }],
       fields: [
         `"${tableAlias}"."_id" AS "${this.getFieldSqlAlias(`${rootPath}__itemId`)}"`,
-        `"${tableAlias}"."_parentId" AS "${this.getFieldSqlAlias(`${rootPath}__parentId`)}"`,
+        `"${tableAlias}"."_parent" AS "${this.getFieldSqlAlias(`${rootPath}__parent`)}"`,
         `"${tableAlias}"."value" AS "${this.getFieldSqlAlias(rootPath)}"`,
       ],
     });
@@ -875,11 +875,11 @@ export default class PostgreSQLDatabaseClient<
           fields: {},
           structure: `_${resource}_${String(subTableIndex)}`,
           constraints: [
-            { path: '_parentId', relation: table },
+            { path: '_parent', relation: table },
             { path: '_resourceId', relation: resource },
           ],
           indexes: [
-            { path: '_parentId', unique: false },
+            { path: '_parent', unique: false },
             { path: '_resourceId', unique: false },
           ],
           subStructures: [],
@@ -892,7 +892,7 @@ export default class PostgreSQLDatabaseClient<
           description: 'Array value.',
           fields: {
             _id: { type: 'id', isRequired: true, description: 'ID of the array value.' },
-            _parentId: { type: 'id', isRequired: true, description: 'ID of the parent array.' },
+            _parent: { type: 'id', isRequired: true, description: 'ID of the parent array.' },
             _resourceId: { type: 'id', isRequired: true, description: 'ID of the resource.' },
             value: currentSchema.fields,
           },
@@ -1025,53 +1025,25 @@ export default class PostgreSQLDatabaseClient<
    *
    * @throws If maximum level of resources depth is exceeded.
    */
-  protected planQueries<Resource extends keyof DataModel>(
+  protected planQueries<Resource extends keyof DataModel, Type extends (
+    'VIEW'
+    | 'LIST'
+    | 'CREATE'
+    | 'UPDATE'
+    | 'DELETE'
+  )>(
     resource: Resource & string,
-    type: 'CREATE',
-    id: null,
-    payload: DataModel[Resource],
-    options: ViewQueryOptions,
-  ): { projections: Projections; queries: Record<string, InsertQuery>; };
-
-  protected planQueries<Resource extends keyof DataModel>(
-    resource: Resource & string,
-    type: 'UPDATE',
-    id: Id,
-    payload: Payload<DataModel[Resource]>,
-    options: ViewQueryOptions,
-  ): { projections: Projections; queries: Record<string, InsertQuery | UpdateQuery | DeleteQuery> };
-
-  protected planQueries(
-    resource: keyof DataModel & string,
-    type: 'DELETE',
-    id: Id,
-    payload: null,
-    options: ViewQueryOptions,
-  ): { projections: Projections; queries: Record<string, DeleteQuery>; };
-
-  protected planQueries(
-    resource: keyof DataModel & string,
-    type: 'VIEW',
-    id: Id,
-    payload: null,
-    options: ViewQueryOptions,
-  ): { projections: Projections; queries: Record<string, SelectQuery>; };
-
-  protected planQueries(
-    resource: keyof DataModel & string,
-    type: 'LIST',
-    id: null,
-    payload: SearchBody | null,
-    options: ListQueryOptions,
-  ): { projections: Projections; queries: Record<string, SelectQuery>; };
-
-  protected planQueries<Resource extends keyof DataModel>(
-    resource: Resource & string,
-    type: 'VIEW' | 'LIST' | 'CREATE' | 'UPDATE' | 'DELETE',
-    id: Id | null,
-    payload: SearchBody | DataModel[Resource] | Payload<DataModel[Resource]> | null,
-    options: ViewQueryOptions | ListQueryOptions,
-  ): { projections: Projections; queries: Record<string, Query>; } {
+    type: Type,
+    id: Type extends 'VIEW' | 'UPDATE' | 'DELETE' ? Id : null,
+    payload: Type extends 'LIST' ? SearchBody | null :
+      Type extends 'CREATE' ? DataModel[Resource] :
+      Type extends 'UPDATE' ? Payload<DataModel[Resource]> :
+      Type extends 'DELETE' ? null :
+      null,
+    options: Type extends 'LIST' ? ListQueryOptions : ViewQueryOptions
+  ): Type extends 'LIST' | 'VIEW'
+    ? { projections: Projections; queries: Record<string, SelectQuery>; }
+    : { projections: Projections; queries: Record<string, Query>; } {
     const model = this.model.get(resource);
     const finalProjections: Projections = { _id: 1 };
     const deletionFilter = this.buildDeletionFilter(
@@ -1095,7 +1067,9 @@ export default class PostgreSQLDatabaseClient<
             where: idFilter.concat(deletionFilter),
           },
         },
-      };
+      } as Type extends 'LIST' | 'VIEW'
+        ? { projections: Projections; queries: Record<string, SelectQuery>; }
+        : { projections: Projections; queries: Record<string, Query>; };
     }
 
     if (type === 'CREATE' || type === 'UPDATE') {
@@ -1132,7 +1106,7 @@ export default class PostgreSQLDatabaseClient<
 
         // Array values live in their own table: the owner row only keeps a marker telling whether
         // the array is null, and each item becomes a row in that table, linked to its owner by
-        // "_parentId" and to the root resource by "_resourceId".
+        // "_parent" and to the root resource by "_resourceId".
         if (fieldType === 'array') {
           const table = `_${resource}_${path.replace(/\./g, '_')}`;
           // Registered even when the array is null or empty, as its previous rows must still be
@@ -1150,7 +1124,7 @@ export default class PostgreSQLDatabaseClient<
               const itemId = new Id();
               const itemRow: Record<string, unknown> = {
                 _id: itemId,
-                _parentId: parentId,
+                _parent: parentId,
               };
               rowsPerTable[table].push(itemRow);
               structureRow(
@@ -1221,7 +1195,7 @@ export default class PostgreSQLDatabaseClient<
       const queries: Record<string, InsertQuery | UpdateQuery | DeleteQuery> = {};
       const previousRows: NonNullable<DeleteQuery['where']>[number] = {
         operator: '=',
-        column: '"_parentId"',
+        column: '"_parent"',
         value: resourceId,
       };
 
@@ -1262,7 +1236,9 @@ export default class PostgreSQLDatabaseClient<
         }
       });
 
-      return { projections: finalProjections, queries };
+      return { projections: finalProjections, queries } as Type extends 'LIST' | 'VIEW'
+        ? { projections: Projections; queries: Record<string, SelectQuery>; }
+        : { projections: Projections; queries: Record<string, Query>; };
     }
 
     const isView = (type === 'VIEW');
@@ -1358,7 +1334,15 @@ export default class PostgreSQLDatabaseClient<
         fullFlattenedPath = `${fullFlattenedPath}_${fieldName}`;
         flattenedPathInTable = (flattenedPathInTable === '') ? fieldName : `${flattenedPathInTable}_${fieldName}`;
 
-        // Array values live in their own table, linked to the owner row by "_parentId".
+        // Objects and arrays keep a marker column in their owner row telling whether they are null,
+        // e.g. helping differentiate between empty and null arrays.
+        const isContainer = (currentSchema?.type === 'object' || currentSchema?.type === 'array');
+        if (isFetchField && isContainer && !(fieldName in currentProjections)) {
+          const fieldAlias = this.getFieldSqlAlias(fullFlattenedPath);
+          currentQuery.fields.push(`"${currentAlias}"."${flattenedPathInTable}" AS "${fieldAlias}"`);
+        }
+
+        // Array values live in their own table, linked to the owner row by "_parent".
         // Crossing one switches tables: seal the query we're leaving (its row filter is now
         // fully known), chain both ownership subqueries one level deeper, then re-anchor the
         // whole walk state (table, alias, in-table path, schema, fetch query) on the array table.
@@ -1369,8 +1353,8 @@ export default class PostgreSQLDatabaseClient<
           const newTable = `_${currentTable.replace(/^_/, '')}_${flattenedPathInTable.replace(/^value_/, '')}`;
           const newAlias = this.getFieldSqlAlias(newTable);
           const newQuery = existsQuery ?? `"${currentAlias}"."_id"`;
-          existsQuery = this.buildSubQuery(newTable, newAlias, currentAlias, '_id', newQuery, '_parentId');
-          selectQuery = this.buildSubQuery(newTable, newAlias, currentAlias, '_id', selectQuery, '_parentId');
+          existsQuery = this.buildSubQuery(newTable, newAlias, currentAlias, '_id', newQuery, '_parent');
+          selectQuery = this.buildSubQuery(newTable, newAlias, currentAlias, '_id', selectQuery, '_parent');
           currentTable = newTable;
           currentAlias = newAlias;
           flattenedPathInTable = 'value';
@@ -1665,7 +1649,7 @@ export default class PostgreSQLDatabaseClient<
 
       const index = new Map<string, Record<string, unknown>[]>();
       resultsPerQuery[path].forEach((itemRow) => {
-        const itemParentId = String(itemRow[this.getFieldSqlAlias(`${path}__parentId`)]);
+        const itemParentId = String(itemRow[this.getFieldSqlAlias(`${path}__parent`)]);
         const itemRows = index.get(itemParentId);
         if (itemRows === undefined) {
           index.set(itemParentId, [itemRow]);
@@ -1695,7 +1679,7 @@ export default class PostgreSQLDatabaseClient<
       }
 
       // Array values live in their own query, each of its rows being linked to the row that owns
-      // the array by "_parentId".
+      // the array by "_parent".
       if (schema.type === 'array') {
         const idAlias = this.getFieldSqlAlias(`${path}__itemId`);
         return getItemRows(path, parentId).map((itemRow) => (
@@ -2090,7 +2074,7 @@ export default class PostgreSQLDatabaseClient<
   >(
     resource: Resource & string,
     id: Id,
-    options: ViewQueryOptions,
+    options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null> {
     return this.telemetry.span(`${this.constructor.name}.view`, {
       kind: 'CLIENT',
@@ -2144,7 +2128,7 @@ export default class PostgreSQLDatabaseClient<
   >(
     resource: Resource & string,
     searchBody: SearchBody | null,
-    options: ListQueryOptions,
+    options: ListQueryOptions = this.DEFAULT_LIST_COMMAND_OPTIONS,
   ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>> {
     return this.telemetry.span(`${this.constructor.name}.list`, {
       kind: 'CLIENT',

@@ -6,9 +6,9 @@
  *
  */
 
-import { PerseidError } from '@perseid/core';
 import * as opentelemetry from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { PerseidError, Telemetry as BaseTelemetry } from '@perseid/core';
 import { pino, type DestinationStream, type Logger as PinoLogger } from 'pino';
 import { hrTime, hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import type { AnyValue, AnyValueMap, Logger as OTELLogger } from '@opentelemetry/api-logs';
@@ -88,7 +88,7 @@ export interface TelemetrySettings {
  * Observability service, providing logging, tracing and metrics-related features.
  * Fully supports OpenTelemetry API: https://opentelemetry.io.
  */
-export default class Telemetry {
+export default class Telemetry implements BaseTelemetry {
   /**
    * Number representation of log levels, used to determine whether to log.
    */

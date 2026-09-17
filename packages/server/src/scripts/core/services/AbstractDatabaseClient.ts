@@ -435,11 +435,6 @@ export default abstract class AbstractDatabaseClient<
   protected model: Model;
 
   /**
-   * Whether database client is connected to the server.
-   */
-  protected isConnected: boolean;
-
-  /**
    * Resources metadata, used to generate database structure and handle resources deletion.
    */
   protected resourcesMetadata: Record<string, ResourceMetadata>;
@@ -476,7 +471,6 @@ export default abstract class AbstractDatabaseClient<
     this.cache = cache;
     this.model = model;
     this.telemetry = telemetry;
-    this.isConnected = false;
     this.resourcesMetadata = {};
     this.telemetry.debug(settings.pools.default.database);
     // This step is necessary to make sure all resource metadata skeletons exist before updating

@@ -15,6 +15,7 @@ import {
 import PostgreSQLDatabaseClient, {
   type Query,
   type SelectQuery,
+  type InsertQuery,
   type PostgreSQLDatabaseClientSettings,
 } from 'scripts/connectors/postgresql/services/PostgreSQLDatabaseClient';
 import { Id } from '@perseid/core';
@@ -224,7 +225,7 @@ describe('connectors/postgresql/services/PostgreSQLDatabaseClient', () => {
       expect(queries._otherTest_data_optionalFlatArray).toEqual({
         type: 'INSERT',
         table: '_otherTest_data_optionalFlatArray',
-        fields: ['_id', '_parentId', 'value'],
+        fields: ['_id', '_parent', 'value'],
         values: [
           [expect.any(Id), resourceId, 'test1'],
           [expect.any(Id), resourceId, 'test2'],
@@ -247,7 +248,7 @@ describe('connectors/postgresql/services/PostgreSQLDatabaseClient', () => {
         },
       }, {});
 
-      expect((queries.test).values).toEqual([[
+      expect((queries.test as InsertQuery).values).toEqual([[
         resourceId,
         false,
         'test',
@@ -259,7 +260,7 @@ describe('connectors/postgresql/services/PostgreSQLDatabaseClient', () => {
         true,
       ]]);
       const insertQuery = queries._test_objectOne_objectTwo_optionalNestedArray;
-      expect(insertQuery.values).toEqual([[
+      expect((insertQuery as InsertQuery).values).toEqual([[
         expect.any(Id),
         resourceId,
         null,
@@ -300,7 +301,7 @@ describe('connectors/postgresql/services/PostgreSQLDatabaseClient', () => {
       expect(queries._delete_0).toEqual({
         type: 'DELETE',
         table: '_otherTest_data_optionalFlatArray',
-        where: [{ column: '"_parentId"', operator: '=', value: resourceId }],
+        where: [{ column: '"_parent"', operator: '=', value: resourceId }],
       });
     });
 
@@ -327,6 +328,21 @@ describe('connectors/postgresql/services/PostgreSQLDatabaseClient', () => {
         as: 'test_objectOne_optionalRelations',
         on: '"test_objectOne_optionalRelations"."_id" = "_test_objectOne_optionalRelations"."value"',
       }]);
+    });
+
+    test('fetches the marker column of the objects and arrays a field is nested in', ({ client }) => {
+      const { queries } = client.planQueries('test', 'VIEW', resourceId, null, {
+        fields: ['objectOne.boolean', 'objectOne.optionalRelations._createdAt'],
+      });
+
+      // A null object or array would otherwise be indistinguishable from an existing one whose
+      // sub-fields are all null. Each marker is fetched only once.
+      expect(queries.test.fields).toEqual([
+        '"test"."_id" AS "test__id"',
+        '"test"."objectOne" AS "test_objectOne"',
+        '"test"."objectOne_boolean" AS "test_objectOne_boolean"',
+        '"test"."objectOne_optionalRelations" AS "test_objectOne_optionalRelations"',
+      ]);
     });
 
     test('keeps the aliases of long field paths within the database identifier limit', ({ client }) => {
@@ -817,14 +833,14 @@ FROM
         test_objectOne_optionalRelations: [
           {
             test_objectOne_optionalRelations__itemId: '000000000000000000000010',
-            test_objectOne_optionalRelations__parentId: '000000000000000000000001',
+            test_objectOne_optionalRelations__parent: '000000000000000000000001',
             test_objectOne_optionalRelations__id: '000000000000000000000020',
             test_objectOne_optionalRelations__value: '000000000000000000000020',
             test_objectOne_optionalRelations__createdAt: new Date('2025-01-01'),
           },
           {
             test_objectOne_optionalRelations__itemId: '000000000000000000000011',
-            test_objectOne_optionalRelations__parentId: '000000000000000000000001',
+            test_objectOne_optionalRelations__parent: '000000000000000000000001',
             test_objectOne_optionalRelations__id: null,
           },
         ],
@@ -864,7 +880,7 @@ FROM
         ],
         test_objectOne_optionalRelations: [{
           test_objectOne_optionalRelations__id: '000000000000000000000010',
-          test_objectOne_optionalRelations__parentId: '000000000000000000000002',
+          test_objectOne_optionalRelations__parent: '000000000000000000000002',
           test_objectOne_optionalRelations: '000000000000000000000020',
         }],
       });
@@ -1248,7 +1264,7 @@ FROM
             rowCount: 1,
             rows: [{
               test_objectOne_optionalRelations__itemId: '000000000000000000000010',
-              test_objectOne_optionalRelations__parentId: '000000000000000000000001',
+              test_objectOne_optionalRelations__parent: '000000000000000000000001',
               test_objectOne_optionalRelations: '000000000000000000000020',
             }],
           })
