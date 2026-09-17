@@ -28,7 +28,7 @@ describe('classes/HttpClient', () => {
     debug: vi.fn(),
     error: vi.fn(),
     fatal: vi.fn(),
-    close: vi.fn(),
+    shutdown: vi.fn(),
     span: vi.fn(),
     measure: vi.fn(),
     duration: vi.fn(),

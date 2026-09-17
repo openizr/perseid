@@ -27,7 +27,7 @@ describe('classes/I18n', () => {
     debug: vi.fn(),
     error: vi.fn(),
     fatal: vi.fn(),
-    close: vi.fn(),
+    shutdown: vi.fn(),
     span: vi.fn(),
     now: vi.fn(),
     duration: vi.fn(),

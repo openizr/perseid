@@ -79,7 +79,7 @@ class TestTelemetry extends Telemetry {
     this.mock(name, value, attributes);
   }
 
-  public async close(): Promise<void> {
+  public async shutdown(): Promise<void> {
     await Promise.resolve();
     this.mock();
   }
@@ -98,9 +98,8 @@ describe('classes/Telemetry', () => {
     expect(telemetry.debug.bind(telemetry)).toBeDefined();
     expect(telemetry.error.bind(telemetry)).toBeDefined();
     expect(telemetry.fatal.bind(telemetry)).toBeDefined();
-    expect(telemetry.close.bind(telemetry)).toBeDefined();
     expect(telemetry.span.bind(telemetry)).toBeDefined();
-    expect(telemetry.close.bind(telemetry)).toBeDefined();
+    expect(telemetry.shutdown.bind(telemetry)).toBeDefined();
     expect(telemetry.measure.bind(telemetry)).toBeDefined();
     expect(telemetry.createGauge.bind(telemetry)).toBeDefined();
     expect(telemetry.createCounter.bind(telemetry)).toBeDefined();

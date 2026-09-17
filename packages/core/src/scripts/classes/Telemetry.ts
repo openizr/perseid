@@ -238,9 +238,9 @@ export default abstract class Telemetry {
   public abstract measure(name: string, value: number, attributes?: opentelemetry.Attributes): void;
 
   /**
-   * Gracefully closes pino logger and OTEL providers, flushing remaining buffered logs.
+   * Gracefully shuts down OTEL providers.
    */
-  public abstract close(): Promise<void>;
+  public abstract shutdown(): Promise<void>;
 
   /**
    * Returns the current time, formatted using OTEL `hrTime` implementation.
