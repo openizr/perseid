@@ -9,16 +9,14 @@
 import {
   Id,
   type Ids,
-  type Authors,
   type Deletion,
-  type Timestamps,
   type UserDataModel,
   type DataModelSchema,
 } from '@perseid/core';
 
 export interface DataModel extends UserDataModel {
   notImplemented: Ids;
-  test: Ids & Deletion & Authors & Timestamps & {
+  test: Ids & Deletion & {
     indexedString: string;
     objectOne: {
       boolean: boolean;

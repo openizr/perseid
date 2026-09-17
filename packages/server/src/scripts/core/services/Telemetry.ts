@@ -616,11 +616,28 @@ export default class Telemetry {
    * @param name Metric name.
    *
    * @param options Metric options.
+   *
+   * @param callback Callback executed whenever a metric collection is initiated. If this parameter
+   * is provided, an observable metric will be created instead, and `measure` method will not be
+   * available for this metric.
+   *
+   * @example
+   * const telemetry = new Telemetry(...);
+   * telemetry.createGauge('my_metric', { description: 'Test', unit: '1' }, (record) => {
+   *   record(1);
+   * });
    */
-  public createGauge(name: string, options: opentelemetry.MetricOptions): void {
+  public createGauge(
+    name: string,
+    options: opentelemetry.MetricOptions,
+    callback?: (observe: (value: number, attributes?: opentelemetry.Attributes) => void) => void,
+  ): void {
     if (this.otelMeter === null) {
       this.pinoLogger.debug(`Creating gauge metric "${name}"...`);
       this.pinoLogger.debug(options);
+    } else if (callback !== undefined) {
+      const gauge = this.otelMeter.createObservableGauge(name, options);
+      gauge.addCallback((result) => { callback(result.observe.bind(result)); });
     } else {
       this.otelMetrics.set(name, {
         type: 'GAUGE',
@@ -654,11 +671,28 @@ export default class Telemetry {
    * @param name Metric name.
    *
    * @param options Metric options.
+   *
+   * @param callback Callback executed whenever a metric collection is initiated. If this parameter
+   * is provided, an observable metric will be created instead, and `measure` method will not be
+   * available for this metric.
+   *
+   * @example
+   * const telemetry = new Telemetry(...);
+   * telemetry.createCounter('my_metric', { description: 'Test', unit: '1' }, (observe) => {
+   *   observe(1);
+   * });
    */
-  public createCounter(name: string, options: opentelemetry.MetricOptions): void {
+  public createCounter(
+    name: string,
+    options: opentelemetry.MetricOptions,
+    callback?: (observe: (value: number, attributes?: opentelemetry.Attributes) => void) => void,
+  ): void {
     if (this.otelMeter === null) {
       this.pinoLogger.debug(`Creating counter metric "${name}"...`);
       this.pinoLogger.debug(options);
+    } else if (callback !== undefined) {
+      const counter = this.otelMeter.createObservableCounter(name, options);
+      counter.addCallback((result) => { callback(result.observe.bind(result)); });
     } else {
       this.otelMetrics.set(name, {
         type: 'COUNTER',
@@ -673,11 +707,28 @@ export default class Telemetry {
    * @param name Metric name.
    *
    * @param options Metric options.
+   *
+   * @param callback Callback executed whenever a metric collection is initiated. If this parameter
+   * is provided, an observable metric will be created instead, and `measure` method will not be
+   * available for this metric.
+   *
+   * @example
+   * const telemetry = new Telemetry(...);
+   * telemetry.createUpDownCounter('my_metric', { description: 'Test', unit: '1' }, (observe) => {
+   *   observe(1);
+   * });
    */
-  public createUpDownCounter(name: string, options: opentelemetry.MetricOptions): void {
+  public createUpDownCounter(
+    name: string,
+    options: opentelemetry.MetricOptions,
+    callback?: (observe: (value: number, attributes?: opentelemetry.Attributes) => void) => void,
+  ): void {
     if (this.otelMeter === null) {
       this.pinoLogger.debug(`Creating up-down counter metric "${name}"...`);
       this.pinoLogger.debug(options);
+    } else if (callback !== undefined) {
+      const counter = this.otelMeter.createObservableUpDownCounter(name, options);
+      counter.addCallback((result) => { callback(result.observe.bind(result)); });
     } else {
       this.otelMetrics.set(name, {
         type: 'UP_DOWN_COUNTER',

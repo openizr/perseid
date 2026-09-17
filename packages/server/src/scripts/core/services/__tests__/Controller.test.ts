@@ -719,10 +719,10 @@
 //       }).rejects.toThrow(new Forbidden('FORBIDDEN', 'You are missing "test" permission to perform this operation.'));
 //     });
 
-//     test('DUPLICATE_RESOURCE error', async () => {
+//     test('RESOURCE_EXISTS error', async () => {
 //       await expect(async () => {
 //         await controller.catchErrors(() => {
-//           throw new DatabaseError('DUPLICATE_RESOURCE', { path: 'test', value: 'value' });
+//           throw new DatabaseError('RESOURCE_EXISTS', { path: 'test', value: 'value' });
 //         });
 //       }).rejects.toThrow(new Conflict('RESOURCE_EXISTS', 'Resource with field value "value" already exists.'));
 //     });

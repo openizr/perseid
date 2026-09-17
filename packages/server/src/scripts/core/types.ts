@@ -95,7 +95,7 @@ export interface SearchQuery {
   /**
    * List of fields over which to perform the full-text search.
    */
-  on: Set<string>;
+  on: string[];
 }
 
 /**
@@ -141,6 +141,16 @@ export interface ViewQueryOptions extends QueryOptions {
    * List of fields to fetch. Defaults to `['_id']`.
    */
   fields?: string[];
+
+  /**
+   * Pool or session ID to use for the query.
+   */
+  poolOrSession?: string;
+
+  /**
+   * Telemetry attributes to add to the method span.
+   */
+  telemetryAttributes?: Record<string, string | number | boolean | undefined>;
 }
 
 /**

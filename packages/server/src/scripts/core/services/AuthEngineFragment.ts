@@ -70,7 +70,7 @@ export default class AuthEngineFragment<
    * `users` resource.
    */
   protected async prepareCreatePayload<Resource extends keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<DataModel[Resource]> {
@@ -92,7 +92,7 @@ export default class AuthEngineFragment<
    * `users` resource.
    */
   protected async prepareUpdatePayload<Resource extends keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: UpdatePayload<DataModel[Resource]>,
     context: UserCommandContext<DataModel>,
   ): Promise<Payload<DataModel[Resource]>> {
@@ -145,7 +145,7 @@ export default class AuthEngineFragment<
    * created.
    */
   public async create<Result = unknown, Resource extends keyof DataModel = keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Result> {

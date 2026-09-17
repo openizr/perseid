@@ -24,4 +24,22 @@ export default class {
   public fatal = vi.fn();
 
   public child = vi.fn();
+
+  public now = vi.fn(() => [0, 0]);
+
+  public duration = vi.fn(() => 0.5);
+
+  public measure = vi.fn();
+
+  public createCounter = vi.fn();
+
+  public createHistogram = vi.fn();
+
+  public createUpDownCounter = vi.fn();
+
+  public span = vi.fn((
+    _name: string,
+    _options: unknown,
+    callback: (span: unknown) => unknown,
+  ) => callback({ setStatus: vi.fn(), setAttributes: vi.fn() }));
 }

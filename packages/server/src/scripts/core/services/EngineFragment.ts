@@ -112,17 +112,17 @@ export default class EngineFragment<
    * @returns
    */
   protected extractRelationsFromPayload<Resource extends keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     partialPayload: unknown,
     currentSchema: FieldSchema<DataModel>,
     payload: UpdatePayload<DataModel[Resource]> | CreatePayload<DataModel[Resource]>,
     currentPath: string[] = [],
     relations = new Map<string, {
-      resource: keyof DataModel;
+      resource: keyof DataModel & string;
       filters: SearchFilters & { _id: Id[]; } | null;
     }>(),
   ): Map<string, {
-      resource: keyof DataModel;
+      resource: keyof DataModel & string;
       filters: SearchFilters & { _id: Id[]; } | null;
     }> {
     const path = currentPath.join('.');
@@ -450,7 +450,7 @@ export default class EngineFragment<
    * @returns Prepared and validated payload, containing automatic fields.
    */
   protected async prepareCreatePayload<Resource extends keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<DataModel[Resource]> {
@@ -501,7 +501,7 @@ export default class EngineFragment<
    * @returns Prepared and validated payload, containing automatic fields.
    */
   protected async prepareUpdatePayload<Resource extends keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Payload<DataModel[Resource]>> {
@@ -566,7 +566,7 @@ export default class EngineFragment<
    * @throws If resource does not exist or does not match criteria.
    */
   public async unsafeView<Result = unknown>(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<Result> {
@@ -596,7 +596,7 @@ export default class EngineFragment<
    * @throws If resource does not exist or does not match criteria.
    */
   public async unsafeList<Result = unknown>(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     searchBody: SearchBody,
     context: CommandContext<DataModel>,
   ): Promise<Results<Result>> {
@@ -619,7 +619,7 @@ export default class EngineFragment<
    * @returns Newly created resource.
    */
   public async create<Result = unknown, Resource extends keyof DataModel = keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Result> {
@@ -650,7 +650,7 @@ export default class EngineFragment<
     Result = unknown,
     Resource extends keyof DataModel = keyof DataModel
   >(
-    resource: Resource,
+    resource: Resource & string,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
@@ -680,7 +680,7 @@ export default class EngineFragment<
    * @throws If resource does not exist or does not match criteria.
    */
   public async delete(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<void> {
@@ -713,7 +713,7 @@ export default class EngineFragment<
    * @returns Paginated list of resources.
    */
   public async list<Result = unknown>(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     searchBody: SearchBody,
     context: CommandContext<DataModel>,
   ): Promise<Results<Result>> {
@@ -738,7 +738,7 @@ export default class EngineFragment<
    * @throws If resource does not exist or does not match criteria.
    */
   public async view<Result = unknown>(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<Result> {

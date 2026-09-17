@@ -19,6 +19,8 @@ export default class {
 
   protected logger: unknown;
 
+  protected telemetry: unknown;
+
   protected database: unknown;
 
   protected isConnected: unknown;
@@ -52,12 +54,13 @@ export default class {
 
   public constructor(
     model: unknown,
-    logger: unknown,
+    telemetry: unknown,
     cache: unknown,
   ) {
     this.cache = cache;
     this.model = model;
-    this.logger = logger;
+    this.logger = telemetry;
+    this.telemetry = telemetry;
     this.database = 'test';
     this.isConnected = false;
     this.resourcesMetadata = {

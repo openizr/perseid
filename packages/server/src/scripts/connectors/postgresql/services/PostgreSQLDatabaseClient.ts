@@ -84,38 +84,14 @@ interface FilterableQuery extends BaseQuery {
    * List of conditions to apply to the query.
    */
   where?: (
-    /**
-     * Simple string condition.
-     */
     string
-    /**
-     * EXISTS condition.
-     */
     | { operator: 'EXISTS'; value: string | SelectQuery; }
-    /**
-     * NOT EXISTS condition.
-     */
     | { operator: 'NOT EXISTS'; value: string | SelectQuery; }
-    /**
-     * IN condition.
-     */
     | { operator: 'IN'; column: string; value: string | SelectQuery; }
-    /**
-     * NOT IN condition.
-     */
     | { operator: 'NOT IN'; column: string; value: string | SelectQuery; }
-    /**
-     * OR condition.
-     */
     | { operator: 'OR'; conditions: Exclude<SelectQuery['where'], undefined>; }
-    /**
-     * AND condition.
-     */
     | { operator: 'AND'; conditions: Exclude<SelectQuery['where'], undefined>; }
-    /**
-     * Comparison condition.
-     */
-    | { column: string; value: unknown; operator: '~*' | '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'ILIKE' | 'IS' | 'IS NOT' | 'BETWEEN' | 'NOT BETWEEN'; }
+    | { column: string; value: unknown; operator: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'ILIKE'; }
   )[];
 }
 
@@ -1938,7 +1914,8 @@ export default class PostgreSQLDatabaseClient<
     return this.telemetry.span(`${this.constructor.name}.create`, {
       kind: 'CLIENT',
       attributes: {
-        resource,
+        'db.operation.type': 'INSERT',
+        'db.collection.name': resource,
         pool_or_session: options.poolOrSession,
         'code.class.name': this.constructor.name,
         ...options.telemetryAttributes,
@@ -1985,8 +1962,9 @@ export default class PostgreSQLDatabaseClient<
     return this.telemetry.span(`${this.constructor.name}.update`, {
       kind: 'CLIENT',
       attributes: {
-        resource,
         id: String(id),
+        'db.operation.type': 'UPDATE',
+        'db.collection.name': resource,
         pool_or_session: options.poolOrSession,
         'code.class.name': this.constructor.name,
         ...options.telemetryAttributes,
@@ -2074,8 +2052,9 @@ export default class PostgreSQLDatabaseClient<
     return this.telemetry.span(`${this.constructor.name}.delete`, {
       kind: 'CLIENT',
       attributes: {
-        resource,
         id: String(id),
+        'db.operation.type': 'DELETE',
+        'db.collection.name': resource,
         pool_or_session: options.poolOrSession,
         'code.class.name': this.constructor.name,
         ...options.telemetryAttributes,
@@ -2116,8 +2095,9 @@ export default class PostgreSQLDatabaseClient<
     return this.telemetry.span(`${this.constructor.name}.view`, {
       kind: 'CLIENT',
       attributes: {
-        resource,
         id: String(id),
+        'db.operation.type': 'SELECT',
+        'db.collection.name': resource,
         pool_or_session: options.poolOrSession,
         'code.class.name': this.constructor.name,
         ...options.telemetryAttributes,
@@ -2169,9 +2149,10 @@ export default class PostgreSQLDatabaseClient<
     return this.telemetry.span(`${this.constructor.name}.list`, {
       kind: 'CLIENT',
       attributes: {
-        resource,
         limit: options.limit,
         offset: options.offset,
+        'db.operation.type': 'SELECT',
+        'db.collection.name': resource,
         pool_or_session: options.poolOrSession,
         'code.class.name': this.constructor.name,
         ...options.telemetryAttributes,
@@ -2271,8 +2252,9 @@ export default class PostgreSQLDatabaseClient<
     return this.telemetry.span(`${this.constructor.name}.checkRelations`, {
       kind: 'CLIENT',
       attributes: {
-        resource,
         relations: relations.size,
+        'db.operation.type': 'SELECT',
+        'db.collection.name': resource,
         pool_or_session: options?.poolOrSession,
         'code.class.name': this.constructor.name,
       },

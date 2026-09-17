@@ -296,7 +296,7 @@ export default class Engine<
    * @returns Prepared and validated payload, containing automatic fields.
    */
   protected prepareCreatePayload<Resource extends keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<DataModel[Resource]> {
@@ -317,7 +317,7 @@ export default class Engine<
    * @returns Prepared and validated payload, containing automatic fields.
    */
   protected prepareUpdatePayload<Resource extends keyof DataModel>(
-    resource: Resource,
+    resource: Resource & string,
     payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Payload<DataModel[Resource]>> {
@@ -365,7 +365,7 @@ export default class Engine<
     Key extends keyof QueryResults,
     Resource extends keyof DataModel = keyof DataModel
   >(
-    resource: Resource,
+    resource: Resource & string,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
@@ -392,7 +392,7 @@ export default class Engine<
     Key extends keyof QueryResults,
     Resource extends keyof DataModel = keyof DataModel
   >(
-    resource: Resource,
+    resource: Resource & string,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
@@ -417,7 +417,7 @@ export default class Engine<
    * @throws If resource does not exist or does not match criteria.
    */
   public async view<Key extends keyof QueryResults>(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
@@ -441,7 +441,7 @@ export default class Engine<
    * @throws If resource does not exist or does not match criteria.
    */
   public async unsafeView<Result = unknown>(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<Result> {
@@ -465,7 +465,7 @@ export default class Engine<
    * @throws If resource does not exist or does not match criteria.
    */
   public async unsafeList<Result = unknown>(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     searchBody: SearchBody,
     context: CommandContext<DataModel>,
   ): Promise<Results<Result>> {
@@ -485,7 +485,7 @@ export default class Engine<
    * @returns Paginated list of resources.
    */
   public async list<Key extends keyof QueryResults>(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     searchBody: SearchBody,
     context: CommandContext<DataModel>,
   ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>> {
@@ -509,7 +509,7 @@ export default class Engine<
    * @throws If resource does not exist or does not match criteria.
    */
   public async delete(
-    resource: keyof DataModel,
+    resource: keyof DataModel & string,
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<void> {

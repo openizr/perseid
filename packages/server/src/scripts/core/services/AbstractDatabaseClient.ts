@@ -526,8 +526,11 @@ export default abstract class AbstractDatabaseClient<
    * @throws If any foreign id does not exist.
    */
   public abstract checkRelations<Resource extends keyof DataModel>(
-    _resource: Resource,
-    relations: Map<string, { resource: keyof DataModel; filters: SearchFilters | null; }>,
+    _resource: Resource & string,
+    relations: Map<string, {
+      resource: keyof DataModel & string;
+      filters: SearchFilters & { _id: Id[]; } | null;
+    }>,
     options?: QueryOptions,
   ): Promise<void>;
 

@@ -454,7 +454,7 @@ export default class Controller<
       UNKNOWN_QUERY_FIELD: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Requested field "${String(error.details.path)}" does not exist.`],
       USER_NOT_VERIFIED: (error) => [HTTP_STATUS_CODES.FORBIDDEN, error.code, 'Please verify your email address before performing this operation.'],
       RESOURCE_REFERENCED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Resource is still referenced in "${String(error.details.path)}".`],
-      DUPLICATE_RESOURCE: (error) => [HTTP_STATUS_CODES.CONFLICT, error.code, `Resource with field value "${String(error.details.value)}" already exists.`],
+      RESOURCE_EXISTS: (error) => [HTTP_STATUS_CODES.CONFLICT, error.code, `Resource with field value "${String(error.details.value)}" already exists.`],
       INVALID_SORT_QUERY: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, '"query.sortBy" and "query.sortOrder" must contain the same number of items.'],
       FILE_TOO_LARGE: (error) => [HTTP_STATUS_CODES.REQUEST_ENTITY_TOO_LARGE, error.code, `Maximum size exceeded for file "${String(error.details.filename)}".`],
       MAXIMUM_DEPTH_EXCEEDED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Maximum level of depth exceeded for field "${String(error.details.path)}".`],

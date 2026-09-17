@@ -898,7 +898,7 @@ export default class FastifyController<
       });
 
       // CRUD endpoints.
-      const keys = Object.keys(resources) as (keyof DataModelType)[];
+      const keys = Object.keys(resources) as (keyof DataModelType & string)[];
       keys.forEach((resource) => {
         const model = this.model.get(resource);
         const resourceEndpoints = resources[resource] as Record<EndpointType, BuiltInEndpoint>;
@@ -1016,9 +1016,6 @@ export default class FastifyController<
                   return await this.invalidPayload(response, validateBody.errors?.[0], 'body');
                 }
                 const searchBody = request.body;
-                if (searchBody.query !== null) {
-                  searchBody.query.on = new Set(searchBody.query.on);
-                }
                 const context = await this.generateContext(request, true, false);
                 context.queryOptions.maximumDepth ??= maximumDepth;
                 const results = await this.engine.list(resource, searchBody, context);
