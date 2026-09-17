@@ -13,7 +13,7 @@ import type {
   UpdatePayload,
   UserCommandContext,
 } from 'scripts/core/types';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import Model from 'scripts/core/services/Model';
 import type { UserDataModel } from '@perseid/core';
 import Telemetry from 'scripts/core/services/Telemetry';

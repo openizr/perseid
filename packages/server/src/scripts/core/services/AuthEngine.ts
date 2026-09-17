@@ -12,7 +12,7 @@ import type {
   UserCommandContext,
   AnonymousCommandContext,
 } from 'scripts/core/types';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import Engine from 'scripts/core/services/Engine';
 import type Model from 'scripts/core/services/Model';
