@@ -34,7 +34,7 @@
   ],
   "devDependencies": {
     "@perseid/dev-kit": "^10.0.0",
-    "tsc-alias": "^1.8.16"
+    "tsc-alias": "^1.9.5"
   },
   "eslintConfig": {
     "extends": [
@@ -57,7 +57,10 @@
         }
       },
       {
-        "files": "src/scripts/helpers/forEach.ts",
+        "files": [
+          "src/scripts/helpers/forEach.ts",
+          "src/scripts/helpers/forEachBatch.ts"
+        ],
         "rules": {
           "no-await-in-loop": "off"
         }
@@ -65,9 +68,9 @@
     ]
   },
   "dependencies": {
-    "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/api-logs": "^0.207.0",
-    "uuid": "13.0.0"
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.222.0",
+    "uuid": "14.0.2"
   },
   "devKitConfig": {
     "target": "node",
@@ -87,7 +90,7 @@
     "test": "node_modules/@perseid/dev-kit/scripts/test",
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "build:types": "./node_modules/.bin/tsc --project tsconfig.json --emitDeclarationOnly --noEmit false --outDir dist --declaration && find dist -name \"__tests__\" -type d -exec rm -rf {} + 2>/dev/null || true && find dist -name \"__mocks__\" -type d -exec rm -rf {} + && mv dist/src/scripts/* dist && rm -rf dist/src && rm -rf dist/dist && ./node_modules/.bin/tsc-alias -p tsconfig.json --outDir dist && mv dist/index.*.d.ts dist",
-    "build": "node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types",
+    "build": "node node_modules/@perseid/dev-kit/scripts/build.js --force && yarn run build:types",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
     "postinstall": "rm -f node_modules/.eslintcache"
   }

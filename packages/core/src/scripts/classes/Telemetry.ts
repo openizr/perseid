@@ -154,8 +154,22 @@ export default abstract class Telemetry {
    * @param name Metric name.
    *
    * @param options Metric options.
+   *
+   * @param callback Callback executed whenever a metric collection is initiated. If this parameter
+   * is provided, an observable metric will be created instead, and `measure` method will not be
+   * available for this metric.
+   *
+   * @example
+   * const telemetry = new Telemetry(...);
+   * telemetry.createGauge('my_metric', { description: 'Test', unit: '1' }, (record) => {
+   *   record(1);
+   * });
    */
-  public abstract createGauge(name: string, options: opentelemetry.MetricOptions): void;
+  public abstract createGauge(
+    name: string,
+    options: opentelemetry.MetricOptions,
+    callback?: (observe: (value: number, attributes?: opentelemetry.Attributes) => void) => void,
+  ): void;
 
   /**
    * Creates a new histogram metric.
@@ -172,8 +186,22 @@ export default abstract class Telemetry {
    * @param name Metric name.
    *
    * @param options Metric options.
+   *
+   * @param callback Callback executed whenever a metric collection is initiated. If this parameter
+   * is provided, an observable metric will be created instead, and `measure` method will not be
+   * available for this metric.
+   *
+   * @example
+   * const telemetry = new Telemetry(...);
+   * telemetry.createCounter('my_metric', { description: 'Test', unit: '1' }, (observe) => {
+   *   observe(1);
+   * });
    */
-  public abstract createCounter(name: string, options: opentelemetry.MetricOptions): void;
+  public abstract createCounter(
+    name: string,
+    options: opentelemetry.MetricOptions,
+    callback?: (observe: (value: number, attributes?: opentelemetry.Attributes) => void) => void,
+  ): void;
 
   /**
    * Creates a new up-down counter metric.
@@ -181,8 +209,22 @@ export default abstract class Telemetry {
    * @param name Metric name.
    *
    * @param options Metric options.
+   *
+   * @param callback Callback executed whenever a metric collection is initiated. If this parameter
+   * is provided, an observable metric will be created instead, and `measure` method will not be
+   * available for this metric.
+   *
+   * @example
+   * const telemetry = new Telemetry(...);
+   * telemetry.createUpDownCounter('my_metric', { description: 'Test', unit: '1' }, (observe) => {
+   *   observe(1);
+   * });
    */
-  public abstract createUpDownCounter(name: string, options: opentelemetry.MetricOptions): void;
+  public abstract createUpDownCounter(
+    name: string,
+    options: opentelemetry.MetricOptions,
+    callback?: (observe: (value: number, attributes?: opentelemetry.Attributes) => void) => void,
+  ): void;
 
   /**
    * Adds a new measurement for a metric.

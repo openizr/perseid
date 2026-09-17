@@ -7,7 +7,7 @@
  */
 
 import crypto from 'crypto';
-import * as uuid from 'uuid/dist';
+import * as uuid from 'uuid';
 import Id from 'scripts/classes/NodeId';
 
 describe('classes/NodeId', () => {

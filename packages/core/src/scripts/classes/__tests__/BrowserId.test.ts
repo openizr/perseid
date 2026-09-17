@@ -6,7 +6,7 @@
  *
  */
 
-import * as uuid from 'uuid/dist';
+import * as uuid from 'uuid';
 import Id from 'scripts/classes/BrowserId';
 
 describe('classes/BrowserId', () => {

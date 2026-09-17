@@ -20,17 +20,19 @@ export interface HttpClientSettings {
   requestTimeout: number;
 
   /**
-   * Default maximum number of retries.
+   * Default maximum number of retries. Defaults to `3`.
    */
   maxRetries?: number;
 
   /**
-   * Default function to calculate the delay for a retry.
+   * Default function to calculate the delay for a retry. Defaults to an exponential backoff delay
+   * with a base delay of 1 second, a maximum delay of 30 seconds, and a retry factor of 2.
    */
   calculateDelay?: (retryCount: number) => number;
 
   /**
-   * Default function to determine if a request should be retried.
+   * Default function to determine if a request should be retried. By default, request is retried if
+   * the status code is >= 500, or the error is not a `HttpError`.
    */
   shouldRetry?: (error: Error, retryCount: number) => boolean;
 }
@@ -60,7 +62,7 @@ export interface RequestSettings {
   headers?: Record<string, string>;
 
   /**
-   * Maximum number of retries.
+   * Maximum number of retries. Defaults class `maxRetries` value.
    */
   maxRetries?: number;
 
@@ -70,12 +72,12 @@ export interface RequestSettings {
   signal?: AbortSignal;
 
   /**
-   * Function to calculate the delay for a retry.
+   * Function to calculate the delay for a retry. Defaults class `calculateDelay` value.
    */
   calculateDelay?: (retryCount: number) => number;
 
   /**
-   * Function to determine if a request should be retried.
+   * Function to determine if a request should be retried. Defaults class `shouldRetry` value.
    */
   shouldRetry?: (error: Error, retryCount: number) => boolean;
 }
