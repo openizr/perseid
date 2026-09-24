@@ -32,22 +32,22 @@ type PublicFragment<
     DataModel,
     DatabaseClient
   >, (
-  'prepareCreatePayload'
-  | 'prepareUpdatePayload'
-  | 'checkResourceExists'
-)> & {
-  definePayload: EngineFragment<DataModel, DatabaseClient>['definePayload'];
-  applyPermissions: EngineFragment<DataModel, DatabaseClient>['applyPermissions'];
-  defineFullPayload: EngineFragment<DataModel, DatabaseClient>['defineFullPayload'];
-  getRelationFilters: EngineFragment<DataModel, DatabaseClient>['getRelationFilters'];
-  checkResourceExists: EngineFragment<DataModel, DatabaseClient>['checkResourceExists'];
-  defineCreatePayload: EngineFragment<DataModel, DatabaseClient>['defineCreatePayload'];
-  defineUpdatePayload: EngineFragment<DataModel, DatabaseClient>['defineUpdatePayload'];
-  prepareCreatePayload: EngineFragment<DataModel, DatabaseClient>['prepareCreatePayload'];
-  prepareUpdatePayload: EngineFragment<DataModel, DatabaseClient>['prepareUpdatePayload'];
-  isResourceCreatePayload: EngineFragment<DataModel, DatabaseClient>['isResourceCreatePayload'];
-  isResourceUpdatePayload: EngineFragment<DataModel, DatabaseClient>['isResourceUpdatePayload'];
-};
+      'prepareCreatePayload'
+      | 'prepareUpdatePayload'
+      | 'checkResourceExists'
+    )> & {
+      definePayload: EngineFragment<DataModel, DatabaseClient>['definePayload'];
+      applyPermissions: EngineFragment<DataModel, DatabaseClient>['applyPermissions'];
+      defineFullPayload: EngineFragment<DataModel, DatabaseClient>['defineFullPayload'];
+      getRelationFilters: EngineFragment<DataModel, DatabaseClient>['getRelationFilters'];
+      checkResourceExists: EngineFragment<DataModel, DatabaseClient>['checkResourceExists'];
+      defineCreatePayload: EngineFragment<DataModel, DatabaseClient>['defineCreatePayload'];
+      defineUpdatePayload: EngineFragment<DataModel, DatabaseClient>['defineUpdatePayload'];
+      prepareCreatePayload: EngineFragment<DataModel, DatabaseClient>['prepareCreatePayload'];
+      prepareUpdatePayload: EngineFragment<DataModel, DatabaseClient>['prepareUpdatePayload'];
+      isResourceCreatePayload: EngineFragment<DataModel, DatabaseClient>['isResourceCreatePayload'];
+      isResourceUpdatePayload: EngineFragment<DataModel, DatabaseClient>['isResourceUpdatePayload'];
+    };
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
@@ -363,9 +363,9 @@ export default class Engine<
    */
   public async create<
     Key extends keyof QueryResults,
-    Resource extends keyof DataModel = keyof DataModel
+    Resource extends keyof DataModel & string = keyof DataModel & string
   >(
-    resource: Resource & string,
+    resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
@@ -390,9 +390,9 @@ export default class Engine<
    */
   public async update<
     Key extends keyof QueryResults,
-    Resource extends keyof DataModel = keyof DataModel
+    Resource extends keyof DataModel & string = keyof DataModel & string
   >(
-    resource: Resource & string,
+    resource: Resource,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,

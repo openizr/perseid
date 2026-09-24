@@ -51,6 +51,12 @@ type SearchQuery = SelectQuery & {
   orderBy: NonNullable<SelectQuery['orderBy']>;
 };
 
+
+
+type DatabaseClientModules<DataModel> = {
+  [Resource in keyof DataModel & string]?: DatabaseClientModule<DataModel, Resource>;
+};
+
 /**
  * Base query definition.
  */
@@ -93,6 +99,83 @@ interface FilterableQuery extends BaseQuery {
     | { operator: 'AND'; conditions: Exclude<SelectQuery['where'], undefined>; }
     | { column: string; value: unknown; operator: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'ILIKE'; }
   )[];
+}
+
+/**
+ * Extends the base database client with custom methods specific to a resource.
+ */
+export interface DatabaseClientModule<DataModel, Resource extends keyof DataModel & string> {
+  create?: (
+    payload: DataModel[Resource],
+    options: ViewQueryOptions,
+    baseCreate: (payload: DataModel[Resource], options: ViewQueryOptions) => Promise<void>,
+  ) => Promise<void>;
+  update?: (
+    id: Id,
+    payload: Payload<DataModel[Resource]>,
+    options: ViewQueryOptions,
+    baseUpdate: (id: Id, payload: Payload<DataModel[Resource]>, options: ViewQueryOptions) => Promise<boolean>,
+  ) => Promise<boolean>;
+  view?: <Type = unknown>(
+    id: Id,
+    options: ViewQueryOptions,
+    baseView: (id: Id, options: ViewQueryOptions) => Promise<unknown>,
+  ) => Promise<Type>;
+  delete?: (
+    id: Id,
+    options: ViewQueryOptions,
+    baseDelete: (id: Id, options: ViewQueryOptions) => Promise<boolean>,
+  ) => Promise<boolean>;
+  list?: <Type = unknown>(
+    searchBody: SearchBody | null,
+    options: ListQueryOptions,
+    baseList: (searchBody: SearchBody | null, options: ListQueryOptions) => Promise<Results<Type>>,
+  ) => Promise<Results<Type>>;
+  formatRows?: <T = unknown>(
+    projections: Projections | 1,
+    resultsPerQuery: Record<string, Record<string, unknown>[]>,
+    baseFormatRows: (
+      projections: Projections | 1,
+      resultsPerQuery: Record<string, Record<string, unknown>[]>,
+    ) => T,
+  ) => T;
+  planQueries?: <Type extends ('VIEW' | 'LIST' | 'CREATE' | 'UPDATE' | 'DELETE') >(
+    type: Type,
+    id: Type extends 'VIEW' | 'UPDATE' | 'DELETE' ? Id : null,
+    payload: Type extends 'LIST' ? SearchBody | null :
+      Type extends 'CREATE' ? DataModel[Resource] :
+      Type extends 'UPDATE' ? Payload<DataModel[Resource]> :
+      Type extends 'DELETE' ? null :
+      null,
+    options: Type extends 'LIST' ? ListQueryOptions : ViewQueryOptions,
+    basePlanQueries: (
+      type: Type,
+      id: Type extends 'VIEW' | 'UPDATE' | 'DELETE' ? Id : null,
+      payload: Type extends 'LIST' ? SearchBody | null :
+        Type extends 'CREATE' ? DataModel[Resource] :
+        Type extends 'UPDATE' ? Payload<DataModel[Resource]> :
+        Type extends 'DELETE' ? null : null,
+      options: Type extends 'LIST' ? ListQueryOptions : ViewQueryOptions,
+    ) => Type extends 'LIST' | 'VIEW'
+      ? { projections: Projections; queries: Record<string, SelectQuery>; }
+      : { projections: Projections; queries: Record<string, Query>; },
+  ) => Type extends 'LIST' | 'VIEW'
+    ? { projections: Projections; queries: Record<string, SelectQuery>; }
+    : { projections: Projections; queries: Record<string, Query>; };
+  checkRelations?: (
+    relations: Map<string, {
+      resource: keyof DataModel & string;
+      filters: { _id: Id[]; } & SearchFilters;
+    }>,
+    options: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
+    baseCheckRelations: (
+      relations: Map<string, {
+        resource: keyof DataModel & string;
+        filters: { _id: Id[]; } & SearchFilters;
+      }>,
+      options: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
+    ) => Promise<void>,
+  ) => Promise<void>;
 }
 
 /**
@@ -622,6 +705,11 @@ export default class PostgreSQLDatabaseClient<
   private hashAliases: boolean;
 
   /**
+   * List of registered modules used to override generic methods' base behavior.
+   */
+  protected registeredModules: DatabaseClientModules<DataModel> = {};
+
+  /**
    * Allows to provide a custom SQL table name for specific resources and sub-resources.
    */
   protected tablesMapping: Record<string, string>;
@@ -830,172 +918,107 @@ export default class PostgreSQLDatabaseClient<
     };
   }
 
-  /**
-   * Generates metadata for `resource`, including fields, indexes, and constraints, necessary to
-   * generate the database structure and handle resources deletion.
-   *
-   * @param resource Type of resource for which to generate metadata.
-   *
-   * @returns Resource metadata.
-   */
-  protected generateResourceMetadata<Resource extends keyof DataModel & string>(
-    resource: Resource,
-  ): void {
-    const metadata = this.model.get(resource);
-    const resourceSchema = { type: 'object', isRequired: true, fields: metadata.schema.fields };
 
-    const generateMetadata = (
-      table: string,
-      currentSchema: FieldSchema<DataModel>,
-      currentPath: { scoped: string[]; full: string[]; },
-      // Used to keep the full path of the first array we cross in data model, as any subchange
-      // will necessary trigger a deletion / insertion of all the array entries in all sub-tables.
-      arrayPath?: string,
-      // When setting an optional object to `null`, we need to clear all its properties (set them
-      // also to `null`) in database, even if they are required.
-      isOptionalObject?: boolean,
-    ): void => {
-      const { type } = currentSchema;
-      const sqlType = this.SQL_TYPES_MAPPING[type];
-      const fullPath = currentPath.full.join('_');
-      const scopedPath = currentPath.scoped.join('_');
-      const isRequired = !!currentSchema.isRequired && !isOptionalObject;
-      const { subStructuresPerPath } = this.resourcesMetadata[resource];
-      const fields = this.resourcesMetadata[table].fields as Record<string, unknown>;
-      if (type === 'array') {
-        const subTable = `_${resource}_${fullPath}`;
-        this.resourcesMetadata[resource].subStructures.push(subTable);
-        const subTableIndex = this.resourcesMetadata[resource].subStructures.length;
-        fields[scopedPath] = { type: sqlType, isRequired };
-        subStructuresPerPath[fullPath] ??= new Set<string>();
-        subStructuresPerPath[arrayPath ?? fullPath] ??= new Set<string>();
-        subStructuresPerPath[fullPath].add(subTable);
-        subStructuresPerPath[arrayPath ?? fullPath].add(subTable);
-        this.resourcesMetadata[subTable] = {
-          fields: {},
-          structure: `_${resource}_${String(subTableIndex)}`,
-          constraints: [
-            { path: '_parent', relation: table },
-            { path: '_resourceId', relation: resource },
-          ],
-          indexes: [
-            { path: '_parent', unique: false },
-            { path: '_resourceId', unique: false },
-          ],
-          subStructures: [],
-          subStructuresPerPath: {},
-          invertedRelations: new Map(),
-        };
-        generateMetadata(subTable, {
-          type: 'object',
-          isRequired: true,
-          description: 'Array value.',
-          fields: {
-            _id: { type: 'id', isRequired: true, description: 'ID of the array value.' },
-            _parent: { type: 'id', isRequired: true, description: 'ID of the parent array.' },
-            _resourceId: { type: 'id', isRequired: true, description: 'ID of the resource.' },
-            value: currentSchema.fields,
-          },
-        }, { scoped: [], full: currentPath.full }, arrayPath ?? fullPath);
-      } else if (type === 'object') {
-        if (currentPath.scoped.length > 0) {
-          fields[scopedPath] = { type: sqlType, isRequired };
-        }
-        Object.keys(currentSchema.fields).forEach((fieldName) => {
-          const fieldSchema = currentSchema.fields[fieldName];
-          generateMetadata(table, fieldSchema, {
-            scoped: currentPath.scoped.concat([fieldName]),
-            full: currentPath.full.concat([fieldName]),
-          }, arrayPath, !isRequired);
-        });
-      } else {
-        if (type === 'string') {
-          const { isIndexed, isUnique } = currentSchema;
-          const { maxLength, enum: enumerations } = currentSchema;
-          const max = (enumerations !== undefined) ? enumerations.reduce((m, value) => (
-            Math.max(m, value.length)
-          ), 0) : maxLength;
-          // PostgreSQL has a hard limit of 2000 characters for indexed fields.
-          if ((!!isIndexed || !!isUnique) && max > 2000) {
-            throw new DatabaseError('INDEXED_FIELD_VALUE_TOO_LONG', { path: `${resource}.${fullPath}` });
-          }
-          fields[scopedPath] = { type: `VARCHAR(${String(max)})`, isRequired };
-        } else if (type === 'id' && currentSchema.relation !== undefined) {
-          const { relation } = currentSchema;
-          this.resourcesMetadata[table].constraints.push({ path: scopedPath, relation });
-          fields[scopedPath] = { type: sqlType, isRequired };
-        } else {
-          fields[scopedPath] = { type: sqlType, isRequired };
-        }
-        if ((currentSchema as IdSchema<DataModel>).isIndexed && scopedPath !== '_id') {
-          this.resourcesMetadata[table].indexes.push({ path: scopedPath, unique: false });
-        } else if ((currentSchema as IdSchema<DataModel>).isUnique && scopedPath !== '_id') {
-          this.resourcesMetadata[table].indexes.push({ path: scopedPath, unique: true });
-        }
+  /**
+   * Base `baseFormatRows` method implementation.
+   *
+   * @param resource Type of resource to format.
+   *
+   * @param projections Fields tree used to format rows.
+   *
+   * @param resultsPerQuery List of database raw results to format, per SQL query.
+   *
+   * @returns Formatted rows.
+   */
+  private baseFormatRows<T = unknown>(
+    resource: keyof DataModel & string,
+    projections: Projections | 1,
+    resultsPerQuery: Record<string, Record<string, unknown>[]>,
+  ): T {
+    // Rows of an array query, grouped by the id of the row that owns them. Indexing them on first
+    // use avoids scanning the whole query results again for each of their parents, which gets
+    // especially costly for nested arrays, as those have one parent per item of their own parent.
+    const indexesPerPath = new Map<string, Map<string, Record<string, unknown>[]>>();
+
+    const getItemRows = (path: string, parentId: string): Record<string, unknown>[] => {
+      const existingIndex = indexesPerPath.get(path);
+      if (existingIndex !== undefined) {
+        return existingIndex.get(parentId) ?? [];
       }
-    };
 
-    generateMetadata(resource, resourceSchema as ObjectSchema<DataModel>, { scoped: [], full: [] });
-  }
-
-  /**
-   * Connects to the database server.
-   *
-   * @param pool Name of the pool to connect to. Defaults to `default`.
-   *
-   * @returns Connection pool instance.
-   *
-   * @throws If the specified pool does not have any connection settings registered.
-   */
-  protected async connect(pool = 'default'): Promise<ConnectedPool> {
-    const poolClient = this.pools.get(pool);
-
-    if (poolClient !== undefined) {
-      return poolClient;
-    }
-
-    const poolSettings = this.poolSettings.get(pool);
-    if (poolSettings === undefined) {
-      throw new DatabaseError('POOL_NOT_FOUND', { pool });
-    }
-
-    const telemetryAttributes = {
-      'db.system.name': 'postgresql',
-      'server.port': poolSettings.port,
-      'server.address': poolSettings.host,
-      'db.namespace': poolSettings.database,
-    };
-    this.telemetry.info('Connecting to database...', telemetryAttributes);
-
-    const newPoolClient = new Pool({
-      max: poolSettings.connectionLimit,
-      lock_timeout: poolSettings.queryTimeout,
-      query_timeout: poolSettings.queryTimeout,
-      statement_timeout: poolSettings.queryTimeout,
-      connectionTimeoutMillis: poolSettings.connectTimeout,
-      ...poolSettings,
-      port: poolSettings.port ?? undefined,
-      user: poolSettings.user ?? undefined,
-      password: poolSettings.password ?? undefined,
-      // Allows reliable parsing of error details.
-      options: `${poolSettings.options ?? ''} -c lc_messages=C`,
-    });
-
-    // Prevents uncaught exceptions when errors happen on idle connections.
-    newPoolClient.on('error', (error) => {
-      this.telemetry.error(error, {
-        'db.system.name': 'postgresql',
-        'db.client.connection.pool.name': pool,
+      const index = new Map<string, Record<string, unknown>[]>();
+      resultsPerQuery[path].forEach((itemRow) => {
+        const itemParentId = String(itemRow[this.getFieldSqlAlias(`${path}__parent`)]);
+        const itemRows = index.get(itemParentId);
+        if (itemRows === undefined) {
+          index.set(itemParentId, [itemRow]);
+        } else {
+          itemRows.push(itemRow);
+        }
       });
-    });
+      indexesPerPath.set(path, index);
 
-    this.pools.set(pool, { pool: newPoolClient, telemetryAttributes });
+      return index.get(parentId) ?? [];
+    };
 
-    return { pool: newPoolClient, telemetryAttributes };
+    // Formats the field at `path`, which is its full flattened path from the root resource, and
+    // resolves both its SQL alias in `row` and, for arrays, the query its own rows come from.
+    // `parentId` is the id of the row owning that field, a `null` one meaning it has no value.
+    const format = (
+      path: string,
+      projection: Projections | 1,
+      row: Record<string, unknown> | null,
+      schema: FieldSchema<DataModel>,
+      parentId: string | null,
+    ): unknown => {
+      const value = row?.[this.getFieldSqlAlias(path)];
+
+      if (value === null || parentId === null) {
+        return null;
+      }
+
+      // Array values live in their own query, each of its rows being linked to the row that owns
+      // the array by "_parent".
+      if (schema.type === 'array') {
+        const idAlias = this.getFieldSqlAlias(`${path}__itemId`);
+        return getItemRows(path, parentId).map((itemRow) => (
+          format(path, projection, itemRow, schema.fields, itemRow[idAlias] as string | null)
+        ));
+      }
+
+      // Relations are formatted against the related resource's schema, their joined columns living
+      // in that very same row.
+      const { relation } = schema as IdSchema<DataModel>;
+      if (schema.type === 'id' && relation !== undefined && projection !== 1) {
+        const { fields } = this.model.get(relation).schema;
+        const subParentId = row?.[this.getFieldSqlAlias(`${path}__id`)] as string | null;
+        return format(path, projection, row, { fields, type: 'object', description: '' }, subParentId);
+      }
+
+      if (schema.type === 'object' && projection !== 1) {
+        const finalResult: Record<string, unknown> = {};
+        Object.keys(projection).forEach((fieldName) => {
+          const subPath = `${path}_${fieldName}`;
+          const subSchema = schema.fields[fieldName];
+          const subProjection = projection[fieldName];
+          finalResult[fieldName] = format(subPath, subProjection, row, subSchema, parentId);
+        });
+
+        return finalResult;
+      }
+
+      return (schema.type === 'id') ? new Id(value as string) : value;
+    };
+
+    return resultsPerQuery[resource].map((row) => format(resource, projections, row, {
+      type: 'object',
+      fields: this.model.get(resource).schema.fields,
+      description: '',
+    }, row[this.getFieldSqlAlias(`${resource}__id`)] as string)) as T;
   }
 
   /**
-   * Generates a list of formatted queries and projections for `resource` and `type` of operation.
+   * Base `basePlanQueries` method implementation.
    *
    * @param resource Type of resource to plan queries for.
    *
@@ -1025,7 +1048,7 @@ export default class PostgreSQLDatabaseClient<
    *
    * @throws If maximum level of resources depth is exceeded.
    */
-  protected planQueries<Resource extends keyof DataModel, Type extends (
+  private basePlanQueries<Resource extends keyof DataModel, Type extends (
     'VIEW'
     | 'LIST'
     | 'CREATE'
@@ -1501,6 +1524,547 @@ export default class PostgreSQLDatabaseClient<
   }
 
   /**
+   * Base `create` method implementation.
+   *
+   * @param resource Type of resource to create.
+   *
+   * @param payload New resource payload.
+   *
+   * @param options Query options. Defaults to `{}`.
+   */
+  private async baseCreate<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    payload: DataModel[Resource],
+    options: ViewQueryOptions,
+  ): Promise<void> {
+    const { queries } = this.planQueries(resource, 'CREATE', null, payload, options);
+    const sqlQueries = this.compileQueries(queries);
+    await forEach(Object.keys(sqlQueries), async (key) => {
+      await this.query({
+        query: sqlQueries[key].query,
+        values: sqlQueries[key].values,
+        poolOrSession: options.poolOrSession,
+      });
+    });
+  }
+
+  /**
+   * Base `update` method implementation.
+   *
+   * @param resource Type of resource to update.
+   *
+   * @param id ID of the resource to update.
+   *
+   * @param payload Updated resource payload.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns `true` if resource has been successfully updated, `false` otherwise.
+   */
+  private async baseUpdate<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    payload: Payload<DataModel[Resource]>,
+    options: ViewQueryOptions,
+  ): Promise<boolean> {
+    const { queries } = this.planQueries(resource, 'UPDATE', id, payload, options);
+    const sqlQueries = this.compileQueries(queries);
+
+    const deleteQueryKeys: string[] = [];
+    const insertQueryKeys: string[] = [];
+    Object.keys(queries).forEach((key) => {
+      if (queries[key].type === 'DELETE') {
+        deleteQueryKeys.push(key);
+      } else if (key !== resource) {
+        insertQueryKeys.push(key);
+      }
+    });
+
+    // A payload touching nothing but arrays leaves the resource row itself unchanged, which
+    // would make for an empty `UPDATE ... SET`. The row is then only locked instead, both to
+    // check that the resource exists and to serialize concurrent updates of its arrays.
+    const useFallbackQuery = Object.keys((queries[resource] as UpdateQuery).fields).length < 1;
+    const rootQuery = !useFallbackQuery ? sqlQueries[resource] : this.compileQueries({
+      [resource]: {
+        type: 'SELECT',
+        fields: ['1'],
+        table: this.getTableName(resource),
+        where: (queries[resource] as UpdateQuery).where,
+        as: this.getFieldSqlAlias(this.getTableName(resource)),
+      },
+    })[resource];
+    const response = await this.query({
+      values: rootQuery.values,
+      poolOrSession: options.poolOrSession,
+      query: useFallbackQuery ? rootQuery.query.replace(/;$/, ' FOR UPDATE;') : rootQuery.query,
+    });
+
+    if (response.rowCount === 0) {
+      return false;
+    }
+
+    await forEach(deleteQueryKeys, async (key) => {
+      await this.query({
+        query: sqlQueries[key].query,
+        values: sqlQueries[key].values,
+        poolOrSession: options.poolOrSession,
+      });
+    });
+
+    await forEach(insertQueryKeys, async (key) => {
+      await this.query({
+        query: sqlQueries[key].query,
+        values: sqlQueries[key].values,
+        poolOrSession: options.poolOrSession,
+      });
+    });
+
+    return true;
+  }
+
+  /**
+   * Base `view` method implementation.
+   *
+   * @param resource Type of resource to fetch.
+   *
+   * @param id Id of the resource to fetch.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Resource if it exists, `null` otherwise.
+   */
+  private async baseView<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel & string,
+  >(
+    resource: Resource & string,
+    id: Id,
+    options: ViewQueryOptions,
+  ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null> {
+    const finalResults: Record<string, Record<string, unknown>[]> = {};
+    const { projections, queries } = this.planQueries(resource, 'VIEW', id, null, options);
+    const { [String(resource)]: resourceQuery, ...sqlQueries } = this.compileQueries(queries);
+
+    finalResults[resource] = await this.query<Record<string, unknown>>({
+      query: resourceQuery.query,
+      values: resourceQuery.values,
+      poolOrSession: options.poolOrSession,
+    }).then((response) => response.rows);
+
+    if (finalResults[resource].length === 0) {
+      return null;
+    }
+
+    await forEach(Object.keys(sqlQueries), (key) => this.query<Record<string, unknown>>({
+      query: sqlQueries[key].query,
+      values: sqlQueries[key].values,
+      poolOrSession: options.poolOrSession,
+    }).then(({ rows }) => { finalResults[key] = rows; }), 5);
+
+    return this.formatRows<null[]>(resource, projections, finalResults)[0];
+  }
+
+  /**
+   * Base `deelte` method implementation.
+   *
+   * @param resource Type of resource to delete.
+   *
+   * @param id Id of the resource to delete.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns `true` if resource has been successfully deleted, `false` otherwise.
+   */
+  private async baseDelete<Resource extends keyof DataModel & string>(
+    resource: Resource & string,
+    id: Id,
+    options: ViewQueryOptions,
+  ): Promise<boolean> {
+    const { queries } = this.planQueries(resource, 'DELETE', id, null, options);
+    const sqlQueries = this.compileQueries(queries);
+
+    const response = await this.query({
+      query: sqlQueries[resource].query,
+      values: sqlQueries[resource].values,
+      poolOrSession: options.poolOrSession,
+    });
+
+    return (response.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Base `list` method implementation.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param body Search/filters body.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @returns Paginated list of resources.
+   */
+  private async baseList<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel & string,
+  >(
+    resource: Resource,
+    searchBody: SearchBody | null,
+    options: ListQueryOptions,
+  ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>> {
+    const offset = (options.offset ?? this.DEFAULT_OFFSET);
+    const { projections, queries } = this.planQueries(resource, 'LIST', null, searchBody, options);
+    const { _search, ...sqlQueries } = this.compileQueries(queries);
+
+    const response = await this.query<{ __total: string | null; _id: string; }>({
+      query: _search.query,
+      values: _search.values,
+      poolOrSession: options.poolOrSession,
+    });
+
+    if (response.rows.length === 0 && offset === 0) {
+      return { total: 0, results: [] };
+    }
+
+    // Paginating with overflowed offset gives no rows in the response although there may actually
+    // be results. This second query makes sure to return the total number of results.
+    if (response.rows.length === 0) {
+      const { _search: countQuery } = this.compileQueries({
+        _search: {
+          ...queries._search,
+          limit: 1,
+          offset: 0,
+          orderBy: [],
+          fields: ['COUNT(*) AS __total'],
+        },
+      });
+
+      const countResponse = await this.query<{ __total: string | null; _id: string; }>({
+        query: countQuery.query,
+        values: countQuery.values,
+        poolOrSession: options.poolOrSession,
+      });
+
+      return {
+        total: parseInt(countResponse.rows[0]?.__total ?? '0', 10),
+        results: [],
+      };
+    }
+
+    const ids = response.rows.map((row) => row._id);
+    const finalResults: Record<string, Record<string, unknown>[]> = {};
+
+    await forEach(Object.keys(sqlQueries), (key) => this.query<Record<string, string>>({
+      values: [ids],
+      query: sqlQueries[key].query,
+      poolOrSession: options.poolOrSession,
+    }).then(({ rows }) => { finalResults[key] = rows; }), 5);
+
+    return {
+      total: parseInt(response.rows[0]?.__total ?? '0', 10),
+      results: this.formatRows(resource, projections, finalResults),
+    };
+  }
+
+
+  /**
+   * Base `checkRelations` method implementation.
+   *
+   * @param resource Type of resource to check relations for.
+   *
+   * @param relations Foreign ids to check in database.
+   *
+   * @param options Query options. Defaults to `{}`.
+   *
+   * @throws If any foreign id does not exist.
+   */
+  private async baseCheckRelations<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    relations: Map<string, {
+      resource: keyof DataModel & string;
+      filters: { _id: Id[]; } & SearchFilters;
+    }>,
+    options: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
+  ): Promise<void> {
+    return this.telemetry.span(`${this.constructor.name}.checkRelations`, {
+      kind: 'CLIENT',
+      attributes: {
+        relations: relations.size,
+        'db.operation.type': 'SELECT',
+        'db.collection.name': resource,
+        pool_or_session: options.poolOrSession,
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      if (relations.size > 0) {
+        const values: unknown[] = [];
+        const sqlSubQueries: string[] = [];
+        const missingIds = new Set<string>();
+        relations.forEach((value, path) => {
+          const searchBody = { query: null, filters: value.filters };
+          const queryOptions = { ...options, maximumDepth: Infinity };
+          const { queries } = this.planQueries(value.resource, 'LIST', null, searchBody, queryOptions);
+          delete queries._search.limit;
+          delete queries._search.offset;
+          delete queries._search.orderBy;
+          queries._search.fields = [`DISTINCT "${queries._search.as}"."_id"`, `${getPlaceholder(path, values)} as path`];
+          sqlSubQueries.push(`${compileQuery(queries._search, values)};`);
+          value.filters._id.forEach((id) => missingIds.add(`${id}:${path}`));
+        });
+
+        let query = '';
+        for (let index = 0, { length } = sqlSubQueries; index < length; index += 1) {
+          query += (query === '') ? sqlSubQueries[index].replace(/;$/, '') : `\nUNION ALL\n${sqlSubQueries[index].replace(/;$/, '')}`;
+        }
+
+        const response = await this.query({
+          values,
+          query: `${query};`,
+          poolOrSession: options.poolOrSession,
+        });
+
+        for (let index = 0, { length } = response.rows; index < length; index += 1) {
+          const row = response.rows[index];
+          missingIds.delete(`${row._id}:${row.path}`);
+        }
+
+        if (missingIds.size > 0) {
+          const id = (missingIds.values().next().value as unknown as string).split(':')[0];
+          throw new DatabaseError('NO_RESOURCE', { id });
+        }
+      }
+    });
+  }
+
+  /**
+   * Registers `modules`, overriding any generic method by the one defined in them.
+   *
+   * @param modules List of modules to register.
+   */
+  protected registerModules(modules: DatabaseClientModules<DataModel>): void {
+    Object.assign(this.registeredModules, modules);
+  }
+
+  /**
+   * Generates metadata for `resource`, including fields, indexes, and constraints, necessary to
+   * generate the database structure and handle resources deletion.
+   *
+   * @param resource Type of resource for which to generate metadata.
+   *
+   * @returns Resource metadata.
+   */
+  protected generateResourceMetadata<Resource extends keyof DataModel & string>(
+    resource: Resource,
+  ): void {
+    const metadata = this.model.get(resource);
+    const resourceSchema = { type: 'object', isRequired: true, fields: metadata.schema.fields };
+
+    const generateMetadata = (
+      table: string,
+      currentSchema: FieldSchema<DataModel>,
+      currentPath: { scoped: string[]; full: string[]; },
+      // Used to keep the full path of the first array we cross in data model, as any subchange
+      // will necessary trigger a deletion / insertion of all the array entries in all sub-tables.
+      arrayPath?: string,
+      // When setting an optional object to `null`, we need to clear all its properties (set them
+      // also to `null`) in database, even if they are required.
+      isOptionalObject?: boolean,
+    ): void => {
+      const { type } = currentSchema;
+      const sqlType = this.SQL_TYPES_MAPPING[type];
+      const fullPath = currentPath.full.join('_');
+      const scopedPath = currentPath.scoped.join('_');
+      const isRequired = !!currentSchema.isRequired && !isOptionalObject;
+      const { subStructuresPerPath } = this.resourcesMetadata[resource];
+      const fields = this.resourcesMetadata[table].fields as Record<string, unknown>;
+      if (type === 'array') {
+        const subTable = `_${resource}_${fullPath}`;
+        this.resourcesMetadata[resource].subStructures.push(subTable);
+        const subTableIndex = this.resourcesMetadata[resource].subStructures.length;
+        fields[scopedPath] = { type: sqlType, isRequired };
+        subStructuresPerPath[fullPath] ??= new Set<string>();
+        subStructuresPerPath[arrayPath ?? fullPath] ??= new Set<string>();
+        subStructuresPerPath[fullPath].add(subTable);
+        subStructuresPerPath[arrayPath ?? fullPath].add(subTable);
+        this.resourcesMetadata[subTable] = {
+          fields: {},
+          structure: `_${resource}_${String(subTableIndex)}`,
+          constraints: [
+            { path: '_parent', relation: table },
+            { path: '_resourceId', relation: resource },
+          ],
+          indexes: [
+            { path: '_parent', unique: false },
+            { path: '_resourceId', unique: false },
+          ],
+          subStructures: [],
+          subStructuresPerPath: {},
+          invertedRelations: new Map(),
+        };
+        generateMetadata(subTable, {
+          type: 'object',
+          isRequired: true,
+          description: 'Array value.',
+          fields: {
+            _id: { type: 'id', isRequired: true, description: 'ID of the array value.' },
+            _parent: { type: 'id', isRequired: true, description: 'ID of the parent array.' },
+            _resourceId: { type: 'id', isRequired: true, description: 'ID of the resource.' },
+            value: currentSchema.fields,
+          },
+        }, { scoped: [], full: currentPath.full }, arrayPath ?? fullPath);
+      } else if (type === 'object') {
+        if (currentPath.scoped.length > 0) {
+          fields[scopedPath] = { type: sqlType, isRequired };
+        }
+        Object.keys(currentSchema.fields).forEach((fieldName) => {
+          const fieldSchema = currentSchema.fields[fieldName];
+          generateMetadata(table, fieldSchema, {
+            scoped: currentPath.scoped.concat([fieldName]),
+            full: currentPath.full.concat([fieldName]),
+          }, arrayPath, !isRequired);
+        });
+      } else {
+        if (type === 'string') {
+          const { isIndexed, isUnique } = currentSchema;
+          const { maxLength, enum: enumerations } = currentSchema;
+          const max = (enumerations !== undefined) ? enumerations.reduce((m, value) => (
+            Math.max(m, value.length)
+          ), 0) : maxLength;
+          // PostgreSQL has a hard limit of 2000 characters for indexed fields.
+          if ((!!isIndexed || !!isUnique) && max > 2000) {
+            throw new DatabaseError('INDEXED_FIELD_VALUE_TOO_LONG', { path: `${resource}.${fullPath}` });
+          }
+          fields[scopedPath] = { type: `VARCHAR(${String(max)})`, isRequired };
+        } else if (type === 'id' && currentSchema.relation !== undefined) {
+          const { relation } = currentSchema;
+          this.resourcesMetadata[table].constraints.push({ path: scopedPath, relation });
+          fields[scopedPath] = { type: sqlType, isRequired };
+        } else {
+          fields[scopedPath] = { type: sqlType, isRequired };
+        }
+        if ((currentSchema as IdSchema<DataModel>).isIndexed && scopedPath !== '_id') {
+          this.resourcesMetadata[table].indexes.push({ path: scopedPath, unique: false });
+        } else if ((currentSchema as IdSchema<DataModel>).isUnique && scopedPath !== '_id') {
+          this.resourcesMetadata[table].indexes.push({ path: scopedPath, unique: true });
+        }
+      }
+    };
+
+    generateMetadata(resource, resourceSchema as ObjectSchema<DataModel>, { scoped: [], full: [] });
+  }
+
+  /**
+   * Connects to the database server.
+   *
+   * @param pool Name of the pool to connect to. Defaults to `default`.
+   *
+   * @returns Connection pool instance.
+   *
+   * @throws If the specified pool does not have any connection settings registered.
+   */
+  protected async connect(pool = 'default'): Promise<ConnectedPool> {
+    const poolClient = this.pools.get(pool);
+
+    if (poolClient !== undefined) {
+      return poolClient;
+    }
+
+    const poolSettings = this.poolSettings.get(pool);
+    if (poolSettings === undefined) {
+      throw new DatabaseError('POOL_NOT_FOUND', { pool });
+    }
+
+    const telemetryAttributes = {
+      'db.system.name': 'postgresql',
+      'server.port': poolSettings.port,
+      'server.address': poolSettings.host,
+      'db.namespace': poolSettings.database,
+    };
+    this.telemetry.info('Connecting to database...', telemetryAttributes);
+
+    const newPoolClient = new Pool({
+      max: poolSettings.connectionLimit,
+      lock_timeout: poolSettings.queryTimeout,
+      query_timeout: poolSettings.queryTimeout,
+      statement_timeout: poolSettings.queryTimeout,
+      connectionTimeoutMillis: poolSettings.connectTimeout,
+      ...poolSettings,
+      port: poolSettings.port ?? undefined,
+      user: poolSettings.user ?? undefined,
+      password: poolSettings.password ?? undefined,
+      // Allows reliable parsing of error details.
+      options: `${poolSettings.options ?? ''} -c lc_messages=C`,
+    });
+
+    // Prevents uncaught exceptions when errors happen on idle connections.
+    newPoolClient.on('error', (error) => {
+      this.telemetry.error(error, {
+        'db.system.name': 'postgresql',
+        'db.client.connection.pool.name': pool,
+      });
+    });
+
+    this.pools.set(pool, { pool: newPoolClient, telemetryAttributes });
+
+    return { pool: newPoolClient, telemetryAttributes };
+  }
+
+  /**
+   * Generates a list of formatted queries and projections for `resource` and `type` of operation.
+   *
+   * @param resource Type of resource to plan queries for.
+   *
+   * @param type Type of operation to plan queries for.
+   *
+   * @param id ID of the resource, if any.
+   *
+   * @param payload Resource or search payload, if any.
+   *
+   * @param options Query options.
+   *
+   * @returns List of formatted queries and projections.
+   *
+   * @throws If any payload field does meet its schema definition.
+   *
+   * @throws If payload field does not match data model.
+   *
+   * @throws If a required field is not provided in payload.
+   *
+   * @throws If field path does not exist in data model.
+   *
+   * @throws If field path is not a leaf in data model.
+   *
+   * @throws If any field path in search body is not indexed.
+   *
+   * @throws If any field path in sorting is not sortable.
+   *
+   * @throws If maximum level of resources depth is exceeded.
+   */
+  protected planQueries<Resource extends keyof DataModel & string, Type extends (
+    'VIEW'
+    | 'LIST'
+    | 'CREATE'
+    | 'UPDATE'
+    | 'DELETE'
+  )>(
+    resource: Resource & string,
+    type: Type,
+    id: Type extends 'VIEW' | 'UPDATE' | 'DELETE' ? Id : null,
+    payload: Type extends 'LIST' ? SearchBody | null :
+      Type extends 'CREATE' ? DataModel[Resource] :
+      Type extends 'UPDATE' ? Payload<DataModel[Resource]> :
+      Type extends 'DELETE' ? null :
+      null,
+    options: Type extends 'LIST' ? ListQueryOptions : ViewQueryOptions
+  ): Type extends 'LIST' | 'VIEW'
+    ? { projections: Projections; queries: Record<string, SelectQuery>; }
+    : { projections: Projections; queries: Record<string, Query>; } {
+    const customPlanQueries = this.registeredModules[resource]?.planQueries;
+    return customPlanQueries?.(type, id, payload, options, (...args) => (
+      this.basePlanQueries(resource, ...args)
+    )) ?? this.basePlanQueries(resource, type, id, payload, options);
+  }
+
+  /**
    * Compiles formatted `queries` definitions into SQL queries.
    *
    * @param queries Formatted queries definitions from which to compile SQL queries.
@@ -1636,86 +2200,10 @@ export default class PostgreSQLDatabaseClient<
     projections: Projections | 1,
     resultsPerQuery: Record<string, Record<string, unknown>[]>,
   ): T {
-    // Rows of an array query, grouped by the id of the row that owns them. Indexing them on first
-    // use avoids scanning the whole query results again for each of their parents, which gets
-    // especially costly for nested arrays, as those have one parent per item of their own parent.
-    const indexesPerPath = new Map<string, Map<string, Record<string, unknown>[]>>();
-
-    const getItemRows = (path: string, parentId: string): Record<string, unknown>[] => {
-      const existingIndex = indexesPerPath.get(path);
-      if (existingIndex !== undefined) {
-        return existingIndex.get(parentId) ?? [];
-      }
-
-      const index = new Map<string, Record<string, unknown>[]>();
-      resultsPerQuery[path].forEach((itemRow) => {
-        const itemParentId = String(itemRow[this.getFieldSqlAlias(`${path}__parent`)]);
-        const itemRows = index.get(itemParentId);
-        if (itemRows === undefined) {
-          index.set(itemParentId, [itemRow]);
-        } else {
-          itemRows.push(itemRow);
-        }
-      });
-      indexesPerPath.set(path, index);
-
-      return index.get(parentId) ?? [];
-    };
-
-    // Formats the field at `path`, which is its full flattened path from the root resource, and
-    // resolves both its SQL alias in `row` and, for arrays, the query its own rows come from.
-    // `parentId` is the id of the row owning that field, a `null` one meaning it has no value.
-    const format = (
-      path: string,
-      projection: Projections | 1,
-      row: Record<string, unknown> | null,
-      schema: FieldSchema<DataModel>,
-      parentId: string | null,
-    ): unknown => {
-      const value = row?.[this.getFieldSqlAlias(path)];
-
-      if (value === null || parentId === null) {
-        return null;
-      }
-
-      // Array values live in their own query, each of its rows being linked to the row that owns
-      // the array by "_parent".
-      if (schema.type === 'array') {
-        const idAlias = this.getFieldSqlAlias(`${path}__itemId`);
-        return getItemRows(path, parentId).map((itemRow) => (
-          format(path, projection, itemRow, schema.fields, itemRow[idAlias] as string | null)
-        ));
-      }
-
-      // Relations are formatted against the related resource's schema, their joined columns living
-      // in that very same row.
-      const { relation } = schema as IdSchema<DataModel>;
-      if (schema.type === 'id' && relation !== undefined && projection !== 1) {
-        const { fields } = this.model.get(relation).schema;
-        const subParentId = row?.[this.getFieldSqlAlias(`${path}__id`)] as string | null;
-        return format(path, projection, row, { fields, type: 'object', description: '' }, subParentId);
-      }
-
-      if (schema.type === 'object' && projection !== 1) {
-        const finalResult: Record<string, unknown> = {};
-        Object.keys(projection).forEach((fieldName) => {
-          const subPath = `${path}_${fieldName}`;
-          const subSchema = schema.fields[fieldName];
-          const subProjection = projection[fieldName];
-          finalResult[fieldName] = format(subPath, subProjection, row, subSchema, parentId);
-        });
-
-        return finalResult;
-      }
-
-      return (schema.type === 'id') ? new Id(value as string) : value;
-    };
-
-    return resultsPerQuery[resource].map((row) => format(resource, projections, row, {
-      type: 'object',
-      fields: this.model.get(resource).schema.fields,
-      description: '',
-    }, row[this.getFieldSqlAlias(`${resource}__id`)] as string)) as T;
+    const customFormatRows = this.registeredModules[resource]?.formatRows;
+    return customFormatRows?.(projections, resultsPerQuery, (...args) => (
+      this.baseFormatRows(resource, ...args)
+    )) ?? this.baseFormatRows(resource, projections, resultsPerQuery);
   }
 
   /**
@@ -1739,11 +2227,14 @@ export default class PostgreSQLDatabaseClient<
     this.tablesMapping = {};
     this.pools = new Map();
     this.sessions = new Map();
+    this.registeredModules = {};
     this.poolSettings = new Map();
     this.hashAliases = settings.hashAliases;
+
     Object.keys(settings.pools).forEach((pool) => {
       this.poolSettings.set(pool, settings.pools[pool]);
     });
+
     this.model.getResources().forEach((resource) => {
       this.generateResourceMetadata(resource);
       // Reversing the sub-tables array is essential to delete dependencies in the right order.
@@ -1890,8 +2381,8 @@ export default class PostgreSQLDatabaseClient<
    *
    * @param options Query options. Defaults to `{}`.
    */
-  public async create<Resource extends keyof DataModel>(
-    resource: Resource & string,
+  public async create<Resource extends keyof DataModel & string>(
+    resource: Resource,
     payload: DataModel[Resource],
     options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<void> {
@@ -1905,17 +2396,12 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const { queries } = this.planQueries(resource, 'CREATE', null, payload, options);
-      const sqlQueries = this.compileQueries(queries);
-
       const execute = async (session?: string): Promise<void> => {
-        await forEach(Object.keys(sqlQueries), async (key) => {
-          await this.query({
-            poolOrSession: session,
-            query: sqlQueries[key].query,
-            values: sqlQueries[key].values,
-          });
-        });
+        const fullOptions = { ...options, poolOrSession: session };
+        const customCreate = this.registeredModules[resource]?.create;
+        return customCreate?.(payload, fullOptions, (updatedPayload, updatedOptions) => (
+          this.baseCreate(resource, updatedPayload, updatedOptions)
+        )) ?? this.baseCreate(resource, payload, fullOptions);
       };
 
       return (options.poolOrSession !== undefined && this.sessions.has(options.poolOrSession))
@@ -1925,11 +2411,11 @@ export default class PostgreSQLDatabaseClient<
   }
 
   /**
-   * Updates resource with id `id` in database.
+   * Updates resource with ID `id` in database.
    *
    * @param resource Type of resource to update.
    *
-   * @param id Resource id.
+   * @param id ID of the resource to update.
    *
    * @param payload Updated resource payload.
    *
@@ -1937,8 +2423,8 @@ export default class PostgreSQLDatabaseClient<
    *
    * @returns `true` if resource has been successfully updated, `false` otherwise.
    */
-  public async update<Resource extends keyof DataModel = keyof DataModel>(
-    resource: Resource & string,
+  public async update<Resource extends keyof DataModel & string>(
+    resource: Resource,
     id: Id,
     payload: Payload<DataModel[Resource]>,
     options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
@@ -1954,61 +2440,18 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const { queries } = this.planQueries(resource, 'UPDATE', id, payload, options);
-      const sqlQueries = this.compileQueries(queries);
-
-      const deleteQueryKeys: string[] = [];
-      const insertQueryKeys: string[] = [];
-      Object.keys(queries).forEach((key) => {
-        if (queries[key].type === 'DELETE') {
-          deleteQueryKeys.push(key);
-        } else if (key !== resource) {
-          insertQueryKeys.push(key);
-        }
-      });
-
       const execute = async (session?: string, cancel?: () => Promise<void>): Promise<boolean> => {
-        // A payload touching nothing but arrays leaves the resource row itself unchanged, which
-        // would make for an empty `UPDATE ... SET`. The row is then only locked instead, both to
-        // check that the resource exists and to serialize concurrent updates of its arrays.
-        const useFallbackQuery = Object.keys((queries[resource] as UpdateQuery).fields).length < 1;
-        const rootQuery = !useFallbackQuery ? sqlQueries[resource] : this.compileQueries({
-          [resource]: {
-            type: 'SELECT',
-            fields: ['1'],
-            table: this.getTableName(resource),
-            where: (queries[resource] as UpdateQuery).where,
-            as: this.getFieldSqlAlias(this.getTableName(resource)),
-          },
-        })[resource];
-        const response = await this.query({
-          poolOrSession: session,
-          values: rootQuery.values,
-          query: useFallbackQuery ? rootQuery.query.replace(/;$/, ' FOR UPDATE;') : rootQuery.query,
-        });
+        const fullOptions = { ...options, poolOrSession: session };
+        const customUpdate = this.registeredModules[resource]?.update;
+        const response = await (customUpdate?.(id, payload, fullOptions, (...args) => (
+          this.baseUpdate(resource, ...args)
+        )) ?? this.baseUpdate(resource, id, payload, fullOptions));
 
-        if (response.rowCount === 0) {
+        if (!response) {
           await cancel?.();
-          return false;
         }
 
-        await forEach(deleteQueryKeys, async (key) => {
-          await this.query({
-            poolOrSession: session,
-            query: sqlQueries[key].query,
-            values: sqlQueries[key].values,
-          });
-        });
-
-        await forEach(insertQueryKeys, async (key) => {
-          await this.query({
-            poolOrSession: session,
-            query: sqlQueries[key].query,
-            values: sqlQueries[key].values,
-          });
-        });
-
-        return true;
+        return response;
       };
 
       return (options.poolOrSession !== undefined && this.sessions.has(options.poolOrSession))
@@ -2044,16 +2487,12 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const { queries } = this.planQueries(resource, 'DELETE', id, null, options);
-      const sqlQueries = this.compileQueries(queries);
+      const customDelete = this.registeredModules[resource]?.delete;
+      const response = await (customDelete?.(id, options, (...args) => (
+        this.baseDelete(resource, ...args)
+      )) ?? this.baseDelete(resource, id, options));
 
-      const response = await this.query({
-        query: sqlQueries[resource].query,
-        values: sqlQueries[resource].values,
-        poolOrSession: options.poolOrSession,
-      });
-
-      return (response.rowCount ?? 0) > 0;
+      return response;
     });
   }
 
@@ -2087,27 +2526,14 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const finalResults: Record<string, Record<string, unknown>[]> = {};
-      const { projections, queries } = this.planQueries(resource, 'VIEW', id, null, options);
-      const { [String(resource)]: resourceQuery, ...sqlQueries } = this.compileQueries(queries);
+      const customView = this.registeredModules[resource]?.view<
+        (Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null
+      >;
+      const response = await (customView?.(id, options, (...args) => (
+        this.baseView(resource, ...args)
+      )) ?? this.baseView(resource, id, options));
 
-      finalResults[resource] = await this.query<Record<string, unknown>>({
-        query: resourceQuery.query,
-        values: resourceQuery.values,
-        poolOrSession: options.poolOrSession,
-      }).then((response) => response.rows);
-
-      if (finalResults[resource].length === 0) {
-        return null;
-      }
-
-      await forEach(Object.keys(sqlQueries), (key) => this.query<Record<string, unknown>>({
-        query: sqlQueries[key].query,
-        values: sqlQueries[key].values,
-        poolOrSession: options.poolOrSession,
-      }).then(({ rows }) => { finalResults[key] = rows; }), 5);
-
-      return this.formatRows<null[]>(resource, projections, finalResults)[0];
+      return response;
     });
   }
 
@@ -2142,75 +2568,14 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const offset = (options.offset ?? this.DEFAULT_OFFSET);
-      const { projections, queries } = this.planQueries(resource, 'LIST', null, searchBody, options);
-      const { _search, ...sqlQueries } = this.compileQueries(queries);
+      const customList = this.registeredModules[resource]?.list<
+        (Key extends keyof QueryResults ? QueryResults[Key] : Ids)
+      >;
+      const response = await (customList?.(searchBody, options, (...args) => (
+        this.baseList(resource, ...args)
+      )) ?? this.baseList(resource, searchBody, options));
 
-      const response = await this.query<{ __total: string | null; _id: string; }>({
-        query: _search.query,
-        values: _search.values,
-        poolOrSession: options.poolOrSession,
-      });
-
-      if (response.rows.length === 0 && offset === 0) {
-        return { total: 0, results: [] };
-      }
-
-      // Paginating with overflowed offset gives no rows in the response although there may actually
-      // be results. This second query makes sure to return the total number of results.
-      if (response.rows.length === 0) {
-        const { _search: countQuery } = this.compileQueries({
-          _search: {
-            ...queries._search,
-            limit: 1,
-            offset: 0,
-            orderBy: [],
-            fields: ['COUNT(*) AS __total'],
-          },
-        });
-
-        const countResponse = await this.query<{ __total: string | null; _id: string; }>({
-          query: countQuery.query,
-          values: countQuery.values,
-          poolOrSession: options.poolOrSession,
-        });
-
-        return {
-          total: parseInt(countResponse.rows[0]?.__total ?? '0', 10),
-          results: [],
-        };
-      }
-
-      const ids = response.rows.map((row) => row._id);
-      const finalResults: Record<string, Record<string, unknown>[]> = {};
-
-      await forEach(Object.keys(sqlQueries), (key) => this.query<Record<string, string>>({
-        values: [ids],
-        query: sqlQueries[key].query,
-        poolOrSession: options.poolOrSession,
-      }).then(({ rows }) => { finalResults[key] = rows; }), 5);
-
-      return {
-        total: parseInt(response.rows[0]?.__total ?? '0', 10),
-        results: this.formatRows(resource, projections, finalResults),
-      };
-    });
-  }
-
-  /**
-   * Gracefully shuts down the database client, releasing all remaining connections to the server.
-   */
-  public async shutdown(): Promise<void> {
-    const pools = Array.from(this.pools.values());
-    return this.telemetry.span(`${this.constructor.name}.shutdown`, {
-      kind: 'CLIENT',
-      attributes: {
-        pools: pools.length,
-        'code.class.name': this.constructor.name,
-      },
-    }, async () => {
-      await Promise.all(pools.map((pool) => pool.pool.end()));
-      this.pools.clear();
+      return response;
     });
   }
 
@@ -2231,7 +2596,7 @@ export default class PostgreSQLDatabaseClient<
       resource: keyof DataModel & string;
       filters: { _id: Id[]; } & SearchFilters;
     }>,
-    options?: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
+    options: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'> = this.DEFAULT_VIEW_COMMAND_OPTIONS,
   ): Promise<void> {
     return this.telemetry.span(`${this.constructor.name}.checkRelations`, {
       kind: 'CLIENT',
@@ -2243,43 +2608,27 @@ export default class PostgreSQLDatabaseClient<
         'code.class.name': this.constructor.name,
       },
     }, async () => {
-      if (relations.size > 0) {
-        const values: unknown[] = [];
-        const sqlSubQueries: string[] = [];
-        const missingIds = new Set<string>();
-        relations.forEach((value, path) => {
-          const searchBody = { query: null, filters: value.filters };
-          const queryOptions = { ...options, maximumDepth: Infinity };
-          const { queries } = this.planQueries(value.resource, 'LIST', null, searchBody, queryOptions);
-          delete queries._search.limit;
-          delete queries._search.offset;
-          delete queries._search.orderBy;
-          queries._search.fields = [`DISTINCT "${queries._search.as}"."_id"`, `${getPlaceholder(path, values)} as path`];
-          sqlSubQueries.push(`${compileQuery(queries._search, values)};`);
-          value.filters._id.forEach((id) => missingIds.add(`${id}:${path}`));
-        });
+      const customCheckRelations = this.registeredModules[resource]?.checkRelations;
+      return customCheckRelations?.(relations, options, (...args) => (
+        this.baseCheckRelations(resource, ...args)
+      )) ?? this.baseCheckRelations(resource, relations, options);
+    });
+  }
 
-        let query = '';
-        for (let index = 0, { length } = sqlSubQueries; index < length; index += 1) {
-          query += (query === '') ? sqlSubQueries[index].replace(/;$/, '') : `\nUNION ALL\n${sqlSubQueries[index].replace(/;$/, '')}`;
-        }
-
-        const response = await this.query({
-          values,
-          query: `${query};`,
-          poolOrSession: options?.poolOrSession,
-        });
-
-        for (let index = 0, { length } = response.rows; index < length; index += 1) {
-          const row = response.rows[index];
-          missingIds.delete(`${row._id}:${row.path}`);
-        }
-
-        if (missingIds.size > 0) {
-          const id = (missingIds.values().next().value as unknown as string).split(':')[0];
-          throw new DatabaseError('NO_RESOURCE', { id });
-        }
-      }
+  /**
+   * Gracefully shuts down the database client, releasing all remaining connections to the server.
+   */
+  public async shutdown(): Promise<void> {
+    const pools = Array.from(this.pools.values());
+    return this.telemetry.span(`${this.constructor.name}.shutdown`, {
+      kind: 'CLIENT',
+      attributes: {
+        pools: pools.length,
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      await Promise.all(pools.map((pool) => pool.pool.end()));
+      this.pools.clear();
     });
   }
 }

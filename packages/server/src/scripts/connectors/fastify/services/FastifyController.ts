@@ -178,7 +178,7 @@ export default class FastifyController<
       _model: {
         handler: async (request: FastifyRequest<{
           Querystring: { resource: keyof DataModelType & string; };
-      }>, response: FastifyReply) => {
+        }>, response: FastifyReply) => {
           const { resource } = request.query;
           await this.generateContext(request, true, false);
           const publicSchema = this.model.getPublicSchema(resource);
@@ -531,9 +531,9 @@ export default class FastifyController<
   ): Promise<Omit<
     UserCommandContext<DataModelType>, 'queryOptions'>
     | Omit<AnonymousCommandContext<DataModelType>, 'queryOptions'
-  > & {
-    queryOptions: Exclude<AnonymousCommandContext<DataModelType>['queryOptions'], undefined>;
-  }> {
+    > & {
+      queryOptions: Exclude<AnonymousCommandContext<DataModelType>['queryOptions'], undefined>;
+    }> {
     const deviceId = String(request.headers['x-device-id']);
     const userAgent = String(request.headers['user-agent']);
     const queryOptions = this.parseQuery(request.query as Record<string, string | null>);
@@ -762,7 +762,9 @@ export default class FastifyController<
    *
    * @param options Additional options to pass to fastify `register` function.
    */
-  public async createEndpoints(
+  public async createEndpoints<
+    Resource extends keyof DataModelType & string = keyof DataModelType & string,
+  >(
     instance: FastifyInstance,
     options?: { prefix?: string; },
   ): Promise<void> {
@@ -898,7 +900,7 @@ export default class FastifyController<
       });
 
       // CRUD endpoints.
-      const keys = Object.keys(resources) as (keyof DataModelType & string)[];
+      const keys = Object.keys(resources) as Resource[];
       keys.forEach((resource) => {
         const model = this.model.get(resource);
         const resourceEndpoints = resources[resource] as Record<EndpointType, BuiltInEndpoint>;
@@ -906,14 +908,14 @@ export default class FastifyController<
           const { path, maximumDepth } = resourceEndpoints[endpoint];
           if (endpoint === 'create') {
             server.post(path, this.createEndpoint<{
-              body: CreatePayload<DataModelType[keyof DataModelType]>;
+              body: CreatePayload<DataModelType[Resource]>;
             }>({
               query: { fields: { fields: Model.queryFields() } },
               body: { requireAllFields: true, fields: model.schema.fields },
               handler: async (request, response) => {
                 const context = await this.generateContext(request, true, false);
                 context.queryOptions.maximumDepth ??= maximumDepth;
-                const body = request.body as CreatePayload<DataModelType[keyof DataModelType]>;
+                const body = request.body as CreatePayload<DataModelType[Resource]>;
                 const result = await this.engine.create(resource, body, context);
                 return response.status(201).send(result);
               },
@@ -921,7 +923,7 @@ export default class FastifyController<
           } else if (endpoint === 'update') {
             server.patch(path, this.createEndpoint<{
               params: { id: Id; };
-              body: UpdatePayload<DataModelType[keyof DataModelType]>;
+              body: UpdatePayload<DataModelType[Resource]>;
             }>({
               params: { fields: { id: Model.id() } },
               query: { fields: { fields: Model.queryFields() } },
@@ -929,7 +931,7 @@ export default class FastifyController<
               handler: async (request, response) => {
                 const context = await this.generateContext(request, true, false);
                 context.queryOptions.maximumDepth ??= maximumDepth;
-                const body = request.body as UpdatePayload<DataModelType[keyof DataModelType]>;
+                const body = request.body as UpdatePayload<DataModelType[Resource]>;
                 const result = await this.engine.update(resource, request.params.id, body, context);
                 return response.status(200).send(result);
               },

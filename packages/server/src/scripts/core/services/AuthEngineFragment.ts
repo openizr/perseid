@@ -144,8 +144,11 @@ export default class AuthEngineFragment<
    * In addition to the base `create` method, sends an invite email to the user if they are being
    * created.
    */
-  public async create<Result = unknown, Resource extends keyof DataModel = keyof DataModel>(
-    resource: Resource & string,
+  public async create<
+    Result = unknown,
+    Resource extends keyof DataModel & string = keyof DataModel & string,
+  >(
+    resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Result> {

@@ -537,8 +537,8 @@ export default abstract class AbstractDatabaseClient<
    *
    * @param options Query options. Defaults to `{}`.
    */
-  public abstract create<Resource extends keyof DataModel>(
-    resource: Resource & string,
+  public abstract create<Resource extends keyof DataModel & string>(
+    resource: Resource,
     payload: DataModel[Resource],
     options?: ViewQueryOptions,
   ): Promise<void>;
@@ -556,7 +556,7 @@ export default abstract class AbstractDatabaseClient<
    *
    * @returns `true` if resource has been successfully updated, `false` otherwise.
    */
-  public abstract update<Resource extends keyof DataModel>(
+  public abstract update<Resource extends keyof DataModel & string>(
     resource: Resource,
     id: Id,
     payload: Payload<DataModel[Resource]>,

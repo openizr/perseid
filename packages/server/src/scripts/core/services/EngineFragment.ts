@@ -122,9 +122,9 @@ export default class EngineFragment<
       filters: SearchFilters & { _id: Id[]; } | null;
     }>(),
   ): Map<string, {
-      resource: keyof DataModel & string;
-      filters: SearchFilters & { _id: Id[]; } | null;
-    }> {
+    resource: keyof DataModel & string;
+    filters: SearchFilters & { _id: Id[]; } | null;
+  }> {
     const path = currentPath.join('.');
     const { type } = currentSchema;
     const { relation } = currentSchema as IdSchema<DataModel>;
@@ -618,8 +618,11 @@ export default class EngineFragment<
    *
    * @returns Newly created resource.
    */
-  public async create<Result = unknown, Resource extends keyof DataModel = keyof DataModel>(
-    resource: Resource & string,
+  public async create<
+    Result = unknown,
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  >(
+    resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
   ): Promise<Result> {
@@ -648,9 +651,9 @@ export default class EngineFragment<
    */
   public async update<
     Result = unknown,
-    Resource extends keyof DataModel = keyof DataModel
+    Resource extends keyof DataModel & string = keyof DataModel & string
   >(
-    resource: Resource & string,
+    resource: Resource,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
     context: CommandContext<DataModel>,
@@ -679,8 +682,8 @@ export default class EngineFragment<
    *
    * @throws If resource does not exist or does not match criteria.
    */
-  public async delete(
-    resource: keyof DataModel & string,
+  public async delete<Resource extends keyof DataModel & string = keyof DataModel & string>(
+    resource: Resource,
     id: Id,
     context: CommandContext<DataModel>,
   ): Promise<void> {
@@ -712,8 +715,11 @@ export default class EngineFragment<
    *
    * @returns Paginated list of resources.
    */
-  public async list<Result = unknown>(
-    resource: keyof DataModel & string,
+  public async list<
+    Result = unknown,
+    Resource extends keyof DataModel & string = keyof DataModel & string,
+  >(
+    resource: Resource,
     searchBody: SearchBody,
     context: CommandContext<DataModel>,
   ): Promise<Results<Result>> {
