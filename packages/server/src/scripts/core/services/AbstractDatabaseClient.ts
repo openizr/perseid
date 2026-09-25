@@ -176,6 +176,13 @@ export interface DatabaseClientSettings {
 }
 
 /**
+ * Fields projections tree: must follow the data model structure down to the leaf fields.
+ */
+export interface Projections {
+  [key: string]: Projections | 1;
+}
+
+/**
  * Abstract database client, to use as a blueprint for DBMS-specific implementations.
  *
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/core/services/AbstractDatabaseClient.ts
@@ -581,7 +588,7 @@ export default abstract class AbstractDatabaseClient<
     resource: Resource & string,
     id: Id,
     options?: ViewQueryOptions,
-  ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null>;
+  ): Promise<QueryResults[Key] | null>;
 
   /**
    * Fetches a paginated list of resources from database, that match specific filters/query.
@@ -599,9 +606,9 @@ export default abstract class AbstractDatabaseClient<
     Resource extends keyof DataModel = keyof DataModel
   >(
     resource: Resource & string,
-    searchBody: SearchBody,
+    searchBody: SearchBody | null,
     options?: ListQueryOptions,
-  ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>>;
+  ): Promise<Results<QueryResults[Key]>>;
 
   /**
    * Deletes resource with id `id` from database.

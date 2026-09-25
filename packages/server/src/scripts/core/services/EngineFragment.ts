@@ -705,30 +705,6 @@ export default class EngineFragment<
   }
 
   /**
-   * Fetches a paginated list of resources matching `searchBody` constraints.
-   *
-   * @param resource Type of resources to fetch.
-   *
-   * @param searchBody Search body (filters, text query) to filter resources with.
-   *
-   * @param context Command context.
-   *
-   * @returns Paginated list of resources.
-   */
-  public async list<
-    Result = unknown,
-    Resource extends keyof DataModel & string = keyof DataModel & string,
-  >(
-    resource: Resource,
-    searchBody: SearchBody,
-    context: CommandContext<DataModel>,
-  ): Promise<Results<Result>> {
-    this.checkOperationAllowed(resource, 'LIST');
-    const updatedContext = await this.applyPermissions(resource, 'LIST', null, searchBody, context);
-    return this.unsafeList(resource, searchBody, updatedContext);
-  }
-
-  /**
    * Fetches resource with ID `id`.
    *
    * @param resource Type of resource to fetch.

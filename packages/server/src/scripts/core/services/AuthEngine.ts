@@ -240,7 +240,7 @@ export default class AuthEngine<
    */
   public async viewMe<Key extends keyof QueryResults>(
     context: UserCommandContext<DataModel>,
-  ): Promise<Key extends keyof QueryResults ? QueryResults[Key] : Ids> {
+  ): Promise<QueryResults[Key]> {
     const user = await this.databaseClient.view<Key>('users', context.session.user._id, {
       fields: this.USER_FIELDS_TO_FETCH,
     });

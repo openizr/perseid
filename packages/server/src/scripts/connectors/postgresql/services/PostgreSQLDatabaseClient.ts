@@ -28,6 +28,7 @@ import {
 import type {
   Payload,
   SearchBody,
+  Projections,
   SearchFilters,
   ViewQueryOptions,
   ListQueryOptions,
@@ -49,12 +50,6 @@ type SearchQuery = SelectQuery & {
   join: NonNullable<SelectQuery['join']>;
   where: NonNullable<SelectQuery['where']>;
   orderBy: NonNullable<SelectQuery['orderBy']>;
-};
-
-
-
-type DatabaseClientModules<DataModel> = {
-  [Resource in keyof DataModel & string]?: DatabaseClientModule<DataModel, Resource>;
 };
 
 /**
@@ -99,83 +94,6 @@ interface FilterableQuery extends BaseQuery {
     | { operator: 'AND'; conditions: Exclude<SelectQuery['where'], undefined>; }
     | { column: string; value: unknown; operator: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'ILIKE'; }
   )[];
-}
-
-/**
- * Extends the base database client with custom methods specific to a resource.
- */
-export interface DatabaseClientModule<DataModel, Resource extends keyof DataModel & string> {
-  create?: (
-    payload: DataModel[Resource],
-    options: ViewQueryOptions,
-    baseCreate: (payload: DataModel[Resource], options: ViewQueryOptions) => Promise<void>,
-  ) => Promise<void>;
-  update?: (
-    id: Id,
-    payload: Payload<DataModel[Resource]>,
-    options: ViewQueryOptions,
-    baseUpdate: (id: Id, payload: Payload<DataModel[Resource]>, options: ViewQueryOptions) => Promise<boolean>,
-  ) => Promise<boolean>;
-  view?: <Type = unknown>(
-    id: Id,
-    options: ViewQueryOptions,
-    baseView: (id: Id, options: ViewQueryOptions) => Promise<unknown>,
-  ) => Promise<Type>;
-  delete?: (
-    id: Id,
-    options: ViewQueryOptions,
-    baseDelete: (id: Id, options: ViewQueryOptions) => Promise<boolean>,
-  ) => Promise<boolean>;
-  list?: <Type = unknown>(
-    searchBody: SearchBody | null,
-    options: ListQueryOptions,
-    baseList: (searchBody: SearchBody | null, options: ListQueryOptions) => Promise<Results<Type>>,
-  ) => Promise<Results<Type>>;
-  formatRows?: <T = unknown>(
-    projections: Projections | 1,
-    resultsPerQuery: Record<string, Record<string, unknown>[]>,
-    baseFormatRows: (
-      projections: Projections | 1,
-      resultsPerQuery: Record<string, Record<string, unknown>[]>,
-    ) => T,
-  ) => T;
-  planQueries?: <Type extends ('VIEW' | 'LIST' | 'CREATE' | 'UPDATE' | 'DELETE') >(
-    type: Type,
-    id: Type extends 'VIEW' | 'UPDATE' | 'DELETE' ? Id : null,
-    payload: Type extends 'LIST' ? SearchBody | null :
-      Type extends 'CREATE' ? DataModel[Resource] :
-      Type extends 'UPDATE' ? Payload<DataModel[Resource]> :
-      Type extends 'DELETE' ? null :
-      null,
-    options: Type extends 'LIST' ? ListQueryOptions : ViewQueryOptions,
-    basePlanQueries: (
-      type: Type,
-      id: Type extends 'VIEW' | 'UPDATE' | 'DELETE' ? Id : null,
-      payload: Type extends 'LIST' ? SearchBody | null :
-        Type extends 'CREATE' ? DataModel[Resource] :
-        Type extends 'UPDATE' ? Payload<DataModel[Resource]> :
-        Type extends 'DELETE' ? null : null,
-      options: Type extends 'LIST' ? ListQueryOptions : ViewQueryOptions,
-    ) => Type extends 'LIST' | 'VIEW'
-      ? { projections: Projections; queries: Record<string, SelectQuery>; }
-      : { projections: Projections; queries: Record<string, Query>; },
-  ) => Type extends 'LIST' | 'VIEW'
-    ? { projections: Projections; queries: Record<string, SelectQuery>; }
-    : { projections: Projections; queries: Record<string, Query>; };
-  checkRelations?: (
-    relations: Map<string, {
-      resource: keyof DataModel & string;
-      filters: { _id: Id[]; } & SearchFilters;
-    }>,
-    options: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
-    baseCheckRelations: (
-      relations: Map<string, {
-        resource: keyof DataModel & string;
-        filters: { _id: Id[]; } & SearchFilters;
-      }>,
-      options: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
-    ) => Promise<void>,
-  ) => Promise<void>;
 }
 
 /**
@@ -309,11 +227,93 @@ export interface SelectQuery extends FilterableQuery {
 export type Query = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery;
 
 /**
- * Fields projections tree: must follow the data model structure down to the leaf fields.
+ * Extends the base database client with custom methods specific to a resource.
  */
-export interface Projections {
-  [key: string]: Projections | 1;
+export interface DatabaseClientModule<DataModel, Resource extends keyof DataModel & string> {
+  create?(
+    payload: DataModel[Resource],
+    options: ViewQueryOptions,
+    baseCreate: (
+      updatedPayload: DataModel[Resource],
+      updatedOptions: ViewQueryOptions,
+    ) => Promise<void>,
+  ): Promise<void>;
+  update?(
+    id: Id,
+    payload: Payload<DataModel[Resource]>,
+    options: ViewQueryOptions,
+    baseUpdate: (
+      updatedId: Id,
+      updatedPayload: Payload<DataModel[Resource]>,
+      updatedOptions: ViewQueryOptions,
+    ) => Promise<boolean>,
+  ): Promise<boolean>;
+  view?<Type = unknown>(
+    id: Id,
+    options: ViewQueryOptions,
+    baseView: (updatedId: Id, updatedOptions: ViewQueryOptions) => Promise<Type>,
+  ): Promise<Type>;
+  delete?(
+    id: Id,
+    options: ViewQueryOptions,
+    baseDelete: (updatedId: Id, updatedOptions: ViewQueryOptions) => Promise<boolean>,
+  ): Promise<boolean>;
+  list?<Type = unknown>(
+    searchBody: SearchBody | null,
+    options: ListQueryOptions,
+    baseList: (
+      updatedSearchBody: SearchBody | null,
+      updatedOptions: ListQueryOptions,
+    ) => Promise<Results<Type>>,
+  ): Promise<Results<Type>>;
+  formatRows?<T = unknown>(
+    projections: Projections | 1,
+    resultsPerQuery: Record<string, Record<string, unknown>[]>,
+    baseFormatRows: (
+      updatedProjections: Projections | 1,
+      updatedResultsPerQuery: Record<string, Record<string, unknown>[]>,
+    ) => T,
+  ): T;
+  planQueries?<Type extends ('VIEW' | 'LIST' | 'CREATE' | 'UPDATE' | 'DELETE')>(
+    type: Type,
+    id: Type extends 'VIEW' | 'UPDATE' | 'DELETE' ? Id : null,
+    payload: Type extends 'LIST' ? SearchBody | null :
+      Type extends 'CREATE' ? DataModel[Resource] :
+      Type extends 'UPDATE' ? Payload<DataModel[Resource]> :
+      Type extends 'DELETE' ? null :
+      null,
+    options: Type extends 'LIST' ? ListQueryOptions : ViewQueryOptions,
+    basePlanQueries: (
+      updatedType: Type,
+      updatedId: Type extends 'VIEW' | 'UPDATE' | 'DELETE' ? Id : null,
+      updatedPayload: Type extends 'LIST' ? SearchBody | null :
+        Type extends 'CREATE' ? DataModel[Resource] :
+        Type extends 'UPDATE' ? Payload<DataModel[Resource]> :
+        Type extends 'DELETE' ? null : null,
+      updatedOptions: Type extends 'LIST' ? ListQueryOptions : ViewQueryOptions,
+    ) => Type extends 'LIST' | 'VIEW'
+      ? { projections: Projections; queries: Record<string, SelectQuery>; }
+      : { projections: Projections; queries: Record<string, Query>; },
+  ): Type extends 'LIST' | 'VIEW'
+    ? { projections: Projections; queries: Record<string, SelectQuery>; }
+    : { projections: Projections; queries: Record<string, Query>; };
+  checkRelations?(
+    relations: Map<string, {
+      resource: keyof DataModel & string;
+      filters: { _id: Id[]; } & SearchFilters;
+    }>,
+    options: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
+    baseCheckRelations: (
+      relations: Map<string, {
+        resource: keyof DataModel & string;
+        filters: { _id: Id[]; } & SearchFilters;
+      }>,
+      options: Pick<ViewQueryOptions, 'poolOrSession' | 'excludeDeletedResources'>,
+    ) => Promise<void>,
+  ): Promise<void>;
 }
+
+export { type Projections };
 
 // PostgreSQL has a hard limit of 65,535 parameters per query.
 const MAXIMUM_PARAMETERS_PER_QUERY = 65535;
@@ -705,11 +705,6 @@ export default class PostgreSQLDatabaseClient<
   private hashAliases: boolean;
 
   /**
-   * List of registered modules used to override generic methods' base behavior.
-   */
-  protected registeredModules: DatabaseClientModules<DataModel> = {};
-
-  /**
    * Allows to provide a custom SQL table name for specific resources and sub-resources.
    */
   protected tablesMapping: Record<string, string>;
@@ -730,6 +725,13 @@ export default class PostgreSQLDatabaseClient<
    * Active sessions, indexed by session ID. A session represents a running SQL transaction.
    */
   protected sessions: Map<string, Session>;
+
+  /**
+   * List of registered modules used to override generic methods' base behavior.
+   */
+  protected registeredModules: {
+    [Resource in keyof DataModel & string]?: DatabaseClientModule<DataModel, Resource>;
+  } = {};
 
   /**
    * Returns the SQL table name to use for `table`.
@@ -1640,7 +1642,7 @@ export default class PostgreSQLDatabaseClient<
     resource: Resource & string,
     id: Id,
     options: ViewQueryOptions,
-  ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null> {
+  ): Promise<QueryResults[Key] | null> {
     const finalResults: Record<string, Record<string, unknown>[]> = {};
     const { projections, queries } = this.planQueries(resource, 'VIEW', id, null, options);
     const { [String(resource)]: resourceQuery, ...sqlQueries } = this.compileQueries(queries);
@@ -1710,7 +1712,7 @@ export default class PostgreSQLDatabaseClient<
     resource: Resource,
     searchBody: SearchBody | null,
     options: ListQueryOptions,
-  ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>> {
+  ): Promise<Results<QueryResults[Key]>> {
     const offset = (options.offset ?? this.DEFAULT_OFFSET);
     const { projections, queries } = this.planQueries(resource, 'LIST', null, searchBody, options);
     const { _search, ...sqlQueries } = this.compileQueries(queries);
@@ -1833,15 +1835,6 @@ export default class PostgreSQLDatabaseClient<
         }
       }
     });
-  }
-
-  /**
-   * Registers `modules`, overriding any generic method by the one defined in them.
-   *
-   * @param modules List of modules to register.
-   */
-  protected registerModules(modules: DatabaseClientModules<DataModel>): void {
-    Object.assign(this.registeredModules, modules);
   }
 
   /**
@@ -2058,11 +2051,26 @@ export default class PostgreSQLDatabaseClient<
   ): Type extends 'LIST' | 'VIEW'
     ? { projections: Projections; queries: Record<string, SelectQuery>; }
     : { projections: Projections; queries: Record<string, Query>; } {
-    const customPlanQueries = this.registeredModules[resource]?.planQueries;
+    const customPlanQueries = this.registeredModules[resource]?.planQueries?.bind(this);
     return customPlanQueries?.(type, id, payload, options, (...args) => (
       this.basePlanQueries(resource, ...args)
     )) ?? this.basePlanQueries(resource, type, id, payload, options);
   }
+
+  /**
+   * Registers `module` for `resource`, overriding any generic method by the one defined in it.
+   *
+   * @param resource Type of resource to register the module for.
+   *
+   * @param module Module to register.
+   */
+  protected registerModule<Resource extends keyof DataModel & string>(
+    resource: Resource,
+    module: DatabaseClientModule<DataModel, Resource>,
+  ): void {
+    this.registeredModules[resource] = module;
+  }
+
 
   /**
    * Compiles formatted `queries` definitions into SQL queries.
@@ -2200,7 +2208,7 @@ export default class PostgreSQLDatabaseClient<
     projections: Projections | 1,
     resultsPerQuery: Record<string, Record<string, unknown>[]>,
   ): T {
-    const customFormatRows = this.registeredModules[resource]?.formatRows;
+    const customFormatRows = this.registeredModules[resource]?.formatRows?.bind(this);
     return customFormatRows?.(projections, resultsPerQuery, (...args) => (
       this.baseFormatRows(resource, ...args)
     )) ?? this.baseFormatRows(resource, projections, resultsPerQuery);
@@ -2398,7 +2406,7 @@ export default class PostgreSQLDatabaseClient<
     }, async () => {
       const execute = async (session?: string): Promise<void> => {
         const fullOptions = { ...options, poolOrSession: session };
-        const customCreate = this.registeredModules[resource]?.create;
+        const customCreate = this.registeredModules[resource]?.create?.bind(this);
         return customCreate?.(payload, fullOptions, (updatedPayload, updatedOptions) => (
           this.baseCreate(resource, updatedPayload, updatedOptions)
         )) ?? this.baseCreate(resource, payload, fullOptions);
@@ -2442,7 +2450,7 @@ export default class PostgreSQLDatabaseClient<
     }, async () => {
       const execute = async (session?: string, cancel?: () => Promise<void>): Promise<boolean> => {
         const fullOptions = { ...options, poolOrSession: session };
-        const customUpdate = this.registeredModules[resource]?.update;
+        const customUpdate = this.registeredModules[resource]?.update?.bind(this);
         const response = await (customUpdate?.(id, payload, fullOptions, (...args) => (
           this.baseUpdate(resource, ...args)
         )) ?? this.baseUpdate(resource, id, payload, fullOptions));
@@ -2487,7 +2495,7 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const customDelete = this.registeredModules[resource]?.delete;
+      const customDelete = this.registeredModules[resource]?.delete?.bind(this);
       const response = await (customDelete?.(id, options, (...args) => (
         this.baseDelete(resource, ...args)
       )) ?? this.baseDelete(resource, id, options));
@@ -2514,7 +2522,7 @@ export default class PostgreSQLDatabaseClient<
     resource: Resource & string,
     id: Id,
     options: ViewQueryOptions = this.DEFAULT_VIEW_COMMAND_OPTIONS,
-  ): Promise<(Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null> {
+  ): Promise<QueryResults[Key] | null> {
     return this.telemetry.span(`${this.constructor.name}.view`, {
       kind: 'CLIENT',
       attributes: {
@@ -2526,10 +2534,8 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const customView = this.registeredModules[resource]?.view<
-        (Key extends keyof QueryResults ? QueryResults[Key] : Ids) | null
-      >;
-      const response = await (customView?.(id, options, (...args) => (
+      const customView = this.registeredModules[resource]?.view?.bind(this);
+      const response = await (customView<QueryResults[Key] | null>?.(id, options, (...args) => (
         this.baseView(resource, ...args)
       )) ?? this.baseView(resource, id, options));
 
@@ -2555,7 +2561,7 @@ export default class PostgreSQLDatabaseClient<
     resource: Resource & string,
     searchBody: SearchBody | null,
     options: ListQueryOptions = this.DEFAULT_LIST_COMMAND_OPTIONS,
-  ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>> {
+  ): Promise<Results<QueryResults[Key]>> {
     return this.telemetry.span(`${this.constructor.name}.list`, {
       kind: 'CLIENT',
       attributes: {
@@ -2568,10 +2574,8 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const customList = this.registeredModules[resource]?.list<
-        (Key extends keyof QueryResults ? QueryResults[Key] : Ids)
-      >;
-      const response = await (customList?.(searchBody, options, (...args) => (
+      const customList = this.registeredModules[resource]?.list?.bind(this);
+      const response = await (customList<QueryResults[Key]>?.(searchBody, options, (...args) => (
         this.baseList(resource, ...args)
       )) ?? this.baseList(resource, searchBody, options));
 
@@ -2608,7 +2612,7 @@ export default class PostgreSQLDatabaseClient<
         'code.class.name': this.constructor.name,
       },
     }, async () => {
-      const customCheckRelations = this.registeredModules[resource]?.checkRelations;
+      const customCheckRelations = this.registeredModules[resource]?.checkRelations?.bind(this);
       return customCheckRelations?.(relations, options, (...args) => (
         this.baseCheckRelations(resource, ...args)
       )) ?? this.baseCheckRelations(resource, relations, options);

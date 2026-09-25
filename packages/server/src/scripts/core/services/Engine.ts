@@ -23,6 +23,7 @@ import type Model from 'scripts/core/services/Model';
 import type Telemetry from 'scripts/core/services/Telemetry';
 import EngineFragment from 'scripts/core/services/EngineFragment';
 import type AbstractDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
+import { EngineError } from 'scripts/core';
 
 type Identity<T> = T;
 
@@ -48,6 +49,48 @@ type PublicFragment<
       isResourceCreatePayload: EngineFragment<DataModel, DatabaseClient>['isResourceCreatePayload'];
       isResourceUpdatePayload: EngineFragment<DataModel, DatabaseClient>['isResourceUpdatePayload'];
     };
+
+/**
+ * Extends the base engine with custom methods specific to a resource.
+ */
+export interface EngineModule<DataModel, Resource extends keyof DataModel & string> {
+  // create?(
+  //   payload: DataModel[Resource],
+  //   options: ViewQueryOptions,
+  //   baseCreate: (
+  //     updatedPayload: DataModel[Resource],
+  //     updatedOptions: ViewQueryOptions,
+  //   ) => Promise<void>,
+  // ): Promise<void>;
+  // update?(
+  //   id: Id,
+  //   payload: Payload<DataModel[Resource]>,
+  //   options: ViewQueryOptions,
+  //   baseUpdate: (
+  //     updatedId: Id,
+  //     updatedPayload: Payload<DataModel[Resource]>,
+  //     updatedOptions: ViewQueryOptions,
+  //   ) => Promise<boolean>,
+  // ): Promise<boolean>;
+  // view?<Type = unknown>(
+  //   id: Id,
+  //   options: ViewQueryOptions,
+  //   baseView: (updatedId: Id, updatedOptions: ViewQueryOptions) => Promise<Type>,
+  // ): Promise<Type>;
+  // delete?(
+  //   id: Id,
+  //   options: ViewQueryOptions,
+  //   baseDelete: (updatedId: Id, updatedOptions: ViewQueryOptions) => Promise<boolean>,
+  // ): Promise<boolean>;
+  list?<Type = unknown>(
+    searchBody: SearchBody | null,
+    context: CommandContext<DataModel>,
+    baseList: (
+      updatedSearchBody: SearchBody | null,
+      updatedContext: CommandContext<DataModel>,
+    ) => Promise<Results<Type>>,
+  ): Promise<Results<Type>>;
+}
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
@@ -97,24 +140,69 @@ export default class Engine<
   >;
 
   /**
+   * List of registered modules used to override generic methods' base behavior.
+   */
+  protected registeredModules: {
+    [Resource in keyof DataModel & string]?: EngineModule<DataModel, Resource>;
+  } = {};
+
+  /**
    * Default engine fragment, used as fallback for resources not registered
    * in `fragmentPerResource`.
    */
   protected defaultFragment: PublicFragment<DataModel, DatabaseClient>;
 
   /**
-   * Registers a new `EngineFragment` instance.
+   * Checks if `operation` is allowed for `resource`, according to data model definition.
    *
-   * @param fragment `EngineFragment` instance to register.
+   * @param resource Type of resource to check.
+   *
+   * @param operation Type of operation (CREATE, UPDATE, DELETE, LIST, VIEW) to check.
+   *
+   * @throws If operation is not allowed for that resource.
    */
-  protected registerFragment(
-    fragment: EngineFragment<DataModel, AbstractDatabaseClient<DataModel>>,
+  protected checkOperationAllowed(
+    resource: keyof DataModel,
+    operation: 'CREATE' | 'UPDATE' | 'DELETE' | 'LIST' | 'VIEW',
   ): void {
-    fragment.resources.forEach((resource) => {
-      this.fragmentPerResource[resource] = (
-        fragment as unknown as PublicFragment<DataModel, DatabaseClient>
-      );
-    });
+    const metaData = this.model.get(resource);
+    const isWriteOperation = (operation === 'CREATE' || operation === 'UPDATE');
+
+    if (isWriteOperation && !metaData.schema.allowedOperations?.includes('VIEW')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
+    }
+
+    if (!metaData.schema.allowedOperations?.includes(operation)) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation });
+    }
+  }
+
+  /**
+   * Base `list` method implementation.
+   *
+   * @param resource Type of resources to fetch.
+   *
+   * @param searchBody Search body (filters, text query) to filter resources with.
+   *
+   * @param context Command context.
+   *
+   * @returns Paginated list of resources.
+   */
+  public async baseList<
+    Result = unknown,
+    Resource extends keyof DataModel & string = keyof DataModel & string,
+  >(
+    resource: Resource,
+    searchBody: SearchBody | null,
+    context: CommandContext<DataModel>,
+  ): Promise<Results<Result>> {
+    this.checkOperationAllowed(resource, 'LIST');
+    const updatedContext = await this.applyPermissions(resource, 'LIST', null, searchBody, context);
+    return await this.databaseClient.list(
+      resource,
+      searchBody,
+      updatedContext.queryOptions,
+    ) as Results<Result>;
   }
 
   /**
@@ -484,17 +572,24 @@ export default class Engine<
    *
    * @returns Paginated list of resources.
    */
-  public async list<Key extends keyof QueryResults>(
+  public list<Key extends keyof QueryResults>(
     resource: keyof DataModel & string,
-    searchBody: SearchBody,
+    searchBody: SearchBody | null,
     context: CommandContext<DataModel>,
-  ): Promise<Results<Key extends keyof QueryResults ? QueryResults[Key] : Ids>> {
-    const fragment = this.fragmentPerResource[resource] ?? this.defaultFragment;
-    return fragment.list<Key extends keyof QueryResults ? QueryResults[Key] : Ids>(
-      resource,
-      searchBody,
-      context,
-    );
+  ): Promise<Results<QueryResults[Key]>> {
+    return this.telemetry.span(`${this.constructor.name}.list`, {
+      kind: 'SERVER',
+      attributes: {
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      const customList = this.registeredModules[resource]?.list?.bind(this);
+      const response = await (customList?.(searchBody, context, (...args) => (
+        this.baseList<QueryResults[Key]>(resource, ...args)
+      )) ?? this.baseList<QueryResults[Key]>(resource, searchBody, context));
+
+      return response;
+    });
   }
 
   /**
