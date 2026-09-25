@@ -16,6 +16,7 @@ const warn = vi.fn();
 const error = vi.fn();
 const fatal = vi.fn();
 const flushSync = vi.fn();
+const flush = vi.fn((callback: () => void) => { callback(); });
 const on = vi.fn((_event, callback: () => null) => callback());
 const destination = vi.fn(() => ({ flushSync, on }));
 
@@ -27,6 +28,7 @@ export const pino = vi.fn(() => ({
   warn,
   error,
   fatal,
+  flush,
 }));
 
 (pino as unknown as { destination: unknown; }).destination = destination;

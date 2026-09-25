@@ -6,31 +6,33 @@
  *
  */
 
+@use '../core' as *;
+
 .ui-tooltip {
   position: relative;
 
   %top {
     right: 50%;
     transform: translateX(50%);
-    bottom: calc(100% + var(--gaps-1));
+    bottom: calc(100% + var(--gap-1));
   }
 
   %bottom {
     right: 50%;
     transform: translateX(50%);
-    top: calc(100% + var(--gaps-1));
+    top: calc(100% + var(--gap-1));
   }
 
   %right {
     bottom: 50%;
     transform: translateY(50%);
-    left: calc(100% + var(--gaps-1));
+    left: calc(100% + var(--gap-1));
   }
 
   %left {
     bottom: 50%;
     transform: translateY(50%);
-    right: calc(100% + var(--gaps-1));
+    right: calc(100% + var(--gap-1));
   }
 
   &:after,
@@ -42,7 +44,7 @@
     position: absolute;
     pointer-events: none;
     background: var(--clr-greys-900);
-    padding: var(--gaps-1);
+    padding: var(--gap-1);
     content: attr(aria-label);
     border: 1px solid var(--clr-greys-100);
   }

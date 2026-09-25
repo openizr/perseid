@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 
-import { type SvelteComponent } from 'svelte';
 import { render } from '@testing-library/svelte';
 import SvelteTsButton from 'scripts/components/SvelteTsButton.svelte';
 
@@ -12,7 +11,7 @@ describe('svelte/SvelteTsButton', () => {
   });
 
   test('renders correctly - basic', () => {
-    const { container } = render(SvelteTsButton as new () => SvelteComponent);
+    const { container } = render(SvelteTsButton);
     expect(container.firstChild).toMatchSnapshot();
   });
 });

@@ -6,9 +6,12 @@
  *
  */
 
-import type Logger from 'scripts/classes/Logger';
+import deepMerge from 'scripts/helpers/deepMerge';
+import type Telemetry from 'scripts/classes/Telemetry';
 
-/** List of labels translations, grouped by key and category. */
+/**
+ * List of labels translations, grouped by key and category.
+ */
 export interface Labels {
   [key: string]: string | Labels;
 }
@@ -17,29 +20,70 @@ export interface Labels {
  * Handles internationalization and localization (translations, conversions, formatting and such).
  */
 export default class I18n {
-  /** Logging system. */
-  protected logger: Logger;
+  /**
+   * Telemetry system.
+   */
+  protected telemetry: Telemetry;
 
-  /** List of labels translations, grouped by key and category. */
+  /**
+   * List of labels translations, grouped by key and category.
+   */
   protected labels: Labels;
 
-  /** Ugly trick to bypass linter :(. */
+  /**
+   * Ugly trick to bypass linter :(. */
   protected specialChar: string;
+
+  /**
+   * Gets the translation for `label`.
+   *
+   * @param label Label to get the translation for.
+   *
+   * @returns Translation for `label` if it exists, `null` otherwise.
+   */
+  protected getTranslation(label: string): string | null {
+    let translation = this.labels as Labels | undefined;
+    const splittedLabel = label.split('.');
+    while (splittedLabel.length > 0 && translation !== undefined) {
+      translation = translation[String(splittedLabel.shift())] as Labels | undefined;
+    }
+    return (typeof translation === 'string') ? translation : null;
+  }
 
   /**
    * Class constructor.
    *
-   * @param logger Logging system to use.
+   * @param telemetry Telemetry system to use.
    *
    * @param labels List of available labels for translation.
    */
-  public constructor(logger: Logger, labels: Labels) {
-    this.logger = logger;
+  public constructor(telemetry: Telemetry, labels: Labels) {
     this.labels = labels;
     this.specialChar = '';
+    this.telemetry = telemetry;
     this.t = this.t.bind(this);
     this.numeric = this.numeric.bind(this);
     this.dateTime = this.dateTime.bind(this);
+  }
+
+  /**
+   * Adds new `labels` to the existing ones.
+   *
+   * @param labels Labels to add.
+   */
+  public addLabels(labels: Labels): void {
+    this.labels = deepMerge(this.labels, labels);
+  }
+
+  /**
+   * Checks if `label` exists in labels.
+   *
+   * @param label Label to check.
+   *
+   * @returns `true` if `label` exists, `false` otherwise.
+   */
+  public has(label: string): boolean {
+    return (this.getTranslation(label) !== null);
   }
 
   /**
@@ -52,14 +96,10 @@ export default class I18n {
    * @returns Translated label.
    */
   public t(label: string, values: Record<string, unknown> = {}): string {
-    let translation = this.labels as Labels | undefined;
-    const splittedLabel = label.split('.');
-    while (splittedLabel.length > 0 && translation !== undefined) {
-      translation = translation[String(splittedLabel.shift())] as Labels | undefined;
-    }
+    const translation = this.getTranslation(label);
 
-    if (translation === undefined) {
-      this.logger.error(`Missing translation for label "${label}".`);
+    if (translation === null) {
+      this.telemetry.error(`Missing translation for label "${label}".`);
       return label;
     }
 

@@ -1236,6 +1236,7 @@ export default class Store<
     }), true);
   }
 
+  protected keys = new Set<string>();
   /**
    * API client `delete` method wrapper, that handles common errors and deletes global registry.
    *
@@ -1315,6 +1316,10 @@ export default class Store<
     searchBody: SearchBody,
     options?: QueryOptions,
   ): Promise<Results<DataModel[Resource]> | null> {
+    if (this.keys.has(options.key)) {
+      // abort key
+    }
+    this.keys.add(options.key);
     return this.catchErrors(this.apiClient.search(resource, searchBody, options).then((res) => {
       this.normalizeResources(resource, res.results);
       return res;

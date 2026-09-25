@@ -11,6 +11,7 @@ export default async (server: FastifyInstance): Promise<void> => {
    */
   await server.register((app, _options, done) => {
     app.get('/message', v1GetMessage);
+
     app.post('/message', v1PostMessage);
     done();
   }, { prefix: '/v1' });

@@ -1,4 +1,5 @@
 import 'styles/main.scss';
+import { mount } from 'svelte';
 import Router from 'scripts/containers/Router.svelte';
 
 if (process.env.NODE_ENV === 'production') {
@@ -10,10 +11,9 @@ if (process.env.NODE_ENV === 'development') {
 
 function main(): void {
   const element = document.getElementById('root');
-  import('scripts/locale/en.json').then((locale) => new Router({
-    target: element as unknown as HTMLElement,
-    props: { locale: locale.default },
-  })).catch(() => null);
+  import('scripts/locale/en.json').then((locale) => {
+    mount(Router, { target: element as unknown as HTMLElement, props: { locale: locale.default } });
+  }).catch(console.error);
 }
 
 // Ensures DOM is fully loaded before running app's main logic.
