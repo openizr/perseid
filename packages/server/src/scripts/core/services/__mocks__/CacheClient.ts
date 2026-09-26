@@ -6,14 +6,16 @@
  *
  */
 
+type CacheSet = (key: string, data: unknown, duration: number) => Promise<void>;
+
 /**
  * `core/services/CacheClient` mock.
  */
 
 export default class {
-  public set = vi.fn();
+  public set = vi.fn<CacheSet>(() => Promise.resolve());
 
-  public get = vi.fn(() => 'test');
+  public get = vi.fn<(key: string) => Promise<string | null>>(() => Promise.resolve('test'));
 
-  public delete = vi.fn();
+  public delete = vi.fn<(key: string) => Promise<void>>(() => Promise.resolve());
 }

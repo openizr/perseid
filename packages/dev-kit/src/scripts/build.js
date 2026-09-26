@@ -11,6 +11,9 @@ import {
   packageJson,
   projectRootPath,
   getDevKitConfig,
+  listSubDirectories,
+  isAbsoluteImport,
+  relativeImport,
 } from '../helpers/project.js';
 import fs from 'fs';
 import path from 'path';
@@ -18,6 +21,7 @@ import { build } from 'vite';
 import esbuild from 'esbuild';
 import colors from 'picocolors';
 import { fileURLToPath } from 'url';
+import ts from 'typescript';
 import { spawnSync } from 'child_process';
 import { loadViteConfig } from '../vite.config.js';
 import { getEsbuildOptions, writeDistFiles, assetExtensions } from '../helpers/esbuild.js';
@@ -35,11 +39,13 @@ const tsConfigPath = path.join(projectRootPath, 'tsconfig.json');
  */
 function generateTypings() {
   log(colors.magenta(colors.bold('Generating typings...\n')));
-  // Tests and mocks are left out of the program (their inferred types point at test tooling).
+  // Tests, mocks and stories are not part of a package's API (and their inferred types point at
+  // test tooling). The project's own `exclude` is kept.
   const typingsConfigPath = path.join(projectRootPath, 'tsconfig.typings.json');
+  const projectExclude = ts.readConfigFile(tsConfigPath, ts.sys.readFile).config?.exclude ?? [];
   fs.writeFileSync(typingsConfigPath, JSON.stringify({
     extends: './tsconfig.json',
-    exclude: ['**/__tests__/**', '**/__mocks__/**', '**/*.test.*', '**/*.spec.*'],
+    exclude: projectExclude.concat(['**/__tests__/**', '**/__mocks__/**', '**/*.test.*', '**/*.spec.*', '**/*.stories.*']),
     compilerOptions: {
       noEmit: false,
       declaration: true,
@@ -65,14 +71,15 @@ function generateTypings() {
     path.relative(srcPath, path.resolve(srcPath, entry)).replace(/\.[cm]?[jt]sx?$/, ''),
     name,
   ]));
-  const outputPath = (srcRelativePath) => path.join(distPath, entryOutputs[srcRelativePath] ?? srcRelativePath);
+  // `scripts/components/Tag` and `scripts/components/Tag/index` both target the `Tag` entry.
+  const outputPath = (specifier) => path.join(distPath, entryOutputs[specifier] ?? entryOutputs[`${specifier}/index`] ?? specifier);
   Object.entries(entryOutputs).forEach(([srcRelativePath, name]) => {
     if (fs.existsSync(path.join(distPath, `${srcRelativePath}.d.ts`))) {
       fs.renameSync(path.join(distPath, `${srcRelativePath}.d.ts`), path.join(distPath, `${name}.d.ts`));
     }
   });
 
-  const aliases = fs.readdirSync(srcPath, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const roots = listSubDirectories(srcPath);
   const assetImport = new RegExp(`^import\\s+['"][^'"]+\\.(${assetExtensions.concat('css', 'scss', 'sass', 'less', 'json').join('|')})['"];?\\n`, 'gm');
   fs.readdirSync(distPath, { recursive: true }).filter((file) => file.endsWith('.d.ts')).forEach((relativePath) => {
     const file = path.join(distPath, relativePath);
@@ -80,11 +87,7 @@ function generateTypings() {
     const rewritten = source
       .replace(assetImport, '')
       .replace(/((?:from|import)\s*\(?\s*)(['"])([^'"]+)\2/g, (match, prefix, quote, specifier) => {
-        if (!aliases.some((name) => specifier === name || specifier.startsWith(`${name}/`))) {
-          return match;
-        }
-        const relative = path.relative(path.dirname(file), outputPath(specifier)).replace(/\\/g, '/');
-        return `${prefix}${quote}${relative.startsWith('.') ? relative : `./${relative}`}${quote}`;
+        return isAbsoluteImport(specifier, roots) ? `${prefix}${quote}${relativeImport(file, outputPath(specifier))}${quote}` : match;
       });
     if (rewritten !== source) {
       fs.writeFileSync(file, rewritten);

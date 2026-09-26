@@ -39,6 +39,20 @@ export const isInstalled = (name) => tryResolve(projectRequire, name);
 /** Whether the dev-kit can resolve the given package (its dependencies and optional peers). */
 export const isAvailable = (name) => tryResolve(devKitRequire, name);
 
+/** Names of the direct sub-directories of `directory` (the dev-kit's absolute import roots). */
+export const listSubDirectories = (directory) => fs.readdirSync(directory, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
+
+/** Whether `specifier` targets one of the given import roots (`styles/...`). */
+export const isAbsoluteImport = (specifier, roots) => roots.some((root) => specifier === root || specifier.startsWith(`${root}/`));
+
+/** Relative import specifier from `fromFile` to `toPath` (always `./`- or `../`-prefixed). */
+export const relativeImport = (fromFile, toPath) => {
+  const relative = path.relative(path.dirname(fromFile), toPath).split(path.sep).join('/');
+  return relative.startsWith('.') ? relative : `./${relative}`;
+};
+
 /** Path of the project's `<name>.config.*` file, if any. */
 export const findProjectConfig = (name) => ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts']
   .map((extension) => path.join(projectRootPath, `${name}.config.${extension}`))

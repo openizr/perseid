@@ -409,6 +409,8 @@ export default class FormBuilder<
           type,
           required: isRequired,
           validation(newValue) {
+                  // TODO add enum validation
+
             if (pattern !== undefined && !(new RegExp(pattern)).test(newValue)) {
               return 'PATTERN_VIOLATION';
             }

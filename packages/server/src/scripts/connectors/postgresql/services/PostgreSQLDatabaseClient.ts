@@ -1133,7 +1133,8 @@ export default class PostgreSQLDatabaseClient<
         // the array is null, and each item becomes a row in that table, linked to its owner by
         // "_parent" and to the root resource by "_resourceId".
         if (fieldType === 'array') {
-          const table = `_${resource}_${path.replace(/\./g, '_')}`;
+          // Named after the path in resource (without "value" segments), as `view` reads it.
+          const table = `_${resource}_${pathInResource.replace(/\./g, '_')}`;
           // Registered even when the array is null or empty, as its previous rows must still be
           // deleted on update. Arrays owned by the resource row are the first level ones.
           rowsPerTable[table] ??= [];
@@ -1468,6 +1469,11 @@ export default class PostgreSQLDatabaseClient<
             newAlias,
             options.excludeDeletedResources,
           );
+
+          // Seals the query we're leaving: joined relations must not filter out its rows.
+          if (isFetchField) {
+            currentQuery.where ??= [...selectQuery.where];
+          }
 
           existsQuery = (existsQuery === undefined)
             ? existsQuery
@@ -2296,14 +2302,22 @@ export default class PostgreSQLDatabaseClient<
    *
    * @param callback Callback containing the operations to execute within the session.
    *
-   * @param pool Name of the pool to use for the session. Defaults to `default`.
+   * @param poolOrSession Name of the pool or session to use for the session. If an existing session
+   * is passed, it will be used directly, otherwise a new session will be created.
+   * Defaults to `default`.
    *
    * @returns Result of the callback execution, if any.
    */
   public async withSession<T>(
-    callback: (session: string, cancel: () => Promise<void>) => Promise<T>,
-    pool = 'default',
+    callback: (session: string, cancel?: () => Promise<void>) => Promise<T>,
+    poolOrSession = 'default',
   ): Promise<T> {
+    // If the session already exists, we can just use it directly.
+    if (this.sessions.has(poolOrSession)) {
+      return callback(poolOrSession);
+    }
+
+    const pool = poolOrSession;
     return this.telemetry.span(`${this.constructor.name}.withSession`, {
       kind: 'CLIENT',
       attributes: { pool, 'code.class.name': this.constructor.name },
@@ -2404,17 +2418,13 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const execute = async (session?: string): Promise<void> => {
+      return this.withSession(async (session): Promise<void> => {
         const fullOptions = { ...options, poolOrSession: session };
         const customCreate = this.registeredModules[resource]?.create?.bind(this);
         return customCreate?.(payload, fullOptions, (updatedPayload, updatedOptions) => (
           this.baseCreate(resource, updatedPayload, updatedOptions)
         )) ?? this.baseCreate(resource, payload, fullOptions);
-      };
-
-      return (options.poolOrSession !== undefined && this.sessions.has(options.poolOrSession))
-        ? execute(options.poolOrSession)
-        : this.withSession(execute, options.poolOrSession);
+      }, options.poolOrSession);
     });
   }
 
@@ -2448,7 +2458,7 @@ export default class PostgreSQLDatabaseClient<
         ...options.telemetryAttributes,
       },
     }, async () => {
-      const execute = async (session?: string, cancel?: () => Promise<void>): Promise<boolean> => {
+      return this.withSession(async (session, cancel): Promise<boolean> => {
         const fullOptions = { ...options, poolOrSession: session };
         const customUpdate = this.registeredModules[resource]?.update?.bind(this);
         const response = await (customUpdate?.(id, payload, fullOptions, (...args) => (
@@ -2460,11 +2470,7 @@ export default class PostgreSQLDatabaseClient<
         }
 
         return response;
-      };
-
-      return (options.poolOrSession !== undefined && this.sessions.has(options.poolOrSession))
-        ? execute(options.poolOrSession)
-        : this.withSession(execute, options.poolOrSession);
+      }, options.poolOrSession);
     });
   }
 

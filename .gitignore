@@ -257,3 +257,6 @@ rsync.sh
 .awcache
 library/README.md
 library/LICENSE
+
+# Yarn berry
+.yarn/

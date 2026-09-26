@@ -1082,7 +1082,7 @@ describe('mongodb/services/MongoDatabaseClient', () => {
         error.code = 11000;
         throw error;
       };
-      const databaseError = new DatabaseError('DUPLICATE_RESOURCE', { path: '_id', value: 'test' });
+      const databaseError = new DatabaseError('RESOURCE_EXISTS', { path: '_id', value: 'test' });
       await expect(async () => databaseClient.handleError(callback)).rejects.toEqual(databaseError);
     });
 

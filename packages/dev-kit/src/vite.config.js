@@ -15,6 +15,7 @@ import {
   getDevKitConfig,
   findProjectConfig,
   logConfigSources,
+  listSubDirectories,
 } from './helpers/project.js';
 import { fileURLToPath } from 'url';
 import autoprefixer from 'autoprefixer';
@@ -24,9 +25,7 @@ import { defineConfig as viteDefineConfig, mergeConfig, loadConfigFromFile } fro
 
 const devKitConfig = getDevKitConfig();
 const srcPath = path.join(projectRootPath, devKitConfig.srcPath);
-const srcSubDirectories = fs.readdirSync(srcPath, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((directory) => directory.name);
+const srcSubDirectories = listSubDirectories(srcPath);
 
 /**
  * Adds the banner on top of every bundled file. Rolldown's `output.banner` is stripped by the

@@ -11,6 +11,8 @@ import type {
   CreatePayload,
   UserCommandContext,
   AnonymousCommandContext,
+  CommandContext,
+  UpdatePayload,
 } from 'scripts/core/types';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
@@ -157,6 +159,70 @@ export default class AuthEngine<
    * Auth engine settings.
    */
   protected settings: UsersEngineSettings;
+
+  /**
+   * In addition to the base `prepareCreatePayload` method, handles payload preparation for
+   * `users` resource.
+   */
+  private async prepareCreatePayload<Resource extends keyof DataModel>(
+    _resource: Resource & string,
+    payload: CreatePayload<DataModel[Resource]>,
+  ): Promise<DataModel[Resource]> {
+    const _id = new Id();
+    // Users sign themselves up, and must verify their email.
+    return {
+      ...await this.prepareUserPayload(payload),
+      _id,
+      _createdAt: new Date(),
+      _updatedAt: null,
+      _createdBy: _id,
+      _updatedBy: null,
+      _devices: [],
+      _verifiedAt: null,
+    } as DataModel[Resource];
+  }
+
+  /**
+   * Handles `users` payloads side effects: new emails must be verified again, and new passwords
+   * are hashed and sign users out of all their devices, as a security measure.
+   */
+  private async prepareUserPayload<T>(payload: T): Promise<T> {
+    this.noop();
+    const userPayload = { ...payload } as Payload<UserDataModel['users']>;
+    if (userPayload.email !== undefined) {
+      userPayload._verifiedAt = null;
+    }
+    if (userPayload.password !== undefined) {
+      userPayload._devices = [];
+      userPayload.password = await bcrypt.hash(userPayload.password, 10);
+    }
+    return userPayload as T;
+  }
+
+  /**
+   * In addition to the base `prepareUpdatePayload` method, handles payload preparation for
+   * `users` resource.
+   */
+  private async prepareUpdatePayload<Resource extends keyof DataModel>(
+    _resource: Resource & string,
+    payload: UpdatePayload<DataModel[Resource]>,
+    context: UserCommandContext<DataModel>,
+  ): Promise<Payload<DataModel[Resource]>> {
+    const fullPayload = await this.prepareUserPayload({
+      _updatedAt: new Date(),
+      _updatedBy: context.session.user._id,
+      ...payload,
+    } as Payload<DataModel[Resource]>);
+
+    // Resetting password through the emailed link also proves email ownership.
+    if ((payload as { password?: string; }).password !== undefined) {
+      (fullPayload as Payload<UserDataModel['users']>)._verifiedAt = (
+        context.session.user._verifiedAt ?? new Date()
+      );
+    }
+
+    return fullPayload;
+  }
 
   /**
    * Generates new credentials (refresh/access tokens) for `userId` and `deviceId`.
@@ -308,7 +374,7 @@ export default class AuthEngine<
     email: DataModel['users']['email'],
     password: DataModel['users']['password'],
     passwordConfirmation: DataModel['users']['password'],
-    context: UserCommandContext<DataModel>,
+    context: AnonymousCommandContext<DataModel>,
   ): Promise<Credentials> {
     if (passwordConfirmation !== password) {
       throw new EngineError('PASSWORDS_MISMATCH');
@@ -316,9 +382,8 @@ export default class AuthEngine<
 
     // Preparing payload...
     const payload: CreatePayload<UserDataModel['users']> = { email, password, roles: [] };
-    const fullPayload = await this.prepareCreatePayload('users', payload, context);
+    const fullPayload = await this.prepareCreatePayload('users', payload);
     const credentials = this.generateCredentials(fullPayload._id);
-    fullPayload._createdBy = fullPayload._id;
     fullPayload._devices.push({
       _id: credentials.deviceId,
       _refreshToken: credentials.refreshToken,
@@ -542,25 +607,24 @@ export default class AuthEngine<
     refreshToken: string,
     context: UserCommandContext<DataModel>,
   ): Promise<Credentials> {
-    const deviceIndex = 0;
     const now = Date.now();
     const { session } = context;
     const newDevices: UserDataModel['users']['_devices'] = [];
     const credentials = this.generateCredentials(session.user._id, session.deviceId);
 
-    session.user._devices.forEach((device, index) => {
+    session.user._devices.forEach((device) => {
       const expiration = device._expiration.getTime();
       if (device._id !== session.deviceId && expiration > now) {
-        newDevices.push(session.user._devices[index]);
+        newDevices.push(device);
       } else if (device._id === session.deviceId) {
-        if (session.user._devices[index]?._refreshToken !== refreshToken || expiration <= now) {
+        if (device._refreshToken !== refreshToken || expiration <= now) {
           throw new EngineError('INVALID_REFRESH_TOKEN');
         }
         newDevices.push({
-          _id: session.user._devices[deviceIndex]._id,
+          _id: device._id,
           _refreshToken: credentials.refreshToken,
           _expiration: credentials.refreshTokenExpiration,
-          _userAgent: session.userAgent ?? session.user._devices[deviceIndex]._userAgent,
+          _userAgent: session.userAgent ?? device._userAgent,
         });
       }
     });
@@ -591,5 +655,86 @@ export default class AuthEngine<
     const fullPayload = await this.prepareUpdatePayload('users', {}, context);
     (fullPayload as Payload<UserDataModel['users']>)._devices = newDevices;
     await this.databaseClient.update('users', session.user._id, fullPayload, queryOptions);
+  }
+
+  /**
+   * Creates a new resource.
+   *
+   * @param resource Type of resource to create.
+   *
+   * @param payload New resource payload.
+   *
+   * @param context Command context, if any.
+   *
+   * @returns Newly created resource.
+   */
+  public async create<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  >(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<QueryResults[Key]> {
+    const fullPayload = (resource === 'users') ? await this.prepareUserPayload(payload) : payload;
+    const result = await super.create<Key>(resource, fullPayload, context);
+
+    // Invited users get their initial password by email, as they cannot know it otherwise.
+    if (resource === 'users') {
+      const { email, password } = payload as { email: string; password: string };
+      await this.emailClient.sendInviteEmail(email, `${this.settings.baseUrl}/sign-in`, password);
+    }
+
+    return result;
+  }
+
+  /**
+   * Updates resource with id `id`.
+   *
+   * @param resource Type of resource to update.
+   *
+   * @param id Resource id.
+   *
+   * @param payload Updated resource payload.
+   *
+   * @param context Command context.
+   *
+   * @returns Updated resource.
+   *
+   * @throws If resource does not exist or does not match criteria.
+   */
+  public async update<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  >(
+    resource: Resource,
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    context: CommandContext<DataModel>,
+  ): Promise<QueryResults[Key]> {
+    let fullPayload = payload;
+    if (resource === 'users') {
+      const { session } = context;
+      const roles = (payload as { roles?: unknown; } | null)?.roles;
+
+      // Users cannot update their own roles if not explicitly allowed. Unverified users are left to
+      // the base check, so that they get `USER_NOT_VERIFIED` instead.
+      if (
+        roles !== undefined
+        && (session?.user._verifiedAt ?? null) !== null
+        && !session?.user._permissions.has('USERS.UPDATE_ROLES')
+      ) {
+        throw new EngineError('FORBIDDEN', { permission: 'USERS.UPDATE_ROLES' });
+      }
+
+      fullPayload = await this.prepareUserPayload(payload);
+    }
+
+    return await super.update<Key>(
+      resource,
+      id,
+      fullPayload as UpdatePayload<DataModel[keyof DataModel & string]>,
+      context,
+    );
   }
 }

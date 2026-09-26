@@ -11,6 +11,9 @@ import {
   isInstalled,
   projectRootPath,
   getDevKitConfig,
+  listSubDirectories,
+  isAbsoluteImport,
+  relativeImport,
 } from './project.js';
 import fs from 'fs';
 import path from 'path';
@@ -198,6 +201,7 @@ export async function getEsbuildOptions(production, plugins = []) {
     keepNames: production,
     splitting: devKitConfig.splitChunks !== false,
     external: Object.keys(packageJson.dependencies ?? {})
+      .concat(Object.keys(packageJson.devDependencies ?? {}))
       .concat(Object.keys(packageJson.peerDependencies ?? {}))
       .concat(['*.css', '*.scss', '*.sass']),
     plugins: [stylesheetsPlugin]
@@ -242,8 +246,14 @@ export function writeDistFiles(version) {
       fs.copyFileSync(path.join(projectRootPath, file), path.join(distPath, file));
     }
   });
+  // Absolute imports (`@use 'styles/...'`) become relative: consumers cannot resolve them.
+  const roots = listSubDirectories(srcPath);
   fs.readdirSync(srcPath, { recursive: true }).filter((file) => isStylesheet(file)).forEach((file) => {
-    fs.mkdirSync(path.dirname(path.join(distPath, file)), { recursive: true });
-    fs.copyFileSync(path.join(srcPath, file), path.join(distPath, file));
+    const destination = path.join(distPath, file);
+    const source = fs.readFileSync(path.join(srcPath, file), 'utf-8').replace(/(@(?:use|forward|import)\s+)(['"])([^'"]+)\2/g, (match, prefix, quote, specifier) => (
+      isAbsoluteImport(specifier, roots) ? `${prefix}${quote}${relativeImport(destination, path.join(distPath, specifier))}${quote}` : match
+    ));
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, source);
   });
 }

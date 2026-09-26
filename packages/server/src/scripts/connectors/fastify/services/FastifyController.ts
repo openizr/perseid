@@ -212,7 +212,7 @@ export default class FastifyController<
             email,
             password,
             confirmation,
-            context as UserCommandContext<DataModelType>,
+            context as AnonymousCommandContext<DataModelType>,
           );
           return response.status(201).send(credentials);
         },
@@ -555,7 +555,8 @@ export default class FastifyController<
 
     let user: UserCommandContext<DataModelType>['session']['user'] | null = null;
     try {
-      user = await this.engine.unsafeView<UserCommandContext<DataModelType>['session']['user']>('users', userId, {
+      type User = UserCommandContext<DataModelType>['session']['user'];
+      user = await this.engine.view('users', userId, {
         queryOptions: {
           fields: [
             '_id',
@@ -571,7 +572,7 @@ export default class FastifyController<
             '_devices._refreshToken',
           ],
         },
-      });
+      }) as unknown as User;
       if (!user._devices.some((device) => device._id === deviceId)) {
         throw new ControllerError('NO_RESOURCE');
       }

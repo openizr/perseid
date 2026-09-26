@@ -739,7 +739,7 @@ export default class MySQLDatabaseClient<
       const mysqlError = error as mysql.QueryError;
       if (mysqlError.code === 'ER_DUP_ENTRY') {
         const match = /Duplicate entry '([^']+).* for key '([^']+)/.exec(mysqlError.message);
-        throw new DatabaseError('DUPLICATE_RESOURCE', {
+        throw new DatabaseError('RESOURCE_EXISTS', {
           value: (match as string[])[1],
           path: (match as string[])[2].split('index_')[1] ?? '_id',
         });

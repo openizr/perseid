@@ -6,6 +6,7 @@
  *
  */
 
+import type { FullPendingTask, FullRunningTask, JobsDataModel } from 'scripts/core/types';
 import { AbstractDatabaseClient, type Payload, type SearchFilters } from '@perseid/server';
 
 /**
@@ -13,7 +14,7 @@ import { AbstractDatabaseClient, type Payload, type SearchFilters } from '@perse
  *
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/jobs/src/scripts/core/services/DatabaseClient.ts
  */
-export default abstract class DatabaseClient extends AbstractDatabaseClient<DataModel> {
+export default abstract class DatabaseClient extends AbstractDatabaseClient<JobsDataModel> {
   /**
    * Updates task that matches `filters` with `payload`.
    *
@@ -25,7 +26,7 @@ export default abstract class DatabaseClient extends AbstractDatabaseClient<Data
    */
   public abstract updateMatchingTask(
     filters: SearchFilters,
-    payload: Payload<DataModel['tasks']>,
+    payload: Payload<JobsDataModel['tasks']>,
   ): Promise<boolean>;
 
   /**
@@ -33,12 +34,12 @@ export default abstract class DatabaseClient extends AbstractDatabaseClient<Data
    *
    * @returns Running tasks list.
    */
-  public abstract getRunningTasks(): Promise<DataModel['tasks'][]>;
+  public abstract getRunningTasks(): Promise<FullRunningTask[]>;
 
   /**
    * Fetches the list of pending tasks that are candidate for execution.
    *
    * @returns Pending tasks list.
    */
-  public abstract getCandidatePendingTasks(): Promise<DataModel['tasks'][]>;
+  public abstract getCandidatePendingTasks(): Promise<FullPendingTask[]>;
 }

@@ -6,7 +6,6 @@
  *
  */
 
-import JobScheduler from 'scripts/core/services/JobScheduler';
-import DatabaseClient from 'scripts/core/services/DatabaseClient';
+import PostgreSQLDatabaseClient from 'scripts/connectors/postgresql/services/PostgreSQLDatabaseClient';
 
-export { JobScheduler, DatabaseClient };
+export default PostgreSQLDatabaseClient;

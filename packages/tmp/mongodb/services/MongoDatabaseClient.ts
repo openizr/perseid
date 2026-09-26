@@ -661,7 +661,7 @@ export default class MongoDatabaseClient<
       const mongoError = error as MongoServerError;
       if (mongoError.code === 11000) {
         const matches = /dup key: { ([^:]+): "([^:]+)" }/.exec(mongoError.message) as string[];
-        throw new DatabaseError('DUPLICATE_RESOURCE', {
+        throw new DatabaseError('RESOURCE_EXISTS', {
           path: matches[1],
           value: matches[2],
         });

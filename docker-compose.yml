@@ -25,6 +25,8 @@ services:
     volumes:
       - ./packages/jobs:/var/www/html
       - ~/.cache/yarn:/home/node/.cache/yarn
+      - ./packages/core/dist:/var/lib/perseid/core
+      - ./packages/server/dist:/var/lib/perseid/server
     depends_on:
       - mongodb
     profiles:
@@ -109,6 +111,7 @@ services:
     volumes:
       - ./packages/client:/var/www/html
       - ~/.cache/yarn:/home/node/.cache/yarn
+      - ./packages/core/dist:/var/lib/perseid/core
     ports:
       - "${HOST_IP}:${FRONTEND_EXAMPLES_PORT}:${FRONTEND_EXAMPLES_PORT}"
     depends_on:
@@ -120,14 +123,13 @@ services:
   dev-kit:
     tty: true
     user: node:node
-    image: openizr/node:8.0.1-dev
+    image: openizr/node:9.0.0-dev
     container_name: ${PROJECT_NAME}_dev-kit
     env_file:
       - .env
     command: sh -c "yarn && yarn run dev"
     volumes:
       - ./packages/dev-kit:/var/www/html
-      - yarn_cache:/home/node/.cache/yarn
     ports:
       - "${HOST_IP}:${BACKEND_EXAMPLES_PORT}:${BACKEND_EXAMPLES_PORT}"
       - "${HOST_IP}:${FRONTEND_EXAMPLES_PORT}:${FRONTEND_EXAMPLES_PORT}"
@@ -212,5 +214,4 @@ networks:
 
 volumes:
   yarn_cache:
-    external: true
     name: yarn_cache

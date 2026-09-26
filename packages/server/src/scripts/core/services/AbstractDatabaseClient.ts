@@ -514,6 +514,23 @@ export default abstract class AbstractDatabaseClient<
   //  * Resets the whole underlying database, re-creating structures, indexes, and such.
   //  */
   // public abstract reset(): Promise<void>;
+  /**
+   * Starts a new session to perform multiple database operations atomically.
+   * Automatically handles transaction start, commit and rollback in case of error, as well as
+   * connection release.
+   *
+   * @param callback Callback containing the operations to execute within the session.
+   *
+   * @param poolOrSession Name of the pool or session to use for the session. If an existing session
+   * is passed, it will be used directly, otherwise a new session will be created.
+   * Defaults to `default`.
+   *
+   * @returns Result of the callback execution, if any.
+   */
+  public abstract withSession<T>(
+    callback: (session: string, cancel?: () => Promise<void>) => Promise<T>,
+    poolOrSession?: string,
+  ): Promise<T>;
 
   /**
    * Makes sure that `relations` reference existing resources that match specific conditions.

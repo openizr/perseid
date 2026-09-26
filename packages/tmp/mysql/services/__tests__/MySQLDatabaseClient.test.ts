@@ -1831,7 +1831,7 @@ WHERE
         (error as unknown as { code: string; }).code = 'ER_DUP_ENTRY';
         throw error;
       };
-      const databaseError = new DatabaseError('DUPLICATE_RESOURCE', { path: '_id', value: 'test' });
+      const databaseError = new DatabaseError('RESOURCE_EXISTS', { path: '_id', value: 'test' });
       await expect(async () => databaseClient.handleError(callback)).rejects.toEqual(databaseError);
     });
 

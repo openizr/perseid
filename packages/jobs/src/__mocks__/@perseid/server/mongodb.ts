@@ -6,7 +6,8 @@
  *
  */
 
-import type { Logger, Model } from '@perseid/server';
+import type { Ids } from '@perseid/core';
+import type { Telemetry, Model } from '@perseid/server';
 
 /** `@perseid/server/mongodb` mock. */
 
@@ -20,7 +21,7 @@ const databaseConnection = {
 export default class MongoDatabaseClient {
   protected mock = vi.fn();
 
-  protected logger: Logger;
+  protected telemetry: Telemetry;
 
   protected databaseConnection: unknown;
 
@@ -28,8 +29,8 @@ export default class MongoDatabaseClient {
 
   protected structurePayload = vi.fn(() => ({ tasks: [{ _status: 'PENDING' }] }));
 
-  constructor(_model: Model, logger: Logger) {
-    this.logger = logger;
+  constructor(_model: Model<Record<string, Ids>>, telemetry: Telemetry) {
+    this.telemetry = telemetry;
     this.databaseConnection = databaseConnection;
   }
 }

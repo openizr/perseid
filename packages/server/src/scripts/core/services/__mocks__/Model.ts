@@ -102,14 +102,33 @@ export default class Model {
         permissions: ['TEST.VIEW', 'OTHER_TEST.VIEW'],
       };
     }
+    if (path === 'otherTest.data.optionalFlatArray') {
+      return {
+        depth: 1,
+        schema: { type: 'array', fields: { type: 'string' } },
+        canonicalPath: ['otherTest', 'data', 'optionalFlatArray'],
+        permissions: ['OTHER_TEST.VIEW'],
+      };
+    }
+    if (path === 'users.password') {
+      return {
+        depth: 1,
+        schema: { type: 'string' },
+        canonicalPath: ['users', 'password'],
+        permissions: ['USERS.VIEW', null],
+      };
+    }
     if (path === 'users') {
       return {
         depth: 1,
         canonicalPath: ['users'],
         permissions: ['USERS.VIEW'],
         schema: {
+          allowedOperations: ['CREATE', 'VIEW', 'LIST', 'UPDATE', 'DELETE'],
           fields: {
             _id: { type: 'id' },
+            email: { type: 'string' },
+            _devices: { type: 'array', fields: { type: 'object', fields: {} } },
             password: { type: 'string' },
             _verifiedAt: { type: 'date' },
             roles: { type: 'array', fields: { type: 'id' } },

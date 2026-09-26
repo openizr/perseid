@@ -458,6 +458,7 @@ export default class Controller<
       INVALID_SORT_QUERY: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, '"query.sortBy" and "query.sortOrder" must contain the same number of items.'],
       FILE_TOO_LARGE: (error) => [HTTP_STATUS_CODES.REQUEST_ENTITY_TOO_LARGE, error.code, `Maximum size exceeded for file "${String(error.details.filename)}".`],
       MAXIMUM_DEPTH_EXCEEDED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Maximum level of depth exceeded for field "${String(error.details.path)}".`],
+      OPERATION_NOT_ALLOWED: (error) => [HTTP_STATUS_CODES.FORBIDDEN, error.code, `Operation "${String(error.details.operation)}" is not allowed for this resource.`],
       INVALID_FILE_TYPE: (error) => [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY, error.code, `Invalid file type "${String(error.details.contentType)}" for file "${String(error.details.filename)}".`],
       NO_RESOURCE: (error) => [HTTP_STATUS_CODES.NOT_FOUND, error.code, `Resource with id "${String(error.details.id)}" does not exist or does not match required criteria.`],
     };
@@ -974,7 +975,6 @@ export default class Controller<
     options: FormDataOptions = {},
   ): Promise<FormDataFields> {
     let totalSize = 0;
-    let totalFiles = 0;
     const allowedMimeTypes = options.allowedMimeTypes ?? [];
     const maxTotalSize = options.maxTotalSize ?? 10 * 1024 * 1024;
     const maxFieldSize = options.maxFieldSize ?? 2 * 1024 * 1024;
@@ -991,7 +991,8 @@ export default class Controller<
 
       parser.on('close', () => {
         parserClosed = true;
-        if (numberOfParts === 0) {
+        // File streams may all be closed before the parser.
+        if (numberOfClosedParts >= numberOfParts) {
           resolve(fields);
         }
       });
@@ -1021,8 +1022,6 @@ export default class Controller<
         if (!allowedMimeTypes.includes(headers['content-type'])) {
           reject(new ControllerError('INVALID_FILE_TYPE'));
         } else {
-          const fileIndex = totalFiles;
-          totalFiles += 1;
           const fileId = `${Date.now().toString(16)}${String(this.increment)}`;
           this.increment += 1;
           const filePath = join(os.tmpdir(), fileId);
@@ -1041,6 +1040,8 @@ export default class Controller<
             }
           });
           const uploadedFiles = (fields[part.name] as unknown ?? []) as UploadedFile[];
+          // Index within this field's files, not the whole payload.
+          const fileIndex = uploadedFiles.length;
           uploadedFiles.push({
             size: 0,
             id: fileId,

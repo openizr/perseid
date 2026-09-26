@@ -252,6 +252,8 @@ export default class Engine {
     newFieldValue = (type === 'object' && required) ? newFieldValue ?? {} : newFieldValue;
     newFieldValue ??= null;
 
+    // TODO bug: when condition not met anymore, field value stays in user inputs
+    // and is still present in `inputs` param of condition function.
     if (condition !== undefined && !condition(this.userInputs.full, this.variables)) {
       this.discardedUserInputs.set(path, newFieldValue ?? null);
       return null;

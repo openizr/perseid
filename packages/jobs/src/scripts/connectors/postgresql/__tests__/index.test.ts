@@ -6,7 +6,7 @@
  *
  */
 
-import defaultExport from 'scripts/postgresql/index';
+import defaultExport from 'scripts/postgresql-connector';
 
 describe('postgresql', () => {
   vi.mock('scripts/postgresql/services/PostgreSQLDatabaseClient');
