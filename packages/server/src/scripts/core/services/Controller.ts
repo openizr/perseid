@@ -29,9 +29,9 @@ import { type IncomingMessage } from 'http';
 import { PerseidError } from '@perseid/core';
 import Ajv, { type KeywordDefinition } from 'ajv';
 import type Model from 'scripts/core/services/Model';
+import type Engine from 'scripts/core/services/Engine';
 import Telemetry from 'scripts/core/services/Telemetry';
 import ControllerError from 'scripts/core/errors/Controller';
-import type AuthEngine from 'scripts/core/services/AuthEngine';
 
 interface Validate { errors: { keyword: string; }[]; }
 
@@ -378,7 +378,7 @@ export default class Controller<
   /**
    * Data model type definition.
    */
-  DataModelType extends UserDataModel = UserDataModel,
+  DataModelType extends object = UserDataModel,
 
   /**
    * Telemetry system type definition.
@@ -393,7 +393,7 @@ export default class Controller<
   /**
    * Database client types definition.
    */
-  EngineType extends AuthEngine<DataModelType> = AuthEngine<DataModelType>,
+  EngineType extends Engine<DataModelType> = Engine<DataModelType>,
 > {
   /**
    * Common headers to require for all requests. Defaults to 'User-Agent' and 'X-Device-Id' headers.

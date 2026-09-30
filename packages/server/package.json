@@ -103,7 +103,13 @@
           "*.ts"
         ],
         "rules": {
-          "@typescript-eslint/no-unnecessary-type-parameters": "off"
+          "@typescript-eslint/no-unnecessary-type-parameters": "off",
+          "@typescript-eslint/no-unused-vars": [
+            "error",
+            {
+              "varsIgnorePattern": "^_"
+            }
+          ]
         }
       },
       {

@@ -180,26 +180,11 @@ export interface ListQueryOptions extends ViewQueryOptions {
  * options, resource, ...). This context can be updated along the way, and used
  * as a central bus for passing information between commands.
  */
-export interface CommandContext<DataModel> {
+export interface CommandContext {
   /**
    * Query options for database client calls.
    */
   queryOptions?: ListQueryOptions;
-
-  /**
-   * Resource on which the command is being performed, if any.
-   */
-  resource?: {
-    /**
-     * Resource ID, in case of update/view/delete command.
-     */
-    id?: Id;
-
-    /**
-     * Resource type.
-     */
-    type: keyof DataModel;
-  };
 
   /**
    * User session information.
@@ -237,8 +222,8 @@ export interface CommandContext<DataModel> {
  * user session, query options,additional information, ...). This context can be updated along the
  * way, and used as a central bus for passing information between commands.
  */
-export type UserCommandContext<DataModel> = CommandContext<DataModel> & {
-  session: Exclude<CommandContext<DataModel>['session'], undefined>;
+export type UserCommandContext = CommandContext & {
+  session: Exclude<CommandContext['session'], undefined>;
 };
 
 /**
@@ -246,6 +231,6 @@ export type UserCommandContext<DataModel> = CommandContext<DataModel> & {
  * options, additional information, ...), without any connected user. This context can be updated
  * along the way, and used as a central bus for passing information between commands.
  */
-export type AnonymousCommandContext<DataModel> = Omit<CommandContext<DataModel>, 'session'> & {
-  session: Pick<UserCommandContext<DataModel>['session'], 'deviceId' | 'userAgent'>;
+export type AnonymousCommandContext = Omit<CommandContext, 'session'> & {
+  session: Pick<UserCommandContext['session'], 'deviceId' | 'userAgent'>;
 };

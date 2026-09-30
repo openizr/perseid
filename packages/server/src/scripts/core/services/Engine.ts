@@ -46,42 +46,42 @@ type Relations<DataModel> = Map<string, {
  * Extends the base engine with custom methods specific to a resource.
  */
 export interface EngineModule<DataModel, Resource extends keyof DataModel> {
-  create?<Result = unknown>(
+  create?(
     payload: CreatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
     baseCreate: (
       updatedPayload: CreatePayload<DataModel[Resource]>,
-      updatedContext: CommandContext<DataModel>,
-    ) => Promise<Result>,
-  ): Promise<Result>;
-  update?<Result = unknown>(
+      updatedContext: CommandContext,
+    ) => Promise<unknown>,
+  ): Promise<unknown>;
+  update?(
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
     baseUpdate: (
       updatedId: Id,
       updatedPayload: UpdatePayload<DataModel[Resource]>,
-      updatedContext: CommandContext<DataModel>,
-    ) => Promise<Result>,
-  ): Promise<Result>;
-  view?<Result = unknown>(
+      updatedContext: CommandContext,
+    ) => Promise<unknown>,
+  ): Promise<unknown>;
+  view?(
     id: Id,
-    context: CommandContext<DataModel>,
-    baseView: (updatedId: Id, updatedContext: CommandContext<DataModel>) => Promise<Result>,
-  ): Promise<Result>;
+    context: CommandContext,
+    baseView: (updatedId: Id, updatedContext: CommandContext) => Promise<unknown>,
+  ): Promise<unknown>;
   delete?(
     id: Id,
-    context: CommandContext<DataModel>,
-    baseDelete: (updatedId: Id, updatedContext: CommandContext<DataModel>) => Promise<void>,
+    context: CommandContext,
+    baseDelete: (updatedId: Id, updatedContext: CommandContext) => Promise<void>,
   ): Promise<void>;
-  list?<Result = unknown>(
+  list?(
     searchBody: SearchBody | null,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
     baseList: (
       updatedSearchBody: SearchBody | null,
-      updatedContext: CommandContext<DataModel>,
-    ) => Promise<Results<Result>>,
-  ): Promise<Results<Result>>;
+      updatedContext: CommandContext,
+    ) => Promise<Results<unknown>>,
+  ): Promise<Results<unknown>>;
 }
 
 /**
@@ -228,6 +228,125 @@ export default class Engine<
   }
 
   /**
+   * Base `create` method implementation.
+   */
+  private async baseCreate<Resource extends keyof DataModel & string = keyof DataModel & string>(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    context: CommandContext,
+  ): Promise<unknown> {
+    const fullContext = await this.applyPermissions(resource, 'CREATE', null, payload, context);
+
+    return this.databaseClient.withSession(async (session) => {
+      const options = { ...fullContext.queryOptions, poolOrSession: session };
+      const fullPayload = await this.preparePayload(resource, 'CREATE', payload, fullContext);
+      await this.databaseClient.create(resource, fullPayload, options);
+      return await this.databaseClient.view(resource, (fullPayload as Ids)._id, options);
+    });
+  }
+
+  /**
+   * Base `update` method implementation.
+   */
+  private async baseUpdate<Resource extends keyof DataModel & string = keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    context: CommandContext,
+  ): Promise<unknown> {
+    const fullContext = await this.applyPermissions(resource, 'UPDATE', id, payload, context);
+
+    return this.databaseClient.withSession(async (session) => {
+      const options = { ...fullContext.queryOptions, poolOrSession: session };
+      const fullPayload = await this.preparePayload(resource, 'UPDATE', payload, fullContext);
+      const resourceExists = await this.databaseClient.update(resource, id, fullPayload, options);
+
+      if (!resourceExists) {
+        throw new EngineError('NO_RESOURCE', { id });
+      }
+
+      return await this.databaseClient.view(resource, id, options);
+    });
+  }
+
+  /**
+   * Base `view` method implementation.
+   */
+  private async baseView(
+    resource: keyof DataModel & string,
+    id: Id,
+    context: CommandContext,
+  ): Promise<unknown> {
+    const updatedContext = await this.applyPermissions(resource, 'VIEW', id, {}, context);
+    const result = await this.databaseClient.view(resource, id, updatedContext.queryOptions);
+
+    if (result === null) {
+      throw new EngineError('NO_RESOURCE', { id });
+    }
+
+    return result;
+  }
+
+  /**
+   * Base `list` method implementation.
+   */
+  private async baseList<Result = unknown>(
+    resource: keyof DataModel & string,
+    searchBody: SearchBody | null,
+    context: CommandContext,
+  ): Promise<Results<Result>> {
+    const updatedContext = await this.applyPermissions(resource, 'LIST', null, searchBody, context);
+    const options = updatedContext.queryOptions;
+    return await this.databaseClient.list(resource, searchBody, options) as Results<Result>;
+  }
+
+  /**
+   * Base `delete` method implementation.
+   */
+  private async baseDelete<Resource extends keyof DataModel & string = keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    context: CommandContext,
+  ): Promise<void> {
+    let resourceExists = false;
+    const metaData = this.model.get(resource);
+    const updatedContext = await this.applyPermissions(resource, 'DELETE', id, {}, context);
+    const options = updatedContext.queryOptions;
+
+    if (metaData.schema.enableDeletion) {
+      resourceExists = await this.databaseClient.delete(resource, id, options);
+    } else {
+      const payload: Partial<Deletion & Timestamps & Authors> = { _isDeleted: true };
+      if (metaData.schema.enableTimestamps) {
+        payload._updatedAt = new Date();
+      }
+      if (metaData.schema.enableAuthors && updatedContext.session !== undefined) {
+        payload._updatedBy = updatedContext.session.user._id;
+      }
+      const deletePayload = payload as Payload<DataModel[Resource]>;
+      resourceExists = await this.databaseClient.update(resource, id, deletePayload, options);
+    }
+
+    if (!resourceExists) {
+      throw new EngineError('NO_RESOURCE', { id });
+    }
+  }
+
+  /**
+   * Registers `module` for `resource`, overriding any generic method by the one defined in it.
+   *
+   * @param resource Type of resource to register the module for.
+   *
+   * @param module Module to register.
+   */
+  protected registerModule<Resource extends keyof DataModel>(
+    resource: Resource,
+    module: EngineModule<DataModel, Resource>,
+  ): void {
+    this.registeredModules[resource] = module;
+  }
+
+  /**
    * Verifies that user has the right permissions to perform `operation`, using given `payload` and
    * `context`. This method should return any additional information that is relevant to perform the
    * operation in granted scope, such as filtered options, updated payload, sub-resources for
@@ -253,13 +372,13 @@ export default class Engine<
    *
    * @throws If `operation` is not allowed for the given resource.
    */
-  private async applyPermissions<Resource extends keyof DataModel>(
+  protected async applyPermissions<Resource extends keyof DataModel>(
     resource: Resource,
     operation: string,
     _id: Id | null,
     payload: unknown,
-    context: Partial<CommandContext<DataModel>>,
-  ): Promise<CommandContext<DataModel>> {
+    context: Partial<CommandContext>,
+  ): Promise<CommandContext> {
     const { session } = context;
     const filteredFields = new Set<string>();
     const allFields = [...context.queryOptions?.fields ?? []]
@@ -342,123 +461,75 @@ export default class Engine<
   }
 
   /**
-   * Base `create` method implementation.
+   * Prepares payload for `resource` and `type`, adding automatically fields if needed.
+   *
+   * @param resource Type of resource to prepare payload for.
+   *
+   * @param type Type of operation to prepare payload for.
+   *
+   * @param payload Payload to prepare.
+   *
+   * @param context Command context.
+   *
+   * @returns Prepared payload.
    */
-  private async baseCreate<
-    Result = unknown,
-    Resource extends keyof DataModel & string = keyof DataModel & string
+  protected async preparePayload<
+    Resource extends keyof DataModel & string,
+    Type extends 'CREATE' | 'UPDATE',
   >(
     resource: Resource,
-    payload: CreatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
-  ): Promise<Result> {
-    return this.databaseClient.withSession(async (session) => {
-      const options = { ...context.queryOptions, poolOrSession: session };
-      await this.databaseClient.create(resource, payload as DataModel[Resource], options);
-      return await this.databaseClient.view(resource, (payload as Ids)._id, options) as Result;
-    });
-  }
+    type: Type,
+    payload: Type extends 'CREATE' ? CreatePayload<DataModel[Resource]> : UpdatePayload<DataModel[Resource]>,
+    context: CommandContext,
+  ): Promise<Type extends 'CREATE'
+    ? DataModel[Resource]
+    : Payload<DataModel[Resource]>> {
+    const fullPayload = deepCopy(payload) as Ids & Timestamps & Authors & Deletion;
 
-  /**
-   * Base `update` method implementation.
-   */
-  private async baseUpdate<
-    Result = unknown,
-    Resource extends keyof DataModel & string = keyof DataModel & string
-  >(
-    resource: Resource,
-    id: Id,
-    payload: UpdatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
-  ): Promise<Result> {
-    return this.databaseClient.withSession(async (session) => {
-      const fullPayload = payload as Payload<DataModel[Resource]>;
-      const options = { ...context.queryOptions, poolOrSession: session };
-      const resourceExists = await this.databaseClient.update(resource, id, fullPayload, options);
+    if (type === 'CREATE') {
+      const metaData = this.model.get(resource);
 
-      if (!resourceExists) {
-        throw new EngineError('NO_RESOURCE', { id });
-      }
+      fullPayload._id = new Id();
 
-      return await this.databaseClient.view(resource, id, options) as Result;
-    });
-  }
-
-  /**
-   * Base `view` method implementation.
-   */
-  private async baseView<Result = unknown>(
-    resource: keyof DataModel & string,
-    id: Id,
-    context: CommandContext<DataModel>,
-  ): Promise<Result> {
-    const updatedContext = await this.applyPermissions(resource, 'VIEW', id, {}, context);
-    const result = await this.databaseClient.view(resource, id, updatedContext.queryOptions);
-
-    if (result === null) {
-      throw new EngineError('NO_RESOURCE', { id });
-    }
-
-    return result as Result;
-  }
-
-  /**
-   * Base `list` method implementation.
-   */
-  private async baseList<Result = unknown>(
-    resource: keyof DataModel & string,
-    searchBody: SearchBody | null,
-    context: CommandContext<DataModel>,
-  ): Promise<Results<Result>> {
-    const updatedContext = await this.applyPermissions(resource, 'LIST', null, searchBody, context);
-    const options = updatedContext.queryOptions;
-    return await this.databaseClient.list(resource, searchBody, options) as Results<Result>;
-  }
-
-  /**
-   * Base `delete` method implementation.
-   */
-  private async baseDelete<Resource extends keyof DataModel & string = keyof DataModel & string>(
-    resource: Resource,
-    id: Id,
-    context: CommandContext<DataModel>,
-  ): Promise<void> {
-    let resourceExists = false;
-    const metaData = this.model.get(resource);
-    const updatedContext = await this.applyPermissions(resource, 'DELETE', id, {}, context);
-    const options = updatedContext.queryOptions;
-
-    if (metaData.schema.enableDeletion) {
-      resourceExists = await this.databaseClient.delete(resource, id, options);
-    } else {
-      const payload: Partial<Deletion & Timestamps & Authors> = { _isDeleted: true };
       if (metaData.schema.enableTimestamps) {
-        payload._updatedAt = new Date();
+        fullPayload._updatedAt = null;
+        fullPayload._createdAt = new Date();
       }
-      if (metaData.schema.enableAuthors && updatedContext.session !== undefined) {
-        payload._updatedBy = updatedContext.session.user._id;
+
+      if (metaData.schema.enableAuthors && context.session !== undefined) {
+        fullPayload._updatedBy = null;
+        fullPayload._createdBy = context.session.user._id;
       }
-      const deletePayload = payload as Payload<DataModel[Resource]>;
-      resourceExists = await this.databaseClient.update(resource, id, deletePayload, options);
+
+      if (metaData.schema.enableDeletion === false) {
+        fullPayload._isDeleted = false;
+      }
+    } else {
+      const metaData = this.model.get(resource);
+
+      if (metaData.schema.enableTimestamps) {
+        fullPayload._updatedAt = new Date();
+      }
+
+      if (metaData.schema.enableAuthors && context.session !== undefined) {
+        fullPayload._updatedBy = context.session.user._id;
+      }
     }
 
-    if (!resourceExists) {
-      throw new EngineError('NO_RESOURCE', { id });
-    }
-  }
+    await this.databaseClient.checkRelations(
+      resource,
+      this.extractRelationsFromPayload(resource, payload, {
+        type: 'object',
+        description: '',
+        isRequired: true,
+        fields: this.model.get(resource).schema.fields,
+      }, payload),
+      context.queryOptions,
+    );
 
-  /**
-   * Registers `module` for `resource`, overriding any generic method by the one defined in it.
-   *
-   * @param resource Type of resource to register the module for.
-   *
-   * @param module Module to register.
-   */
-  protected registerModule<Resource extends keyof DataModel>(
-    resource: Resource,
-    module: EngineModule<DataModel, Resource>,
-  ): void {
-    this.registeredModules[resource] = module;
+    return fullPayload as unknown as Type extends 'CREATE'
+      ? DataModel[Resource]
+      : Payload<DataModel[Resource]>;
   }
 
   /**
@@ -498,7 +569,7 @@ export default class Engine<
   >(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
   ): Promise<QueryResults[Key]> {
     return this.telemetry.span(`${this.constructor.name}.create`, {
       kind: 'SERVER',
@@ -508,42 +579,10 @@ export default class Engine<
       },
     }, async () => {
       this.checkOperationAllowed(resource, 'CREATE');
-      const updatedContext = await this.applyPermissions(resource, 'CREATE', null, payload, context);
-
-      const metaData = this.model.get(resource);
-      const fullPayload = deepCopy(payload);
-
-      (fullPayload as Ids)._id = new Id();
-
-      if (metaData.schema.enableTimestamps) {
-        (fullPayload as Timestamps)._updatedAt = null;
-        (fullPayload as Timestamps)._createdAt = new Date();
-      }
-
-      if (metaData.schema.enableAuthors && context.session !== undefined) {
-        (fullPayload as Authors)._updatedBy = null;
-        (fullPayload as Authors)._createdBy = context.session.user._id;
-      }
-
-      if (metaData.schema.enableDeletion === false) {
-        (fullPayload as Deletion)._isDeleted = false;
-      }
-
-      await this.databaseClient.checkRelations(
-        resource,
-        this.extractRelationsFromPayload(resource, payload, {
-          type: 'object',
-          description: '',
-          isRequired: true,
-          fields: this.model.get(resource).schema.fields,
-        }, payload),
-        updatedContext.queryOptions,
-      );
-
       const customCreate = this.registeredModules[resource]?.create?.bind(this);
-      const response = await (customCreate?.(fullPayload, updatedContext, (...args) => (
-        this.baseCreate<QueryResults[Key], Resource>(resource, ...args)
-      )) ?? this.baseCreate<QueryResults[Key], Resource>(resource, fullPayload, updatedContext));
+      const response = await (customCreate?.(payload, context, (...args) => (
+        this.baseCreate(resource, ...args)
+      )) ?? this.baseCreate(resource, payload, context)) as QueryResults[Key];
 
       return response;
     });
@@ -571,7 +610,7 @@ export default class Engine<
     resource: Resource,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
   ): Promise<QueryResults[Key]> {
     return this.telemetry.span(`${this.constructor.name}.update`, {
       kind: 'SERVER',
@@ -581,43 +620,17 @@ export default class Engine<
       },
     }, async () => {
       this.checkOperationAllowed(resource, 'UPDATE');
-      const updatedContext = await this.applyPermissions(resource, 'UPDATE', id, payload, context);
 
       if (Object.keys(payload).length === 0) {
-        return await this.baseView<QueryResults[Key]>(resource, id, context);
+        const fullContext = await this.applyPermissions(resource, 'UPDATE', id, payload, context);
+        const { session: _, queryOptions, ...rest } = fullContext;
+        return await this.view<Key>(resource, id, { queryOptions, ...rest });
       }
-
-      const fullPayload = deepCopy(payload);
-      const metaData = this.model.get(resource);
-
-      if (metaData.schema.enableTimestamps) {
-        (fullPayload as Timestamps)._updatedAt = new Date();
-      }
-
-      if (metaData.schema.enableAuthors && context.session !== undefined) {
-        (fullPayload as Authors)._updatedBy = context.session.user._id;
-      }
-
-      await this.databaseClient.checkRelations(
-        resource,
-        this.extractRelationsFromPayload(resource, payload, {
-          type: 'object',
-          description: '',
-          isRequired: true,
-          fields: this.model.get(resource).schema.fields,
-        }, payload),
-        updatedContext.queryOptions,
-      );
 
       const customUpdate = this.registeredModules[resource]?.update?.bind(this);
-      const response = await (customUpdate?.(id, fullPayload, updatedContext, (...args) => (
-        this.baseUpdate<QueryResults[Key], Resource>(resource, ...args)
-      )) ?? this.baseUpdate<QueryResults[Key], Resource>(
-        resource,
-        id,
-        fullPayload,
-        updatedContext,
-      ));
+      const response = await (customUpdate?.(id, payload, context, (...args) => (
+        this.baseUpdate(resource, ...args)
+      )) ?? this.baseUpdate(resource, id, payload, context)) as QueryResults[Key];
 
       return response;
     });
@@ -644,7 +657,7 @@ export default class Engine<
   >(
     resource: Resource,
     id: Id,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
   ): Promise<QueryResults[Key]> {
     return this.telemetry.span(`${this.constructor.name}.view`, {
       kind: 'SERVER',
@@ -655,9 +668,9 @@ export default class Engine<
     }, async () => {
       this.checkOperationAllowed(resource, 'VIEW');
       const customView = this.registeredModules[resource]?.view?.bind(this);
-      const response = await (customView<QueryResults[Key]>?.(id, context, (...args) => (
-        this.baseView<QueryResults[Key]>(resource, ...args)
-      )) ?? this.baseView<QueryResults[Key]>(resource, id, context));
+      const response = await (customView?.(id, context, (...args) => (
+        this.baseView(resource, ...args)
+      )) ?? this.baseView(resource, id, context)) as QueryResults[Key];
 
       return response;
     });
@@ -680,7 +693,7 @@ export default class Engine<
   >(
     resource: Resource,
     searchBody: SearchBody | null,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
   ): Promise<Results<QueryResults[Key]>> {
     return this.telemetry.span(`${this.constructor.name}.list`, {
       kind: 'SERVER',
@@ -691,9 +704,9 @@ export default class Engine<
     }, async () => {
       this.checkOperationAllowed(resource, 'LIST');
       const customList = this.registeredModules[resource]?.list?.bind(this);
-      const response = await (customList<QueryResults[Key]>?.(searchBody, context, (...args) => (
-        this.baseList<QueryResults[Key]>(resource, ...args)
-      )) ?? this.baseList<QueryResults[Key]>(resource, searchBody, context));
+      const response = await (customList?.(searchBody, context, (...args) => (
+        this.baseList(resource, ...args)
+      )) ?? this.baseList(resource, searchBody, context)) as Results<QueryResults[Key]>;
 
       return response;
     });
@@ -713,7 +726,7 @@ export default class Engine<
   public delete<Resource extends keyof DataModel & string = keyof DataModel & string>(
     resource: Resource,
     id: Id,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
   ): Promise<void> {
     return this.telemetry.span(`${this.constructor.name}.delete`, {
       kind: 'SERVER',

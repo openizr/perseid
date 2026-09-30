@@ -26,13 +26,14 @@ import type {
   AnonymousCommandContext,
 } from 'scripts/core/types';
 import jwt from 'jsonwebtoken';
-import { PerseidError } from '@perseid/core';
 import type { Span } from '@opentelemetry/api';
 import Model from 'scripts/core/services/Model';
+import {
+  PerseidError, type Ids, Id, deepMerge, type UserDataModel,
+} from '@perseid/core';
 import Telemetry from 'scripts/core/services/Telemetry';
 import ControllerError from 'scripts/core/errors/Controller';
 import type AuthEngine from 'scripts/core/services/AuthEngine';
-import { Id, deepMerge, type UserDataModel } from '@perseid/core';
 
 type AnySchema = any;
 
@@ -131,7 +132,7 @@ export default class FastifyController<
   /**
    * Data model type definition.
    */
-  DataModelType extends UserDataModel = UserDataModel,
+  DataModelType extends { users: Ids; } = UserDataModel,
 
   /**
    * Telemetry system type definition.
@@ -212,7 +213,7 @@ export default class FastifyController<
             email,
             password,
             confirmation,
-            context as AnonymousCommandContext<DataModelType>,
+            context as AnonymousCommandContext,
           );
           return response.status(201).send(credentials);
         },
@@ -512,16 +513,16 @@ export default class FastifyController<
     request: FastifyRequest,
     authenticate: true,
     ignoreExpiration: boolean
-  ): Promise<Omit<UserCommandContext<DataModelType>, 'queryOptions'> & {
-    queryOptions: Exclude<UserCommandContext<DataModelType>['queryOptions'], undefined>;
+  ): Promise<Omit<UserCommandContext, 'queryOptions'> & {
+    queryOptions: Exclude<UserCommandContext['queryOptions'], undefined>;
   }>;
 
   protected generateContext(
     request: FastifyRequest,
     authenticate: false,
     ignoreExpiration: boolean
-  ): Promise<Omit<AnonymousCommandContext<DataModelType>, 'queryOptions'> & {
-    queryOptions: Exclude<AnonymousCommandContext<DataModelType>['queryOptions'], undefined>;
+  ): Promise<Omit<AnonymousCommandContext, 'queryOptions'> & {
+    queryOptions: Exclude<AnonymousCommandContext['queryOptions'], undefined>;
   }>;
 
   protected async generateContext(
@@ -529,10 +530,10 @@ export default class FastifyController<
     authenticate: boolean,
     ignoreExpiration: boolean,
   ): Promise<Omit<
-    UserCommandContext<DataModelType>, 'queryOptions'>
-    | Omit<AnonymousCommandContext<DataModelType>, 'queryOptions'
+    UserCommandContext, 'queryOptions'>
+    | Omit<AnonymousCommandContext, 'queryOptions'
     > & {
-      queryOptions: Exclude<AnonymousCommandContext<DataModelType>['queryOptions'], undefined>;
+      queryOptions: Exclude<AnonymousCommandContext['queryOptions'], undefined>;
     }> {
     const deviceId = String(request.headers['x-device-id']);
     const userAgent = String(request.headers['user-agent']);
@@ -553,9 +554,9 @@ export default class FastifyController<
     const accessToken = String(request.headers.authorization).replace('Bearer ', '');
     const userId = await this.engine.verifyToken(accessToken, ignoreExpiration, context);
 
-    let user: UserCommandContext<DataModelType>['session']['user'] | null = null;
+    let user: UserCommandContext['session']['user'] | null = null;
     try {
-      type User = UserCommandContext<DataModelType>['session']['user'];
+      type User = UserCommandContext['session']['user'];
       user = await this.engine.view('users', userId, {
         queryOptions: {
           fields: [

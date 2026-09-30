@@ -105,7 +105,7 @@ export default class AuthEngine<
   /**
    * Data model type definition.
    */
-  DataModel extends UserDataModel = UserDataModel,
+  DataModel extends { users: Ids; } = UserDataModel,
 
   /**
    * Query results type definition.
@@ -206,7 +206,7 @@ export default class AuthEngine<
   private async prepareUpdatePayload<Resource extends keyof DataModel>(
     _resource: Resource & string,
     payload: UpdatePayload<DataModel[Resource]>,
-    context: UserCommandContext<DataModel>,
+    context: UserCommandContext,
   ): Promise<Payload<DataModel[Resource]>> {
     const fullPayload = await this.prepareUserPayload({
       _updatedAt: new Date(),
@@ -305,7 +305,7 @@ export default class AuthEngine<
    * @throws If user does not exist.
    */
   public async viewMe<Key extends keyof QueryResults>(
-    context: UserCommandContext<DataModel>,
+    context: UserCommandContext,
   ): Promise<QueryResults[Key]> {
     const user = await this.databaseClient.view<Key>('users', context.session.user._id, {
       fields: this.USER_FIELDS_TO_FETCH,
@@ -334,7 +334,7 @@ export default class AuthEngine<
   public async verifyToken(
     accessToken: string,
     ignoreExpiration: boolean,
-    context: AnonymousCommandContext<DataModel>,
+    context: AnonymousCommandContext,
   ): Promise<Id> {
     let userId = '';
 
@@ -371,10 +371,10 @@ export default class AuthEngine<
    * @throws If password and confirmation mismatch.
    */
   public async signUp(
-    email: DataModel['users']['email'],
-    password: DataModel['users']['password'],
-    passwordConfirmation: DataModel['users']['password'],
-    context: AnonymousCommandContext<DataModel>,
+    email: string,
+    password: string,
+    passwordConfirmation: string,
+    context: AnonymousCommandContext,
   ): Promise<Credentials> {
     if (passwordConfirmation !== password) {
       throw new EngineError('PASSWORDS_MISMATCH');
@@ -384,7 +384,7 @@ export default class AuthEngine<
     const payload: CreatePayload<UserDataModel['users']> = { email, password, roles: [] };
     const fullPayload = await this.prepareCreatePayload('users', payload);
     const credentials = this.generateCredentials(fullPayload._id);
-    fullPayload._devices.push({
+    (fullPayload as UserDataModel['users'])._devices.push({
       _id: credentials.deviceId,
       _refreshToken: credentials.refreshToken,
       _userAgent: context.session.userAgent ?? 'UNKNOWN',
@@ -454,7 +454,7 @@ export default class AuthEngine<
     const credentials = this.generateCredentials(user._id, deviceId);
     const fullPayload = await this.prepareUpdatePayload('users', {}, {
       session: {
-        user: user as unknown as UserCommandContext<DataModel>['session']['user'],
+        user: user as unknown as UserCommandContext['session']['user'],
         deviceId,
         userAgent,
       },
@@ -486,7 +486,7 @@ export default class AuthEngine<
    *
    * @throws If user email is already verified.
    */
-  public async requestEmailVerification(context: UserCommandContext<DataModel>): Promise<void> {
+  public async requestEmailVerification(context: UserCommandContext): Promise<void> {
     if (context.session.user._verifiedAt !== null) {
       throw new EngineError('EMAIL_ALREADY_VERIFIED');
     }
@@ -510,7 +510,7 @@ export default class AuthEngine<
    */
   public async verifyEmail(
     verificationToken: string,
-    context: UserCommandContext<DataModel>,
+    context: UserCommandContext,
   ): Promise<void> {
     const { session } = context;
     const cacheKey = `verify_${String(session.user._id)}`;
@@ -561,12 +561,12 @@ export default class AuthEngine<
    * @throws If reset token is not valid.
    */
   public async resetPassword(
-    password: DataModel['users']['password'],
-    passwordConfirmation: DataModel['users']['password'],
+    password: string,
+    passwordConfirmation: string,
     resetToken: string,
   ): Promise<void> {
     const payload = {};
-    const context = {} as UserCommandContext<DataModel>;
+    const context = {} as UserCommandContext;
 
     if (passwordConfirmation !== password) {
       throw new EngineError('PASSWORDS_MISMATCH');
@@ -605,7 +605,7 @@ export default class AuthEngine<
    */
   public async refreshToken(
     refreshToken: string,
-    context: UserCommandContext<DataModel>,
+    context: UserCommandContext,
   ): Promise<Credentials> {
     const now = Date.now();
     const { session } = context;
@@ -640,7 +640,7 @@ export default class AuthEngine<
    *
    * @param context Command context.
    */
-  public async signOut(context: UserCommandContext<DataModel>): Promise<void> {
+  public async signOut(context: UserCommandContext): Promise<void> {
     const now = Date.now();
     const { session, queryOptions } = context;
     const newDevices: UserDataModel['users']['_devices'] = [];
@@ -674,7 +674,7 @@ export default class AuthEngine<
   >(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
   ): Promise<QueryResults[Key]> {
     const fullPayload = (resource === 'users') ? await this.prepareUserPayload(payload) : payload;
     const result = await super.create<Key>(resource, fullPayload, context);
@@ -710,7 +710,7 @@ export default class AuthEngine<
     resource: Resource,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
   ): Promise<QueryResults[Key]> {
     let fullPayload = payload;
     if (resource === 'users') {

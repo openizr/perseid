@@ -666,7 +666,7 @@ export default class PostgreSQLDatabaseClient<
   /**
    * Data model types definitions.
    */
-  DataModel extends UserDataModel = UserDataModel,
+  DataModel extends object = UserDataModel,
 
   /**
    * Query results types definitions.
