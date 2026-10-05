@@ -198,11 +198,6 @@ export interface CommandContext {
        * User permissions.
        */
       _permissions: Set<string>;
-
-      /**
-       * User roles.
-       */
-      roles: Pick<UserDataModel['roles'], '_id' | 'name' | 'permissions'>[];
     };
 
     /**

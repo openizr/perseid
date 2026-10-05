@@ -16,6 +16,10 @@
       "browser": {
         "import": "./index.browser.js",
         "require": "./index.browser.js"
+      },
+      "default": {
+        "import": "./index.node.js",
+        "require": "./index.node.js"
       }
     }
   },

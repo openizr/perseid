@@ -514,7 +514,7 @@ export default class FastifyController<
     authenticate: true,
     ignoreExpiration: boolean
   ): Promise<Omit<UserCommandContext, 'queryOptions'> & {
-    queryOptions: Exclude<UserCommandContext['queryOptions'], undefined>;
+    queryOptions: NonNullable<UserCommandContext['queryOptions']>;
   }>;
 
   protected generateContext(
@@ -522,7 +522,15 @@ export default class FastifyController<
     authenticate: false,
     ignoreExpiration: boolean
   ): Promise<Omit<AnonymousCommandContext, 'queryOptions'> & {
-    queryOptions: Exclude<AnonymousCommandContext['queryOptions'], undefined>;
+    queryOptions: NonNullable<AnonymousCommandContext['queryOptions']>;
+  }>;
+
+  protected generateContext(
+    request: FastifyRequest,
+    authenticate: boolean,
+    ignoreExpiration: boolean
+  ): Promise<(Omit<UserCommandContext, 'queryOptions'> | Omit<AnonymousCommandContext, 'queryOptions'>) & {
+    queryOptions: NonNullable<AnonymousCommandContext['queryOptions']>;
   }>;
 
   protected async generateContext(
@@ -533,7 +541,7 @@ export default class FastifyController<
     UserCommandContext, 'queryOptions'>
     | Omit<AnonymousCommandContext, 'queryOptions'
     > & {
-      queryOptions: Exclude<AnonymousCommandContext['queryOptions'], undefined>;
+      queryOptions: NonNullable<AnonymousCommandContext['queryOptions']>;
     }> {
     const deviceId = String(request.headers['x-device-id']);
     const userAgent = String(request.headers['user-agent']);
@@ -554,9 +562,11 @@ export default class FastifyController<
     const accessToken = String(request.headers.authorization).replace('Bearer ', '');
     const userId = await this.engine.verifyToken(accessToken, ignoreExpiration, context);
 
-    let user: UserCommandContext['session']['user'] | null = null;
+    type User = UserCommandContext['session']['user'] & {
+      roles: Pick<UserDataModel['roles'], '_id' | 'name' | 'permissions'>[];
+    };
+    let user: User | null = null;
     try {
-      type User = UserCommandContext['session']['user'];
       user = await this.engine.view('users', userId, {
         queryOptions: {
           fields: [
@@ -565,7 +575,6 @@ export default class FastifyController<
             'roles',
             'roles.name',
             'roles.permissions',
-            '_apiKeys',
             '_verifiedAt',
             '_devices._id',
             '_devices._userAgent',

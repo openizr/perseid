@@ -146,7 +146,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _permissions: new Set(),
@@ -162,7 +161,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _permissions: new Set(),
@@ -399,7 +397,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             _verifiedAt: null,
             email: 'test@test.test',
@@ -426,7 +423,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _permissions: new Set(),
@@ -448,7 +444,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             _verifiedAt: null,
             email: 'test@test.test',
@@ -474,7 +469,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             _verifiedAt: null,
             email: 'test@test.test',
@@ -595,7 +589,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
           userAgent: 'Firefox',
           user: {
             _id: userId,
-            roles: [],
             email: 'test@test.test',
             _permissions: new Set(),
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -636,7 +629,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
           deviceId: 'device1',
           user: {
             _id: userId,
-            roles: [],
             email: 'test@test.test',
             _permissions: new Set(),
             _devices: [otherDevice, currentDevice],
@@ -661,7 +653,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
           deviceId: 'device1',
           user: {
             _id: userId,
-            roles: [],
             email: 'test@test.test',
             _permissions: new Set(),
             _devices: [currentDevice],
@@ -678,7 +669,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
           deviceId: 'device3',
           user: {
             _id: userId,
-            roles: [],
             email: 'test@test.test',
             _permissions: new Set(),
             _devices: [expiredDevice],
@@ -698,7 +688,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
           deviceId: 'device1',
           user: {
             _id: userId,
-            roles: [],
             email: 'test@test.test',
             _permissions: new Set(),
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -781,7 +770,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -808,7 +796,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -827,7 +814,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -843,7 +829,6 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             _verifiedAt: null,
             email: 'test@test.test',

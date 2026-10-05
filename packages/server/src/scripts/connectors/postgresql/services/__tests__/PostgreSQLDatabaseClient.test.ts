@@ -23,9 +23,11 @@ import {
   poolClient,
 } from '__mocks__/pg';
 
-// `registerModule` is the extension point subclasses use to override generic methods.
+// Exposes protected methods subclasses rely on.
 type TestClient = PostgreSQLDatabaseClient<DataModel> & {
   registerModule: PostgreSQLDatabaseClient<DataModel>['registerModule'];
+  compileQueries: PostgreSQLDatabaseClient<DataModel>['compileQueries'];
+  resourcesMetadata: Record<string, { fields: Record<string, { type: string; }>; }>;
 };
 
 vi.mock('pg');
@@ -131,6 +133,20 @@ describe('connectors/postgresql/services/PostgreSQLDatabaseClient', () => {
         [1, { 'db.client.connection.state': 'idle', 'db.client.connection.pool.name': 'default' }],
         [2, { 'db.client.connection.pool.name': 'default' }],
       ]);
+    });
+
+    test('maps ids SQL type to the configured ids format', ({
+      model,
+      telemetry,
+      cache,
+      client,
+    }) => {
+      expect(client.resourcesMetadata.test.fields._id.type).toBe('UUID');
+      Id.FORMAT = 'SNOWFLAKE';
+      const other = new PostgreSQLDatabaseClient<DataModel>(model, telemetry, cache, settings);
+      Id.FORMAT = 'UUID';
+      expect((other as TestClient).resourcesMetadata.test.fields._id.type)
+        .toBe('VARCHAR(24)');
     });
 
     // @TODO resources metadata (and the SQL types, which depend on `Id.FORMAT`) are generated but
@@ -785,6 +801,15 @@ WHERE
 
       await expect(client.delete('otherTest', resourceId)).rejects.toThrow(error);
       expect(poolClient.release).toHaveBeenCalledOnce();
+    });
+
+    test('rethrows the original error when no connection can be acquired', async ({ client }) => {
+      const error = new Error('CONNECTION_TIMEOUT');
+      pool.connect.mockRejectedValueOnce(error);
+
+      await expect(client.delete('otherTest', resourceId)).rejects.toThrow(error);
+      expect(poolClient.query).not.toHaveBeenCalled();
+      expect(poolClient.release).not.toHaveBeenCalled();
     });
   });
 
@@ -1517,6 +1542,23 @@ WHERE
           filters: { _id: [resourceId, relationId] },
         }],
       ]))).rejects.toMatchObject({ code: 'NO_RESOURCE', details: { id: '000000000000000000000009' } });
+    });
+  });
+
+  describe('[compileQueries]', () => {
+    // Inserts are batched upstream, this guards custom queries from modules.
+    test('throws when a query exceeds the maximum number of parameters', ({ client }) => {
+      expect(() => client.compileQueries({
+        test: {
+          type: 'INSERT',
+          table: 'test',
+          fields: ['value'],
+          values: Array.from({ length: 65536 }, () => ['test']),
+        },
+      })).toThrow(expect.objectContaining({
+        code: 'TOO_MANY_QUERY_PARAMETERS',
+        details: { query: 'test', parameters: 65536 },
+      }) as Error);
     });
   });
 

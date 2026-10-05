@@ -2133,7 +2133,11 @@ export default class PostgreSQLDatabaseClient<
 
     const session = this.sessions.get(poolOrSession);
     const client = session ?? await this.connect(poolOrSession);
-    let connection = (session === undefined) ? (client as ConnectedPool).pool : session.client;
+    let connection: Pool | PoolClient = (session === undefined)
+      ? (client as ConnectedPool).pool
+      : session.client;
+    // Only set once acquired, so a failed `connect()` doesn't call `release` on the pool.
+    let poolClient: PoolClient | undefined;
 
     const startTime = this.telemetry.now();
     return this.telemetry.span(`${this.constructor.name}.query`, {
@@ -2150,7 +2154,8 @@ export default class PostgreSQLDatabaseClient<
         // We manually performs the connection to the pool as it allows us to measure the connection
         // wait time.
         if (session === undefined) {
-          connection = await (connection as Pool).connect();
+          poolClient = await (connection as Pool).connect();
+          connection = poolClient;
           this.telemetry.measure('db.client.connection.wait_time', this.telemetry.duration(startTime), {
             'db.client.connection.pool.name': poolOrSession,
           });
@@ -2179,9 +2184,7 @@ export default class PostgreSQLDatabaseClient<
           message: postgreError.message,
         });
       } finally {
-        if (session === undefined) {
-          (connection as PoolClient).release();
-        }
+        poolClient?.release();
         span.setAttributes({
           'error.type': sqlErrorCode,
           'db.response.status_code': sqlErrorCode,

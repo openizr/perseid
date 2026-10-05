@@ -93,7 +93,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -192,7 +191,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -288,7 +286,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -304,7 +301,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -320,7 +316,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -336,7 +331,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -352,7 +346,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -367,7 +360,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: null,
@@ -382,7 +374,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -431,7 +422,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -449,7 +439,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -464,7 +453,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -482,7 +470,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
@@ -517,7 +504,6 @@ describe('core/services/Engine', () => {
         session: {
           user: {
             _id: userId,
-            roles: [],
             _devices: [],
             email: 'test@test.test',
             _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
