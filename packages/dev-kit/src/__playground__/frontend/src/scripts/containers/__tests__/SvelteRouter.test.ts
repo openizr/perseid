@@ -11,7 +11,6 @@ type Misc = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 // Useful mocks allowing us to easily test Vue lazy components.
 vi.mock('scripts/store/routes', () => ({
   default: {
-    // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires
     '/': (): Misc => import('scripts/pages/Home.svelte'),
   },
 }));

@@ -1,6 +1,7 @@
 import fastify, { addHook, listen } from 'scripts/__mocks__/fastify';
 
 vi.mock('ajv');
+vi.mock('fastify', () => ({ default: fastify }));
 vi.mock('ajv-errors');
 vi.mock('scripts/conf/routes', () => ({ default: () => Promise.reject(new Error()) }));
 vi.spyOn(process, 'exit').mockImplementation((code) => code);
@@ -16,7 +17,6 @@ describe('javascript', () => {
   test('correctly initializes server - development mode', async () => {
     delete process.env.PLAYGROUND_PORT;
     process.env.ENV = 'development';
-    vi.mock('fastify', () => ({ default: fastify }));
     await import('scripts/javascript');
     expect(fastify).toHaveBeenCalledTimes(1);
     expect(fastify).toHaveBeenCalledWith({
@@ -32,7 +32,6 @@ describe('javascript', () => {
 
   test('correctly initializes server - production mode', async () => {
     process.env.ENV = 'production';
-    vi.mock('fastify', () => ({ default: fastify }));
     await import('scripts/javascript');
     expect(fastify).toHaveBeenCalledTimes(1);
     expect(fastify).toHaveBeenCalledWith({

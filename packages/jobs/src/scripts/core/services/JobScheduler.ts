@@ -8,37 +8,73 @@
 
 import {
   Engine,
-  Logger,
-  Profiler,
-  type Model,
-  type Payload,
-  type BucketClient,
+  Telemetry,
+  EngineError,
   type CommandContext,
+  type CreatePayload,
+  type UpdatePayload,
+  type Payload,
 } from '@perseid/server';
-import { pino } from 'pino';
-import { Id, forEach } from '@perseid/core';
+import type {
+  JobScript,
+  JobMetadata,
+  JobsDataModel,
+  FullRunningTask,
+  FullPendingTask,
+} from 'scripts/core/types';
 import model from 'scripts/core/model/index';
 import { Worker, workerData } from 'worker_threads';
-import { promises as fs, createReadStream } from 'fs';
+import type { Attributes } from '@opentelemetry/api';
+import { Id, forEach, type Ids } from '@perseid/core';
 import type DatabaseClient from 'scripts/core/services/DatabaseClient';
 
-type JobWorkerData = {
+/**
+ * Metadata passed to each running job.
+ */
+export type JobWorkerData = {
+  /**
+   * Task id.
+   */
   id: string | undefined;
+
+  /**
+   * Job id.
+   */
   jobId: string | undefined;
+
+  /**
+   * Task metadata.
+   */
   metadata: string | undefined;
 } | undefined;
+
+/**
+ * Registered task.
+ */
+export interface RegisteredTask {
+  /**
+   * Worker instance.
+   */
+  worker: Worker;
+
+  /**
+   * Task status.
+   */
+  _status: JobsDataModel['tasks']['_status'];
+}
 
 /**
  * Job scheduler settings.
  */
 export interface JobSchedulerSettings {
-  /** Path to the tasks logs directory. */
-  logsPath: string;
-
-  /** Amount of initially available slots for that scheduler to run jobs. */
+  /**
+   * Amount of initially available slots for that scheduler to run jobs.
+   */
   availableSlots: number;
 
-  /** List of jobs to register. */
+  /**
+   * List of jobs to register.
+   */
   jobs: Record<string, JobScript>;
 }
 
@@ -47,64 +83,74 @@ export interface JobSchedulerSettings {
  *
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/jobs/src/scripts/core/services/JobScheduler.ts
  */
-export default class JobScheduler extends Engine<DataModel, Model<DataModel>, DatabaseClient> {
-  /** Job scheduler instance unique id. */
-  protected instanceId: Id;
-
-  /** Path to the tasks logs directory. */
-  protected logsPath: string;
-
-  /** Bucket client. */
-  protected bucketClient: BucketClient;
-
-  /** Amount of initially available slots for that scheduler to run jobs. */
-  protected availableSlots: number;
-
-  /** List of registered jobs. */
-  protected jobs: Record<string, JobScript>;
-
-  /** Running tasks registry. */
-  protected tasksRegistry: Record<string, {
-    worker: Worker;
-    _status: DataModel['tasks']['_status'];
-  }>;
+export default class JobScheduler<
+  QueryResults extends Record<string, Ids> = Record<string, Ids>,
+> extends Engine<
+  JobsDataModel,
+  QueryResults,
+  DatabaseClient<QueryResults>
+> {
+  /**
+   * Interval between two executions of the job scheduler, in milliseconds.
+   * Defaults to 5000 milliseconds.
+   */
+  protected EXECUTION_INTERVAL: number;
 
   /**
-   * Returns updated `payload` with automatic fields.
-   *
-   * @param resource Type of resource for which to generate automatic fields.
-   *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
-   *
-   * @param payload Payload to update.
-   *
-   * @param context Command context.
-   *
-   * @returns Payload with automatic fields.
+   * Default attributes to inject in all telemetry spans.
    */
-  protected async withAutomaticFields<Resource extends keyof DataModel>(
-    resource: Resource,
-    existingResource: DataModel[Resource] | null,
-    payload: Payload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
-  ): Promise<Payload<DataModel[Resource]>> {
-    const updatedPayload = await super.withAutomaticFields(
-      resource,
-      existingResource,
-      payload,
-      context,
-    );
+  protected defaultAttributes: Attributes = {
+    'code.class.name': 'JobScheduler',
+  };
 
-    if (resource === 'tasks' && existingResource === null) {
-      const taskPayload = updatedPayload as Payload<DataModel['tasks']>;
-      taskPayload._runBy = null;
-      taskPayload._parent = null;
-      taskPayload._endedAt = null;
-      taskPayload._startedAt = null;
-      taskPayload._status = 'PENDING';
+  /**
+   * Job scheduler instance unique id.
+   */
+  protected instanceId: Id;
+
+  /**
+  * Amount of initially available slots for that scheduler to run jobs.
+  */
+  protected availableSlots: number;
+
+  /**
+  * List of registered jobs.
+  */
+  protected jobs: Record<string, JobScript>;
+
+  /**
+  * Running tasks registry.
+  */
+  protected tasksRegistry: Map<string, RegisteredTask>;
+
+  /**
+   * In addition to `preparePayload` base behaviour, adds automatic fields for tasks.
+   */
+  protected async preparePayload<
+    Resource extends keyof JobsDataModel,
+    Type extends 'CREATE' | 'UPDATE',
+  >(
+    resource: Resource,
+    type: Type,
+    payload: Type extends 'CREATE' ? CreatePayload<JobsDataModel[Resource]> : UpdatePayload<JobsDataModel[Resource]>,
+    context: CommandContext,
+  ): Promise<Type extends 'CREATE'
+    ? JobsDataModel[Resource]
+    : Payload<JobsDataModel[Resource]>> {
+    const fullPayload = await super.preparePayload(resource, type, payload, context);
+
+    if (type === 'CREATE' && resource === 'tasks') {
+      return {
+        ...fullPayload,
+        _runBy: null,
+        _parent: null,
+        _endedAt: null,
+        _startedAt: null,
+        _status: 'PENDING',
+      };
     }
 
-    return updatedPayload;
+    return fullPayload;
   }
 
   /**
@@ -114,17 +160,31 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
    *
    * @param taskCompleted Whether task successfully completed.
    */
-  protected async reSchedulePeriodicTask(task: DataModel['tasks'], taskCompleted: boolean): Promise<void> {
-    if (task.recurrence === null && task.startAfter === null) {
-      this.logger.info(`[JobScheduler][reSchedulePeriodicTask] Task with id "${String(task._id)}" is not periodic, re-scheduling skipped.`);
-    } else {
-      const job = task.job as DataModel['jobs'];
-      this.logger.info(`[JobScheduler][reSchedulePeriodicTask] Creating next recurrence for task with id "${String(task._id)}"...`);
-
+  protected async reSchedulePeriodicTask(
+    task: FullRunningTask,
+    taskCompleted: boolean,
+  ): Promise<void> {
+    if (task.recurrence !== null || task.startAfter !== null) {
       const parsedMetadata = JSON.parse(task.metadata) as { lastCompletedAt: Date; };
       if (taskCompleted) {
         parsedMetadata.lastCompletedAt = new Date();
       }
+
+      const payload: JobsDataModel['tasks'] = {
+        _id: new Id(),
+        _createdAt: new Date(),
+        _updatedAt: null,
+        _runBy: null,
+        startAt: null,
+        _parent: null,
+        _endedAt: null,
+        startAfter: null,
+        _startedAt: null,
+        _status: 'PENDING',
+        job: task.job._id,
+        recurrence: task.recurrence,
+        metadata: JSON.stringify(parsedMetadata),
+      };
 
       if (task.startAt !== null && task.recurrence !== null) {
         // When the job scheduler hasn't run for some time (e.g because of a downtime), we don't
@@ -135,52 +195,14 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
         const executionsToSkip = Math.ceil((Date.now() - startAt) / recurrenceInMilliseconds);
         const nextStartAt = new Date(startAt + executionsToSkip * recurrenceInMilliseconds);
 
-        await this.databaseClient.create('tasks', await this.withAutomaticFields('tasks', null, {
-          _runBy: null,
-          _endedAt: null,
-          _startedAt: null,
-          _parent: task._id,
-          _status: 'PENDING',
-          job: job._id,
-          startAfter: null,
-          startAt: nextStartAt,
-          recurrence: task.recurrence,
-          metadata: JSON.stringify(parsedMetadata),
-        }, {} as CommandContext<DataModel>) as DataModel['tasks']);
+        await this.databaseClient.create('tasks', { ...payload, startAt: nextStartAt }, {});
       } else {
-        const childTask = await this.databaseClient.search('tasks', {
+        const childTask = await this.databaseClient.list('tasks', {
           query: null,
-          filters: { _parent: task.startAfter as Id },
+          filters: { _parent: task.startAfter?._id ?? null },
         });
-        await this.databaseClient.create('tasks', await this.withAutomaticFields('tasks', null, {
-          _runBy: null,
-          _endedAt: null,
-          _startedAt: null,
-          _parent: task._id,
-          _status: 'PENDING',
-          job: job._id,
-          startAt: null,
-          recurrence: task.recurrence,
-          startAfter: childTask.results[0]._id,
-          metadata: JSON.stringify(parsedMetadata),
-        }, {} as CommandContext<DataModel>) as DataModel['tasks']);
+        await this.databaseClient.create('tasks', { ...payload, startAfter: childTask.results[0]._id }, {});
       }
-    }
-  }
-
-  /**
-   * Uploads logs file of `task` to a persistent storage.
-   *
-   * @param task Task for which to upload logs file.
-   */
-  protected async uploadLogs(task: DataModel['tasks']): Promise<void> {
-    try {
-      const filePath = `${this.logsPath}/${String(task._id)}.log`;
-      await this.bucketClient.upload('text/x-log', `logs/${String(task._id)}.log`, createReadStream(filePath));
-      await fs.unlink(filePath);
-    } catch (error) {
-      this.logger.error(`[JobScheduler][uploadLogs] Failed to upload logs for task with id "${String(task._id)}".`);
-      this.logger.error(error);
     }
   }
 
@@ -189,42 +211,58 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
    *
    * @param task Task to execute.
    */
-  protected async executeTask(task: DataModel['tasks']): Promise<void> {
-    const key = String(task._id);
-    const job = task.job as DataModel['jobs'];
-    this.availableSlots -= job.requiredSlots;
-    const splittedPath = job.scriptPath.split(' ');
+  protected async executeTask(task: FullPendingTask): Promise<void> {
+    return this.telemetry.span(`${this.constructor.name}.executeTask`, {
+      kind: 'PRODUCER',
+      attributes: {
+        ...this.defaultAttributes,
+        'app.task.id': String(task._id),
+      },
+    }, async (span) => {
+      const key = String(task._id);
+      this.availableSlots -= task.job.requiredSlots;
+      const splittedPath = task.job.scriptPath.split(' ');
 
-    await new Promise<void>((resolve) => {
-      const worker = new Worker(splittedPath[0], {
-        workerData: { id: key, jobId: splittedPath[1], metadata: task.metadata },
-      });
+      await new Promise<void>((resolve) => {
+        const metadata = JSON.parse(task.metadata) as Record<string, unknown>;
+        const { traceId, spanId, ...rest } = span.getContext();
+        const worker = new Worker(splittedPath[0], {
+          workerData: {
+            id: key,
+            jobId: splittedPath[1],
+            metadata: JSON.stringify({
+              ...metadata,
+              traceState: rest.traceState,
+              traceParent: { traceId, spanId, traceFlags: rest.traceFlags },
+            }),
+          },
+        });
 
-      // Registering the task here prevents "Cannot set properties of undefined (setting '_status')"
-      // errors (sometimes worker exists so fast that the registry hasn't been updated yet
-      // and thus reference to the task doesn't exist).
-      this.tasksRegistry[key] = { worker, _status: 'IN_PROGRESS' };
+        // Registering task here prevents "Cannot set properties of undefined (setting '_status')"
+        // errors (sometimes worker exists so fast that the registry hasn't been updated yet
+        // and thus reference to the task doesn't exist).
+        const registeredTask: RegisteredTask = { worker, _status: 'IN_PROGRESS' };
+        this.tasksRegistry.set(key, registeredTask);
 
-      worker.on('online', () => {
-        this.logger.info(`[JobScheduler][executeTask] Successfully created new thread for task with id "${key}".`);
-        resolve();
-      });
+        worker.on('online', () => {
+          resolve();
+        });
 
-      worker.on('error', (error) => {
-        this.logger.error(error);
-        this.tasksRegistry[key]._status = 'FAILED';
-      });
+        worker.on('error', (error) => {
+          this.telemetry.error(error);
+          registeredTask._status = 'FAILED';
+        });
 
-      worker.on('exit', (code) => {
-        this.logger.info(`[JobScheduler][executeTask] Thread for task with id "${key}" exited with code ${String(code)}.`);
-        if (code === 0) {
-          this.tasksRegistry[key]._status = 'COMPLETED';
-        } else if (code === 100) {
-          this.tasksRegistry[key]._status = 'CANCELED';
-        } else {
-          this.tasksRegistry[key]._status = 'FAILED';
-        }
-        resolve();
+        worker.on('exit', (code) => {
+          if (code === 0) {
+            registeredTask._status = 'COMPLETED';
+          } else if (code === 100) {
+            registeredTask._status = 'CANCELED';
+          } else {
+            registeredTask._status = 'FAILED';
+          }
+          resolve();
+        });
       });
     });
   }
@@ -237,207 +275,265 @@ export default class JobScheduler extends Engine<DataModel, Model<DataModel>, Da
    * @param status Status to update task with.
    */
   protected async closeTask(
-    task: DataModel['tasks'],
-    status: DataModel['tasks']['_status'],
+    task: FullRunningTask,
+    status: FullRunningTask['_status'],
   ): Promise<void> {
+    const taskId = String(task._id);
     // We use `updateMatchingTask` here as we want to prevent several job schedulers from
     // re-scheduling the same periodic task.
     const taskWasUpdated = await this.databaseClient.updateMatchingTask({
       _status: 'IN_PROGRESS',
-      _id: task._id,
-    }, await this.withAutomaticFields('tasks', {} as DataModel['tasks'], {
+      _id: String(task._id),
+    }, {
+      ...await this.preparePayload('tasks', 'UPDATE', {}, {}),
       _status: status,
       _endedAt: new Date(),
-    }, {} as CommandContext<DataModel>));
-    if (taskWasUpdated) {
+    });
+    if (taskWasUpdated && status !== 'CANCELED') {
       await this.reSchedulePeriodicTask(task, status === 'COMPLETED');
     }
     if (String(task._runBy) === String(this.instanceId)) {
-      await this.uploadLogs(task);
-      delete this.tasksRegistry[String(task._id)];
-      this.availableSlots += (task.job as DataModel['jobs']).requiredSlots;
+      this.tasksRegistry.delete(String(task._id));
+      this.availableSlots += task.job.requiredSlots;
     } else if (taskWasUpdated) {
-      this.logger.error(
-        `[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" timed out more than`
-        + ` a minute ago - jobs scheduler with id "${String(task._runBy)}" probably crashed.`,
-      );
+      this.telemetry.error('Task timed out more than a minute ago - jobs scheduler probably crashed.', {
+        taskId,
+        runBy: String(task._runBy),
+      });
     }
   }
 
   /**
    * Processes candidate pending tasks.
+   *
+   * @returns A TASK_ID<>STATUS mapping of the tasks that were processed.
    */
-  protected async processPendingTasks(): Promise<void> {
-    this.logger.info('[JobScheduler][processPendingTasks] Processing pending tasks...');
+  protected async processPendingTasks(): Promise<Map<string, string>> {
+    const tasksStatuses = new Map<string, 'NO_AVAILABLE_SLOT' | 'IN_PROGRESS' | 'CANCELED'>();
     const pendingTasks = await this.databaseClient.getCandidatePendingTasks();
 
     await forEach(pendingTasks, async (task) => {
+      const taskId = String(task._id);
+
       // Task must be executed...
-      if (task.startAt !== null || (task.startAfter !== null && (task.startAfter as DataModel['tasks'])._status === 'COMPLETED')) {
-        if (this.availableSlots < (task.job as DataModel['jobs']).requiredSlots) {
-          this.logger.info(`[JobScheduler][processPendingTasks] No available slot to run task "${String(task._id)}".`);
+      if (
+        task.startAt !== null
+        || task.startAfter?._status === 'COMPLETED'
+      ) {
+        if (this.availableSlots < task.job.requiredSlots) {
+          tasksStatuses.set(taskId, 'NO_AVAILABLE_SLOT');
           return Promise.resolve();
         }
-        const fullPayload = await this.withAutomaticFields('tasks', {} as DataModel['tasks'], {
-          _status: 'IN_PROGRESS',
-          _runBy: this.instanceId,
-          _startedAt: new Date(),
-        }, {} as CommandContext<DataModel>);
 
         // We use `updateMatchingTask` here as we want to prevent several job schedulers from
         // running the same task.
         const taskWasAssigned = await this.databaseClient.updateMatchingTask({
           _runBy: null,
-          _id: task._id,
+          _id: String(task._id),
           _status: 'PENDING',
-        }, fullPayload);
+        }, {
+          ...await this.preparePayload('tasks', 'UPDATE', {}, {}),
+          _status: 'IN_PROGRESS',
+          _runBy: this.instanceId,
+          _startedAt: new Date(),
+        });
         if (taskWasAssigned) {
-          this.logger.info(`[JobScheduler][processPendingTasks] Executing task with id "${String(task._id)}"...`);
+          tasksStatuses.set(taskId, 'IN_PROGRESS');
           return this.executeTask(task);
         }
         return Promise.resolve();
       }
 
       // Task must be canceled...
-      const fullPayload = await this.withAutomaticFields('tasks', {} as DataModel['tasks'], {
+      tasksStatuses.set(taskId, 'CANCELED');
+      await this.databaseClient.update('tasks', task._id, {
+        ...await this.preparePayload('tasks', 'UPDATE', {}, {}),
         _status: 'CANCELED',
-      }, {} as CommandContext<DataModel>);
-      this.logger.warn(
-        `[JobScheduler][processPendingTasks] Canceling task with id "${String(task._id)}" `
-        + '(related task failed or was canceled)...',
-      );
-      await this.databaseClient.update('tasks', task._id, fullPayload);
+      });
       return Promise.resolve();
     });
+
+    return tasksStatuses;
   }
 
   /**
    * Processes tasks in progress.
+   *
+   * @returns A TASK_ID<>STATUS mapping of the tasks that were processed.
    */
-  protected async processRunningTasks(): Promise<void> {
-    this.logger.info('[JobScheduler][processRunningTasks] Processing running tasks...');
+  protected async processRunningTasks(): Promise<Map<string, string>> {
+    const tasksStatuses = new Map<string, 'TIMED_OUT' | 'FAILED_TO_TERMINATE' | 'FAILED' | 'CANCELED' | 'COMPLETED'>();
     const runningTasks = await this.databaseClient.getRunningTasks();
 
     await forEach(runningTasks, async (task) => {
-      const job = task.job as DataModel['jobs'];
+      const { job } = task;
       const now = Date.now();
-      const startedAt = (task as { _startedAt: Date; })._startedAt;
+      const taskId = String(task._id);
+      const registeredTask = this.tasksRegistry.get(String(task._id));
 
-      if (String(task._runBy) === String(this.instanceId)) {
-        // Tasks timed out...
-        if (startedAt.getTime() + (job.maximumExecutionTime * 1000) < now) {
-          this.logger.error(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" timed out.`);
-          await this.tasksRegistry[String(task._id)].worker.terminate();
+      if (String(task._runBy) === String(this.instanceId) && registeredTask !== undefined) {
+        // Task timed out...
+        if (task._startedAt.getTime() + (job.maximumExecutionTime * 1000) < now) {
+          tasksStatuses.set(taskId, 'TIMED_OUT');
+          // This race prevents the process from hanging indefinitely if the worker doesn't
+          // terminate gracefully.
+          await Promise.race([
+            new Promise((resolve) => { setTimeout(resolve, 10 * 1000); }).then(() => {
+              tasksStatuses.set(taskId, 'FAILED_TO_TERMINATE');
+            }),
+            registeredTask.worker.terminate(),
+          ]);
           return this.closeTask(task, 'FAILED');
         }
 
         // Task exited with an error...
-        if (this.tasksRegistry[String(task._id)]._status === 'FAILED') {
-          this.logger.error(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" failed.`);
+        if (registeredTask._status === 'FAILED') {
+          tasksStatuses.set(taskId, 'FAILED');
           return this.closeTask(task, 'FAILED');
         }
 
         // Task canceled itself...
-        if (this.tasksRegistry[String(task._id)]._status === 'CANCELED') {
-          this.logger.warn(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" canceled itself.`);
+        if (registeredTask._status === 'CANCELED') {
+          tasksStatuses.set(taskId, 'CANCELED');
           return this.closeTask(task, 'CANCELED');
         }
 
         // Task successfully ended...
-        if (this.tasksRegistry[String(task._id)]._status === 'COMPLETED') {
-          this.logger.info(`[JobScheduler][processRunningTasks] Task with id "${String(task._id)}" successfully ended.`);
+        if (registeredTask._status === 'COMPLETED') {
+          tasksStatuses.set(taskId, 'COMPLETED');
           return this.closeTask(task, 'COMPLETED');
         }
       }
 
       // Task related job scheduler crashed...
-      if ((startedAt.getTime() + ((job.maximumExecutionTime + 60) * 1000)) < now) {
+      if ((task._startedAt.getTime() + ((job.maximumExecutionTime + 60) * 1000)) < now) {
+        tasksStatuses.set(taskId, 'FAILED');
         return this.closeTask(task, 'FAILED');
       }
 
       return undefined;
     });
+
+    return tasksStatuses;
   }
 
   /**
    * Class constructor.
    *
-   * @param logger Logger to use.
+   * @param telemetry Telemetry instance to use.
    *
-   * @param databaseClient Database client to use to store/fetch data.
-   *
-   * @param bucketClient Bucket client to use to store logs files.
+   * @param databaseClient DatabaseClient instance to use.
    *
    * @param settings Jobs scheduler settings.
    */
   public constructor(
-    logger: Logger,
-    databaseClient: DatabaseClient,
-    bucketClient: BucketClient,
+    telemetry: Telemetry,
+    databaseClient: DatabaseClient<QueryResults>,
     settings: JobSchedulerSettings,
   ) {
-    super(model, logger, databaseClient);
-    this.tasksRegistry = {};
+    super(model, telemetry, databaseClient);
     this.jobs = settings.jobs;
     this.instanceId = new Id();
-    this.bucketClient = bucketClient;
-    this.logsPath = settings.logsPath;
+    this.EXECUTION_INTERVAL = 5000;
+    this.tasksRegistry = new Map();
     this.availableSlots = settings.availableSlots;
   }
 
   /**
-   * Runs the job passed as a command line argument to the script. This method is meant to be called
-   * in its own dedicated script, and should not be mixed up with `run`.
+   * Runs the task passed as a command line argument to the script. This method is meant to be
+   * called in its own dedicated script, and should not be mixed up with `run`.
    *
-   * @param jobs List of jobs to register.
-   *
-   * @param logsPath Path to the tasks logs directory.
-   *
-   * @param logLevel Minimum logging level (all logs below that level won't be logs).
+   * @throws If task related job does not exist.
    */
-  public static async runJob(
-    jobs: JobSchedulerSettings['jobs'],
-    logsPath: string,
-    logLevel: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
-  ): Promise<void> {
+  public async runTask(): Promise<void> {
     const jobWorkerData = workerData as JobWorkerData;
     const jobId = jobWorkerData?.jobId ?? process.argv[2];
-    const taskId = jobWorkerData?.id ?? process.argv[3];
-    const stringifiedMetadata = jobWorkerData?.metadata ?? process.argv[4] as string | undefined ?? '{}';
-    const metadata = JSON.parse(stringifiedMetadata) as Record<string, unknown>;
-    metadata.lastCompletedAt = (metadata.lastCompletedAt !== undefined)
-      ? new Date(metadata.lastCompletedAt as string)
-      : null;
-    const profiler = new Profiler();
-    const logger = new Logger({
-      logLevel,
-      prettyPrint: false,
-      destination: pino.destination(`${logsPath}/${taskId}.log`),
-    });
-    await logger.waitForReady();
-    try {
-      profiler.reset();
-      if (typeof jobs[jobId] !== 'function') {
-        throw new Error(`Job with id "${jobId}" does not exist.`);
+    const taskId = new Id(jobWorkerData?.id ?? process.argv[3]);
+    const stringifiedMetadata = jobWorkerData?.metadata ?? process.argv[4] as string | null ?? '{}';
+    const parsedMetadata = JSON.parse(stringifiedMetadata) as {
+      lastCompletedAt?: string;
+      traceState?: Record<string, string>;
+      traceParent?: { traceId: string; spanId: string; traceFlags: number; };
+    };
+
+    return this.telemetry.span(`${this.constructor.name}.runTask`, {
+      links: (parsedMetadata.traceParent === undefined) ? [] : [{
+        context: {
+          spanId: parsedMetadata.traceParent.spanId,
+          traceId: parsedMetadata.traceParent.traceId,
+          traceFlags: parsedMetadata.traceParent.traceFlags,
+        },
+      }],
+      attributes: {
+        ...this.defaultAttributes,
+        'app.job.id': jobId,
+        'app.task.id': String(taskId),
+        'app.instance.id': String(this.instanceId),
+      },
+    }, async () => {
+      const metadata: JobMetadata = Object.assign(parsedMetadata, {
+        lastCompletedAt: (parsedMetadata.lastCompletedAt !== undefined)
+          ? new Date(parsedMetadata.lastCompletedAt)
+          : null,
+      });
+
+      if (typeof this.jobs[jobId] !== 'function') {
+        throw new EngineError('NO_RESOURCE', { id: new Id(jobId) });
       }
-      await jobs[jobId](new Id(taskId), metadata as JobMetadata, logger);
-      logger.info(Profiler.formatMetrics(profiler.getMetrics()));
-      await logger.close();
-      process.exit(0);
-    } catch (error) {
-      logger.error(error);
-      await logger.close();
-      process.exit(1);
-    }
+      return this.jobs[jobId](taskId, metadata);
+    });
   }
 
   /**
    * Executes job scheduler.
    */
   public async run(): Promise<void> {
-    this.logger.info(`[JobScheduler][run] Executing main thread, ${String(this.availableSlots)} slots available...`);
-    await this.processPendingTasks();
-    await this.processRunningTasks();
-    setTimeout(this.run.bind(this) as unknown as () => void, 5000);
+    await this.telemetry.span(`${this.constructor.name}.run`, {
+      attributes: {
+        ...this.defaultAttributes,
+        'app.instance.id': String(this.instanceId),
+        'app.instance.available_slots': this.availableSlots,
+      },
+    }, async (span) => {
+      const pendingTasksStatuses = await this.processPendingTasks();
+      const runningTasksStatuses = await this.processRunningTasks();
+
+      const tasksPerStatus: Partial<Record<string, string[]>> = {};
+      pendingTasksStatuses.forEach((status, taskId) => {
+        tasksPerStatus[status] ??= [];
+        tasksPerStatus[status].push(taskId);
+      });
+      runningTasksStatuses.forEach((status, taskId) => {
+        tasksPerStatus[status] ??= [];
+        tasksPerStatus[status].push(taskId);
+      });
+
+      let hasErrors = false;
+
+      if (tasksPerStatus.TIMED_OUT !== undefined) {
+        hasErrors = true;
+        this.telemetry.error('Some tasks timed out.', { tasks: tasksPerStatus.TIMED_OUT });
+      }
+      if (tasksPerStatus.FAILED_TO_TERMINATE !== undefined) {
+        hasErrors = true;
+        this.telemetry.error('Some workers failed to terminate.', { tasks: tasksPerStatus.FAILED_TO_TERMINATE });
+      }
+      if (tasksPerStatus.FAILED !== undefined) {
+        hasErrors = true;
+        this.telemetry.error('Some tasks failed.', { tasks: tasksPerStatus.FAILED });
+      }
+
+      if (hasErrors) {
+        span.setStatus({ code: 'ERROR' });
+      }
+
+      span.setAttributes({
+        'app.tasks.per_status': tasksPerStatus,
+      });
+    });
+
+    await new Promise((resolve) => { setTimeout(resolve, this.EXECUTION_INTERVAL); });
+
+    return this.run();
   }
 }

@@ -116,6 +116,7 @@ export default class FormBuilder<
         };
       }
       if (relation !== undefined) {
+        // TODO WHAT IF THE RELATION DOESNT HAVE SUB FIELDS (LIKE I'M JUST PUTTING 'ROLES' IN FIELDS IN THE CONFIG, NOT 'ROLES.NAME') => ERROR
         const keys = Object.keys(extraFieldsTree);
         const fields = keys.length === 0 ? ['_id'] : keys;
         const labelFn = (resource: Record<string, unknown> | null): string => {
@@ -408,6 +409,8 @@ export default class FormBuilder<
           type,
           required: isRequired,
           validation(newValue) {
+                  // TODO add enum validation
+
             if (pattern !== undefined && !(new RegExp(pattern)).test(newValue)) {
               return 'PATTERN_VIOLATION';
             }

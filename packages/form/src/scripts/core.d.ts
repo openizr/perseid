@@ -74,6 +74,15 @@ declare module '@perseid/form' {
   /**
    * Form field.
    */
+  // TODO new structure, same for steps:
+  // {
+  //   path: string;
+  //   value: unknown;
+  //   fields?: Fields
+  //   error: string | null;
+  //   status: 'initial' | 'error' | 'progress' | 'success';
+  //   configuration: FieldConfiguration;
+  // }
   export interface Field {
     /** Field path from root. */
     path: string;

@@ -1,0 +1,6 @@
+# These packages work without their install scripts (prebuilt binaries ship as optional deps),
+# and pnpm refuses to install until dependency build scripts are reviewed.
+allowBuilds:
+  "@parcel/watcher": false
+  esbuild: false
+  unrs-resolver: false

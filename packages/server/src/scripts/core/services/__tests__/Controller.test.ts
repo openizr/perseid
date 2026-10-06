@@ -6,836 +6,594 @@
  *
  */
 
-import jwt from 'jsonwebtoken';
-import { createWriteStream } from 'fs';
+import { Id } from '@perseid/core';
+import { writeStream } from '__mocks__/fs';
+import { Readable, Writable } from 'stream';
+import { createWriteStream, type WriteStream } from 'fs';
 import { type IncomingMessage } from 'http';
 import Model from 'scripts/core/services/Model';
-import { type FuncKeywordDefinition } from 'ajv';
-import Logger from 'scripts/core/services/Logger';
-import Conflict from 'scripts/core/errors/Conflict';
-import NotFound from 'scripts/core/errors/NotFound';
-import EngineError from 'scripts/core/errors/Engine';
-import Forbidden from 'scripts/core/errors/Forbidden';
-import { type ResourceSchema, Id } from '@perseid/core';
-import BadRequest from 'scripts/core/errors/BadRequest';
-import DatabaseError from 'scripts/core/errors/Database';
+import Telemetry from 'scripts/core/services/Telemetry';
+import ControllerError from 'scripts/core/errors/Controller';
+import type AuthEngine from 'scripts/core/services/AuthEngine';
 import Controller from 'scripts/core/services/Controller';
-import Unauthorized from 'scripts/core/errors/Unauthorized';
-import UsersEngine from 'scripts/core/services/UsersEngine';
-import EmailClient from 'scripts/core/services/EmailClient';
-import CacheClient from 'scripts/core/services/CacheClient';
-import NotAcceptable from 'scripts/core/errors/NotAcceptable';
-import { type DataModel } from 'scripts/core/services/__mocks__/schema';
-import UnprocessableEntity from 'scripts/core/errors/UnprocessableEntity';
-import RequestEntityTooLarge from 'scripts/core/errors/RequestEntityTooLarge';
-import MongoDatabaseClient from 'scripts/mongodb/services/MongoDatabaseClient';
+import schema, { type DataModel } from 'scripts/core/services/__mocks__/schema';
 
-type Validate = (arg: unknown, ...args: unknown[]) => boolean;
+vi.mock('fs');
+vi.mock('scripts/core/services/Model');
+vi.mock('scripts/core/services/Telemetry');
 
+// Protected members are the API this blueprint class exposes to framework-specific controllers.
 type TestController = Controller<DataModel> & {
-  auth: Controller['auth'];
-  parseInt: Controller['parseInt'];
+  ajv: Controller['ajv'];
+  version: Controller['version'];
+  endpoints: Controller['endpoints'];
+  handleCORS: Controller['handleCORS'];
   parseQuery: Controller['parseQuery'];
-  catchErrors: Controller['catchErrors'];
-  formatError: Controller['formatError'];
-  AJV_KEYWORDS: Controller['AJV_KEYWORDS'];
+  KNOWN_ERRORS: Controller['KNOWN_ERRORS'];
   formatOutput: Controller['formatOutput'];
   parseFormData: Controller['parseFormData'];
-  handleNotFound: Controller['handleNotFound'];
   AJV_FORMATTERS: Controller['AJV_FORMATTERS'];
+  instrumentEndpoints: Controller['instrumentEndpoints'];
 };
 
 describe('core/services/Controller', () => {
-  vi.mock('fs');
-  vi.mock('os');
-  vi.mock('path');
-  vi.mock('ajv');
-  vi.mock('multiparty');
-  vi.mock('ajv-errors');
-  vi.mock('jsonwebtoken');
-  vi.mock('@perseid/core');
-  vi.mock('scripts/core/services/Model');
-  vi.mock('scripts/core/services/Logger');
-  vi.mock('scripts/core/services/UsersEngine');
-  vi.mock('scripts/core/services/CacheClient');
-  vi.mock('scripts/core/services/EmailClient');
-  vi.mock('scripts/mongodb/services/MongoDatabaseClient');
+  vi.setSystemTime(new Date('2025-01-01T00:00:00.000Z'));
 
-  const logger = new Logger({ logLevel: 'info', prettyPrint: false });
-  const emailClient = new EmailClient(logger, { connectTimeout: 0 });
-  const cacheClient = new CacheClient({ cachePath: '/.cache', connectTimeout: 0 });
-  const model = new Model<DataModel>({} as Record<keyof DataModel, ResourceSchema<DataModel>>);
-  const databaseClient = new MongoDatabaseClient<DataModel>(model, logger, cacheClient, {
-    connectionLimit: 0,
-    connectTimeout: 0,
-    database: '',
-    host: '',
-    password: '',
-    port: 0,
-    protocol: '',
-    user: '',
-  });
-  const engine = new UsersEngine<DataModel>(
-    model,
-    logger,
-    databaseClient,
-    emailClient,
-    cacheClient,
-    {
-      baseUrl: '',
-      auth: {
-        algorithm: 'RS256',
-        clientId: '',
-        issuer: '',
-        privateKey: '',
-        publicKey: '',
-      },
+  const idA = '00000000-0000-7000-8000-000000000001';
+  const idB = '00000000-0000-7000-8000-000000000002';
+  const endpoints = { auth: { signIn: { path: '/auth/sign-in' } }, resources: {} };
+
+  const test = it.extend<{
+    telemetry: Telemetry;
+    controller: TestController;
+  }>({
+    telemetry: async ({ onTestFinished }, use) => {
+      onTestFinished(() => {
+        Id.FORMAT = 'UUID';
+        vi.clearAllMocks();
+      });
+      await use(new Telemetry());
     },
-  );
-  let controller: TestController;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    delete process.env.UNKNOWN_ERROR;
-    controller = new Controller<DataModel>(model, logger, engine, {
-      version: '0.0.1',
-      handleCORS: false,
-      endpoints: { auth: {}, resources: {} },
-    }) as TestController;
+    controller: async ({ telemetry }, use) => {
+      // The base controller never calls its engine, only framework-specific controllers do.
+      const engine = {} as AuthEngine<DataModel>;
+      await use(new Controller<DataModel>(new Model<DataModel>(schema), telemetry, engine, {
+        endpoints,
+        version: '1.0.0',
+        handleCORS: true,
+        instrumentEndpoints: false,
+      }) as TestController);
+    },
   });
 
-  test('[AJV_KEYWORDS]', () => {
-    const context = { parentData: {}, parentDataProperty: 'test' };
-    let validate = (controller.AJV_KEYWORDS[0] as FuncKeywordDefinition).validate as Validate;
-    expect(validate({}, null, { type: ['string', 'null'] }, context)).toBe(true);
-    expect(validate({}, '', {}, context)).toBe(false);
-    expect(validate({}, 'data:test', {}, context)).toBe(true);
-    validate = (controller.AJV_KEYWORDS[1] as FuncKeywordDefinition).validate as Validate;
-    expect(validate({}, null, { type: ['string', 'null'] }, context)).toBe(true);
-    expect(validate({}, '', {}, context)).toBe(false);
-    expect(validate({}, '2023-01-01T00:00:00.000Z', { enum: [] }, context)).toBe(false);
-    expect(validate({}, '2023-01-01T00:00:00.000Z', {}, context)).toBe(true);
-    validate = (controller.AJV_KEYWORDS[2] as FuncKeywordDefinition).validate as Validate;
-    expect(validate({}, null, { type: ['string', 'null'] }, context)).toBe(true);
-    expect(validate({}, '', {}, context)).toBe(false);
-    expect(validate({}, '64723318e84f943f1ad6578b', { enum: [] }, context)).toBe(false);
-    expect(validate({}, '64723318e84f943f1ad6578b', {}, context)).toBe(true);
-  });
-
-  describe('[AJV_FORMATTERS]', () => {
-    test('null', () => {
-      expect(controller.AJV_FORMATTERS.null({ type: 'null' }, false)).toEqual({
-        type: 'null',
-        errorMessage: {},
-      });
+  describe('[constructor]', () => {
+    test('stores settings, without instrumenting endpoints', ({ controller, telemetry }) => {
+      expect(controller.version).toBe('1.0.0');
+      expect(controller.handleCORS).toBe(true);
+      expect(controller.endpoints).toEqual(endpoints);
+      expect(controller.instrumentEndpoints).toBe(false);
+      expect(telemetry.createHistogram).not.toHaveBeenCalled();
+      expect(telemetry.createUpDownCounter).not.toHaveBeenCalled();
     });
 
-    test('id', () => {
-      expect(controller.AJV_FORMATTERS.id({
-        type: 'id',
-        enum: [new Id('000000000000000000000001')],
-      }, false)).toEqual({
-        enum: [
-          '000000000000000000000001',
-          null,
-        ],
-        errorMessage: {
-          enum: 'must be one of: "000000000000000000000001"',
-          pattern: 'must be a valid id',
-          type: 'must be a valid id, or null',
-        },
-        isId: true,
-        pattern: '^[0-9a-fA-F]{24}$',
-        type: [
-          'string',
-          'null',
-        ],
+    test('registers HTTP metrics when instrumenting endpoints', ({ telemetry }) => {
+      const engine = {} as AuthEngine<DataModel>;
+      const model = new Model<DataModel>(schema);
+      const controller = new Controller<DataModel>(model, telemetry, engine, {
+        endpoints,
+        version: '1.0.0',
+        handleCORS: false,
+        instrumentEndpoints: true,
+      }) as TestController;
+      expect(controller.instrumentEndpoints).toBe(true);
+      expect(telemetry.createUpDownCounter).toHaveBeenCalledOnce();
+      expect(telemetry.createUpDownCounter).toHaveBeenCalledWith('http.server.active_requests', {
+        valueType: 1,
+        unit: '{request}',
+        description: 'Number of active HTTP server requests.',
       });
-      expect(controller.AJV_FORMATTERS.id({
-        type: 'id',
-        isRequired: true,
-        enum: [new Id('000000000000000000000001')],
-      }, false)).toEqual({
-        enum: [
-          '000000000000000000000001',
-        ],
-        errorMessage: {
-          enum: 'must be one of: "000000000000000000000001"',
-          pattern: 'must be a valid id',
-          type: 'must be a valid id',
+      expect(telemetry.createHistogram).toHaveBeenCalledOnce();
+      expect(telemetry.createHistogram).toHaveBeenCalledWith('http.server.request.duration', {
+        description: 'Duration of HTTP server requests.',
+        unit: 's',
+        advice: {
+          explicitBucketBoundaries: [
+            0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
+          ],
         },
-        isId: true,
-        pattern: '^[0-9a-fA-F]{24}$',
-        type: 'string',
-      });
-    });
-
-    test('binary', () => {
-      expect(controller.AJV_FORMATTERS.binary({
-        type: 'binary',
-      }, false)).toEqual({
-        errorMessage: {
-          type: 'must be a base64-encoded binary, or null',
-        },
-        isBinary: true,
-        minLength: 10,
-        type: [
-          'string',
-          'null',
-        ],
-      });
-      expect(controller.AJV_FORMATTERS.binary({
-        type: 'binary',
-        isRequired: true,
-      }, false)).toEqual({
-        errorMessage: {
-          type: 'must be a base64-encoded binary',
-        },
-        isBinary: true,
-        minLength: 10,
-        type: 'string',
-      });
-    });
-
-    test('date', () => {
-      expect(controller.AJV_FORMATTERS.date({
-        type: 'date',
-        enum: [new Date('2023-01-01')],
-      }, false)).toEqual({
-        enum: [
-          '2023-01-01T00:00:00.000Z',
-          null,
-        ],
-        errorMessage: {
-          enum: 'must be one of: "2023-01-01T00:00:00.000Z"',
-          pattern: 'must be a valid date',
-          type: 'must be a valid date, or null',
-        },
-        isDate: true,
-        pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z',
-        type: [
-          'string',
-          'null',
-        ],
-      });
-      expect(controller.AJV_FORMATTERS.date({
-        type: 'date',
-        isRequired: true,
-        enum: [new Date('2023-01-01')],
-      }, false)).toEqual({
-        enum: [
-          '2023-01-01T00:00:00.000Z',
-        ],
-        errorMessage: {
-          enum: 'must be one of: "2023-01-01T00:00:00.000Z"',
-          pattern: 'must be a valid date',
-          type: 'must be a valid date',
-        },
-        isDate: true,
-        pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z',
-        type: 'string',
-      });
-    });
-
-    test('boolean', () => {
-      expect(controller.AJV_FORMATTERS.boolean({
-        type: 'boolean',
-      }, false)).toEqual({
-        errorMessage: {
-          type: 'must be a boolean, or null',
-        },
-        type: [
-          'boolean',
-          'null',
-        ],
-      });
-      expect(controller.AJV_FORMATTERS.boolean({
-        type: 'boolean',
-        isRequired: true,
-      }, false)).toEqual({
-        errorMessage: {
-          type: 'must be a boolean',
-        },
-        type: 'boolean',
-      });
-    });
-
-    test('float', () => {
-      expect(controller.AJV_FORMATTERS.float({
-        type: 'float',
-        maximum: 3,
-        minimum: 2,
-        multipleOf: 1,
-        enum: [2],
-      }, false)).toEqual({
-        errorMessage: {
-          enum: 'must be one of: 2',
-          maximum: 'must be smaller than or equal to 3',
-          minimum: 'must be greater than or equal to 2',
-          multipleOf: 'must be a multiple of 1',
-          type: 'must be a float, or null',
-        },
-        maximum: 3,
-        minimum: 2,
-        multipleOf: 1,
-        enum: [2, null],
-        type: [
-          'number',
-          'null',
-        ],
-      });
-      expect(controller.AJV_FORMATTERS.float({
-        type: 'float',
-        isRequired: true,
-        exclusiveMaximum: 3,
-        exclusiveMinimum: 0,
-        enum: [2],
-      }, false)).toEqual({
-        errorMessage: {
-          enum: 'must be one of: 2',
-          exclusiveMaximum: 'must be smaller than 3',
-          exclusiveMinimum: 'must be greater than 0',
-          type: 'must be a float',
-        },
-        enum: [2],
-        exclusiveMaximum: 3,
-        exclusiveMinimum: 0,
-        type: 'number',
-      });
-    });
-
-    test('integer', () => {
-      expect(controller.AJV_FORMATTERS.integer({
-        type: 'integer',
-        maximum: 3,
-        minimum: 2,
-        multipleOf: 1,
-        enum: [2],
-      }, false)).toEqual({
-        errorMessage: {
-          enum: 'must be one of: 2',
-          maximum: 'must be smaller than or equal to 3',
-          minimum: 'must be greater than or equal to 2',
-          multipleOf: 'must be a multiple of 1',
-          type: 'must be an integer, or null',
-        },
-        enum: [2, null],
-        maximum: 3,
-        minimum: 2,
-        multipleOf: 1,
-        type: [
-          'integer',
-          'null',
-        ],
-      });
-      expect(controller.AJV_FORMATTERS.integer({
-        type: 'integer',
-        isRequired: true,
-        exclusiveMaximum: 3,
-        exclusiveMinimum: 0,
-        enum: [2],
-      }, false)).toEqual({
-        errorMessage: {
-          enum: 'must be one of: 2',
-          exclusiveMaximum: 'must be smaller than 3',
-          exclusiveMinimum: 'must be greater than 0',
-          type: 'must be an integer',
-        },
-        enum: [2],
-        exclusiveMaximum: 3,
-        exclusiveMinimum: 0,
-        type: 'integer',
-      });
-    });
-
-    test('string', () => {
-      expect(controller.AJV_FORMATTERS.string({
-        type: 'string',
-        enum: ['test'],
-        maxLength: 10,
-        minLength: 2,
-        pattern: /test/i,
-      }, false)).toEqual({
-        enum: [
-          'test',
-          null,
-        ],
-        errorMessage: {
-          enum: 'must be one of: "test"',
-          maxLength: 'must be no longer than 10 characters',
-          minLength: 'must be no shorter than 2 characters',
-          pattern: 'must match "test" pattern',
-          type: 'must be a string, or null',
-        },
-        maxLength: 10,
-        minLength: 2,
-        pattern: 'test',
-        type: [
-          'string',
-          'null',
-        ],
-      });
-      expect(controller.AJV_FORMATTERS.string({
-        type: 'string',
-        enum: ['test'],
-        maxLength: 10,
-        pattern: /test/i,
-        isRequired: true,
-      }, false)).toEqual({
-        enum: ['test'],
-        errorMessage: {
-          enum: 'must be one of: "test"',
-          maxLength: 'must be no longer than 10 characters',
-          minLength: 'must be no shorter than 1 characters',
-          pattern: 'must match "test" pattern',
-          type: 'must be a string',
-        },
-        maxLength: 10,
-        minLength: 1,
-        pattern: 'test',
-        type: 'string',
-      });
-    });
-    test('object', () => {
-      expect(controller.AJV_FORMATTERS.object({
-        type: 'object',
-        fields: {
-          test: { type: 'string' },
-        },
-      }, false)).toEqual({
-        additionalProperties: false,
-        required: ['test'],
-        type: ['object', 'null'],
-        errorMessage: {
-          type: 'must be a valid object, or null',
-        },
-        properties: {
-          test: {
-            type: ['string', 'null'],
-            errorMessage: {
-              type: 'must be a string, or null',
-            },
-          },
-        },
-      });
-      expect(controller.AJV_FORMATTERS.object({
-        type: 'object',
-        isRequired: true,
-        fields: {
-          test: { type: 'string' },
-        },
-      }, false)).toEqual({
-        additionalProperties: false,
-        type: 'object',
-        errorMessage: {
-          type: 'must be a valid object',
-        },
-        properties: {
-          test: {
-            type: ['string', 'null'],
-            errorMessage: {
-              type: 'must be a string, or null',
-            },
-          },
-        },
-      });
-    });
-    test('array', () => {
-      expect(controller.AJV_FORMATTERS.array({
-        type: 'array',
-        maxItems: 10,
-        minItems: 1,
-        uniqueItems: true,
-        fields: { type: 'string' },
-      }, false)).toEqual({
-        errorMessage: {
-          maxItems: 'must not contain more than 10 entries',
-          minItems: 'must contain at least 1 entry',
-          type: 'must be a valid array, or null',
-          uniqueItems: 'must contain only unique entries',
-        },
-        items: {
-          errorMessage: {
-            type: 'must be a string, or null',
-          },
-          type: ['string', 'null'],
-        },
-        maxItems: 10,
-        minItems: 1,
-        type: ['array', 'null'],
-        uniqueItems: true,
-      });
-      expect(controller.AJV_FORMATTERS.array({
-        type: 'array',
-        maxItems: 1,
-        minItems: 2,
-        isRequired: true,
-        uniqueItems: true,
-        fields: { type: 'string' },
-      }, false)).toEqual({
-        errorMessage: {
-          maxItems: 'must not contain more than 1 entry',
-          minItems: 'must contain at least 2 entries',
-          type: 'must be a valid array',
-          uniqueItems: 'must contain only unique entries',
-        },
-        items: {
-          errorMessage: {
-            type: 'must be a string, or null',
-          },
-          type: ['string', 'null'],
-        },
-        maxItems: 1,
-        minItems: 2,
-        type: 'array',
-        uniqueItems: true,
       });
     });
   });
 
-  test('[handleNotFound]', () => {
-    expect(() => {
-      controller.handleNotFound();
-    }).toThrow(new NotFound('NOT_FOUND', 'Not Found.'));
-  });
-
-  describe('[formatError]', () => {
-    test('required property', () => {
-      expect(controller.formatError({
-        keyword: 'required',
-        instancePath: '/path/to',
-        params: { missingProperty: 'field' },
-      }, 'body')).toEqual(new BadRequest('INVALID_PAYLOAD', '"body.path.to.field" is required.'));
+  describe('[KNOWN_ERRORS]', () => {
+    test('maps each known error to an HTTP status, a code and a message', ({ controller }) => {
+      const details = {
+        id: idA,
+        path: 'title',
+        value: 'test',
+        filename: 'a.png',
+        operation: 'CREATE',
+        contentType: 'image/gif',
+        permission: 'USERS.VIEW',
+      };
+      const responses = Object.fromEntries(Object.entries(controller.KNOWN_ERRORS).map(
+        ([code, format]) => [code, format?.(new ControllerError(code, details))],
+      ));
+      expect(responses).toEqual({
+        FORBIDDEN: [403, 'FORBIDDEN', 'You are missing "USERS.VIEW" permission to perform this operation.'],
+        NO_USER: [401, 'INVALID_CREDENTIALS', 'Invalid credentials.'],
+        INVALID_DEVICE_ID: [401, 'INVALID_DEVICE_ID', 'Invalid device id.'],
+        INVALID_TOKEN: [401, 'INVALID_TOKEN', 'Invalid access token.'],
+        PASSWORDS_MISMATCH: [400, 'PASSWORDS_MISMATCH', 'Passwords mismatch.'],
+        INVALID_CREDENTIALS: [401, 'INVALID_CREDENTIALS', 'Invalid credentials.'],
+        TOKEN_EXPIRED: [401, 'TOKEN_EXPIRED', 'Access token has expired.'],
+        EMAIL_ALREADY_VERIFIED: [400, 'EMAIL_ALREADY_VERIFIED', 'Email already verified.'],
+        INVALID_RESET_TOKEN: [401, 'INVALID_RESET_TOKEN', 'Invalid or expired reset token.'],
+        INVALID_REFRESH_TOKEN: [401, 'INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token.'],
+        TOO_MANY_FIELDS: [422, 'TOO_MANY_FIELDS', 'Maximum number of fields exceeded.'],
+        FILES_TOO_LARGE: [413, 'FILES_TOO_LARGE', 'Maximum total files size exceeded.'],
+        INVALID_VERIFICATION_TOKEN: [401, 'INVALID_VERIFICATION_TOKEN', 'Invalid or expired verification token.'],
+        MISSING_CONTENT_TYPE_HEADER: [422, 'MISSING_CONTENT_TYPE_HEADER', 'Missing "Content-Type" header.'],
+        FIELD_TOO_LARGE: [413, 'FIELD_TOO_LARGE', 'Maximum non-file fields size exceeded.'],
+        UNINDEXED_FIELD: [400, 'UNINDEXED_FIELD', 'Field "title" is not indexed.'],
+        UNSORTABLE_FIELD: [400, 'UNSORTABLE_FIELD', 'Field "title" is not sortable.'],
+        UNKNOWN_QUERY_FIELD: [400, 'UNKNOWN_QUERY_FIELD', 'Requested field "title" does not exist.'],
+        USER_NOT_VERIFIED: [403, 'USER_NOT_VERIFIED', 'Please verify your email address before performing this operation.'],
+        RESOURCE_REFERENCED: [400, 'RESOURCE_REFERENCED', 'Resource is still referenced elsewhere.', {}],
+        RESOURCE_EXISTS: [409, 'RESOURCE_EXISTS', 'Resource already exists.', {}],
+        INVALID_SORT_QUERY: [400, 'INVALID_SORT_QUERY', '"query.sortBy" and "query.sortOrder" must contain the same number of items.'],
+        FILE_TOO_LARGE: [413, 'FILE_TOO_LARGE', 'Maximum size exceeded for file "a.png".'],
+        MAXIMUM_DEPTH_EXCEEDED: [400, 'MAXIMUM_DEPTH_EXCEEDED', 'Maximum level of depth exceeded for field "title".'],
+        OPERATION_NOT_ALLOWED: [403, 'OPERATION_NOT_ALLOWED', 'Operation "CREATE" is not allowed for this resource.'],
+        INVALID_FILE_TYPE: [422, 'INVALID_FILE_TYPE', 'Invalid file type "image/gif" for file "a.png".'],
+        NO_RESOURCE: [404, 'NO_RESOURCE', `Resource with id "${idA}" does not exist or does not match required criteria.`],
+      });
     });
 
-    test('unknown property', () => {
-      expect(controller.formatError({
-        keyword: 'additionalProperties',
-        instancePath: '/path/to',
-        params: { additionalProperty: 'field' },
-      }, 'body')).toEqual(new BadRequest('INVALID_PAYLOAD', 'Unknown field "body.path.to.field".'));
+    test('maps a forbidden error with no specific permission', ({ controller }) => {
+      const error = new ControllerError('FORBIDDEN', { permission: null });
+      expect(controller.KNOWN_ERRORS.FORBIDDEN?.(error)).toEqual([
+        403,
+        'FORBIDDEN',
+        'You are not allowed to perform this operation.',
+      ]);
     });
   });
 
-  test('[formatOutput]', () => {
-    expect(controller.formatOutput({
-      array: [],
-      object: {},
-      id: new Id('64723318e84f943f1ad6578b'),
-      date: new Date('2023-01-01T00:00:00.000Z'),
-      other: 'test',
-      binary: new ArrayBuffer(0),
-    })).toEqual({
-      array: [],
-      object: {},
-      id: '64723318e84f943f1ad6578b',
-      date: '2023-01-01T00:00:00.000Z',
-      other: 'test',
-      binary: '',
+  describe('[formatOutput]', () => {
+    test('formats ids, dates and binaries into strings, recursively', ({ controller }) => {
+      expect(controller.formatOutput({
+        _id: new Id(idA),
+        count: 3,
+        title: null,
+        data: {
+          _createdAt: new Date('2025-01-01T00:00:00.000Z'),
+          binary: new TextEncoder().encode('data:text/plain;base64,dGVzdA==').buffer,
+          relations: [new Id(idB), { _id: new Id(idA) }],
+        },
+      })).toEqual({
+        _id: idA,
+        count: 3,
+        title: null,
+        data: {
+          _createdAt: '2025-01-01T00:00:00.000Z',
+          binary: 'data:text/plain;base64,dGVzdA==',
+          relations: [idB, { _id: idA }],
+        },
+      });
     });
   });
 
   describe('[parseQuery]', () => {
-    const message = '"query.sortBy" and "query.sortOrder" must contain the same number of items.';
-    test('INVALID_PAYLOAD error', () => {
-      expect(() => (
-        controller.parseQuery({ sortBy: '_id' })
-      )).toThrow(new BadRequest('INVALID_PAYLOAD', message));
-    });
-    test('no error', () => {
+    test('parses built-in query params, and keeps custom ones as is', ({ controller }) => {
       expect(controller.parseQuery({
-        fields: 'array,test',
-        sortBy: '_id,test',
-        sortOrder: '-1,1',
-        other: 'test',
+        fields: '_id,title',
+        sortBy: 'title,_createdAt',
+        sortOrder: '1,-1',
+        offset: '10',
+        custom: null,
       })).toEqual({
-        fields: new Set(['array', 'test']),
-        sortBy: {
-          _id: -1,
-          test: 1,
-        },
-        other: 'test',
+        fields: new Set(['_id', 'title']),
+        sortBy: { title: 1, _createdAt: -1 },
+        offset: '10',
+        custom: null,
       });
+    });
+
+    test('keeps null built-in query params as is', ({ controller }) => {
+      expect(controller.parseQuery({ fields: null, sortBy: null })).toEqual({
+        fields: null,
+        sortBy: null,
+      });
+    });
+
+    test('throws when sorting params sizes mismatch', ({ controller }) => {
+      expect(() => controller.parseQuery({ sortBy: 'title,_createdAt', sortOrder: '1' }))
+        .toThrow(new ControllerError('INVALID_SORT_QUERY'));
+      expect(() => controller.parseQuery({ sortBy: 'title' }))
+        .toThrow(new ControllerError('INVALID_SORT_QUERY'));
+    });
+  });
+
+  describe('[AJV_FORMATTERS]', () => {
+    test('validates and formats a complete payload', ({ controller }) => {
+      const validate = controller.ajv.compile(controller.AJV_FORMATTERS.object({
+        description: '',
+        type: 'object',
+        isRequired: true,
+        fields: {
+          _id: { description: '', type: 'id', isRequired: true },
+          id: {
+            description: '', type: 'id', isRequired: true, enum: [new Id(idA)],
+          },
+          optionalId: { description: '', type: 'id', enum: [new Id(idA)] },
+          binary: { description: '', type: 'binary', isRequired: true },
+          boolean: { description: '', type: 'boolean', isRequired: true },
+          date: {
+            description: '', type: 'date', isRequired: true, enum: [new Date('2025-01-01T00:00:00.000Z')],
+          },
+          optionalDate: { description: '', type: 'date', enum: [new Date('2025-01-01T00:00:00.000Z')] },
+          float: {
+            description: '', type: 'float', isRequired: true, enum: [1.5, 2.5],
+          },
+          optionalFloat: { description: '', type: 'float', enum: [1.5] },
+          integer: {
+            description: '', type: 'integer', isRequired: true, enum: [1, 2],
+          },
+          optionalInteger: { description: '', type: 'integer', enum: [1] },
+          string: {
+            description: '', type: 'string', maxLength: 10, isRequired: true, enum: ['one', 'two'],
+          },
+          optionalString: {
+            description: '', type: 'string', maxLength: 10, minLength: 2, enum: ['one'],
+          },
+          array: { type: 'array', isRequired: true, fields: { description: '', type: 'null' } },
+          object: {
+            description: '',
+            type: 'object',
+            isRequired: true,
+            fields: {
+              id: { description: '', type: 'id' },
+              binary: { description: '', type: 'binary' },
+              boolean: { description: '', type: 'boolean' },
+              date: { description: '', type: 'date' },
+              float: { description: '', type: 'float' },
+              integer: { description: '', type: 'integer' },
+              string: { description: '', type: 'string', maxLength: 10 },
+              array: {
+                type: 'array',
+                fields: {
+                  description: '', type: 'string', maxLength: 10, isRequired: true,
+                },
+              },
+              object: { description: '', type: 'object', fields: { string: { description: '', type: 'string', maxLength: 10 } } },
+            },
+          },
+        },
+      }, true));
+      const payload = {
+        id: idA,
+        binary: 'data:text/plain;base64,dGVzdA==',
+        boolean: true,
+        date: '2025-01-01T00:00:00.000Z',
+        float: 1.5,
+        integer: 2,
+        string: 'one',
+        array: [null],
+        object: { object: null },
+      };
+      expect(validate(payload)).toBe(true);
+      expect(payload).toEqual({
+        id: new Id(idA),
+        optionalId: null,
+        binary: new TextEncoder().encode('data:text/plain;base64,dGVzdA==').buffer,
+        boolean: true,
+        date: new Date('2025-01-01T00:00:00.000Z'),
+        optionalDate: null,
+        float: 1.5,
+        optionalFloat: null,
+        integer: 2,
+        optionalInteger: null,
+        string: 'one',
+        optionalString: null,
+        array: [null],
+        object: {
+          id: null,
+          binary: null,
+          boolean: null,
+          date: null,
+          float: null,
+          integer: null,
+          string: null,
+          array: null,
+          object: null,
+        },
+      });
+    });
+
+    test('rejects an invalid payload with meaningful messages', ({ controller }) => {
+      const validate = controller.ajv.compile(controller.AJV_FORMATTERS.object({
+        description: '',
+        type: 'object',
+        isRequired: true,
+        fields: {
+          id: { description: '', type: 'id', isRequired: true },
+          enumId: {
+            description: '', type: 'id', isRequired: true, enum: [new Id(idA)],
+          },
+          optionalId: { description: '', type: 'id' },
+          binary: { description: '', type: 'binary', isRequired: true },
+          optionalBinary: { description: '', type: 'binary' },
+          boolean: {
+            description: '', type: 'boolean', isRequired: true, errorMessages: { description: '', type: 'must be yes or no' },
+          },
+          date: { description: '', type: 'date', isRequired: true },
+          enumDate: {
+            description: '', type: 'date', isRequired: true, enum: [new Date('2025-01-01T00:00:00.000Z')],
+          },
+          float: {
+            description: '',
+            type: 'float',
+            isRequired: true,
+            minimum: 1,
+            maximum: 10,
+            exclusiveMinimum: 0,
+            exclusiveMaximum: 11,
+            multipleOf: 0.5,
+          },
+          integer: {
+            description: '',
+            type: 'integer',
+            isRequired: true,
+            minimum: 1,
+            maximum: 10,
+            exclusiveMinimum: 0,
+            exclusiveMaximum: 11,
+            multipleOf: 2,
+          },
+          string: {
+            description: '', type: 'string', isRequired: true, pattern: /^[a-z]+$/, maxLength: 5,
+          },
+          array: {
+            type: 'array',
+            isRequired: true,
+            minItems: 2,
+            maxItems: 3,
+            uniqueItems: true,
+            fields: {
+              description: '', type: 'string', maxLength: 10, isRequired: true,
+            },
+          },
+          singleArray: {
+            type: 'array',
+            isRequired: true,
+            minItems: 1,
+            maxItems: 1,
+            fields: { description: '', type: 'integer', isRequired: true },
+          },
+          object: {
+            description: '',
+            type: 'object',
+            fields: {
+              string: {
+                description: '', type: 'string', maxLength: 10, isRequired: true,
+              },
+            },
+          },
+        },
+      }, false));
+      expect(validate({
+        id: 'invalid',
+        enumId: idB,
+        optionalId: 3,
+        binary: 'invalid',
+        optionalBinary: 3,
+        boolean: 'invalid',
+        date: 'invalid',
+        enumDate: '2026-01-01T00:00:00.000Z',
+        float: 0.7,
+        integer: 13,
+        string: 'ABCDEFG',
+        array: ['a'],
+        singleArray: [1, 2],
+        object: {},
+        unknown: true,
+      })).toBe(false);
+      expect(validate.errors?.map(({ instancePath, message }) => [instancePath, message])).toEqual([
+        ['', 'must NOT have additional properties'],
+        ['/id', 'must be a valid id'],
+        ['/enumId', `must be one of: "${idA}"`],
+        ['/optionalId', 'must be a valid id'],
+        ['/binary', 'must NOT have fewer than 10 characters'],
+        ['/binary', 'must be a base64-encoded binary'],
+        ['/optionalBinary', 'must NOT have fewer than 10 characters'],
+        ['/optionalBinary', 'must be a base64-encoded binary, or null'],
+        ['/boolean', 'must be yes or no'],
+        ['/date', 'must be a valid date'],
+        ['/enumDate', 'must be one of: "2025-01-01T00:00:00.000Z"'],
+        ['/float', 'must be greater than or equal to 1'],
+        ['/float', 'must be a multiple of 0.5'],
+        ['/integer', 'must be smaller than or equal to 10'],
+        ['/integer', 'must be smaller than 11'],
+        ['/integer', 'must be a multiple of 2'],
+        ['/string', 'must be no longer than 5 characters'],
+        ['/string', 'must match "^[a-z]+$" pattern'],
+        ['/array', 'must contain at least 2 entries'],
+        ['/singleArray', 'must not contain more than 1 entry'],
+        ['/object', "must have required property 'string'"],
+      ]);
+    });
+
+    test('validates ids in the snowflake format', ({ controller }) => {
+      Id.FORMAT = 'SNOWFLAKE';
+      const validate = controller.ajv.compile(controller.AJV_FORMATTERS.object({
+        description: '',
+        type: 'object',
+        isRequired: true,
+        fields: { id: { description: '', type: 'id', isRequired: true } },
+      }, true));
+      expect(validate({ id: 'invalid' })).toBe(false);
+      const payload = { id: '0123456789abcdef01234567' };
+      expect(validate(payload)).toBe(true);
+      expect(payload).toEqual({ id: new Id('0123456789abcdef01234567') });
     });
   });
 
   describe('[parseFormData]', () => {
-    test('field too large', async () => {
-      const payload = {} as IncomingMessage;
-      process.env.MUTIPARTY_ERROR_FIELD_TOO_LARGE = 'true';
-      const error = new RequestEntityTooLarge('field_too_large', 'Maximum non-file fields size exceeded.');
-      await expect(() => controller.parseFormData(payload)).rejects.toEqual(error);
-      delete process.env.MUTIPARTY_ERROR_FIELD_TOO_LARGE;
-    });
-
-    test('too many fields', async () => {
-      const payload = {} as IncomingMessage;
-      process.env.MUTIPARTY_ERROR_TOO_MANY_FIELDS = 'true';
-      const error = new RequestEntityTooLarge('too_many_fields', 'Maximum number of fields exceeded.');
-      await expect(() => controller.parseFormData(payload)).rejects.toEqual(error);
-      delete process.env.MUTIPARTY_ERROR_TOO_MANY_FIELDS;
-    });
-
-    test('missing content-type header', async () => {
-      const payload = {} as IncomingMessage;
-      process.env.MUTIPARTY_ERROR_MISSING_HEADER = 'true';
-      const error = new UnprocessableEntity('missing_content_type_header', 'Missing "Content-Type" header.');
-      await expect(() => controller.parseFormData(payload)).rejects.toEqual(error);
-      delete process.env.MUTIPARTY_ERROR_MISSING_HEADER;
-    });
-
-    test('other error', async () => {
-      const payload = {} as IncomingMessage;
-      process.env.MUTIPARTY_ERROR_OTHER = 'true';
-      const error = new Error('other error');
-      await expect(() => controller.parseFormData(payload)).rejects.toEqual(error);
-      delete process.env.MUTIPARTY_ERROR_OTHER;
-    });
-
-    test('invalid file type', async () => {
-      const payload = {} as IncomingMessage;
-      const error = new BadRequest('invalid_file_type', 'Invalid file type "image/png" for file "undefined".');
-      await expect(() => controller.parseFormData(payload)).rejects.toEqual(error);
-    });
-
-    test('file too large', async () => {
-      const payload = {} as IncomingMessage;
-      const options = { allowedMimeTypes: ['image/png'], maxFileSize: 10 };
-      const error = new BadRequest('file_too_large', 'Maximum size exceeded for file "undefined".');
-      await expect(() => controller.parseFormData(payload, options)).rejects.toEqual(error);
-    });
-
-    test('files too large', async () => {
-      const payload = {} as IncomingMessage;
-      const options = { allowedMimeTypes: ['image/png'], maxFileSize: 100, maxTotalSize: 10 };
-      const error = new BadRequest('files_too_large', 'Maximum total files size exceeded.');
-      await expect(() => controller.parseFormData(payload, options)).rejects.toEqual(error);
-    });
-
-    test('stream error', async () => {
-      const payload = {} as IncomingMessage;
-      process.env.FS_ERROR_STREAM = 'true';
-      const options = { allowedMimeTypes: ['image/png'] };
-      const error = new Error('error');
-      await expect(() => controller.parseFormData(payload, options)).rejects.toEqual(error);
-      delete process.env.FS_ERROR_STREAM;
-    });
-
-    test('0 field', async () => {
-      const payload = {} as IncomingMessage;
-      process.env.MUTIPARTY_NO_FIELD = 'true';
-      const options = { allowedMimeTypes: ['image/png'] };
-      await controller.parseFormData(payload, options);
-      expect(createWriteStream).toHaveBeenCalledTimes(0);
-      delete process.env.MUTIPARTY_NO_FIELD;
-    });
-
-    test('1 file', async () => {
-      const payload = {} as IncomingMessage;
-      const options = { allowedMimeTypes: ['image/png'] };
-      await controller.parseFormData(payload, options);
-      expect(createWriteStream).toHaveBeenCalledOnce();
-    });
-  });
-
-  describe('[auth]', () => {
-    test('INVALID_CREDENTIALS error', async () => {
-      await expect(async () => {
-        await controller.auth('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9', 'invalid');
-      }).rejects.toEqual(new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.'));
-    });
-
-    test('unknown error', async () => {
-      process.env.UNKNOWN_ERROR = 'true';
-      await expect(async () => {
-        await controller.auth('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9', 'valid');
-      }).rejects.toEqual(new Error('UNKNOWN'));
-    });
-
-    test('no error', async () => {
-      const user = await controller.auth('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9', 'valid');
-      expect(user).toEqual({
-        _devices: [{ _id: 'valid' }],
-        roles: [{
-          name: 'TEST',
-          permissions: ['TEST'],
-        }],
+    test('parses fields and files, grouping files by field', async ({ controller }) => {
+      const request = Object.assign(Readable.from([
+        '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="title"\r\n\r\n'
+        + 'Coffee machine\r\n'
+        + '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="files"; filename="a.png"\r\n'
+        + 'Content-Type: image/png\r\n\r\n'
+        + 'PNG_A\r\n'
+        + '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="photos"; filename="b.png"\r\n'
+        + 'Content-Type: image/png\r\n\r\n'
+        + 'PNG_BB\r\n'
+        + '--BOUNDARY--\r\n',
+      ]), { headers: { 'content-type': 'multipart/form-data; boundary=BOUNDARY' } });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage, {
+        allowedMimeTypes: ['image/png'],
+      })).resolves.toEqual({
+        title: 'Coffee machine',
+        files: [
+          {
+            size: 5,
+            id: '1941f297c000',
+            path: '/tmp/1941f297c000',
+            name: 'a.png',
+            type: 'image/png',
+          },
+        ],
+        photos: [
+          {
+            size: 6,
+            id: '1941f297c001',
+            path: '/tmp/1941f297c001',
+            name: 'b.png',
+            type: 'image/png',
+          },
+        ],
       });
-    });
-  });
-
-  describe('[catchErrors]', () => {
-    test('TOKEN_EXPIRED error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new jwt.TokenExpiredError('', new Date());
-        });
-      }).rejects.toThrow(new Unauthorized('TOKEN_EXPIRED', 'Access token has expired.'));
+      expect(writeStream).toHaveBeenCalledTimes(2);
+      expect(writeStream).toHaveBeenCalledWith('/tmp/1941f297c000', Buffer.from('PNG_A'));
+      expect(writeStream).toHaveBeenCalledWith('/tmp/1941f297c001', Buffer.from('PNG_BB'));
     });
 
-    test('INVALID_TOKEN error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new jwt.JsonWebTokenError('');
-        });
-      }).rejects.toThrow(new Unauthorized('INVALID_TOKEN', 'Invalid access token.'));
+    test('parses a payload without files', async ({ controller }) => {
+      const request = Object.assign(Readable.from([
+        '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="title"\r\n\r\n'
+        + 'Coffee machine\r\n'
+        + '--BOUNDARY--\r\n',
+      ]), { headers: { 'content-type': 'multipart/form-data; boundary=BOUNDARY' } });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage))
+        .resolves.toEqual({ title: 'Coffee machine' });
+      expect(writeStream).not.toHaveBeenCalled();
     });
 
-    test('INVALID_DEVICE_ID error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('INVALID_DEVICE_ID');
-        });
-      }).rejects.toThrow(new Unauthorized('INVALID_DEVICE_ID', 'Invalid device id.'));
+    test('rejects too large fields', async ({ controller }) => {
+      const request = Object.assign(Readable.from([
+        '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="title"\r\n\r\n'
+        + 'Coffee machine\r\n'
+        + '--BOUNDARY--\r\n',
+      ]), { headers: { 'content-type': 'multipart/form-data; boundary=BOUNDARY' } });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage, {
+        maxTotalSize: 5,
+      })).rejects.toMatchObject({ code: 'FIELD_TOO_LARGE' });
     });
 
-    test('NO_RESOURCE error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('NO_RESOURCE', { id: 'test' });
-        });
-      }).rejects.toThrow(new NotFound('NO_RESOURCE', 'Resource with id "test" does not exist or does not match required criteria.'));
+    test('rejects too many fields', async ({ controller }) => {
+      const request = Object.assign(Readable.from([
+        '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="title"\r\n\r\n'
+        + 'Coffee machine\r\n'
+        + '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="description"\r\n\r\n'
+        + 'Leaking\r\n'
+        + '--BOUNDARY--\r\n',
+      ]), { headers: { 'content-type': 'multipart/form-data; boundary=BOUNDARY' } });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage, {
+        maxFields: 1,
+      })).rejects.toMatchObject({ code: 'TOO_MANY_FIELDS' });
     });
 
-    test('USER_NOT_VERIFIED error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('USER_NOT_VERIFIED');
-        });
-      }).rejects.toThrow(new Forbidden('USER_NOT_VERIFIED', 'Please verify your email address before performing this operation.'));
+    test('rejects a payload without content type', async ({ controller }) => {
+      const request = Object.assign(Readable.from(['--BOUNDARY--\r\n']), { headers: {} });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage))
+        .rejects.toMatchObject({ code: 'MISSING_CONTENT_TYPE_HEADER' });
     });
 
-    test('FORBIDDEN error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('FORBIDDEN', { permission: null });
-        });
-      }).rejects.toThrow(new Forbidden('FORBIDDEN', 'You are not allowed to perform this operation.'));
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('FORBIDDEN', { permission: 'test' });
-        });
-      }).rejects.toThrow(new Forbidden('FORBIDDEN', 'You are missing "test" permission to perform this operation.'));
+    test('rejects a payload that is not multipart', async ({ controller }) => {
+      const request = Object.assign(Readable.from(['Coffee machine']), {
+        headers: { 'content-type': 'text/plain' },
+      });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage))
+        .rejects.toThrow(new Error('unsupported content-type'));
     });
 
-    test('DUPLICATE_RESOURCE error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new DatabaseError('DUPLICATE_RESOURCE', { path: 'test', value: 'value' });
-        });
-      }).rejects.toThrow(new Conflict('RESOURCE_EXISTS', 'Resource with field value "value" already exists.'));
+    test('rejects files with a forbidden type', async ({ controller }) => {
+      const request = Object.assign(Readable.from([
+        '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="files"; filename="a.gif"\r\n'
+        + 'Content-Type: image/gif\r\n\r\n'
+        + 'GIF_A\r\n'
+        + '--BOUNDARY--\r\n',
+      ]), { headers: { 'content-type': 'multipart/form-data; boundary=BOUNDARY' } });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage, {
+        allowedMimeTypes: ['image/png'],
+      })).rejects.toMatchObject({ code: 'INVALID_FILE_TYPE' });
+      expect(writeStream).not.toHaveBeenCalled();
     });
 
-    test('NO_USER error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('NO_USER');
-        });
-      }).rejects.toThrow(new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.'));
+    test('rejects a too large file', async ({ controller }) => {
+      const request = Object.assign(Readable.from([
+        '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="files"; filename="a.png"\r\n'
+        + 'Content-Type: image/png\r\n\r\n'
+        + 'PNG_A\r\n'
+        + '--BOUNDARY--\r\n',
+      ]), { headers: { 'content-type': 'multipart/form-data; boundary=BOUNDARY' } });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage, {
+        maxFieldSize: 3,
+        allowedMimeTypes: ['image/png'],
+      })).rejects.toMatchObject({ code: 'FILE_TOO_LARGE', details: { filename: 'a.png' } });
     });
 
-    test('INVALID_CREDENTIALS error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('INVALID_CREDENTIALS');
-        });
-      }).rejects.toThrow(new Unauthorized('INVALID_CREDENTIALS', 'Invalid credentials.'));
+    test('rejects too large files in total', async ({ controller }) => {
+      const request = Object.assign(Readable.from([
+        '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="files"; filename="a.png"\r\n'
+        + 'Content-Type: image/png\r\n\r\n'
+        + 'PNG_A\r\n'
+        + '--BOUNDARY--\r\n',
+      ]), { headers: { 'content-type': 'multipart/form-data; boundary=BOUNDARY' } });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage, {
+        maxTotalSize: 3,
+        allowedMimeTypes: ['image/png'],
+      })).rejects.toMatchObject({ code: 'FILES_TOO_LARGE' });
     });
 
-    test('INVALID_VERIFICATION_TOKEN error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('INVALID_VERIFICATION_TOKEN');
-        });
-      }).rejects.toThrow(new Unauthorized('INVALID_VERIFICATION_TOKEN', 'Invalid or expired verification token.'));
-    });
-
-    test('INVALID_RESET_TOKEN error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('INVALID_RESET_TOKEN');
-        });
-      }).rejects.toThrow(new Unauthorized('INVALID_RESET_TOKEN', 'Invalid or expired reset token.'));
-    });
-
-    test('INVALID_REFRESH_TOKEN error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('INVALID_REFRESH_TOKEN');
-        });
-      }).rejects.toThrow(new Unauthorized('INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token.'));
-    });
-
-    test('PASSWORDS_MISMATCH error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('PASSWORDS_MISMATCH');
-        });
-      }).rejects.toThrow(new BadRequest('PASSWORDS_MISMATCH', 'Passwords mismatch.'));
-    });
-
-    test('EMAIL_ALREADY_VERIFIED error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('EMAIL_ALREADY_VERIFIED');
-        });
-      }).rejects.toThrow(new NotAcceptable('EMAIL_ALREADY_VERIFIED', 'User email is already verified.'));
-    });
-
-    test('UNKNOWN_FIELD error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('UNKNOWN_FIELD', { path: 'path' });
-        });
-      }).rejects.toThrow(new BadRequest('UNKNOWN_FIELD', 'Requested field "path" does not exist.'));
-    });
-
-    test('NO_RESOURCE error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new DatabaseError('NO_RESOURCE', { id: 'test' });
-        });
-      }).rejects.toThrow(new NotFound('NO_RESOURCE', 'Resource with id "test" does not exist or does not match required criteria.'));
-    });
-
-    test('UNSORTABLE_FIELD error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new DatabaseError('UNSORTABLE_FIELD', { path: 'path' });
-        });
-      }).rejects.toThrow(new BadRequest('UNSORTABLE_FIELD', 'Field "path" is not sortable.'));
-    });
-
-    test('UNINDEXED_FIELD error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new DatabaseError('UNINDEXED_FIELD', { path: 'path' });
-        });
-      }).rejects.toThrow(new BadRequest('UNINDEXED_FIELD', 'Field "path" is not indexed.'));
-    });
-
-    test('RESOURCE_REFERENCED error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new DatabaseError('RESOURCE_REFERENCED', { path: 'resource.path.to.field' });
-        });
-      }).rejects.toThrow(new BadRequest('RESOURCE_REFERENCED', 'Resource is still referenced in "resource.path.to.field".'));
-    });
-
-    test('MAXIMUM_DEPTH_EXCEEDED error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new EngineError('MAXIMUM_DEPTH_EXCEEDED', { path: 'path' });
-        });
-      }).rejects.toThrow(new BadRequest('MAXIMUM_DEPTH_EXCEEDED', 'Maximum level of depth exceeded for field "path".'));
-    });
-
-    test('other error', async () => {
-      await expect(async () => {
-        await controller.catchErrors(() => {
-          throw new Error('test');
-        });
-      }).rejects.toThrow(new Error('test'));
+    test('rejects when a file cannot be written', async ({ controller }) => {
+      vi.mocked(createWriteStream).mockImplementationOnce(() => new Writable({
+        write(_chunk, _encoding, callback): void {
+          callback(new Error('NO_SPACE_LEFT'));
+        },
+      }) as WriteStream);
+      const request = Object.assign(Readable.from([
+        '--BOUNDARY\r\n'
+        + 'Content-Disposition: form-data; name="files"; filename="a.png"\r\n'
+        + 'Content-Type: image/png\r\n\r\n'
+        + 'PNG_A\r\n'
+        + '--BOUNDARY--\r\n',
+      ]), { headers: { 'content-type': 'multipart/form-data; boundary=BOUNDARY' } });
+      await expect(controller.parseFormData(request as unknown as IncomingMessage, {
+        allowedMimeTypes: ['image/png'],
+      })).rejects.toThrow(new Error('NO_SPACE_LEFT'));
     });
   });
 });

@@ -10,20 +10,33 @@ import deepCopy from 'scripts/helpers/deepCopy';
 import isPlainObject from 'scripts/helpers/isPlainObject';
 
 /**
- * Performs a deep merge of `firstVariable` and `secondVariable`. Only plain objects and arrays are
- * deeply merged. In any other case, `secondVariable` is returned if it is defined.
+ * Performs a deep merge of `firstVariable` and `secondVariable`.
+ * - For plain objects, every key of the first object is deeply merged with the corresponding key of
+ * the second object.
+ * - For arrays with `mergeArrays` set to `true`, every element of the first array is deeply merged
+ * with the corresponding element of the second array. In case the second array contains more
+ * elements than the first array, the additional elements are appended to the end of the first
+ * array. In case the first array contains more elements than the second array, the additional
+ * elements are kept as-is in the final array, and elements in the second array are deeply merged
+ * with the corresponding elements in the first array.
+ * - For arrays with `mergeArrays` set to `false`, the second array is returned if it is defined.
+ * - In any other case, `secondVariable` is returned if it is defined.
  *
  * @param firstVariable First object.
  *
  * @param secondVariable Second object.
+ *
+ * @param mergeArrays Whether to deeply merge arrays as well, or simply return the `secondVariable`
+ * array if it is defined. Defaults to `false`.
  *
  * @returns Variables deep merge.
  */
 export default function deepMerge<T1, T2>(
   firstVariable: T1,
   secondVariable: T2,
+  mergeArrays = false,
 ): T1 & T2 {
-  if (Array.isArray(firstVariable) && Array.isArray(secondVariable)) {
+  if (mergeArrays && Array.isArray(firstVariable) && Array.isArray(secondVariable)) {
     const newArray = [];
     const maxLength = Math.max(firstVariable.length, secondVariable.length);
     for (let index = 0; index < maxLength; index += 1) {

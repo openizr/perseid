@@ -11,6 +11,6 @@
  */
 
 export default {
+  compare: vi.fn((a, b) => Promise.resolve(a === b)),
   hash: vi.fn((text: string) => `HASHED_TEXT_${text}`),
-  compare: vi.fn(() => process.env.PASSWORDS_MISMATCH !== 'true'),
 };

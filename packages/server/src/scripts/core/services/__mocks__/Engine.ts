@@ -7,8 +7,8 @@
  */
 
 import type Model from 'scripts/core/services/Model';
-import type Logger from 'scripts/core/services/Logger';
-import { type DefaultDataModel, Id } from '@perseid/core';
+import { type UserDataModel, Id } from '@perseid/core';
+import type Telemetry from 'scripts/core/services/Telemetry';
 import type DatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
 
 /**
@@ -18,40 +18,32 @@ import type DatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
 export default class {
   protected noop = vi.fn();
 
-  protected model: Model;
+  protected model: Model<UserDataModel>;
 
-  protected logger: Logger;
+  protected telemetry: Telemetry;
 
-  protected databaseClient: DatabaseClient;
+  protected databaseClient: DatabaseClient<UserDataModel>;
 
   protected automaticFieldValue = new Date('2023-01-01');
 
-  protected VALIDATORS = {
-    string: vi.fn(() => null),
-  };
+  protected VALIDATORS = { string: vi.fn(() => null) };
 
-  protected checkAndUpdatePayload(
+  protected defineCreatePayload = vi.fn((payload: unknown): unknown => payload);
+
+  protected defineUpdatePayload = vi.fn((payload: unknown): unknown => payload);
+
+  protected prepareCreatePayload(
     _resource: string,
-    _existingResource: unknown,
-    payload: unknown,
-  ): unknown {
-    return { _updatedAt: this.automaticFieldValue, ...payload as Record<string, unknown> };
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return Promise.resolve({ _createdAt: this.automaticFieldValue, ...payload });
   }
 
-  protected withAutomaticFields(_: unknown, __: unknown, payload: unknown): unknown {
-    return { ...payload as Record<string, unknown>, _updatedAt: this.automaticFieldValue };
-  }
-
-  protected async create(
-    resource: keyof DefaultDataModel,
-    payload: DefaultDataModel['users'],
-  ): Promise<unknown> {
-    await this.databaseClient.create(resource, payload);
-    return {
-      ...payload,
-      _id: new Id('000000000000000000000001'),
-      _updatedAt: this.automaticFieldValue,
-    };
+  protected prepareUpdatePayload(
+    _resource: string,
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return Promise.resolve({ _updatedAt: this.automaticFieldValue, ...payload });
   }
 
   public reset(): void {
@@ -59,12 +51,54 @@ export default class {
   }
 
   constructor(
-    model: Model,
-    logger: Logger,
-    databaseClient: DatabaseClient,
+    model: Model<UserDataModel>,
+    telemetry: Telemetry,
+    databaseClient: DatabaseClient<UserDataModel>,
   ) {
     this.model = model;
-    this.logger = logger;
+    this.telemetry = telemetry;
     this.databaseClient = databaseClient;
+  }
+
+  public async create(
+    _resource: keyof UserDataModel,
+    payload: UserDataModel['users'],
+  ): Promise<Record<string, unknown>> {
+    return Promise.resolve({
+      ...payload,
+      _id: new Id('000000000000000000000001'),
+      _createdAt: this.automaticFieldValue,
+    });
+  }
+
+  public async update(
+    _resource: keyof UserDataModel,
+    _id: Id,
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return Promise.resolve({
+      ...payload,
+      _updatedAt: this.automaticFieldValue,
+    });
+  }
+
+  public async view(): Promise<Record<string, unknown>> {
+    return Promise.resolve({
+      _updatedAt: this.automaticFieldValue,
+    });
+  }
+
+  public async list(): Promise<Record<string, unknown>> {
+    return Promise.resolve({
+      total: 1,
+      results: [{
+        _updatedAt: this.automaticFieldValue,
+      }],
+    });
+  }
+
+  public async delete(): Promise<boolean> {
+    this.noop();
+    return Promise.resolve(true);
   }
 }

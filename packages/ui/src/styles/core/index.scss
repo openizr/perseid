@@ -8,6 +8,6 @@
 
 @charset "UTF-8";
 @use 'sass:color';
-@import './mixins';
-@import './variables';
-@import './placeholders';
+@forward './variables';
+@forward './mixins';
+@forward './placeholders';

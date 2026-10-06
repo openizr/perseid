@@ -6,7 +6,7 @@
  *
  */
 
-@import 'styles/core/index.scss';
-@import 'styles/templates/index.scss';
+@use 'styles/core' as *;
+@use 'styles/templates';
 
-@include init();
+@include perseid;

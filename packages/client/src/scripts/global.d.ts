@@ -94,6 +94,7 @@ declare global {
     page?: number;
     query?: string;
     limit?: number;
+    key?: string;
     offset?: number;
     sortBy?: string[];
     fields?: string[];

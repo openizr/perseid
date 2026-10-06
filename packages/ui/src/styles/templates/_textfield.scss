@@ -6,6 +6,8 @@
  *
  */
 
+@use '../core' as *;
+
 @keyframes showTextfieldHelper {
   0% {
     transform: translateY(-2rem);
@@ -19,23 +21,23 @@
   overflow: hidden;
   user-select: none;
   position: relative;
-  @include extend(flex flex-col flex-wrap);
+  @include layout('flex flex-col flex-wrap');
 
   &__wrapper {
     flex: 1;
     overflow: hidden;
     margin-bottom: 1.5rem;
-    @include extend(flex);
+    @include layout('flex');
   }
 
   &__wrapper__field,
   &__wrapper__field:focus {
     user-select: auto;
     font-size: 0.875rem;
-    @include extend(w-full);
+    @include layout('w-full');
     background: var(--clr-greys-800);
     border-radius: var(--shp-default);
-    padding: var(--gaps-2) var(--gaps-2);
+    padding: var(--gap-2) var(--gap-2);
 
     &::placeholder {
       color: var(--clr-greys-100);

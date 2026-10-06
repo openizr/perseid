@@ -6,9 +6,9 @@
  *
  */
 
-import { Id } from '@perseid/core';
 import type Model from 'scripts/core/services/Model';
-import type Logger from 'scripts/core/services/Logger';
+import { Id, type UserDataModel } from '@perseid/core';
+import type Telemetry from 'scripts/core/services/Telemetry';
 import type DatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
 
 /**
@@ -16,11 +16,11 @@ import type DatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
  */
 
 export default class {
-  protected model: Model;
+  protected model: Model<UserDataModel>;
 
-  protected logger: Logger;
+  protected telemetry: Telemetry;
 
-  protected databaseClient: DatabaseClient;
+  protected databaseClient: DatabaseClient<UserDataModel>;
 
   protected automaticFieldValue = new Date('2023-01-01');
 
@@ -72,12 +72,12 @@ export default class {
   public view = vi.fn();
 
   constructor(
-    model: Model,
-    logger: Logger,
-    databaseClient: DatabaseClient,
+    model: Model<UserDataModel>,
+    telemetry: Telemetry,
+    databaseClient: DatabaseClient<UserDataModel>,
   ) {
     this.model = model;
-    this.logger = logger;
+    this.telemetry = telemetry;
     this.databaseClient = databaseClient;
   }
 }

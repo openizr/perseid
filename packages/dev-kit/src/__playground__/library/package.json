@@ -1,40 +1,43 @@
 {
   "name": "library",
   "main": "./main.js",
-  "types": "./types.d.ts",
+  "types": "./main.d.ts",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
-      "default": "./main.js",
-      "types": "./types.d.ts"
+      "types": "./main.d.ts",
+      "default": "./main.js"
     },
     "./react": {
-      "default": "./react.js",
-      "types": "./types.d.ts"
+      "types": "./react.d.ts",
+      "default": "./react.js"
     }
   },
   "devDependencies": {
     "@perseid/dev-kit": "file:../../../dist",
-    "@testing-library/react": "^16.0.0",
-    "@testing-library/svelte": "^5.2.0",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/svelte": "^5.4.2",
     "@testing-library/vue": "^8.1.0",
-    "@types/prop-types": "^15.7.12",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0"
+    "@types/prop-types": "^15.7.15",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "jsdom": "^30.0.1",
+    "prop-types": "^15.8.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "svelte": "^5.57.0",
+    "vue": "^3.5.42"
   },
   "peerDependencies": {
     "prop-types": "^15.8.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "svelte": "^4.2.18",
-    "vue": "^3.4.36"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "svelte": "^5.57.0",
+    "vue": "^3.5.42"
   },
   "peerDependenciesMeta": {
-    "vue": {
-      "optional": true
-    },
-    "svelte": {
+    "prop-types": {
       "optional": true
     },
     "react": {
@@ -43,14 +46,12 @@
     "react-dom": {
       "optional": true
     },
-    "prop-types": {
+    "svelte": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
-  },
-  "eslintConfig": {
-    "extends": [
-      "./node_modules/@perseid/dev-kit/main.cjs"
-    ]
   },
   "devKitConfig": {
     "target": "node",
@@ -63,16 +64,20 @@
     },
     "srcPath": "src",
     "distPath": "dist",
-    "banner": "/*!\n * Copyright (c) Openizr.\n * All rights reserved.\n */"
+    "banner": "/*!\n * Copyright (c) Openizr.\n * All rights reserved.\n */",
+    "extraPackageJsonKeys": [
+      "sideEffects"
+    ],
+    "generateTypings": true
   },
   "scripts": {
-    "test": "node_modules/@perseid/dev-kit/scripts/test",
+    "test": "node node_modules/@perseid/dev-kit/scripts/test.js",
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "build": "node node_modules/@perseid/dev-kit/scripts/build.js",
-    "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
-    "postinstall": "rm -f node_modules/.eslintcache && (mv ../../../.eslintrc ../../../_eslintrc &>/dev/null) || true && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer prop-types react react-dom vue svelte"
+    "check": "node node_modules/@perseid/dev-kit/scripts/check.js"
   },
   "dependencies": {
     "biuty": "^2.0.0"
-  }
+  },
+  "sideEffects": false
 }

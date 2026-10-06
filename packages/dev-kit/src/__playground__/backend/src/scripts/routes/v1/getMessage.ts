@@ -1,10 +1,9 @@
-import { deepMerge } from 'basx';
 import schema from 'scripts/lib/baseSchema';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
-const routeSchema = deepMerge(
-  schema,
-  {
+const routeSchema = {
+  ...schema,
+  ...{
     response: {
       200: {
         type: 'object',
@@ -14,7 +13,7 @@ const routeSchema = deepMerge(
       },
     },
   },
-);
+};
 
 delete routeSchema.body;
 

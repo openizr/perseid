@@ -14,8 +14,8 @@
 }
 
 .column4 {
-  @include extend(
-    flex vgap-2 hgap-6 flex-auto col-1 xl\:flex-wrap-rev l\:flex-wrap justify-between flex-col-rev
+  @include layout(
+    'flex vgap-2 hgap-6 flex-auto col-1 xl\:flex-wrap-rev l\:flex-wrap justify-between flex-col-rev'
   );
 }
 
