@@ -714,8 +714,7 @@ WHERE
           query_timeout: 5000,
           statement_timeout: 5000,
           connectionTimeoutMillis: 2000,
-          // Allows reliable parsing of error details.
-          options: ' -c lc_messages=C',
+          options: undefined,
         }],
         [{
           ...defaultPool,
@@ -728,7 +727,7 @@ WHERE
           port: undefined,
           user: undefined,
           password: undefined,
-          options: '-c search_path=test -c lc_messages=C',
+          options: '-c search_path=test',
         }],
       ]);
       // A connection is acquired, then released, for each query.
@@ -762,24 +761,24 @@ WHERE
     test('translates constraint violations', async ({ client }) => {
       poolClient.query.mockRejectedValueOnce(Object.assign(new Error('duplicate key'), {
         code: '23505',
-        detail: 'Key (indexedString)=(test) already exists.',
+        table: 'otherTest',
+        constraint: 'otherTest_indexedString_key',
       }));
 
       await expect(client.delete('otherTest', resourceId)).rejects.toMatchObject({
         code: 'RESOURCE_EXISTS',
-        details: { path: 'indexedString' },
+        details: { table: 'otherTest', constraint: 'otherTest_indexedString_key' },
       });
       expect(poolClient.release).toHaveBeenCalledOnce();
     });
 
-    test('translates a constraint violation whose details cannot be parsed', async ({ client }) => {
+    test('translates foreign key violations', async ({ client }) => {
       poolClient.query.mockRejectedValueOnce(Object.assign(new Error('still referenced'), {
         code: '23503',
       }));
 
       await expect(client.delete('otherTest', resourceId)).rejects.toMatchObject({
-        code: 'DATABASE_ERROR',
-        details: { code: '23503', message: 'still referenced' },
+        code: 'RESOURCE_REFERENCED',
       });
     });
 

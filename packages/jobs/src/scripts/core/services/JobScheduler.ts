@@ -12,6 +12,8 @@ import {
   EngineError,
   type CommandContext,
   type CreatePayload,
+  type UpdatePayload,
+  type Payload,
 } from '@perseid/server';
 import type {
   JobScript,
@@ -81,10 +83,12 @@ export interface JobSchedulerSettings {
  *
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/jobs/src/scripts/core/services/JobScheduler.ts
  */
-export default class JobScheduler extends Engine<
+export default class JobScheduler<
+  QueryResults extends Record<string, Ids> = Record<string, Ids>,
+> extends Engine<
   JobsDataModel,
-  Record<string, Ids>,
-  DatabaseClient
+  QueryResults,
+  DatabaseClient<QueryResults>
 > {
   /**
    * Interval between two executions of the job scheduler, in milliseconds.
@@ -95,7 +99,7 @@ export default class JobScheduler extends Engine<
   /**
    * Default attributes to inject in all telemetry spans.
    */
-  protected DEFAULT_ATTRIBUTES: Attributes = {
+  protected defaultAttributes: Attributes = {
     'code.class.name': 'JobScheduler',
   };
 
@@ -120,25 +124,33 @@ export default class JobScheduler extends Engine<
   protected tasksRegistry: Map<string, RegisteredTask>;
 
   /**
-   * In addition to `prepareCreatePayload` base behaviour, updates create payload for jobs-related
-   * resources.
+   * In addition to `preparePayload` base behaviour, adds automatic fields for tasks.
    */
-  protected async prepareCreatePayload<Resource extends keyof JobsDataModel>(
+  protected async preparePayload<
+    Resource extends keyof JobsDataModel,
+    Type extends 'CREATE' | 'UPDATE',
+  >(
     resource: Resource,
-    payload: CreatePayload<JobsDataModel[Resource]>,
-    context: CommandContext<JobsDataModel>,
-  ): Promise<JobsDataModel[Resource]> {
-    const updatedPayload = await super.prepareCreatePayload(resource, payload, context);
+    type: Type,
+    payload: Type extends 'CREATE' ? CreatePayload<JobsDataModel[Resource]> : UpdatePayload<JobsDataModel[Resource]>,
+    context: CommandContext,
+  ): Promise<Type extends 'CREATE'
+    ? JobsDataModel[Resource]
+    : Payload<JobsDataModel[Resource]>> {
+    const fullPayload = await super.preparePayload(resource, type, payload, context);
 
-    if (this.isResourceCreatePayload(resource, 'tasks', updatedPayload)) {
-      updatedPayload._runBy = null;
-      updatedPayload._parent = null;
-      updatedPayload._endedAt = null;
-      updatedPayload._startedAt = null;
-      updatedPayload._status = 'PENDING';
+    if (type === 'CREATE' && resource === 'tasks') {
+      return {
+        ...fullPayload,
+        _runBy: null,
+        _parent: null,
+        _endedAt: null,
+        _startedAt: null,
+        _status: 'PENDING',
+      };
     }
 
-    return updatedPayload;
+    return fullPayload;
   }
 
   /**
@@ -152,16 +164,27 @@ export default class JobScheduler extends Engine<
     task: FullRunningTask,
     taskCompleted: boolean,
   ): Promise<void> {
-    const taskId = String(task._id);
-    if (task.recurrence === null && task.startAfter === null) {
-      this.telemetry.info('Task is not periodic, re-scheduling skipped.', { taskId });
-    } else {
-      this.telemetry.info('Creating next recurrence for task...', { taskId });
-
+    if (task.recurrence !== null || task.startAfter !== null) {
       const parsedMetadata = JSON.parse(task.metadata) as { lastCompletedAt: Date; };
       if (taskCompleted) {
         parsedMetadata.lastCompletedAt = new Date();
       }
+
+      const payload: JobsDataModel['tasks'] = {
+        _id: new Id(),
+        _createdAt: new Date(),
+        _updatedAt: null,
+        _runBy: null,
+        startAt: null,
+        _parent: null,
+        _endedAt: null,
+        startAfter: null,
+        _startedAt: null,
+        _status: 'PENDING',
+        job: task.job._id,
+        recurrence: task.recurrence,
+        metadata: JSON.stringify(parsedMetadata),
+      };
 
       if (task.startAt !== null && task.recurrence !== null) {
         // When the job scheduler hasn't run for some time (e.g because of a downtime), we don't
@@ -172,25 +195,13 @@ export default class JobScheduler extends Engine<
         const executionsToSkip = Math.ceil((Date.now() - startAt) / recurrenceInMilliseconds);
         const nextStartAt = new Date(startAt + executionsToSkip * recurrenceInMilliseconds);
 
-        await this.databaseClient.create('tasks', await this.prepareCreatePayload('tasks', {
-          job: task.job._id,
-          startAfter: null,
-          startAt: nextStartAt,
-          recurrence: task.recurrence,
-          metadata: JSON.stringify(parsedMetadata),
-        }, {}));
+        await this.databaseClient.create('tasks', { ...payload, startAt: nextStartAt }, {});
       } else {
         const childTask = await this.databaseClient.list('tasks', {
           query: null,
           filters: { _parent: task.startAfter?._id ?? null },
         });
-        await this.databaseClient.create('tasks', await this.prepareCreatePayload('tasks', {
-          job: task.job._id,
-          startAt: null,
-          recurrence: task.recurrence,
-          startAfter: childTask.results[0]._id,
-          metadata: JSON.stringify(parsedMetadata),
-        }, {}));
+        await this.databaseClient.create('tasks', { ...payload, startAfter: childTask.results[0]._id }, {});
       }
     }
   }
@@ -201,11 +212,11 @@ export default class JobScheduler extends Engine<
    * @param task Task to execute.
    */
   protected async executeTask(task: FullPendingTask): Promise<void> {
-    // TODO remove this span once the telemetry.getSpan method is implemented.
-    return this.telemetry.span('executeTask', {
+    return this.telemetry.span(`${this.constructor.name}.executeTask`, {
+      kind: 'PRODUCER',
       attributes: {
-        ...this.DEFAULT_ATTRIBUTES,
-        taskId: String(task._id),
+        ...this.defaultAttributes,
+        'app.task.id': String(task._id),
       },
     }, async (span) => {
       const key = String(task._id);
@@ -234,7 +245,6 @@ export default class JobScheduler extends Engine<
         this.tasksRegistry.set(key, registeredTask);
 
         worker.on('online', () => {
-          this.telemetry.info('Successfully created new thread.', { taskId: key });
           resolve();
         });
 
@@ -244,7 +254,6 @@ export default class JobScheduler extends Engine<
         });
 
         worker.on('exit', (code) => {
-          this.telemetry.info('Thread exited.', { taskId: key, exitCode: code });
           if (code === 0) {
             registeredTask._status = 'COMPLETED';
           } else if (code === 100) {
@@ -276,7 +285,7 @@ export default class JobScheduler extends Engine<
       _status: 'IN_PROGRESS',
       _id: String(task._id),
     }, {
-      ...await this.prepareUpdatePayload('tasks', {}, {}),
+      ...await this.preparePayload('tasks', 'UPDATE', {}, {}),
       _status: status,
       _endedAt: new Date(),
     });
@@ -296,8 +305,11 @@ export default class JobScheduler extends Engine<
 
   /**
    * Processes candidate pending tasks.
+   *
+   * @returns A TASK_ID<>STATUS mapping of the tasks that were processed.
    */
-  protected async processPendingTasks(): Promise<void> {
+  protected async processPendingTasks(): Promise<Map<string, string>> {
+    const tasksStatuses = new Map<string, 'NO_AVAILABLE_SLOT' | 'IN_PROGRESS' | 'CANCELED'>();
     const pendingTasks = await this.databaseClient.getCandidatePendingTasks();
 
     await forEach(pendingTasks, async (task) => {
@@ -306,10 +318,10 @@ export default class JobScheduler extends Engine<
       // Task must be executed...
       if (
         task.startAt !== null
-          || task.startAfter?._status === 'COMPLETED'
+        || task.startAfter?._status === 'COMPLETED'
       ) {
         if (this.availableSlots < task.job.requiredSlots) {
-          this.telemetry.info('No available slot to run task.', { taskId });
+          tasksStatuses.set(taskId, 'NO_AVAILABLE_SLOT');
           return Promise.resolve();
         }
 
@@ -320,32 +332,37 @@ export default class JobScheduler extends Engine<
           _id: String(task._id),
           _status: 'PENDING',
         }, {
-          ...await this.prepareUpdatePayload('tasks', {}, {}),
+          ...await this.preparePayload('tasks', 'UPDATE', {}, {}),
           _status: 'IN_PROGRESS',
           _runBy: this.instanceId,
           _startedAt: new Date(),
         });
         if (taskWasAssigned) {
-          this.telemetry.info('Executing task...', { taskId });
+          tasksStatuses.set(taskId, 'IN_PROGRESS');
           return this.executeTask(task);
         }
         return Promise.resolve();
       }
 
       // Task must be canceled...
-      this.telemetry.warn('Canceling task (related task failed or was canceled)...', { taskId });
+      tasksStatuses.set(taskId, 'CANCELED');
       await this.databaseClient.update('tasks', task._id, {
-        ...await this.prepareUpdatePayload('tasks', {}, {}),
+        ...await this.preparePayload('tasks', 'UPDATE', {}, {}),
         _status: 'CANCELED',
       });
       return Promise.resolve();
     });
+
+    return tasksStatuses;
   }
 
   /**
    * Processes tasks in progress.
+   *
+   * @returns A TASK_ID<>STATUS mapping of the tasks that were processed.
    */
-  protected async processRunningTasks(): Promise<void> {
+  protected async processRunningTasks(): Promise<Map<string, string>> {
+    const tasksStatuses = new Map<string, 'TIMED_OUT' | 'FAILED_TO_TERMINATE' | 'FAILED' | 'CANCELED' | 'COMPLETED'>();
     const runningTasks = await this.databaseClient.getRunningTasks();
 
     await forEach(runningTasks, async (task) => {
@@ -357,12 +374,12 @@ export default class JobScheduler extends Engine<
       if (String(task._runBy) === String(this.instanceId) && registeredTask !== undefined) {
         // Task timed out...
         if (task._startedAt.getTime() + (job.maximumExecutionTime * 1000) < now) {
-          this.telemetry.error('Task timed out.', { taskId });
+          tasksStatuses.set(taskId, 'TIMED_OUT');
           // This race prevents the process from hanging indefinitely if the worker doesn't
           // terminate gracefully.
           await Promise.race([
             new Promise((resolve) => { setTimeout(resolve, 10 * 1000); }).then(() => {
-              this.telemetry.error('Failed to terminate task worker.', { taskId });
+              tasksStatuses.set(taskId, 'FAILED_TO_TERMINATE');
             }),
             registeredTask.worker.terminate(),
           ]);
@@ -371,30 +388,33 @@ export default class JobScheduler extends Engine<
 
         // Task exited with an error...
         if (registeredTask._status === 'FAILED') {
-          this.telemetry.error('Task failed.', { taskId });
+          tasksStatuses.set(taskId, 'FAILED');
           return this.closeTask(task, 'FAILED');
         }
 
         // Task canceled itself...
         if (registeredTask._status === 'CANCELED') {
-          this.telemetry.warn('Task canceled itself.', { taskId });
+          tasksStatuses.set(taskId, 'CANCELED');
           return this.closeTask(task, 'CANCELED');
         }
 
         // Task successfully ended...
         if (registeredTask._status === 'COMPLETED') {
-          this.telemetry.info('Task successfully ended.', { taskId });
+          tasksStatuses.set(taskId, 'COMPLETED');
           return this.closeTask(task, 'COMPLETED');
         }
       }
 
       // Task related job scheduler crashed...
       if ((task._startedAt.getTime() + ((job.maximumExecutionTime + 60) * 1000)) < now) {
+        tasksStatuses.set(taskId, 'FAILED');
         return this.closeTask(task, 'FAILED');
       }
 
       return undefined;
     });
+
+    return tasksStatuses;
   }
 
   /**
@@ -408,7 +428,7 @@ export default class JobScheduler extends Engine<
    */
   public constructor(
     telemetry: Telemetry,
-    databaseClient: DatabaseClient,
+    databaseClient: DatabaseClient<QueryResults>,
     settings: JobSchedulerSettings,
   ) {
     super(model, telemetry, databaseClient);
@@ -436,7 +456,7 @@ export default class JobScheduler extends Engine<
       traceParent?: { traceId: string; spanId: string; traceFlags: number; };
     };
 
-    return this.telemetry.span('runTask', {
+    return this.telemetry.span(`${this.constructor.name}.runTask`, {
       links: (parsedMetadata.traceParent === undefined) ? [] : [{
         context: {
           spanId: parsedMetadata.traceParent.spanId,
@@ -445,10 +465,10 @@ export default class JobScheduler extends Engine<
         },
       }],
       attributes: {
-        ...this.DEFAULT_ATTRIBUTES,
-        jobId,
-        taskId: String(taskId),
-        instanceId: String(this.instanceId),
+        ...this.defaultAttributes,
+        'app.job.id': jobId,
+        'app.task.id': String(taskId),
+        'app.instance.id': String(this.instanceId),
       },
     }, async () => {
       const metadata: JobMetadata = Object.assign(parsedMetadata, {
@@ -468,44 +488,52 @@ export default class JobScheduler extends Engine<
    * Executes job scheduler.
    */
   public async run(): Promise<void> {
-    await this.telemetry.span('run', {
+    await this.telemetry.span(`${this.constructor.name}.run`, {
       attributes: {
-        ...this.DEFAULT_ATTRIBUTES,
-        instanceId: String(this.instanceId),
-        availableSlots: this.availableSlots,
+        ...this.defaultAttributes,
+        'app.instance.id': String(this.instanceId),
+        'app.instance.available_slots': this.availableSlots,
       },
-    }, async () => {
-      await this.processPendingTasks();
-      await this.processRunningTasks();
+    }, async (span) => {
+      const pendingTasksStatuses = await this.processPendingTasks();
+      const runningTasksStatuses = await this.processRunningTasks();
+
+      const tasksPerStatus: Partial<Record<string, string[]>> = {};
+      pendingTasksStatuses.forEach((status, taskId) => {
+        tasksPerStatus[status] ??= [];
+        tasksPerStatus[status].push(taskId);
+      });
+      runningTasksStatuses.forEach((status, taskId) => {
+        tasksPerStatus[status] ??= [];
+        tasksPerStatus[status].push(taskId);
+      });
+
+      let hasErrors = false;
+
+      if (tasksPerStatus.TIMED_OUT !== undefined) {
+        hasErrors = true;
+        this.telemetry.error('Some tasks timed out.', { tasks: tasksPerStatus.TIMED_OUT });
+      }
+      if (tasksPerStatus.FAILED_TO_TERMINATE !== undefined) {
+        hasErrors = true;
+        this.telemetry.error('Some workers failed to terminate.', { tasks: tasksPerStatus.FAILED_TO_TERMINATE });
+      }
+      if (tasksPerStatus.FAILED !== undefined) {
+        hasErrors = true;
+        this.telemetry.error('Some tasks failed.', { tasks: tasksPerStatus.FAILED });
+      }
+
+      if (hasErrors) {
+        span.setStatus({ code: 'ERROR' });
+      }
+
+      span.setAttributes({
+        'app.tasks.per_status': tasksPerStatus,
+      });
     });
 
     await new Promise((resolve) => { setTimeout(resolve, this.EXECUTION_INTERVAL); });
 
     return this.run();
-  }
-
-  /**
-   * In addition to `create` base behaviour, updates create payload for jobs-related resources.
-   */
-  public async create<
-    Key extends keyof Record<string, Ids>,
-    Resource extends keyof JobsDataModel = keyof JobsDataModel
-  >(
-    resource: Resource,
-    payload: CreatePayload<JobsDataModel[Resource]>,
-    context: CommandContext<JobsDataModel>,
-  ): Promise<Key extends keyof Record<string, Ids> ? Record<string, Ids>[Key] : Ids> {
-    if (resource === 'tasks') {
-      return super.create(resource, {
-        ...payload,
-        _runBy: null,
-        _parent: null,
-        _endedAt: null,
-        _startedAt: null,
-        _status: 'PENDING',
-      }, context);
-    }
-
-    return super.create(resource, payload, context);
   }
 }

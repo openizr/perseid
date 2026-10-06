@@ -6,6 +6,7 @@
  *
  */
 
+import type { Ids } from '@perseid/core';
 import type { FullPendingTask, FullRunningTask, JobsDataModel } from 'scripts/core/types';
 import { AbstractDatabaseClient, type Payload, type SearchFilters } from '@perseid/server';
 
@@ -14,7 +15,9 @@ import { AbstractDatabaseClient, type Payload, type SearchFilters } from '@perse
  *
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/jobs/src/scripts/core/services/DatabaseClient.ts
  */
-export default abstract class DatabaseClient extends AbstractDatabaseClient<JobsDataModel> {
+export default abstract class DatabaseClient<
+  QueryResults extends Record<string, Ids> = Record<string, Ids>,
+> extends AbstractDatabaseClient<JobsDataModel, QueryResults> {
   /**
    * Updates task that matches `filters` with `payload`.
    *

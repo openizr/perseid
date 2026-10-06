@@ -1990,8 +1990,7 @@ export default class PostgreSQLDatabaseClient<
       port: poolSettings.port ?? undefined,
       user: poolSettings.user ?? undefined,
       password: poolSettings.password ?? undefined,
-      // Allows reliable parsing of error details.
-      options: `${poolSettings.options ?? ''} -c lc_messages=C`,
+      options: poolSettings.options ?? undefined,
     });
 
     // Prevents uncaught exceptions when errors happen on idle connections.
@@ -2171,12 +2170,11 @@ export default class PostgreSQLDatabaseClient<
           throw error;
         }
 
-        const path = (CONSTRAINT_VIOLATION_CODES[sqlErrorCode] === undefined)
-          ? null
-          : /Key \((.+?)\)=/.exec(postgreError.detail ?? '')?.[1] ?? null;
-
-        if (path !== null) {
-          throw new DatabaseError(CONSTRAINT_VIOLATION_CODES[sqlErrorCode], { path });
+        if (CONSTRAINT_VIOLATION_CODES[sqlErrorCode] !== undefined) {
+          throw new DatabaseError(CONSTRAINT_VIOLATION_CODES[sqlErrorCode], {
+            table: postgreError.table,
+            constraint: postgreError.constraint,
+          });
         }
 
         throw new DatabaseError('DATABASE_ERROR', {

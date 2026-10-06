@@ -631,7 +631,7 @@ export default class AuthEngine<
 
     const fullPayload = await this.prepareUpdatePayload('users', {}, context);
     (fullPayload as Payload<UserDataModel['users']>)._devices = newDevices;
-    await this.databaseClient.update('users', session.user._id, fullPayload);
+    await this.databaseClient.update('users', session.user._id, fullPayload, context.queryOptions);
     return credentials;
   }
 

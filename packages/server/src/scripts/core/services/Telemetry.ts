@@ -554,11 +554,11 @@ export default class Telemetry implements BaseTelemetry {
           severityText: 'error',
           attributes: {
             ...errorAttributes,
-            ...(message instanceof PerseidError ? message.details : {}),
             name: message.name,
             message: message.message,
             stackTrace: message.stack,
             type: message.constructor.name,
+            ...(message instanceof PerseidError ? message.details : {}),
           },
         });
     }
@@ -600,11 +600,11 @@ export default class Telemetry implements BaseTelemetry {
           body: message.message,
           attributes: {
             ...fatalAttributes,
-            ...(message instanceof PerseidError ? message.details : {}),
             name: message.name,
             message: message.message,
             stackTrace: message.stack,
             type: message.constructor.name,
+            ...(message instanceof PerseidError ? message.details : {}),
           },
         });
     }
