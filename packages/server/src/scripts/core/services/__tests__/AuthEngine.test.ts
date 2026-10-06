@@ -620,7 +620,7 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
           _refreshToken: credentials.refreshToken,
           _expiration: new Date('2023-01-31T00:00:00.000Z'),
         }],
-      });
+      }, undefined);
     });
 
     test('keeps the user agent of current device when it is unknown', async ({ engine, databaseClient }) => {
@@ -644,7 +644,7 @@ Q24zwNN5TGl/lV8K2daR1IkXaz+QqxadoSrIfTNlsm1ZmPPnYfuSDfilSE0/qEg1
           _refreshToken: credentials.refreshToken,
           _expiration: new Date('2023-01-31T00:00:00.000Z'),
         }],
-      }));
+      }), undefined);
     });
 
     test('rejects an invalid refresh token', async ({ engine, databaseClient }) => {

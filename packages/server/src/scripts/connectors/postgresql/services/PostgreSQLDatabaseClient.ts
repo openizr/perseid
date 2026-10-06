@@ -1338,6 +1338,9 @@ export default class PostgreSQLDatabaseClient<
       // subqueries. It is reset at each new resource crossing, and does not
       // contain `value` for arrays (e.g. "_users__devices." for "users._devices._refreshToken").
       let currentTable: string = resource;
+      // Whether every segment walked so far is required in the current table: a single optional
+      // ancestor (object or relation) may nullify the row, and an INNER JOIN would then drop it.
+      let isPathRequired = true;
 
       // When using filters or queries on arrays, we need to create a subquery that will resolve
       // joined values up to the root resource. These variables store intermediate results.
@@ -1357,6 +1360,7 @@ export default class PostgreSQLDatabaseClient<
         const isLeaf = (segments.length === 0);
         const subSchema = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; } | undefined);
         currentSchema = subSchema?.fields?.[fieldName];
+        isPathRequired &&= currentSchema?.isRequired === true;
         fullFlattenedPath = `${fullFlattenedPath}_${fieldName}`;
         flattenedPathInTable = (flattenedPathInTable === '') ? fieldName : `${flattenedPathInTable}_${fieldName}`;
 
@@ -1385,6 +1389,8 @@ export default class PostgreSQLDatabaseClient<
           currentAlias = newAlias;
           flattenedPathInTable = 'value';
           currentSchema = currentSchema.fields;
+          // Array items are the base rows of their own query: only their own requiredness counts.
+          isPathRequired = currentSchema.isRequired === true;
           isArrayValueLeaf = isLeaf;
           if (isFetchField) {
             queries[fullFlattenedPath] ??= this.buildQuery(newTable, fullFlattenedPath);
@@ -1488,7 +1494,7 @@ export default class PostgreSQLDatabaseClient<
 
           if (isFetchField && !queryJoins.has(newAlias)) {
             queryJoins.add(newAlias);
-            const joinType = currentSchema.isRequired ? 'INNER' : 'LEFT';
+            const joinType = isPathRequired ? 'INNER' : 'LEFT';
             const onField = `"${currentAlias}"."${flattenedPathInTable}"`;
             currentQuery.join.push(this.buildQueryJoin(newAlias, newTable, joinType, onField));
             const idFieldAlias = this.getFieldSqlAlias(`${fullFlattenedPath}__id`);
