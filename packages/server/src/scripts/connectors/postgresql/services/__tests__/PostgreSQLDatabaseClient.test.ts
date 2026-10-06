@@ -303,13 +303,13 @@ VALUES
     $5,
     $6
   );`, [
-          '000000000000000000000002',
-          '000000000000000000000001',
-          'test1',
-          '000000000000000000000003',
-          '000000000000000000000001',
-          'test2',
-        ]],
+            '000000000000000000000002',
+            '000000000000000000000001',
+            'test1',
+            '000000000000000000000003',
+            '000000000000000000000001',
+            'test2',
+          ]],
         ['COMMIT;', []],
       ]);
     });
@@ -390,21 +390,21 @@ VALUES
     $13,
     $14
   );`, [
-          '000000000000000000000002',
-          '000000000000000000000001',
-          null,
-          null,
-          null,
-          null,
-          null,
-          '000000000000000000000003',
-          '000000000000000000000001',
-          true,
-          true,
-          1,
-          true,
-          true,
-        ]],
+            '000000000000000000000002',
+            '000000000000000000000001',
+            null,
+            null,
+            null,
+            null,
+            null,
+            '000000000000000000000003',
+            '000000000000000000000001',
+            true,
+            true,
+            1,
+            true,
+            true,
+          ]],
         [`INSERT INTO
   "_test_objectOne_objectTwo_optionalNestedArray_data_flatArray" (
     "_id",
@@ -1651,12 +1651,34 @@ WHERE
   "test"."_isDeleted" = FALSE
   AND "test"."_id" = ANY($4)
   AND "test"."indexedString" = $5;`, [
-          'objectOne.optionalRelations',
-          ['000000000000000000000001', '000000000000000000000002'],
-          'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation',
-          ['000000000000000000000001'],
-          'test',
-        ]],
+            'objectOne.optionalRelations',
+            ['000000000000000000000001', '000000000000000000000002'],
+            'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation',
+            ['000000000000000000000001'],
+            'test',
+          ]],
+      ]);
+    });
+
+    // Options fields belong to the checked resource, not to the related one.
+    test('ignores the fields to fetch passed in options', async ({ client }) => {
+      poolClient.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ _id: '000000000000000000000001', path: 'objectOne.optionalRelations' }],
+      });
+
+      await client.checkRelations('test', new Map([
+        ['objectOne.optionalRelations', { resource: 'otherTest', filters: { _id: [resourceId] } }],
+      ]), { poolOrSession: 'default', fields: ['indexedString'] } as never);
+
+      expect(poolClient.query.mock.calls).toEqual([
+        [`SELECT
+  DISTINCT "otherTest"."_id",
+  $1 as path
+FROM
+  "otherTest" AS "otherTest"
+WHERE
+  "otherTest"."_id" = ANY($2);`, ['objectOne.optionalRelations', ['000000000000000000000001']]],
       ]);
     });
 

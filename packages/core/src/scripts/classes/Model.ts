@@ -588,6 +588,7 @@ export default class Model<
         const _updatedBy: IdSchema<DataModel> = {
           type: 'id',
           isIndexed: true,
+          isRequired: false,
           relation: 'users' as keyof DataModel & string,
           description: 'Resource last modification author.',
         };
@@ -604,6 +605,7 @@ export default class Model<
         resourceSchema.fields._updatedAt = {
           type: 'date',
           isIndexed: true,
+          isRequired: false,
           description: 'Resource last modification date.',
         };
       }

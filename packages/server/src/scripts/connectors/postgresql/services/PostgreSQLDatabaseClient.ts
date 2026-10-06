@@ -1821,7 +1821,7 @@ export default class PostgreSQLDatabaseClient<
         const missingIds = new Set<string>();
         relations.forEach((value, path) => {
           const searchBody = { query: null, filters: value.filters };
-          const queryOptions = { ...options, maximumDepth: Infinity };
+          const queryOptions = { ...options, fields: [], maximumDepth: Infinity };
           const { queries } = this.planQueries(value.resource, 'LIST', null, searchBody, queryOptions);
           delete queries._search.limit;
           delete queries._search.offset;
