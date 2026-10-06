@@ -121,7 +121,7 @@ describe('core/services/Controller', () => {
       ));
       expect(responses).toEqual({
         FORBIDDEN: [403, 'FORBIDDEN', 'You are missing "USERS.VIEW" permission to perform this operation.'],
-        NO_USER: [401, 'NO_USER', 'User not found.'],
+        NO_USER: [401, 'INVALID_CREDENTIALS', 'Invalid credentials.'],
         INVALID_DEVICE_ID: [401, 'INVALID_DEVICE_ID', 'Invalid device id.'],
         INVALID_TOKEN: [401, 'INVALID_TOKEN', 'Invalid access token.'],
         PASSWORDS_MISMATCH: [400, 'PASSWORDS_MISMATCH', 'Passwords mismatch.'],
@@ -139,8 +139,8 @@ describe('core/services/Controller', () => {
         UNSORTABLE_FIELD: [400, 'UNSORTABLE_FIELD', 'Field "title" is not sortable.'],
         UNKNOWN_QUERY_FIELD: [400, 'UNKNOWN_QUERY_FIELD', 'Requested field "title" does not exist.'],
         USER_NOT_VERIFIED: [403, 'USER_NOT_VERIFIED', 'Please verify your email address before performing this operation.'],
-        RESOURCE_REFERENCED: [400, 'RESOURCE_REFERENCED', 'Resource is still referenced elsewhere.'],
-        RESOURCE_EXISTS: [409, 'RESOURCE_EXISTS', 'Resource already exists.'],
+        RESOURCE_REFERENCED: [400, 'RESOURCE_REFERENCED', 'Resource is still referenced elsewhere.', {}],
+        RESOURCE_EXISTS: [409, 'RESOURCE_EXISTS', 'Resource already exists.', {}],
         INVALID_SORT_QUERY: [400, 'INVALID_SORT_QUERY', '"query.sortBy" and "query.sortOrder" must contain the same number of items.'],
         FILE_TOO_LARGE: [413, 'FILE_TOO_LARGE', 'Maximum size exceeded for file "a.png".'],
         MAXIMUM_DEPTH_EXCEEDED: [400, 'MAXIMUM_DEPTH_EXCEEDED', 'Maximum level of depth exceeded for field "title".'],

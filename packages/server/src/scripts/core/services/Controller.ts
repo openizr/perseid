@@ -426,7 +426,7 @@ export default class Controller<
    * clean 404 HTTP response containing additional details.
    */
   protected readonly KNOWN_ERRORS: Partial<Record<string, (error: PerseidError) => (
-    [number, string, string]
+    [number, string, string, Record<string, unknown>?]
   )>> = {
       FORBIDDEN: (error) => [
         HTTP_STATUS_CODES.FORBIDDEN,
@@ -435,18 +435,18 @@ export default class Controller<
           ? 'You are not allowed to perform this operation.'
           : `You are missing "${error.details.permission as string}" permission to perform this operation.`,
       ],
-      NO_USER: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'User not found.'],
-      RESOURCE_EXISTS: (error) => [HTTP_STATUS_CODES.CONFLICT, error.code, 'Resource already exists.'],
+      NO_USER: () => [HTTP_STATUS_CODES.UNAUTHORIZED, 'INVALID_CREDENTIALS', 'Invalid credentials.'],
       INVALID_DEVICE_ID: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid device id.'],
       INVALID_TOKEN: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid access token.'],
       PASSWORDS_MISMATCH: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, 'Passwords mismatch.'],
-      INVALID_CREDENTIALS: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid credentials.'],
       TOKEN_EXPIRED: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Access token has expired.'],
+      INVALID_CREDENTIALS: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid credentials.'],
+      RESOURCE_EXISTS: (error) => [HTTP_STATUS_CODES.CONFLICT, error.code, 'Resource already exists.', {}],
       EMAIL_ALREADY_VERIFIED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, 'Email already verified.'],
       INVALID_RESET_TOKEN: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid or expired reset token.'],
       INVALID_REFRESH_TOKEN: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid or expired refresh token.'],
-      RESOURCE_REFERENCED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, 'Resource is still referenced elsewhere.'],
       TOO_MANY_FIELDS: (error) => [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY, error.code, 'Maximum number of fields exceeded.'],
+      RESOURCE_REFERENCED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, 'Resource is still referenced elsewhere.', {}],
       FILES_TOO_LARGE: (error) => [HTTP_STATUS_CODES.REQUEST_ENTITY_TOO_LARGE, error.code, 'Maximum total files size exceeded.'],
       INVALID_VERIFICATION_TOKEN: (error) => [HTTP_STATUS_CODES.UNAUTHORIZED, error.code, 'Invalid or expired verification token.'],
       MISSING_CONTENT_TYPE_HEADER: (error) => [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY, error.code, 'Missing "Content-Type" header.'],

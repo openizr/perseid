@@ -743,8 +743,8 @@ export default class FastifyController<
             if (error instanceof PerseidError) {
               const formattedError = this.KNOWN_ERRORS[error.code]?.(error);
               if (formattedError !== undefined) {
-                const [status, code, message] = formattedError;
-                return this.error(response, status, code, message, error.details);
+                const [status, code, message, details] = formattedError;
+                return this.error(response, status, code, message, details ?? error.details);
               }
             }
 
