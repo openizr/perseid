@@ -179,7 +179,7 @@ describe('connectors/postgresql/services/PostgreSQLDatabaseClient', () => {
       expect(poolClient.query.mock.calls).toEqual([
         ['BEGIN;', []],
         [`DELETE FROM
-  "otherTest"
+  "otherTest" AS "otherTest"
 WHERE
   "otherTest"."_id" = $1;`, ['000000000000000000000001']],
         ['COMMIT;', []],
@@ -574,7 +574,7 @@ WHERE
       expect(await client.delete('otherTest', resourceId)).toBe(true);
       expect(poolClient.query.mock.calls).toEqual([
         [`DELETE FROM
-  "otherTest"
+  "otherTest" AS "otherTest"
 WHERE
   "otherTest"."_id" = $1;`, ['000000000000000000000009']],
       ]);
@@ -668,10 +668,25 @@ SELECT 1 FROM "expired"
       expect(await client.delete('test', resourceId)).toBe(true);
       expect(poolClient.query.mock.calls).toEqual([
         [`DELETE FROM
-  "test"
+  "test" AS "test"
 WHERE
   "test"."_id" = $1
   AND "test"."_isDeleted" = FALSE;`, ['000000000000000000000001']],
+      ]);
+    });
+
+    test('declares the hashed table alias used in conditions', async ({ model, telemetry, cache }) => {
+      const client = new PostgreSQLDatabaseClient<DataModel>(model, telemetry, cache, {
+        ...settings,
+        hashAliases: true,
+      });
+
+      expect(await client.delete('otherTest', resourceId)).toBe(true);
+      expect(poolClient.query.mock.calls).toEqual([
+        [`DELETE FROM
+  "otherTest" AS "_e1bfe8f56ed864cf8e"
+WHERE
+  "_e1bfe8f56ed864cf8e"."_id" = $1;`, ['000000000000000000000001']],
       ]);
     });
 
@@ -681,7 +696,7 @@ WHERE
       expect(await client.delete('test', resourceId, { excludeDeletedResources: false })).toBe(false);
       expect(poolClient.query.mock.calls).toEqual([
         [`DELETE FROM
-  "test"
+  "test" AS "test"
 WHERE
   "test"."_id" = $1;`, ['000000000000000000000001']],
       ]);
@@ -1112,6 +1127,122 @@ ON
   "test_requiredRelation"."_id" = "test"."requiredRelation"
 WHERE
   "test"."_id" = $1;`, ['000000000000000000000001']],
+      ]);
+    });
+
+    test('left joins required relations reached through an optional ancestor', async ({ model, telemetry, cache }) => {
+      vi.spyOn(model, 'get').mockImplementation((path: string) => ({
+        depth: 1,
+        permissions: [],
+        canonicalPath: [path],
+        schema: {
+          enableDeletion: true,
+          fields: (path === 'test')
+            ? {
+              _id: { type: 'id', isRequired: true },
+              optionalObject: {
+                type: 'object',
+                isRequired: false,
+                fields: { requiredRelation: { type: 'id', isRequired: true, relation: 'otherTest' } },
+              },
+              optionalRelation: { type: 'id', isRequired: false, relation: 'otherTest' },
+            }
+            : {
+              _id: { type: 'id', isRequired: true },
+              enum: { type: 'string', maxLength: 10 },
+              requiredRelation: { type: 'id', isRequired: true, relation: 'otherTest' },
+            },
+        },
+      }) as never);
+      const client = new PostgreSQLDatabaseClient<DataModel>(model, telemetry, cache, settings);
+      poolClient.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+
+      await client.view('test', resourceId, {
+        fields: ['optionalObject.requiredRelation.enum', 'optionalRelation.requiredRelation.enum'],
+      });
+
+      // A null ancestor nullifies its required relations, which must not drop the resource.
+      expect(poolClient.query.mock.calls).toEqual([
+        [`SELECT
+  "test"."_id" AS "test__id",
+  "test"."optionalObject" AS "test_optionalObject",
+  "test_optionalObject_requiredRelation"."_id" AS "test_optionalObject_requiredRelation__id",
+  "test_optionalObject_requiredRelation"."enum" AS "test_optionalObject_requiredRelation_enum",
+  "test_optionalRelation"."_id" AS "test_optionalRelation__id",
+  "test_optionalRelation_requiredRelation"."_id" AS "test_optionalRelation_requiredRelation__id",
+  "test_optionalRelation_requiredRelation"."enum" AS "test_optionalRelation_requiredRelation_enum"
+FROM
+  "test" AS "test"
+LEFT JOIN
+  "otherTest" AS "test_optionalObject_requiredRelation"
+ON
+  "test_optionalObject_requiredRelation"."_id" = "test"."optionalObject_requiredRelation"
+LEFT JOIN
+  "otherTest" AS "test_optionalRelation"
+ON
+  "test_optionalRelation"."_id" = "test"."optionalRelation"
+LEFT JOIN
+  "otherTest" AS "test_optionalRelation_requiredRelation"
+ON
+  "test_optionalRelation_requiredRelation"."_id" = "test_optionalRelation"."requiredRelation"
+WHERE
+  "test"."_id" = $1;`, ['000000000000000000000001']],
+      ]);
+    });
+
+    test('inner joins required relations in arrays items', async ({ model, telemetry, cache }) => {
+      vi.spyOn(model, 'get').mockImplementation((path: string) => ({
+        depth: 1,
+        permissions: [],
+        canonicalPath: [path],
+        schema: {
+          enableDeletion: true,
+          fields: (path === 'test')
+            ? {
+              _id: { type: 'id', isRequired: true },
+              optionalArray: {
+                type: 'array',
+                fields: { type: 'id', isRequired: true, relation: 'otherTest' },
+              },
+            }
+            : {
+              _id: { type: 'id', isRequired: true },
+              enum: { type: 'string', maxLength: 10 },
+            },
+        },
+      }) as never);
+      const client = new PostgreSQLDatabaseClient<DataModel>(model, telemetry, cache, settings);
+      poolClient.query
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ test__id: '000000000000000000000001', test_optionalArray: true }] })
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] });
+
+      await client.view('test', resourceId, { fields: ['optionalArray.enum'] });
+
+      // Array items are the base rows of their own query: the optional array does not matter.
+      expect(poolClient.query.mock.calls).toEqual([
+        [`SELECT
+  "test"."_id" AS "test__id",
+  "test"."optionalArray" AS "test_optionalArray"
+FROM
+  "test" AS "test"
+WHERE
+  "test"."_id" = $1;`, ['000000000000000000000001']],
+        [`SELECT
+  "_test_optionalArray"."_id" AS "test_optionalArray__itemId",
+  "_test_optionalArray"."_parent" AS "test_optionalArray__parent",
+  "_test_optionalArray"."value" AS "test_optionalArray",
+  "test_optionalArray"."_id" AS "test_optionalArray__id",
+  "test_optionalArray"."enum" AS "test_optionalArray_enum"
+FROM
+  "_test_optionalArray" AS "_test_optionalArray"
+INNER JOIN
+  "otherTest" AS "test_optionalArray"
+ON
+  "test_optionalArray"."_id" = "_test_optionalArray"."value"
+WHERE
+  "_test_optionalArray"."_parent" = $1
+ORDER BY
+  "_test_optionalArray"."_id" ASC;`, ['000000000000000000000001']],
       ]);
     });
   });

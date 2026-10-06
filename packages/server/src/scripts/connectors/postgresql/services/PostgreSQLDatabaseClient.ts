@@ -106,6 +106,11 @@ export interface DeleteQuery extends FilterableQuery {
   type: 'DELETE';
 
   /**
+   * Alias to use for the query.
+   */
+  as?: string;
+
+  /**
    * List of conditions to apply to the query.
    */
   where: NonNullable<FilterableQuery['where']>;
@@ -622,7 +627,7 @@ function compileQuery(query: Query, values: unknown[], tabs = ''): string {
     return `${tabs}${withClause}${clauses.join(`\n${tabs}`)}${compileWhereClauses(query, values, tabs)}`;
   }
 
-  clauses.push(`DELETE FROM\n${tabs}  "${query.table}"`);
+  clauses.push(`DELETE FROM\n${tabs}  "${query.table}"${alias}`);
   return `${tabs}${withClause}${clauses.join(`\n${tabs}`)}${compileWhereClauses(query, values, tabs)}`;
 };
 
@@ -1089,6 +1094,7 @@ export default class PostgreSQLDatabaseClient<
           [resource]: {
             table: this.getTableName(resource),
             type: 'DELETE',
+            as: this.getFieldSqlAlias(this.getTableName(resource)),
             where: idFilter.concat(deletionFilter),
           },
         },
@@ -1360,7 +1366,7 @@ export default class PostgreSQLDatabaseClient<
         const isLeaf = (segments.length === 0);
         const subSchema = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; } | undefined);
         currentSchema = subSchema?.fields?.[fieldName];
-        isPathRequired &&= currentSchema?.isRequired === true;
+        isPathRequired &&= currentSchema?.isRequired !== false;
         fullFlattenedPath = `${fullFlattenedPath}_${fieldName}`;
         flattenedPathInTable = (flattenedPathInTable === '') ? fieldName : `${flattenedPathInTable}_${fieldName}`;
 
@@ -1390,7 +1396,7 @@ export default class PostgreSQLDatabaseClient<
           flattenedPathInTable = 'value';
           currentSchema = currentSchema.fields;
           // Array items are the base rows of their own query: only their own requiredness counts.
-          isPathRequired = currentSchema.isRequired === true;
+          isPathRequired = currentSchema.isRequired !== false;
           isArrayValueLeaf = isLeaf;
           if (isFetchField) {
             queries[fullFlattenedPath] ??= this.buildQuery(newTable, fullFlattenedPath);

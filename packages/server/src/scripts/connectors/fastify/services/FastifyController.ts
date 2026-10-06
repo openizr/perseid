@@ -429,7 +429,7 @@ export default class FastifyController<
 
     if (keyword === 'additionalProperties') {
       const fullPath = `${rootPath}.${String(params?.additionalProperty)}`;
-      return this.error(response, 400, 'INVALID_PAYLOAD', `"${fullPath}" is required.`, {
+      return this.error(response, 400, 'INVALID_PAYLOAD', `Payload field "${fullPath}" does not exist.`, {
         path: fullPath,
         type: 'UNKNOWN_FIELD',
       });

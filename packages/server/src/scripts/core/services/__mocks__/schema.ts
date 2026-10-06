@@ -86,6 +86,7 @@ export default {
             fields: {
               type: 'id',
               isIndexed: true,
+              isRequired: false,
               relation: 'otherTest',
             },
           },
