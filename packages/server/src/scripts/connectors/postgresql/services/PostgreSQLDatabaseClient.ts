@@ -1303,7 +1303,6 @@ export default class PostgreSQLDatabaseClient<
         type: 'SELECT',
         table: resourceTable,
         where: [{ column: `"${rootAlias}"."_id"`, operator: '=', value: [] }],
-        orderBy: [{ field: `array_position($1, "${rootAlias}"."_id")`, direction: 'ASC' }],
       },
       _search: {
         join: [],
@@ -1535,7 +1534,6 @@ export default class PostgreSQLDatabaseClient<
     const { _search, ...rest } = queries;
 
     if (isView) {
-      delete queries[resource].orderBy;
       queries[resource].where = idFilter.concat(deletionFilter);
       return { projections: finalProjections, queries: rest };
     }
@@ -1777,7 +1775,19 @@ export default class PostgreSQLDatabaseClient<
       values: [ids],
       query: sqlQueries[key].query,
       poolOrSession: options.poolOrSession,
-    }).then(({ rows }) => { finalResults[key] = rows; }), 5);
+    }).then(({ rows }) => {
+      // Re-ordering results on server-side is way more efficient sorting in SQL statements.
+      if (key === resource) {
+        const idAlias = this.getFieldSqlAlias(`${resource}__id`);
+        const rowsById = new Map(rows.map((row) => [row[idAlias], row]));
+        finalResults[key] = ids.flatMap((id) => {
+          const row = rowsById.get(id);
+          return (row === undefined) ? [] : [row];
+        });
+      } else {
+        finalResults[key] = rows;
+      }
+    }), 5);
 
     return {
       total: parseInt(response.rows[0]?.__total ?? '0', 10),

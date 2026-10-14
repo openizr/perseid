@@ -49,15 +49,8 @@
   import DefaultLoader from 'scripts/svelte/DefaultLoader.svelte';
   import DefaultLayout from 'scripts/svelte/DefaultLayout.svelte';
 
-  let key = 0;
-
   function onSubmit(event: Event): void {
     event.preventDefault();
-  }
-
-  function generateId(): string {
-    key += 1;
-    return `_${String(key)}`;
   }
 
   export let configuration: FormProps['configuration'];
@@ -72,7 +65,6 @@
   let ActualLoader: typeof SvelteComponent;
   let currentActiveStep: string | undefined;
   let FieldComponent: typeof SvelteComponent;
-  const keys: Partial<Record<string, string>> = {};
   const handleBlur = (): void => { isWindowFocused = false; };
 
   const setCurrentActiveStep = (newActiveStep: string) => (): void => {
@@ -82,8 +74,6 @@
   const setActiveStep = (newActiveStep: string | undefined) => {
     // Prevents any additional rendering compared to calling directly `setCurrentActiveStep`.
     if (newActiveStep !== currentActiveStep && newActiveStep !== undefined) {
-      // Forces step component to re-mount in order to reset scroll.
-      keys[newActiveStep] = generateId();
       setCurrentActiveStep(newActiveStep);
     }
   };
@@ -106,10 +96,7 @@
   const EngineClass = (engineClass as typeof Engine | null) ?? Engine;
   const engine = new EngineClass(configuration);
   const useSubscription = connect(engine.getStore());
-  const state = useSubscription('state', (newState: FormState) => {
-    newState.steps.forEach((step) => { keys[step.path] ??= generateId(); });
-    return newState;
-  });
+  const state = useSubscription<FormState>('state');
 
   // Updates current step whenever `activeStep` prop or last step change.
   // Be careful: last step path may not change although `lastStep` has (e.g. because it has been

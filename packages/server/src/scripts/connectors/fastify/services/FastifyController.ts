@@ -59,7 +59,7 @@ type OTELRequest<T extends RouteGenericInterface = RouteGenericInterface> = Fast
      * Error to record, if any. We need this temporary storage as the only moment we can get a
      * structured error is right before response serialization process.
      */
-    error?: PerseidError;
+    error?: Error;
 
     /**
      * Whether to end the span in the handler, or in the `close` event. This is necessary to make
@@ -618,7 +618,7 @@ export default class FastifyController<
       }
 
       const { error } = telemetry;
-      if (error !== undefined) {
+      if (error instanceof PerseidError) {
         span.setAttribute('error.code', error.code);
         Object.keys(error.details).forEach((key) => {
           span.setAttribute(`error.details.${key}`, String(error.details[key]));
@@ -632,13 +632,13 @@ export default class FastifyController<
         'server.address': request.socket.localAddress,
       });
       this.telemetry.measure('http.server.request.duration', this.telemetry.duration(spanStartTime), {
-        'error.code': error?.code,
         'url.scheme': request.protocol,
         'http.request.method': request.method,
         'server.port': request.socket.localPort,
         'http.response.status_code': statusCode,
         'server.address': request.socket.localAddress,
         'http.route': request.routeOptions.url ?? 'null',
+        'error.code': error instanceof PerseidError ? error.code : undefined,
       });
 
       span.end();
@@ -833,7 +833,7 @@ export default class FastifyController<
       instance.addHook('preSerialization', async (
         request: OTELRequest,
         response,
-        payload: { error?: PerseidError; },
+        payload: { error?: Error; },
       ): Promise<unknown> => {
         const { telemetry } = request;
 
