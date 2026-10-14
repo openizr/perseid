@@ -3876,9 +3876,9 @@ mylas@^2.1.9:
   integrity sha512-BzQguy9W9NJgoVn2mRWzbFrFWWztGCcng2QI9+41frfk+Athwgx3qhqhvStz7ExeUUu7Kzw427sNzHpEZNINog==
 
 mysql2@^3.11.0:
-  version "3.24.5"
-  resolved "https://registry.yarnpkg.com/mysql2/-/mysql2-3.24.5.tgz#36a3d3ecbb9657fbd56773e64239cede770be3d1"
-  integrity sha512-X6Ujsr2QSkkLpkQGjxzpKRAPn9nu4axpR63ntBzquFVEvPOArgbUQ1sJjFKI7hnaYtiVZxa17Z7q18KSubW0IQ==
+  version "3.24.6"
+  resolved "https://registry.yarnpkg.com/mysql2/-/mysql2-3.24.6.tgz#8e9471f0ceca917599ac021356bb24f08f168b3c"
+  integrity sha512-enu73KhbAua2L3dIxjc6qg6ZJ7H3pt1BImZASWNWY5xSsmJ1ZuUPULTDGXgmJbI61vb+nJAG19IZclIq19UidQ==
   dependencies:
     aws-ssl-profiles "^1.1.2"
     generate-function "^2.3.1"

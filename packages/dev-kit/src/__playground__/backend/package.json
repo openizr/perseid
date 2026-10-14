@@ -3,12 +3,12 @@
   "license": "MIT",
   "type": "module",
   "devDependencies": {
-    "@perseid/dev-kit": "file:../../../dist#../../../dist::hash=90af31&locator=root-workspace-0b6124%40workspace%3A."
+    "@perseid/dev-kit": "file:../../../dist"
   },
   "dependencies": {
     "ajv": "^8.20.0",
     "ajv-errors": "^3.0.0",
-    "fastify": "^5.12.3"
+    "fastify": "^5.12.7"
   },
   "devKitConfig": {
     "target": "node",
