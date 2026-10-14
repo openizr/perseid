@@ -470,17 +470,24 @@ export default class JobScheduler<
         'app.task.id': String(taskId),
         'app.instance.id': String(this.instanceId),
       },
-    }, async () => {
-      const metadata: JobMetadata = Object.assign(parsedMetadata, {
-        lastCompletedAt: (parsedMetadata.lastCompletedAt !== undefined)
-          ? new Date(parsedMetadata.lastCompletedAt)
-          : null,
-      });
+    }, async (span) => {
+      try {
+        const metadata: JobMetadata = Object.assign(parsedMetadata, {
+          lastCompletedAt: (parsedMetadata.lastCompletedAt !== undefined)
+            ? new Date(parsedMetadata.lastCompletedAt)
+            : null,
+        });
 
-      if (typeof this.jobs[jobId] !== 'function') {
-        throw new EngineError('NO_RESOURCE', { id: new Id(jobId) });
+        if (typeof this.jobs[jobId] !== 'function') {
+          throw new EngineError('NO_RESOURCE', { id: new Id(jobId) });
+        }
+
+        await this.jobs[jobId](taskId, metadata);
+      } catch (error) {
+        this.telemetry.error(error as Error);
+        span.setStatus({ code: 'ERROR' });
+        throw error;
       }
-      return this.jobs[jobId](taskId, metadata);
     });
   }
 
