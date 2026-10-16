@@ -2,11 +2,17 @@ import store from 'scripts/store';
 import PropTypes from 'prop-types';
 import React, { Suspense } from 'react';
 import routes from 'scripts/store/routes';
-import connect from 'diox/connectors/react';
 import Loader from 'scripts/components/Loader';
 import translate from 'scripts/helpers/translate';
+import connect from '@perseid/store/connectors/react';
 
 const useSubscription = connect(store);
+
+// Lazy components must be created once, outside of render.
+const lazyComponents = Object.keys(routes).reduce((components, route) => ({
+  ...components,
+  [route]: React.lazy(routes[route]),
+}), {});
 
 const propTypes = {
   locale: PropTypes.instanceOf(Object).isRequired,
@@ -21,9 +27,9 @@ export default function RouterJS(props) {
   log(locale);
   const route = useSubscription('router', (newState) => newState.route);
 
+  const Component = lazyComponents[route];
   let currentPage = null;
-  if (routes[route] !== undefined) {
-    const Component = React.lazy(routes[route]);
+  if (Component !== undefined) {
     currentPage = <Component translate={translate} />;
   }
 

@@ -6,90 +6,64 @@
  *
  */
 
+import type {
+  SearchBody,
+  QueryOptions,
+  SearchFilters,
+  ListQueryOptions,
+  ViewQueryOptions,
+} from 'scripts/core';
+import type { Id, Results } from '@perseid/core';
+
+type Relations = Map<string, { resource: string; filters: SearchFilters & { _id: Id[]; } | null; }>;
+type CheckRelations = (
+  resource: string,
+  relations: Relations,
+  options?: QueryOptions,
+) => Promise<void>;
+type Create = (resource: string, payload: unknown, options?: ViewQueryOptions) => Promise<void>;
+type Update = (
+  resource: string,
+  id: Id,
+  payload: unknown,
+  options?: ViewQueryOptions,
+) => Promise<boolean>;
+type Delete = (resource: string, id: Id, options?: QueryOptions) => Promise<boolean>;
+type View = (resource: string, id: Id, options?: ViewQueryOptions) => Promise<unknown>;
+type List = (
+  resource: string,
+  searchBody: SearchBody | null,
+  options?: ListQueryOptions,
+) => Promise<Results<unknown>>;
+
 /**
  * `core/services/AbstractDatabaseClient` mock.
  */
 
 export default class {
-  protected cache: unknown;
-
   protected model: unknown;
 
-  protected logger: unknown;
+  protected telemetry: unknown;
 
-  protected database: unknown;
+  protected cache: unknown;
 
-  protected isConnected: unknown;
+  public withSession = vi.fn(<T>(callback: (session: string) => Promise<T>) => callback('SESSION'));
 
-  protected resourcesMetadata: unknown;
+  public checkRelations = vi.fn<CheckRelations>(() => Promise.resolve());
 
-  protected readonly SPLITTING_TOKENS = /[ \-,.?=*\\/()'"`|+!:;[\]{}]/;
+  public create = vi.fn<Create>(() => Promise.resolve());
 
-  protected readonly DEFAULT_OFFSET = 0;
+  public update = vi.fn<Update>(() => Promise.resolve(true));
 
-  protected readonly DEFAULT_LIMIT = 20;
+  public delete = vi.fn<Delete>(() => Promise.resolve(true));
 
-  protected readonly DEFAULT_MAXIMUM_DEPTH = 3;
+  public view = vi.fn<View>((_resource, id) => Promise.resolve({ _id: id }));
 
-  protected readonly DEFAULT_SEARCH_COMMAND_OPTIONS: SearchCommandOptions = {};
+  public list = vi.fn<List>(() => Promise.resolve({ total: 0, results: [] }));
 
-  protected readonly DEFAULT_LIST_COMMAND_OPTIONS: ListCommandOptions = {};
-
-  protected readonly DEFAULT_VIEW_COMMAND_OPTIONS: ViewCommandOptions = {};
-
-  protected VALIDATORS = {
-    object: vi.fn(),
-    array: vi.fn(),
-    string: vi.fn(),
-    float: vi.fn(),
-    integer: vi.fn(),
-    boolean: vi.fn(),
-    id: vi.fn(),
-    null: vi.fn(),
-    date: vi.fn(),
-    binary: vi.fn(),
-  };
-
-  public constructor(
-    model: unknown,
-    logger: unknown,
-    cache: unknown,
-  ) {
-    this.cache = cache;
+  constructor(model: unknown, telemetry: unknown, cache: unknown) {
     this.model = model;
-    this.logger = logger;
-    this.database = 'test';
-    this.isConnected = false;
-    this.resourcesMetadata = {
-      test: {
-        constraints: [],
-        subStructures: [],
-        structure: 'test',
-        subStructuresPerPath: {},
-        indexes: [
-          { path: '_isDeleted', unique: false },
-          { path: 'indexedString', unique: false },
-          { path: 'objectOne.optionalRelations', unique: false },
-          { path: 'objectOne.objectTwo.optionalIndexedString', unique: true },
-          { path: 'objectOne.objectTwo.optionalNestedArray.data.flatArray', unique: false },
-          { path: 'objectOne.objectTwo.optionalNestedArray.data.optionalInteger', unique: false },
-        ],
-        invertedRelations: new Map([['otherTest', ['optionalRelation', 'data.optionalRelation']]]),
-        fields: {},
-      },
-      otherTest: {
-        indexes: [
-          { path: 'optionalRelation', unique: false },
-          { path: 'data.optionalRelation', unique: false },
-          { path: 'data.optionalFlatArray', unique: true },
-        ],
-        constraints: [],
-        subStructures: [],
-        structure: 'otherTest',
-        subStructuresPerPath: {},
-        invertedRelations: new Map(),
-        fields: {},
-      },
-    };
+    this.telemetry = telemetry;
+    this.cache = cache;
   }
 }

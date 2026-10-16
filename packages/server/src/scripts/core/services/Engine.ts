@@ -9,23 +9,80 @@
 import {
   Id,
   type Ids,
+  deepCopy,
   toSnakeCase,
-  type Results,
   type Authors,
-  type Version,
-  type IdSchema,
+  type Results,
   type Deletion,
+  isPlainObject,
+  type IdSchema,
   type Timestamps,
   type FieldSchema,
-  type ObjectSchema,
-  type ResourceSchema,
-  type DefaultDataModel,
-  type DataModelMetadata,
 } from '@perseid/core';
-import Logger from 'scripts/core/services/Logger';
+import type {
+  Payload,
+  SearchBody,
+  UpdatePayload,
+  CreatePayload,
+  CommandContext,
+  SearchFilters,
+} from 'scripts/core/types';
 import EngineError from 'scripts/core/errors/Engine';
-import type BaseModel from 'scripts/core/services/Model';
-import type BaseDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
+import type Model from 'scripts/core/services/Model';
+import type Telemetry from 'scripts/core/services/Telemetry';
+import type AbstractDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
+
+const noop = (): null => null;
+
+/**
+ * Foreign IDs to check, indexed by path in data model.
+ */
+type Relations<DataModel> = Map<string, {
+  resource: keyof DataModel & string;
+  filters: SearchFilters & { _id: Id[]; } | null;
+}>;
+
+/**
+ * Extends the base engine with custom methods specific to a resource.
+ */
+export interface EngineModule<DataModel, Resource extends keyof DataModel> {
+  create?(
+    payload: CreatePayload<DataModel[Resource]>,
+    context: CommandContext,
+    baseCreate: (
+      updatedPayload: CreatePayload<DataModel[Resource]>,
+      updatedContext: CommandContext,
+    ) => Promise<unknown>,
+  ): Promise<unknown>;
+  update?(
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    context: CommandContext,
+    baseUpdate: (
+      updatedId: Id,
+      updatedPayload: UpdatePayload<DataModel[Resource]>,
+      updatedContext: CommandContext,
+    ) => Promise<unknown>,
+  ): Promise<unknown>;
+  view?(
+    id: Id,
+    context: CommandContext,
+    baseView: (updatedId: Id, updatedContext: CommandContext) => Promise<unknown>,
+  ): Promise<unknown>;
+  delete?(
+    id: Id,
+    context: CommandContext,
+    baseDelete: (updatedId: Id, updatedContext: CommandContext) => Promise<void>,
+  ): Promise<void>;
+  list?(
+    searchBody: SearchBody | null,
+    context: CommandContext,
+    baseList: (
+      updatedSearchBody: SearchBody | null,
+      updatedContext: CommandContext,
+    ) => Promise<Results<unknown>>,
+  ): Promise<Results<unknown>>;
+}
 
 /**
  * Perseid engine, contains all the basic CRUD methods.
@@ -33,440 +90,466 @@ import type BaseDatabaseClient from 'scripts/core/services/AbstractDatabaseClien
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/core/services/Engine.ts
  */
 export default class Engine<
-  /** Data model types definitions. */
-  DataModel extends DefaultDataModel,
+  /**
+   * Data model type definition.
+   */
+  DataModel extends object,
 
-  /** Model class types definitions. */
-  Model extends BaseModel<DataModel> = BaseModel<DataModel>,
+  /**
+   * Query results type definition.
+   */
+  QueryResults extends Record<string, Ids> = Record<string, Ids>,
 
-  /** Database client types definition. */
-  DatabaseClient extends BaseDatabaseClient<DataModel> = BaseDatabaseClient<DataModel>,
+  /**
+   * Database client type definition.
+   */
+  DatabaseClient extends AbstractDatabaseClient<
+    DataModel,
+    QueryResults
+  > = AbstractDatabaseClient<DataModel, QueryResults>,
 > {
-  /** Data model. */
-  protected model: Model;
+  /**
+   * Ugly hack to make the linter happy...
+   */
+  protected noop = noop;
 
-  /** Logging system. */
-  protected logger: Logger;
+  /**
+   * Data model.
+   */
+  protected model: Model<DataModel>;
 
-  /** Database client. */
+  /**
+   * Telemetry system.
+   */
+  protected telemetry: Telemetry;
+
+  /**
+   * Database client.
+   */
   protected databaseClient: DatabaseClient;
 
   /**
-   * Makes sure that user has all necessary permissions to perform `operation`.
-   *
-   * @param operation Name of the operation to perform.
-   *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
-   *
-   * @param payload Operation payload, if applicable, `null` otherwise.
-   *
-   * @param context Request context.
-   *
-   * @throws If user email address is not yet verified.
-   *
-   * @throws If user is missing any of the required permissions.
-   *
-   * @throws If user account is not verified yet.
+   * List of registered modules used to override generic methods' base behavior.
    */
-  protected async rbac<Resource extends keyof DataModel & string>(
-    requiredPermissions: Set<string>,
-    existingResource: DataModel[Resource] | null,
-    payload: unknown,
-    context: CommandContext<DataModel>,
-  ): Promise<void> {
-    const { _verifiedAt, _permissions } = context.user;
-    const isMe = String((existingResource as DataModel['users'] | null)?._id) === String(context.user._id);
+  protected registeredModules: {
+    [Resource in keyof DataModel]?: EngineModule<DataModel, Resource>;
+  } = {};
 
-    // Users can always update their own information.
-    if (isMe) {
-      requiredPermissions.delete('UPDATE_USERS');
-    }
+  /**
+   * Extracts all relations to other resources from `partialPayload`.
+   *
+   * @param resource Type of resource for which to extract relations.
+   *
+   * @param partialPayload Current payload subset to inspect.
+   *
+   * @param currentSchema Schema of `partialPayload`.
+   *
+   * @param payload Full payload for updating or creating resource.
+   *
+   * @param currentPath Path of `partialPayload` in data model.
+   *
+   * @param relations Relations extracted so far.
+   *
+   * @returns Extracted relations.
+   */
+  private extractRelationsFromPayload<Resource extends keyof DataModel>(
+    resource: Resource & string,
+    partialPayload: unknown,
+    currentSchema: FieldSchema<DataModel>,
+    payload: UpdatePayload<DataModel[Resource]> | CreatePayload<DataModel[Resource]>,
+    currentPath: string[] = [],
+    relations: Relations<DataModel> = new Map(),
+  ): Relations<DataModel> {
+    const path = currentPath.join('.');
+    const { type } = currentSchema;
+    const { relation } = currentSchema as IdSchema<DataModel>;
 
-    // Unverified users cannot perform any operation.
-    if (_verifiedAt === null && requiredPermissions.size > 0) {
-      throw new EngineError('USER_NOT_VERIFIED');
-    }
-
-    if (
-      requiredPermissions.has('UPDATE_USERS')
-      && !_permissions.has('UPDATE_USERS_ROLES')
-      && (payload as DataModel['users'] | null)?.roles !== undefined
-    ) {
-      await Promise.resolve(this);
-      throw new EngineError('FORBIDDEN', { permission: 'UPDATE_USERS_ROLES' });
-    }
-
-    requiredPermissions.forEach((permission) => {
-      if (!_permissions.has(permission)) {
-        throw new EngineError('FORBIDDEN', {
-          // `_PRIVATE` is a special permission that actually doesn't exist, but
-          // prevents anyone from accessing the `password` users field.
-          permission: (permission === '_PRIVATE')
-            ? null
-            : permission,
+    if (type === 'array' && Array.isArray(partialPayload)) {
+      partialPayload.forEach((value) => {
+        this.extractRelationsFromPayload(
+          resource,
+          value,
+          currentSchema.fields,
+          payload,
+          currentPath,
+          relations,
+        );
+      });
+    } else if (type === 'object' && isPlainObject(partialPayload)) {
+      Object.keys(partialPayload).forEach((fieldName) => {
+        this.extractRelationsFromPayload(
+          resource,
+          partialPayload[fieldName],
+          currentSchema.fields[fieldName],
+          payload,
+          currentPath.concat([fieldName]),
+          relations,
+        );
+      });
+    } else if (type === 'id' && relation !== undefined && partialPayload instanceof Id) {
+      const existingFilters = relations.get(path);
+      if (existingFilters && existingFilters.filters !== null) {
+        (existingFilters.filters._id).push(partialPayload);
+        relations.set(path, existingFilters);
+      } else {
+        relations.set(path, {
+          resource: relation,
+          filters: { _id: [partialPayload] },
         });
       }
+    }
+
+    return relations;
+  }
+
+  /**
+   * Checks if `operation` is allowed for `resource`, according to data model definition.
+   *
+   * @param resource Type of resource to check.
+   *
+   * @param operation Type of operation (CREATE, UPDATE, DELETE, LIST, VIEW) to check.
+   *
+   * @throws If operation is not allowed for that resource.
+   */
+  private checkOperationAllowed(
+    resource: keyof DataModel,
+    operation: 'CREATE' | 'UPDATE' | 'DELETE' | 'LIST' | 'VIEW',
+  ): void {
+    const metaData = this.model.get(resource);
+    const isWriteOperation = (operation === 'CREATE' || operation === 'UPDATE');
+
+    if (isWriteOperation && !metaData.schema.allowedOperations?.includes('VIEW')) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation: 'VIEW' });
+    }
+
+    if (!metaData.schema.allowedOperations?.includes(operation)) {
+      throw new EngineError('OPERATION_NOT_ALLOWED', { operation });
+    }
+  }
+
+  /**
+   * Base `create` method implementation.
+   */
+  private async baseCreate<Resource extends keyof DataModel & string = keyof DataModel & string>(
+    resource: Resource,
+    payload: CreatePayload<DataModel[Resource]>,
+    context: CommandContext,
+  ): Promise<unknown> {
+    const fullContext = await this.applyPermissions(resource, 'CREATE', null, payload, context);
+
+    return this.databaseClient.withSession(async (session) => {
+      const options = { ...fullContext.queryOptions, poolOrSession: session };
+      const fullPayload = await this.preparePayload(resource, 'CREATE', payload, fullContext);
+      await this.databaseClient.create(resource, fullPayload, options);
+      return await this.databaseClient.view(resource, (fullPayload as Ids)._id, options);
     });
   }
 
   /**
-   * Parses `fields`, making sure they are all valid paths in `resource` data model, transforming
-   * `*` specific statements into the proper list of sub-fields, and checking user permissions for
-   * specific fields.
+   * Base `update` method implementation.
+   */
+  private async baseUpdate<Resource extends keyof DataModel & string = keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    payload: UpdatePayload<DataModel[Resource]>,
+    context: CommandContext,
+  ): Promise<unknown> {
+    const fullContext = await this.applyPermissions(resource, 'UPDATE', id, payload, context);
+
+    return this.databaseClient.withSession(async (session) => {
+      const options = { ...fullContext.queryOptions, poolOrSession: session };
+      const fullPayload = await this.preparePayload(resource, 'UPDATE', payload, fullContext);
+      const resourceExists = await this.databaseClient.update(resource, id, fullPayload, options);
+
+      if (!resourceExists) {
+        throw new EngineError('NO_RESOURCE', { id });
+      }
+
+      return await this.databaseClient.view(resource, id, options);
+    });
+  }
+
+  /**
+   * Base `view` method implementation.
+   */
+  private async baseView(
+    resource: keyof DataModel & string,
+    id: Id,
+    context: CommandContext,
+  ): Promise<unknown> {
+    const updatedContext = await this.applyPermissions(resource, 'VIEW', id, {}, context);
+    const result = await this.databaseClient.view(resource, id, updatedContext.queryOptions);
+
+    if (result === null) {
+      throw new EngineError('NO_RESOURCE', { id });
+    }
+
+    return result;
+  }
+
+  /**
+   * Base `list` method implementation.
+   */
+  private async baseList<Result = unknown>(
+    resource: keyof DataModel & string,
+    searchBody: SearchBody | null,
+    context: CommandContext,
+  ): Promise<Results<Result>> {
+    const updatedContext = await this.applyPermissions(resource, 'LIST', null, searchBody, context);
+    const options = updatedContext.queryOptions;
+    return await this.databaseClient.list(resource, searchBody, options) as Results<Result>;
+  }
+
+  /**
+   * Base `delete` method implementation.
+   */
+  private async baseDelete<Resource extends keyof DataModel & string = keyof DataModel & string>(
+    resource: Resource,
+    id: Id,
+    context: CommandContext,
+  ): Promise<void> {
+    let resourceExists = false;
+    const metaData = this.model.get(resource);
+    const updatedContext = await this.applyPermissions(resource, 'DELETE', id, {}, context);
+    const options = updatedContext.queryOptions;
+
+    if (metaData.schema.enableDeletion) {
+      resourceExists = await this.databaseClient.delete(resource, id, options);
+    } else {
+      const payload: Partial<Deletion & Timestamps & Authors> = { _isDeleted: true };
+      if (metaData.schema.enableTimestamps) {
+        payload._updatedAt = new Date();
+      }
+      if (metaData.schema.enableAuthors && updatedContext.session !== undefined) {
+        payload._updatedBy = updatedContext.session.user._id;
+      }
+      const deletePayload = payload as Payload<DataModel[Resource]>;
+      resourceExists = await this.databaseClient.update(resource, id, deletePayload, options);
+    }
+
+    if (!resourceExists) {
+      throw new EngineError('NO_RESOURCE', { id });
+    }
+  }
+
+  /**
+   * Registers `module` for `resource`, overriding any generic method by the one defined in it.
    *
-   * @param resource Type of resource for which to parse fields.
+   * @param resource Type of resource to register the module for.
    *
-   * @param fields List of fields to fetch from database.
+   * @param module Module to register.
+   */
+  protected registerModule<Resource extends keyof DataModel>(
+    resource: Resource,
+    module: EngineModule<DataModel, Resource>,
+  ): void {
+    this.registeredModules[resource] = module;
+  }
+
+  /**
+   * Verifies that user has the right permissions to perform `operation`, using given `payload` and
+   * `context`. This method should return any additional information that is relevant to perform the
+   * operation in granted scope, such as filtered options, updated payload, sub-resources for
+   * narrowing down the scope, etc.
    *
-   * @param context Command context.
+   * @param resource Type of resource on which to perform the operation.
    *
-   * @param maximumDepth Maximum allowed level of resources depth. Defaults to `3`.
+   * @param operation Type of operation to perform.
    *
-   * @returns List of parsed fields.
+   * @param id Resource ID, if any.
+   *
+   * @param payload Operation payload.
+   *
+   * @param context Command context. If no session is provided, RBAC checks will not be performed.
+   *
+   * @returns Updated context, allowing to perform the operation in granted scope.
    *
    * @throws If field path does not exist in data model.
    *
    * @throws If maximum level of resources depth is exceeded.
    *
-   * @throws If user does not have sufficient permissions to access to any of the fields.
+   * @throws If user does not have sufficient permissions to perform the operation.
+   *
+   * @throws If `operation` is not allowed for the given resource.
    */
-  protected parseFields<Resource extends keyof DataModel & string>(
+  protected async applyPermissions<Resource extends keyof DataModel>(
     resource: Resource,
-    fields: Set<string>,
-    maximumDepth = 3,
-  ): {
-    fields: Set<string>;
-    permissions: Set<string>;
-  } {
-    const finalFields = new Set<string>();
-    const requiredPermissions = new Set<string>();
-    const allFields = [...fields].concat(['_id']);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
+    operation: string,
+    _id: Id | null,
+    payload: unknown,
+    context: Partial<CommandContext>,
+  ): Promise<CommandContext> {
+    const { session } = context;
+    const filteredFields = new Set<string>();
+    const allFields = [...context.queryOptions?.fields ?? []]
+      .concat(Object.keys(context.queryOptions?.sortBy ?? {}))
+      .concat(['_id']);
 
-    while (allFields.length > 0) {
-      let currentDepth = 1;
-      const path = String(allFields.shift());
-      let currentResource: keyof DataModel = resource;
+    if (session !== undefined) {
+      if (operation === 'LIST') {
+        const listPayload = payload as SearchBody | null;
+        allFields.push(...Object.keys(listPayload?.filters ?? {}).map(String));
+        allFields.push(...Array.from(listPayload?.query?.on ?? []).map(String));
+      }
 
-      if (path === '*') {
-        Object.keys(metaData.schema.fields).forEach((subField) => {
-          allFields.push(subField);
-        });
-      } else {
-        let canonicalPath: string[] = [];
-        const currentPath: string[] = [];
-        const splittedPath = path.split('.');
-        let currentSchema = metaData.schema as FieldSchema<DataModel> | undefined;
+      const requestedFields = new Set(allFields);
+      const permissions = session.user._permissions;
+      const metaData = this.model.get(resource);
+      const permission = `${toSnakeCase(String(resource))}.${operation}`;
 
-        while (splittedPath.length > 0 && currentSchema !== undefined) {
-          const fieldName = String(splittedPath.shift());
-          currentPath.push(fieldName);
-          canonicalPath.push(fieldName);
-          const subFields = (currentSchema as { fields?: ObjectSchema<DataModel>['fields']; }).fields;
-          currentSchema = subFields?.[fieldName];
+      while (allFields.length > 0) {
+        const path = String(allFields.shift());
+        const isWildcard = path.endsWith('*');
+        const pathWithoutWildcard = isWildcard ? path.slice(0, -2) : path;
+        const getFullPath = (field: string): string => `${pathWithoutWildcard}.${field}`;
 
-          if (fieldName === 'roles') {
-            requiredPermissions.add('VIEW_USERS_ROLES');
+        if (path === '*') {
+          allFields.push(...Object.keys(metaData.schema.fields));
+        } else {
+          const resourcePath = `${String(resource)}.${pathWithoutWildcard}`;
+          const fieldMetaData = this.model.get(resourcePath);
+
+          if (fieldMetaData === null) {
+            throw new EngineError('UNKNOWN_QUERY_FIELD', { path });
           }
 
-          if (fieldName === '_devices' || fieldName === '_apiKeys' || fieldName === '_verifiedAt') {
-            requiredPermissions.add('VIEW_USERS_AUTH_DETAILS');
+          let fieldSchema = fieldMetaData.schema;
+          if (fieldSchema.type === 'array') {
+            fieldSchema = fieldSchema.fields;
           }
 
-          if (currentSchema?.type === 'array') {
-            currentSchema = currentSchema.fields;
-          }
-
-          const type = currentSchema?.type;
-          const relation = (currentSchema as IdSchema<DataModel> | undefined)?.relation;
-
-          if (type === 'object') {
-            const { fields: objectFields } = currentSchema as unknown as ObjectSchema<DataModel>;
-            if (splittedPath.length === 0 || (splittedPath.length === 1 && splittedPath[0] === '*')) {
-              Object.keys(objectFields).forEach((subField) => {
-                allFields.push(currentPath.concat(subField).join('.'));
-              });
-              break;
+          if (fieldSchema.type === 'object') {
+            allFields.push(...Object.keys(fieldSchema.fields).map(getFullPath));
+          } else if (fieldSchema.type === 'id' && isWildcard) {
+            if (fieldSchema.relation === undefined) {
+              throw new EngineError('UNKNOWN_QUERY_FIELD', { path });
             }
-          } else if (type === 'id' && relation !== undefined && splittedPath.length > 0) {
-            currentDepth += 1;
-            canonicalPath = [];
-            currentResource = relation;
-            const relationMetaData = this.model.get(relation);
-            requiredPermissions.add(`VIEW_${toSnakeCase(currentResource as string)}`);
-            const { schema } = relationMetaData as DataModelMetadata<ResourceSchema<DataModel>>;
-            currentSchema = { type: 'object', fields: schema.fields };
-            if ((splittedPath.length === 1 && splittedPath[0] === '*')) {
-              Object.keys(schema.fields).forEach((subField) => {
-                allFields.push(currentPath.concat(subField).join('.'));
-              });
-              break;
-            }
+            const relationMetaData = this.model.get(fieldSchema.relation);
+            allFields.push(...Object.keys(relationMetaData.schema.fields).map(getFullPath));
           } else {
-            const [subPath] = canonicalPath;
-            if (currentResource === 'users' && subPath === 'password') {
-              requiredPermissions.add('_PRIVATE');
+            const missingPermission = fieldMetaData.permissions.find((fieldPermission) => (
+              fieldPermission === null || !permissions.has(fieldPermission)
+            ));
+            if (missingPermission === undefined) {
+              filteredFields.add(path);
+            } else if (requestedFields.has(path)) {
+              throw new EngineError('FORBIDDEN', { permission: missingPermission });
             }
-            finalFields.add(path);
           }
         }
-
-        if (currentSchema === undefined) {
-          throw new EngineError('UNKNOWN_FIELD', { path });
-        } else if (currentDepth > maximumDepth) {
-          throw new EngineError('MAXIMUM_DEPTH_EXCEEDED', { path });
-        }
       }
+
+      // Unverified users cannot perform any operation.
+      if (session.user._verifiedAt === null) {
+        throw new EngineError('USER_NOT_VERIFIED');
+      }
+
+      if (!permissions.has(permission)) {
+        throw new EngineError('FORBIDDEN', { permission });
+      }
+
+      return {
+        ...context,
+        queryOptions: { ...context.queryOptions, fields: [...filteredFields] },
+      };
     }
 
-    return {
-      fields: finalFields,
-      permissions: requiredPermissions,
-    };
+    return Promise.resolve({
+      ...context,
+      queryOptions: { ...context.queryOptions, fields: allFields },
+    });
   }
 
   /**
-   * Returns the list of fields to fetch when retrieving an existing resource for update.
+   * Prepares payload for `resource` and `type`, adding automatically fields if needed.
    *
-   * @param resource Type of resource for which to get existing fields.
+   * @param resource Type of resource to prepare payload for.
    *
-   * @returns Fields list.
-   */
-  protected getResourceFields<Resource extends keyof DataModel & string>(
-    resource: Resource,
-  ): Set<string> {
-    this.logger.silent(resource);
-    return new Set();
-  }
-
-  /**
-   * Returns filters to apply when checking foreign ids referencing other relations.
+   * @param type Type of operation to prepare payload for.
    *
-   * @param resource Type of resource for which to return filters.
-   *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
-   *
-   * @param path Path to the relation reference in data model.
-   *
-   * @param ids List of foreign ids to check.
-   *
-   * @param payload Payload for updating or creating resource.
+   * @param payload Payload to prepare.
    *
    * @param context Command context.
    *
-   * @returns Filters to apply to check foreign ids.
+   * @returns Prepared payload.
    */
-  protected getRelationFilters<Resource extends keyof DataModel & string>(
+  protected async preparePayload<
+    Resource extends keyof DataModel & string,
+    Type extends 'CREATE' | 'UPDATE',
+  >(
     resource: Resource,
-    existingResource: DataModel[Resource] | null,
-    path: string,
-    ids: Id[],
-    payload: UpdatePayload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
-  ): SearchFilters {
-    this.logger.silent(resource, existingResource, path, payload, context);
-    return { _id: ids };
-  }
+    type: Type,
+    payload: Type extends 'CREATE' ? CreatePayload<DataModel[Resource]> : UpdatePayload<DataModel[Resource]>,
+    context: CommandContext,
+  ): Promise<Type extends 'CREATE'
+    ? DataModel[Resource]
+    : Payload<DataModel[Resource]>> {
+    const fullPayload = deepCopy(payload) as Ids & Timestamps & Authors & Deletion;
 
-  /**
-   * Returns updated `payload` with automatic fields.
-   *
-   * @param resource Type of resource for which to generate automatic fields.
-   *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
-   *
-   * @param payload Payload to update.
-   *
-   * @param context Command context.
-   *
-   * @returns Payload with automatic fields.
-   */
-  protected async withAutomaticFields<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    existingResource: DataModel[Resource] | null,
-    payload: Payload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
-  ): Promise<Payload<DataModel[Resource]>> {
-    const isCreation = (existingResource === null);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
-    const fullPayload: Payload<Ids & Authors & Version & Deletion & Timestamps> = { ...payload };
+    if (type === 'CREATE') {
+      const metaData = this.model.get(resource);
 
-    if (metaData.schema.enableAuthors) {
-      if (isCreation) {
-        fullPayload._updatedBy = null;
-        // A null creator happens when a new user signs-up.
-        (fullPayload as DataModel['users'])._createdBy = (context as { user?: DataModel['users']; }).user?._id ?? null;
-      } else {
-        fullPayload._updatedBy = (context as { user?: DataModel['users']; }).user?._id ?? null;
-      }
-    }
+      fullPayload._id = new Id();
 
-    if (metaData.schema.enableTimestamps) {
-      if (isCreation) {
+      if (metaData.schema.enableTimestamps) {
         fullPayload._updatedAt = null;
         fullPayload._createdAt = new Date();
-      } else {
+      }
+
+      if (metaData.schema.enableAuthors && context.session !== undefined) {
+        fullPayload._updatedBy = null;
+        fullPayload._createdBy = context.session.user._id;
+      }
+
+      if (metaData.schema.enableDeletion === false) {
+        fullPayload._isDeleted = false;
+      }
+    } else {
+      const metaData = this.model.get(resource);
+
+      if (metaData.schema.enableTimestamps) {
         fullPayload._updatedAt = new Date();
       }
-    }
 
-    if (isCreation) {
-      fullPayload._id = new Id();
-    }
-
-    if (isCreation && metaData.schema.enableDeletion === false) {
-      fullPayload._isDeleted = false;
-    }
-
-    if (isCreation && metaData.schema.version !== undefined) {
-      fullPayload._version = metaData.schema.version;
-    }
-
-    return Promise.resolve(fullPayload as Payload<DataModel[Resource]>);
-  }
-
-  /**
-   * Performs specific checks `payload` to make sure it is valid, and updates it if necessary.
-   *
-   * @param resource Type of resource for which to check and update payload.
-   *
-   * @param existingResource Existing resource being updated, if applicable, `null` otherwise.
-   *
-   * @param payload Payload to validate and update.
-   *
-   * @param context Command context.
-   */
-  protected async checkAndUpdatePayload<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    existingResource: DataModel[Resource] | null,
-    payload: Payload<DataModel[Resource]>,
-    context: CommandContext<DataModel>,
-  ): Promise<Payload<DataModel[Resource]>> {
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
-    const foreignIds = new Map<string, {
-      resource: keyof DataModel & string;
-      filters: SearchFilters;
-    }>();
-
-    const checkPartialPayload = (
-      partialPayload: unknown,
-      currentSchema: FieldSchema<DataModel>,
-      currentPath: string[] = [],
-    ): void => {
-      const path = currentPath.join('.');
-      const { type } = currentSchema;
-      const { relation } = currentSchema as IdSchema<DataModel>;
-
-      if (type === 'array' && partialPayload !== null) {
-        (partialPayload as unknown[]).forEach((value) => {
-          checkPartialPayload(value, currentSchema.fields, currentPath);
-        });
-      } else if (type === 'object' && partialPayload !== null) {
-        const { fields } = currentSchema;
-        Object.keys(partialPayload as Record<string, unknown>).forEach((fieldName) => {
-          checkPartialPayload(
-            (partialPayload as Record<string, unknown>)[fieldName],
-            fields[fieldName],
-            currentPath.concat([fieldName]),
-          );
-        });
-      } else if (type === 'id' && relation !== undefined && partialPayload !== null) {
-        const existingFilters = foreignIds.get(path);
-        if (existingFilters !== undefined) {
-          (existingFilters.filters._id as Id[]).push(partialPayload as Id);
-          foreignIds.set(path, existingFilters);
-        } else {
-          foreignIds.set(currentPath.join('.'), {
-            resource: relation as keyof DataModel & string,
-            filters: this.getRelationFilters(
-              resource,
-              existingResource,
-              currentPath.join('.'),
-              [partialPayload as Id],
-              payload,
-              context,
-            ),
-          });
-        }
+      if (metaData.schema.enableAuthors && context.session !== undefined) {
+        fullPayload._updatedBy = context.session.user._id;
       }
-    };
+    }
 
-    checkPartialPayload(payload, { type: 'object', isRequired: true, fields: metaData.schema.fields });
+    await this.databaseClient.checkRelations(
+      resource,
+      this.extractRelationsFromPayload(resource, payload, {
+        type: 'object',
+        description: '',
+        isRequired: true,
+        fields: this.model.get(resource).schema.fields,
+      }, payload),
+      context.queryOptions,
+    );
 
-    await this.databaseClient.checkForeignIds(resource, foreignIds);
-    return payload;
+    return fullPayload as unknown as Type extends 'CREATE'
+      ? DataModel[Resource]
+      : Payload<DataModel[Resource]>;
   }
 
   /**
    * Class constructor.
    *
-   * @param model Data model to use.
+   * @param model Model instance to use.
    *
-   * @param logger Logging system to use.
+   * @param telemetry Telemetry instance to use.
    *
-   * @param databaseClient Database client to use.
+   * @param databaseClient DatabaseClient instance to use.
    */
   constructor(
-    model: Model,
-    logger: Logger,
+    model: Model<DataModel>,
+    telemetry: Telemetry,
     databaseClient: DatabaseClient,
   ) {
     this.model = model;
-    this.logger = logger;
+    this.telemetry = telemetry;
     this.databaseClient = databaseClient;
-  }
-
-  /**
-   * Resets the whole system, including database.
-   */
-  public async reset(...args: unknown[]): Promise<void> {
-    this.logger.warn('[Engine][reset] 🕐 Resetting system in 5 seconds, it\'s still time to abort...');
-    await new Promise<unknown>((resolve) => { setTimeout(() => { resolve(args.at(0)); }, 5000); });
-    await this.databaseClient.reset();
-  }
-
-  /**
-   * Generates full command context.
-   *
-   * @param userId Id of the user to populate context with.
-   *
-   * @param deviceId Device id to add to the context.
-   *
-   * @param userAgent User agent to add to the context.
-   *
-   * @returns Generated command context.
-   *
-   * @throws If user does not exist.
-   */
-  public async generateContext(
-    userId: Id,
-    deviceId?: string,
-    userAgent?: string,
-  ): Promise<CommandContext<DataModel>> {
-    const user = await this.databaseClient.view('users', userId, {
-      fields: new Set([
-        'email',
-        'roles',
-        'roles.name',
-        'roles.permissions',
-        '_apiKeys',
-        '_verifiedAt',
-        '_devices._id',
-        '_devices._userAgent',
-        '_devices._expiration',
-        '_devices._refreshToken',
-      ]),
-    });
-
-    if (user === null) {
-      throw new EngineError('NO_RESOURCE', { id: userId });
-    }
-
-    user._permissions = new Set((user.roles as DataModel['roles'][]).reduce<string[]>((permissions, role) => (
-      permissions.concat(role.permissions)
-    ), []));
-
-    return { user, deviceId, userAgent };
+    this.registeredModules = {};
   }
 
   /**
@@ -476,27 +559,33 @@ export default class Engine<
    *
    * @param payload New resource payload.
    *
-   * @param options Command options.
-   *
-   * @param context Command context.
+   * @param context Command context, if any.
    *
    * @returns Newly created resource.
    */
-  public async create<Resource extends keyof DataModel & string>(
+  public create<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  >(
     resource: Resource,
     payload: CreatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions,
-    context: CommandContext<DataModel>,
-  ): Promise<DataModel[Resource]> {
-    const fields = options.fields ?? new Set<string>();
-    const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
-    parsedFields.permissions.add(`CREATE_${toSnakeCase(resource)}`);
-    await this.rbac(parsedFields.permissions, null, payload, context);
-    const newPayload = payload as unknown as Payload<DataModel[Resource]>;
-    let fullPayload = await this.checkAndUpdatePayload(resource, null, newPayload, context);
-    fullPayload = await this.withAutomaticFields(resource, null, fullPayload, context);
-    await this.databaseClient.create(resource, fullPayload as DataModel[Resource]);
-    return this.view(resource, (fullPayload as Ids)._id, { fields: parsedFields.fields }, context);
+    context: CommandContext,
+  ): Promise<QueryResults[Key]> {
+    return this.telemetry.span(`${this.constructor.name}.create`, {
+      kind: 'SERVER',
+      attributes: {
+        resource,
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      this.checkOperationAllowed(resource, 'CREATE');
+      const customCreate = this.registeredModules[resource]?.create?.bind(this);
+      const response = await (customCreate?.(payload, context, (...args) => (
+        this.baseCreate(resource, ...args)
+      )) ?? this.baseCreate(resource, payload, context)) as QueryResults[Key];
+
+      return response;
+    });
   }
 
   /**
@@ -508,42 +597,43 @@ export default class Engine<
    *
    * @param payload Updated resource payload.
    *
-   * @param options Command options.
-   *
    * @param context Command context.
    *
    * @returns Updated resource.
    *
-   * @throws If resource does not exist or has been deleted.
+   * @throws If resource does not exist or does not match criteria.
    */
-  public async update<Resource extends keyof DataModel & string>(
+  public update<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  >(
     resource: Resource,
     id: Id,
     payload: UpdatePayload<DataModel[Resource]>,
-    options: ViewCommandOptions,
-    context: CommandContext<DataModel>,
-  ): Promise<DataModel[Resource]> {
-    const fields = options.fields ?? new Set<string>();
-    const resourceFields = this.getResourceFields(resource);
-    const currentResource = (resourceFields.size === 0)
-      ? { _id: id } as DataModel[Resource]
-      : await this.databaseClient.view(resource, id, { fields: resourceFields });
+    context: CommandContext,
+  ): Promise<QueryResults[Key]> {
+    return this.telemetry.span(`${this.constructor.name}.update`, {
+      kind: 'SERVER',
+      attributes: {
+        resource,
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      this.checkOperationAllowed(resource, 'UPDATE');
 
-    if (currentResource === null) {
-      throw new EngineError('NO_RESOURCE', { id });
-    }
+      if (Object.keys(payload).length === 0) {
+        const fullContext = await this.applyPermissions(resource, 'UPDATE', id, payload, context);
+        const { session: _, queryOptions, ...rest } = fullContext;
+        return await this.view<Key>(resource, id, { queryOptions, ...rest });
+      }
 
-    const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
-    parsedFields.permissions.add(`UPDATE_${toSnakeCase(resource)}`);
-    await this.rbac(parsedFields.permissions, currentResource, payload, context);
-    if (Object.keys(payload).length > 0) {
-      let newPayload = payload as unknown as Payload<DataModel[Resource]>;
-      newPayload = await this.checkAndUpdatePayload(resource, currentResource, newPayload, context);
-      newPayload = await this.withAutomaticFields(resource, currentResource, newPayload, context);
-      await this.databaseClient.update(resource, id, newPayload);
-    }
+      const customUpdate = this.registeredModules[resource]?.update?.bind(this);
+      const response = await (customUpdate?.(id, payload, context, (...args) => (
+        this.baseUpdate(resource, ...args)
+      )) ?? this.baseUpdate(resource, id, payload, context)) as QueryResults[Key];
 
-    return this.view(resource, id, { fields: parsedFields.fields }, context);
+      return response;
+    });
   }
 
   /**
@@ -553,61 +643,36 @@ export default class Engine<
    *
    * @param id Resource id.
    *
-   * @param options Command options.
-   *
-   * @param context Command context.
+   * @param context Command context. If no session is provided, no RBAC nor options checks will be
+   * performed. Useful when calling `view` from other methods like `create` or `update`, to avoid
+   * duplicated checks.
    *
    * @returns Resource, if it exists.
    *
-   * @throws If resource does not exist or has been deleted.
+   * @throws If resource does not exist or does not match criteria.
    */
-  public async view<Resource extends keyof DataModel & string>(
+  public view<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  >(
     resource: Resource,
     id: Id,
-    options: ViewCommandOptions,
-    context: CommandContext<DataModel>,
-  ): Promise<DataModel[Resource]> {
-    const fields = options.fields ?? new Set<string>();
-    const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
-    parsedFields.permissions.add(`VIEW_${toSnakeCase(resource)}`);
-    await this.rbac(parsedFields.permissions, null, null, context);
-    const result = await this.databaseClient.view(resource, id, {
-      fields: parsedFields.fields,
-      maximumDepth: options.maximumDepth,
-    });
+    context: CommandContext,
+  ): Promise<QueryResults[Key]> {
+    return this.telemetry.span(`${this.constructor.name}.view`, {
+      kind: 'SERVER',
+      attributes: {
+        resource,
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      this.checkOperationAllowed(resource, 'VIEW');
+      const customView = this.registeredModules[resource]?.view?.bind(this);
+      const response = await (customView?.(id, context, (...args) => (
+        this.baseView(resource, ...args)
+      )) ?? this.baseView(resource, id, context)) as QueryResults[Key];
 
-    if (result === null) {
-      throw new EngineError('NO_RESOURCE', { id });
-    }
-
-    return result;
-  }
-
-  /**
-   * Fetches a paginated list of resources.
-   *
-   * @param resource Type of resources to fetch.
-   *
-   * @param options Command options.
-   *
-   * @param context Command context.
-   *
-   * @returns Paginated list of resources.
-   */
-  public async list<Resource extends keyof DataModel & string>(
-    resource: Resource,
-    options: ListCommandOptions,
-    context: CommandContext<DataModel>,
-  ): Promise<Results<DataModel[Resource]>> {
-    const sortFields = Object.keys(options.sortBy ?? {});
-    const fields = new Set([...options.fields ?? []].concat(sortFields));
-    const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
-    parsedFields.permissions.add(`LIST_${toSnakeCase(resource)}`);
-    await this.rbac(parsedFields.permissions, null, null, context);
-    return this.databaseClient.list(resource, {
-      ...options,
-      fields: parsedFields.fields,
-      maximumDepth: options.maximumDepth,
+      return response;
     });
   }
 
@@ -618,30 +683,32 @@ export default class Engine<
    *
    * @param searchBody Search body (filters, text query) to filter resources with.
    *
-   * @param options Command options.
-   *
-   * @param context Command context.
+   * @param context Command context. If no session is provided, no RBAC checks will be performed.
    *
    * @returns Paginated list of resources.
    */
-  public async search<Resource extends keyof DataModel & string>(
+  public list<
+    Key extends keyof QueryResults,
+    Resource extends keyof DataModel & string = keyof DataModel & string
+  >(
     resource: Resource,
-    searchBody: SearchBody,
-    options: SearchCommandOptions,
-    context: CommandContext<DataModel>,
-  ): Promise<Results<DataModel[Resource]>> {
-    const queryFields = [...searchBody.query?.on ?? []];
-    const sortFields = Object.keys(options.sortBy ?? {});
-    const filterFields = Object.keys(searchBody.filters ?? {});
-    const searchFields = queryFields.concat(filterFields).concat(sortFields);
-    const fields = new Set([...options.fields ?? []].concat(searchFields));
-    const parsedFields = this.parseFields(resource, fields, options.maximumDepth);
-    parsedFields.permissions.add(`SEARCH_${toSnakeCase(resource)}`);
-    await this.rbac(parsedFields.permissions, null, null, context);
-    return this.databaseClient.search(resource, searchBody, {
-      ...options,
-      fields: parsedFields.fields,
-      maximumDepth: options.maximumDepth,
+    searchBody: SearchBody | null,
+    context: CommandContext,
+  ): Promise<Results<QueryResults[Key]>> {
+    return this.telemetry.span(`${this.constructor.name}.list`, {
+      kind: 'SERVER',
+      attributes: {
+        resource,
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      this.checkOperationAllowed(resource, 'LIST');
+      const customList = this.registeredModules[resource]?.list?.bind(this);
+      const response = await (customList?.(searchBody, context, (...args) => (
+        this.baseList(resource, ...args)
+      )) ?? this.baseList(resource, searchBody, context)) as Results<QueryResults[Key]>;
+
+      return response;
     });
   }
 
@@ -654,33 +721,25 @@ export default class Engine<
    *
    * @param context Command context.
    *
-   * @param context Command context.
-   *
-   * @throws If resource does not exist or has been deleted.
+   * @throws If resource does not exist or does not match criteria.
    */
-  public async delete<Resource extends keyof DataModel & string>(
+  public delete<Resource extends keyof DataModel & string = keyof DataModel & string>(
     resource: Resource,
     id: Id,
-    context: CommandContext<DataModel>,
+    context: CommandContext,
   ): Promise<void> {
-    let resourceExists = false;
-    await this.rbac(new Set([`DELETE_${toSnakeCase(resource)}`]), null, null, context);
-    const metaData = this.model.get(resource) as DataModelMetadata<ResourceSchema<DataModel>>;
-
-    if (metaData.schema.enableDeletion) {
-      resourceExists = await this.databaseClient.delete(resource, id);
-    } else {
-      const payload = await this.withAutomaticFields(
+    return this.telemetry.span(`${this.constructor.name}.delete`, {
+      kind: 'SERVER',
+      attributes: {
         resource,
-        { _id: id } as DataModel[Resource],
-        { _isDeleted: true } as Payload<DataModel[Resource]>,
-        context,
-      );
-      resourceExists = await this.databaseClient.update(resource, id, payload);
-    }
-
-    if (!resourceExists) {
-      throw new EngineError('NO_RESOURCE', { id });
-    }
+        'code.class.name': this.constructor.name,
+      },
+    }, async () => {
+      this.checkOperationAllowed(resource, 'DELETE');
+      const customDelete = this.registeredModules[resource]?.delete?.bind(this);
+      await (customDelete?.(id, context, (...args) => (
+        this.baseDelete(resource, ...args)
+      )) ?? this.baseDelete(resource, id, context));
+    });
   }
 }

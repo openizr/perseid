@@ -1,0 +1,1 @@
+- You will be simple, short and synthetic in your answers

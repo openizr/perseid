@@ -1,5 +1,10 @@
+# Package managers
+  `npm`
+  `yarn` 4 (node-modules linker)
+  `pnpm`
+
 # Yarn commands
-  Work on nodeJS 18+
+  Work on nodeJS 22+
   `yarn`
   `yarn run dev`
   `yarn run test`
@@ -12,7 +17,7 @@
   Allows testing TS/JS Vue/React/Svelte components
 
 # Development mode
-  ES7+ support
+  ES2022+ support
   SASS support
   ESLint Airbnb
   Watch mode
@@ -28,11 +33,11 @@
   Serves static assets from public directory
 
 # Production mode
-  ES7+ support
+  ES2022+ support
   SASS support
   ESLint Airbnb
   Optimized bundle
-  Transpiles to ES6
+  Transpiles to ES2022
   Sourcemaps support
   Checks TS/Svelte types
   Dynamic imports support

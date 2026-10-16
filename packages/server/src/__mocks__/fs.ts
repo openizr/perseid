@@ -10,25 +10,22 @@
  * `fs` mock.
  */
 
+import { Writable } from 'stream';
+
 const writeFile = vi.fn();
 
 const unlink = vi.fn();
 
-const createWriteStream = vi.fn(() => ({
-  end: vi.fn(),
-  write: vi.fn(),
-  on: vi.fn((eventName, callback: (error?: Error) => void) => {
-    if (eventName === 'close') {
-      callback();
-    }
-    setTimeout(() => {
-      if (process.env.FS_ERROR_STREAM === 'true') {
-        callback(new Error('error'));
-      } else {
-        callback();
-      }
-    }, 100);
-  }),
+/**
+ * Receives each chunk written to a file stream, with the file path.
+ */
+export const writeStream = vi.fn<(path: string, chunk: Buffer) => void>();
+
+const createWriteStream = vi.fn((path: string) => new Writable({
+  write(chunk: Buffer, _encoding, callback): void {
+    writeStream(path, chunk);
+    callback();
+  },
 }));
 
 const existsSync = vi.fn((path) => (

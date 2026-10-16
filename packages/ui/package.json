@@ -5,10 +5,14 @@
   "type": "module",
   "main": "./core.js",
   "types": "./core.d.ts",
+  "sass": "./index.scss",
+  "style": "./index.scss",
   "exports": {
     ".": {
-      "default": "./core.js",
-      "types": "./core.d.ts"
+      "types": "./core.d.ts",
+      "sass": "./core/index.scss",
+      "style": "./core/index.scss",
+      "default": "./core.js"
     },
     "./react": {
       "default": "./react.js",
@@ -22,8 +26,9 @@
       "default": "./svelte.js",
       "types": "./svelte.d.ts"
     },
-    "./core/*.scss": {
-      "default": "./core/*.scss"
+    "./scripts": {
+      "default": "./scripts.js",
+      "types": "./scripts.d.ts"
     },
     "./templates/*.scss": {
       "default": "./templates/*.scss"
@@ -124,10 +129,10 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "svelte": "^4.2.19",
-    "vue": "^3.5.7"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "svelte": "^5.57.0",
+    "vue": "^3.5.42"
   },
   "devKitConfig": {
     "target": "web",
@@ -137,9 +142,10 @@
     },
     "html": "./__playground__/index.html",
     "entries": {
-      "core": "./scripts/core/index.ts",
       "vue": "./scripts/vue/index.ts",
+      "core": "./scripts/core/index.ts",
       "react": "./scripts/react/index.ts",
+      "scripts": "./scripts/scripts/index.ts",
       "svelte": "./scripts/svelte/index.ts"
     },
     "runInDev": true,
@@ -157,7 +163,7 @@
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
     "dev:sass": "sass -w src/styles/index.scss:dist/css/index.css",
-    "build:sass": "cp -r src/styles/* dist && rm dist/index.scss",
+    "build:sass": "cp -r src/styles/* dist",
     "build:types": "cp src/scripts/*.d.ts dist && rm dist/index.d.ts && yarn run pure",
     "pure": "for i in dist/*.js; do sed -i 's/\\([a-zA-Z_$]\\+\\)\\.memo/\\/\\* @__PURE__ \\*\\/\\1\\.memo/g' $i; done",
     "postinstall": "rm -f node_modules/.eslintcache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer svelte react react-dom vue",

@@ -6,11 +6,10 @@
  *
  */
 
-import type Id from 'scripts/classes/Id';
-import Model from 'scripts/classes/Model';
-import type { DefaultDataModel, DataModelSchema } from 'scripts/types';
+import type Id from 'scripts/classes/NodeId';
+import Model, { type DataModelSchema } from 'scripts/classes/Model';
 
-interface DataModel extends DefaultDataModel {
+interface DataModel {
   test: {
     object: {
       relations: Id[];
@@ -19,25 +18,28 @@ interface DataModel extends DefaultDataModel {
   test2: { test: string; };
 }
 
-type TestModel = Model<DataModel>;
+type TestModel = Model<DataModel> & {
+  schema: Model<DataModel>['schema'];
+};
 
 describe('classes/Model', () => {
-  const model = new Model<DataModel>({
-    users: {
-      fields: {
-        email: { type: 'string' },
-      },
-    },
+  vi.mock('scripts/helpers/toSnakeCase');
+
+  const schema: DataModelSchema<DataModel> = {
     test: {
+      description: 'test',
       fields: {
         object: {
           type: 'object',
+          description: 'object relation',
           fields: {
             relations: {
               type: 'array',
+              permission: 'TEST.VIEW_RELATIONS',
               fields: {
                 type: 'id',
                 relation: 'test2',
+                description: 'test2 relation',
               },
             },
           },
@@ -45,24 +47,66 @@ describe('classes/Model', () => {
       },
     },
     test2: {
-      version: 1,
       enableAuthors: true,
       enableDeletion: false,
       enableTimestamps: true,
+      description: 'test2',
       fields: {
         test2: {
           type: 'string',
+          maxLength: 256,
+          description: 'test2 field',
         },
       },
     },
-  } as unknown as DataModelSchema<DataModel>) as TestModel;
+  };
+  const model = new Model<DataModel>(schema) as TestModel;
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  describe('[constructor]', () => {
+    test('empty schema', () => {
+      const emptyModel = new Model() as TestModel;
+      expect(emptyModel.schema).toEqual({});
+    });
+
+    test('non-empty schema', () => {
+      const schemaModel = new Model<DataModel>({
+        test: {
+          description: 'test',
+          fields: {
+            test2: {
+              type: 'string',
+              maxLength: 256,
+              description: 'test2 field',
+            },
+          },
+        },
+      }) as TestModel;
+      expect(schemaModel.schema).toEqual({
+        test: {
+          enableAuthors: false,
+          enableDeletion: true,
+          enableTimestamps: false,
+          fields: {
+            _id: {
+              type: 'id',
+              isUnique: true,
+              isRequired: true,
+            },
+            test2: {
+              type: 'string',
+            },
+          },
+        },
+      });
+    });
+  });
+
   test('[getResources]', () => {
-    expect(model.getResources()).toEqual(['users', 'test', 'test2']);
+    expect(model.getResources()).toEqual(['test', 'test2']);
   });
 
   describe('[get]', () => {
@@ -74,8 +118,9 @@ describe('classes/Model', () => {
     test('valid path', () => {
       expect(model.get('test2')).toEqual({
         canonicalPath: ['test2'],
+        depth: 1,
+        permissions: ['TO_SNAKE_CASE_test2.VIEW'],
         schema: {
-          version: 1,
           enableAuthors: true,
           enableDeletion: false,
           enableTimestamps: true,
@@ -83,11 +128,6 @@ describe('classes/Model', () => {
             _id: {
               type: 'id',
               isUnique: true,
-              isRequired: true,
-            },
-            _version: {
-              type: 'integer',
-              isIndexed: true,
               isRequired: true,
             },
             _isDeleted: {
@@ -123,6 +163,8 @@ describe('classes/Model', () => {
       });
       expect(model.get('test.object.relations.test2')).toEqual({
         canonicalPath: ['test2', 'test2'],
+        depth: 2,
+        permissions: ['TO_SNAKE_CASE_test.VIEW', 'TEST.VIEW_RELATIONS', 'TO_SNAKE_CASE_test2.VIEW'],
         schema: {
           type: 'string',
         },

@@ -11,15 +11,28 @@
  */
 
 export const deepMerge = (): unknown => ({});
-export const isPlainObject = (variable: unknown): boolean => variable !== null && typeof variable === 'object';
+export const isPlainObject = (variable: unknown): boolean => (
+  variable !== null
+  && typeof variable === 'object'
+  && ((variable as { constructor?: unknown; }).constructor === undefined
+    || (variable as { constructor: { name: string; }; }).constructor.name === 'Object')
+);
 export const toSnakeCase = (text: string): string => `SNAKE_CASED_${text}`;
 export const forEach = async (
   items: unknown[],
   callback: (item: unknown, index: number) => Promise<void>,
+  batchSize = 1,
 ): Promise<void> => {
-  for (let index = 0; index < items.length; index += 1) {
-    await callback(items[index], index);
-  }
+  let nextIndex = 0;
+  const runNextItem = async (): Promise<void> => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      await callback(items[currentIndex], currentIndex);
+    }
+  };
+  const size = Math.min(Math.max(Math.floor(batchSize), 1), items.length);
+  await Promise.all(new Array(size).fill(null).map(runNextItem));
 };
 
 export class Model {
@@ -44,7 +57,14 @@ export class Model {
 }
 
 let count = 0;
+
+export const resetIdCount = (): void => {
+  count = 0;
+};
+
 export class Id {
+  public static FORMAT: 'SNOWFLAKE' | 'UUID' = 'UUID';
+
   protected value: string;
 
   constructor(value?: string) {

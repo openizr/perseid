@@ -51,15 +51,8 @@ export interface FormProps {
   loaderComponent?: DefineComponent;
 }
 
-let key = 0;
-
 function onSubmit(event: Event): void {
   event.preventDefault();
-}
-
-function generateId(): string {
-  key += 1;
-  return `_${String(key)}`;
 }
 
 const props = withDefaults(defineProps<FormProps>(), {
@@ -72,15 +65,11 @@ const props = withDefaults(defineProps<FormProps>(), {
 });
 
 const isWindowFocused = ref(false);
-const keys = ref<Partial<Record<string, string>>>({});
 const handleBlur = (): void => { isWindowFocused.value = false; };
 const EngineClass = ((props.engineClass) ?? Engine) as unknown as typeof String;
 const engine = new EngineClass(props.configuration);
 const useSubscription = connect((engine as unknown as { getStore: () => Store; }).getStore());
-const state = useSubscription('state', (newState: FormState) => {
-  newState.steps.forEach((step) => { keys.value[step.path] ??= generateId(); });
-  return newState;
-});
+const state = useSubscription<FormState>('state');
 const lastStep = computed(() => state.value.steps.at(-1));
 const currentActiveStep = ref(props.activeStep ?? lastStep.value?.path);
 
@@ -91,8 +80,6 @@ const setCurrentActiveStep = (newActiveStep: string) => {
 const setActiveStep = (newActiveStep: string | undefined) => {
   // Prevents any additional rendering compared to calling directly `setCurrentActiveStep`.
   if (newActiveStep !== currentActiveStep.value && newActiveStep !== undefined) {
-    // Forces step component to re-mount in order to reset scroll.
-    keys.value[newActiveStep] = generateId();
     setCurrentActiveStep(newActiveStep);
   }
 };

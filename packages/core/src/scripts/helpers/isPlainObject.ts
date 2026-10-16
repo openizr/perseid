@@ -13,7 +13,7 @@
  *
  * @returns `true` if variable is a plain object, `false` otherwise.
  */
-export default function isPlainObject(variable: unknown): boolean {
+export default function isPlainObject(variable: unknown): variable is Record<string, unknown> {
   return (
     variable !== null
     && typeof variable === 'object'

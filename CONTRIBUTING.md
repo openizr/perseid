@@ -212,6 +212,7 @@ Here is the list of repositories changelogs to watch for updates, for each packa
 - [typedoc](https://github.com/TypeStrong/typedoc/releases)
 - [vite](https://github.com/vitejs/vite/releases)
 - [vitest](https://github.com/vitest-dev/vitest/releases)
+- [vue-eslint-parser ](https://github.com/vuejs/vue-eslint-parser/releases)
 
 ### `@perseid/ui`
 

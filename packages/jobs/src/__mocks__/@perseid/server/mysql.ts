@@ -6,7 +6,8 @@
  *
  */
 
-import type { Logger, Model } from '@perseid/server';
+import type { Ids } from '@perseid/core';
+import type { Telemetry, Model } from '@perseid/server';
 
 /** `@perseid/server/mysql` mock. */
 
@@ -22,7 +23,7 @@ const connection = {
 export default class MySQLDatabaseClient {
   protected mock = vi.fn();
 
-  protected logger: Logger;
+  protected telemetry: Telemetry;
 
   protected client: unknown;
 
@@ -30,8 +31,8 @@ export default class MySQLDatabaseClient {
 
   protected structurePayload = vi.fn(() => ({ tasks: [{ _status: 'PENDING' }] }));
 
-  constructor(_model: Model, logger: Logger) {
-    this.logger = logger;
+  constructor(_model: Model<Record<string, Ids>>, telemetry: Telemetry) {
+    this.telemetry = telemetry;
     this.client = {
       query: vi.fn(() => [[]]),
       getConnection: vi.fn(() => connection),

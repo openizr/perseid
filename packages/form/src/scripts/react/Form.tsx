@@ -10,46 +10,35 @@ import * as React from 'react';
 import Engine from 'scripts/core/Engine';
 import { type FormState } from 'scripts/core/state';
 import connect from '@perseid/store/connectors/react';
-import DefaultLoader from 'scripts/react/DefaultLoader';
-import DefaultStep, { type FormStepProps } from 'scripts/react/DefaultStep';
-import DefaultField, { type FormFieldProps } from 'scripts/react/DefaultField';
-import DefaultLayout, { type FormLayoutProps } from 'scripts/react/DefaultLayout';
+import { type FormStepProps } from 'scripts/react/DefaultStep';
 
 /**
  * React form props.
  */
 export interface FormProps {
-  /** Form current active step. */
+  /**
+   * Form current active step.
+   */
   activeStep?: string;
 
-  /** Form configuration. */
+  /**
+   * Form configuration.
+   */
   configuration: Configuration,
 
-  /** Custom form engine class to use instead of the default engine. */
+  /**
+   * Custom form engine class to use instead of the default engine.
+   */
   engineClass?: typeof Engine;
 
-  /** Default Layout component to use. */
-  Layout?: React.FC<FormLayoutProps>;
-
-  /** Default Step component to use. */
-  Step?: React.FC<FormStepProps>;
-
-  /** Default Field component to use. */
-  Field?: React.FC<FormFieldProps>;
-
-  /** Default Loader component to use. */
-  Loader?: React.FC;
+  /**
+   * Render prop that receives form internals.
+   */
+  children?: (context: FormStepProps) => React.ReactNode;
 }
-
-let key = 0;
 
 function onSubmit(event: React.FormEvent): void {
   event.preventDefault();
-}
-
-function generateId(): string {
-  key += 1;
-  return `_${String(key)}`;
 }
 
 /**
@@ -58,31 +47,20 @@ function generateId(): string {
 function Form({
   activeStep,
   configuration,
-  Field = DefaultField,
-  Step = DefaultStep as unknown as React.FC,
-  Loader = DefaultLoader as unknown as React.FC,
-  Layout = DefaultLayout as unknown as React.FC,
   engineClass: EngineClass = Engine,
+  children,
 }: FormProps): JSX.Element {
   const isWindowFocused = React.useRef(false);
-  const keys = React.useRef<Partial<Record<string, string>>>({});
   const [engine] = React.useState(() => new EngineClass(configuration));
   const [useSubscription] = React.useState(() => connect(engine.getStore()));
-  const state = useSubscription('state', (newState: FormState) => {
-    newState.steps.forEach((step) => { keys.current[step.path] ??= generateId(); });
-    return newState;
-  });
+  const state = useSubscription<FormState>('state');
   const lastStep = state.steps.at(-1);
   const [currentActiveStep, setCurrentActiveStep] = React.useState(activeStep ?? lastStep?.path);
 
+  // Prevents any additional rendering compared to calling directly `setCurrentActiveStep`.
   const setActiveStep = React.useCallback((newActiveStep: string | undefined) => {
-    // Prevents any additional rendering compared to calling directly `setCurrentActiveStep`.
-    if (newActiveStep !== currentActiveStep && newActiveStep !== undefined) {
-      // Forces step component to re-mount in order to reset scroll.
-      keys.current[newActiveStep] = generateId();
-      setCurrentActiveStep(newActiveStep);
-    }
-  }, [currentActiveStep]);
+    setCurrentActiveStep((previousState) => newActiveStep ?? previousState);
+  }, []);
 
   const handleFocus = React.useCallback((newActiveStep: string) => (): void => {
     if (isWindowFocused.current) { setActiveStep(newActiveStep); }
@@ -92,7 +70,8 @@ function Form({
   // Updates current step whenever `activeStep` prop or last step change.
   // Be careful: last step path may not change although `lastStep` has (e.g. because it has been
   // re-created or updated), so we need to react to this value instead.
-  React.useEffect(() => {
+  // Layout effect, so that a new step is never painted before being activated.
+  React.useLayoutEffect(() => {
     setActiveStep(activeStep ?? lastStep?.path);
   }, [setActiveStep, activeStep, lastStep]);
 
@@ -107,30 +86,20 @@ function Form({
 
   return (
     <form id={configuration.id} className="perseid-form" onSubmit={onSubmit}>
-      <Layout
-        state={state}
-        Loader={Loader}
-        setActiveStep={setActiveStep}
-        activeStep={currentActiveStep}
-        useSubscription={useSubscription}
-        steps={state.steps.map((step) => (
-          <Step
-            step={step}
-            Field={Field}
-            engine={engine}
-            onFocus={handleFocus}
-            key={keys.current[step.path]}
-            setActiveStep={setActiveStep}
-            activeStep={currentActiveStep}
-            useSubscription={useSubscription}
-          />
-        ))}
-      />
+      {state.steps.map((step) => (
+        <React.Fragment key={step.path}>
+          {children?.({
+            step,
+            engine,
+            setActiveStep,
+            useSubscription,
+            onFocus: handleFocus,
+            activeStep: currentActiveStep,
+          })}
+        </React.Fragment>
+      ))}
     </form>
   );
 }
 
-export default React.memo(
-  Form as unknown as React.FunctionComponent<FormProps>,
-  (prevProps, nextProps) => prevProps.activeStep === nextProps.activeStep,
-);
+export default React.memo(Form);

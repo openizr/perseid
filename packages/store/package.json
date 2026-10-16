@@ -137,7 +137,7 @@
     "npm": ">= 9.0.0"
   },
   "devKitConfig": {
-    "target": "web",
+    "target": "node",
     "devServer": {
       "host": "0.0.0.0",
       "port": "FRONTEND_EXAMPLES_PORT"
@@ -161,14 +161,14 @@
     "dev": "node node_modules/@perseid/dev-kit/scripts/dev.js",
     "check": "node node_modules/@perseid/dev-kit/scripts/check.js",
     "postinstall": "rm -f node_modules/.eslintcache && mkdir -p node_modules/.cache && test -n \"$POSTINSTALLED\" || POSTINSTALLED=1 yarn add --peer svelte react react-dom vue",
-    "build": "cp package.json package.json.back && sed -i s/web/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json",
+    "build": "cp package.json package.json.back && sed -i s/node/node/g package.json && node node_modules/@perseid/dev-kit/scripts/build.js && yarn run build:types && mv package.json.back package.json",
     "build:types": "cp src/scripts/core.d.ts dist && cp src/scripts/svelte.d.ts dist/connectors && cp src/scripts/vue.d.ts dist/connectors && cp src/scripts/react.d.ts dist/connectors && cp src/scripts/router.d.ts dist/extensions"
   },
   "peerDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "svelte": "^4.2.18",
-    "vue": "^3.4.36"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "svelte": "^5.57.0",
+    "vue": "^3.5.42"
   },
   "peerDependenciesMeta": {
     "react": {

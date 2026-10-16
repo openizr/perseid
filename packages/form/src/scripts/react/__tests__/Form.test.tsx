@@ -36,7 +36,7 @@ function Layout({ steps, ...props }: FormLayoutProps): JSX.Element {
 describe('react/Form', () => {
   vi.mock('scripts/core/Engine', () => ({ default: vi.fn() }));
   vi.mock('@perseid/store/connectors/react', () => ({
-    default: vi.fn(() => (_: string, callback: (data: unknown) => unknown): unknown => callback({
+    default: vi.fn(() => (): unknown => ({
       steps: [{
         path: 'root.0',
         status: 'initial',

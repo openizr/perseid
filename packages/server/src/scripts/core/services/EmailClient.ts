@@ -6,16 +6,12 @@
  *
  */
 
-import { HttpClient } from '@perseid/core';
-import Logger from 'scripts/core/services/Logger';
+import { HttpClient, type HttpClientSettings } from '@perseid/core';
 
 /**
  * Email client settings.
  */
-export interface EmailClientSettings {
-  /** Maximum request duration (in ms) before generating a timeout. */
-  connectTimeout: number;
-}
+export type EmailClientSettings = HttpClientSettings;
 
 /**
  * Handles emails sending.
@@ -23,21 +19,6 @@ export interface EmailClientSettings {
  * @linkcode https://github.com/openizr/perseid/blob/main/packages/server/src/scripts/core/services/EmailClient.ts
  */
 export default class EmailClient extends HttpClient {
-  /** Logging system. */
-  protected logger: Logger;
-
-  /**
-   * Class constructor.
-   *
-   * @param logger Logging system to use.
-   *
-   * @param settings Email client settings.
-   */
-  constructor(logger: Logger, settings: EmailClientSettings) {
-    super(settings.connectTimeout);
-    this.logger = logger;
-  }
-
   /**
    * Sends a verification email to `to`.
    *
@@ -45,10 +26,10 @@ export default class EmailClient extends HttpClient {
    */
   public async sendVerificationEmail(to: string, verificationUrl: string): Promise<void> {
     await Promise.resolve();
-    this.logger.warn(
+    this.telemetry.warn(
       `[EmailClient][sendVerificationEmail] method is not implemented - skipping email sending to ${to} with:`,
     );
-    this.logger.warn(verificationUrl);
+    this.telemetry.warn(verificationUrl);
   }
 
   /**
@@ -60,10 +41,10 @@ export default class EmailClient extends HttpClient {
    */
   public async sendPasswordResetEmail(to: string, passwordResetUrl: string): Promise<void> {
     await Promise.resolve();
-    this.logger.warn(
+    this.telemetry.warn(
       `[EmailClient][sendPasswordResetEmail] method is not implemented - skipping email sending to ${to} with:`,
     );
-    this.logger.warn(passwordResetUrl);
+    this.telemetry.warn(passwordResetUrl);
   }
 
   /**
@@ -81,10 +62,10 @@ export default class EmailClient extends HttpClient {
     temporaryPassword: string,
   ): Promise<void> {
     await Promise.resolve();
-    this.logger.warn(
+    this.telemetry.warn(
       `[EmailClient][sendInviteEmail] method is not implemented - skipping email sending to ${to} with:`,
     );
-    this.logger.warn(signInUrl);
-    this.logger.warn(temporaryPassword);
+    this.telemetry.warn(signInUrl);
+    this.telemetry.warn(temporaryPassword);
   }
 }

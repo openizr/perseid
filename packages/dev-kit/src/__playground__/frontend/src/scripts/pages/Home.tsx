@@ -1,3 +1,4 @@
+import React from 'react';
 import Message from 'scripts/components/Message';
 import PropTypes, { type InferProps } from 'prop-types';
 
@@ -8,7 +9,7 @@ const propTypes = {
 /**
  * Home page.
  */
-export default function Home(props: InferProps<typeof propTypes>): JSX.Element {
+export default function Home(props: InferProps<typeof propTypes>): React.JSX.Element {
   const { translate } = props;
 
   return (
