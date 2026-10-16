@@ -457,7 +457,7 @@ export default class Controller<
       USER_NOT_VERIFIED: (error) => [HTTP_STATUS_CODES.FORBIDDEN, error.code, 'Please verify your email address before performing this operation.'],
       INVALID_SORT_QUERY: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, '"query.sortBy" and "query.sortOrder" must contain the same number of items.'],
       FILE_TOO_LARGE: (error) => [HTTP_STATUS_CODES.REQUEST_ENTITY_TOO_LARGE, error.code, `Maximum size exceeded for file "${String(error.details.filename)}".`],
-      MAXIMUM_DEPTH_EXCEEDED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Maximum level of depth exceeded for field "${String(error.details.path)}".`],
+      MAXIMUM_QUERY_FIELDS_DEPTH_EXCEEDED: (error) => [HTTP_STATUS_CODES.BAD_REQUEST, error.code, `Maximum level of depth exceeded for field "${String(error.details.path)}".`],
       OPERATION_NOT_ALLOWED: (error) => [HTTP_STATUS_CODES.FORBIDDEN, error.code, `Operation "${String(error.details.operation)}" is not allowed for this resource.`],
       INVALID_FILE_TYPE: (error) => [HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY, error.code, `Invalid file type "${String(error.details.contentType)}" for file "${String(error.details.filename)}".`],
       NO_RESOURCE: (error) => [HTTP_STATUS_CODES.NOT_FOUND, error.code, `Resource with id "${String(error.details.id)}" does not exist or does not match required criteria.`],

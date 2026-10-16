@@ -143,7 +143,7 @@ describe('core/services/Controller', () => {
         RESOURCE_EXISTS: [409, 'RESOURCE_EXISTS', 'Resource already exists.', {}],
         INVALID_SORT_QUERY: [400, 'INVALID_SORT_QUERY', '"query.sortBy" and "query.sortOrder" must contain the same number of items.'],
         FILE_TOO_LARGE: [413, 'FILE_TOO_LARGE', 'Maximum size exceeded for file "a.png".'],
-        MAXIMUM_DEPTH_EXCEEDED: [400, 'MAXIMUM_DEPTH_EXCEEDED', 'Maximum level of depth exceeded for field "title".'],
+        MAXIMUM_QUERY_FIELDS_DEPTH_EXCEEDED: [400, 'MAXIMUM_QUERY_FIELDS_DEPTH_EXCEEDED', 'Maximum level of depth exceeded for field "title".'],
         OPERATION_NOT_ALLOWED: [403, 'OPERATION_NOT_ALLOWED', 'Operation "CREATE" is not allowed for this resource.'],
         INVALID_FILE_TYPE: [422, 'INVALID_FILE_TYPE', 'Invalid file type "image/gif" for file "a.png".'],
         NO_RESOURCE: [404, 'NO_RESOURCE', `Resource with id "${idA}" does not exist or does not match required criteria.`],
