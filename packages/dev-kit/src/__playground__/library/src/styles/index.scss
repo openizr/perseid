@@ -1,0 +1,5 @@
+@use 'core/variables';
+
+body {
+  color: variables.$color;
+}

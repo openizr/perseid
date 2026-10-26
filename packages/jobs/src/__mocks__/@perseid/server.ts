@@ -6,6 +6,7 @@
  *
  */
 
+import type { Ids } from '@perseid/core';
 import type { AbstractDatabaseClient } from '@perseid/server';
 
 /** `@perseid/server` mock. */
@@ -29,7 +30,7 @@ export class BucketClient {
   public upload = vi.fn();
 }
 
-export class Logger {
+export class Telemetry {
   public silent = vi.fn();
 
   public debug = vi.fn();
@@ -48,7 +49,7 @@ export class Logger {
 }
 
 export class Engine {
-  protected logger: Logger;
+  protected telemetry: Telemetry;
 
   protected databaseClient: unknown;
 
@@ -62,8 +63,12 @@ export class Engine {
     });
   }
 
-  constructor(_model: Model, logger: Logger, databaseClient: AbstractDatabaseClient) {
-    this.logger = logger;
+  constructor(
+    _model: Model,
+    telemetry: Telemetry,
+    databaseClient: AbstractDatabaseClient<Record<string, Ids>>,
+  ) {
+    this.telemetry = telemetry;
     this.databaseClient = databaseClient;
   }
 

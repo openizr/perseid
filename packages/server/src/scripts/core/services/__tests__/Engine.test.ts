@@ -6,521 +6,568 @@
  *
  */
 
+import { Id } from '@perseid/core';
+import type { CreatePayload } from 'scripts/core';
 import Model from 'scripts/core/services/Model';
 import Engine from 'scripts/core/services/Engine';
-import Logger from 'scripts/core/services/Logger';
 import EngineError from 'scripts/core/errors/Engine';
-import { type ResourceSchema, Id } from '@perseid/core';
-import CacheClient from 'scripts/core/services/CacheClient';
-import { type DataModel } from 'scripts/core/services/__mocks__/schema';
-import MongoDatabaseClient from 'scripts/mongodb/services/MongoDatabaseClient';
+import Telemetry from 'scripts/core/services/Telemetry';
+import schema, { type DataModel } from 'scripts/core/services/__mocks__/schema';
+import type AbstractDatabaseClient from 'scripts/core/services/AbstractDatabaseClient';
+import DatabaseClient from 'scripts/core/services/__mocks__/AbstractDatabaseClient';
 
-type Fn = (fn: unknown) => void;
+vi.mock('scripts/core/services/Model');
+vi.mock('scripts/core/services/Telemetry');
 
+// `registerModule` is the extension point subclasses use to override generic methods.
 type TestEngine = Engine<DataModel> & {
-  rbac: Engine<DataModel>['rbac'];
-  parseFields: Engine<DataModel>['parseFields'];
-  getResourceFields: Engine<DataModel>['getResourceFields'];
-  withAutomaticFields: Engine<DataModel>['withAutomaticFields'];
-  checkAndUpdatePayload: Engine<DataModel>['checkAndUpdatePayload'];
-  getRelationFilters: Engine<DataModel>['getRelationFilters'];
+  registerModule: Engine<DataModel>['registerModule'];
 };
 
 describe('core/services/Engine', () => {
-  vi.mock('@perseid/core');
-  vi.mock('scripts/core/services/Model');
-  vi.mock('scripts/core/services/Logger');
-  vi.mock('scripts/core/services/CacheClient');
-  vi.mock('scripts/mongodb/services/MongoDatabaseClient');
-  vi.setSystemTime(new Date('2023-01-01'));
-  const mockedRbac = vi.fn(() => Promise.resolve());
-  const mockedView = vi.fn(() => Promise.resolve({}));
-  const mockedParseFields = vi.fn(() => ({ fields: new Set(['_id']), permissions: new Set([]) }));
-  const mockedCheckAndUpdatePayload = vi.fn((_, __, payload) => Promise.resolve({
-    ...payload,
-    updated: true,
-  }));
+  vi.setSystemTime(new Date('2023-01-01T00:00:00.000Z'));
 
-  let engine: TestEngine;
-  const logger = new Logger({ logLevel: 'info', prettyPrint: false });
-  const context = {
-    user: {
-      _id: new Id('000000000000000000000001'),
-      _permissions: new Set([
-        'UPDATE_USERS',
-        'VIEW_SNAKE_CASED_test',
-        'VIEW_SNAKE_CASED_otherTest',
-      ]),
+  const userId = new Id('00000000-0000-7000-8000-000000000001');
+  const resourceId = new Id('00000000-0000-7000-8000-000000000002');
+  const otherResourceId = new Id('00000000-0000-7000-8000-000000000003');
+  const relationId1 = new Id('00000000-0000-7000-8000-000000000004');
+  const relationId2 = new Id('00000000-0000-7000-8000-000000000005');
+  const relationId3 = new Id('00000000-0000-7000-8000-000000000006');
+
+  const testPayload: CreatePayload<DataModel['test']> = {
+    indexedString: 'test',
+    objectOne: {
+      boolean: true,
+      optionalRelations: [relationId1, relationId2],
+      objectTwo: {
+        optionalIndexedString: null,
+        optionalNestedArray: [{
+          data: {
+            optionalInteger: null,
+            flatArray: ['test'],
+            nestedArray: [
+              { optionalRelation: relationId3, key: 'first' },
+              { optionalRelation: null, key: 'second' },
+            ],
+          },
+        }],
+      },
     },
-  } as CommandContext<DataModel>;
-  const cacheClient = new CacheClient({ cachePath: '/.cache', connectTimeout: 0 });
-  const model = new Model<DataModel>({} as Record<keyof DataModel, ResourceSchema<DataModel>>);
-  const databaseClient = new MongoDatabaseClient<DataModel>(model, logger, cacheClient, {
-    connectionLimit: 0,
-    connectTimeout: 0,
-    database: '',
-    host: '',
-    password: '',
-    port: 0,
-    protocol: '',
-    user: '',
+  };
+
+  const otherTestPayload: CreatePayload<DataModel['otherTest']> = {
+    enum: 'ONE',
+    binary: new ArrayBuffer(0),
+    optionalRelation: null,
+    data: { optionalRelation: null, optionalFlatArray: null },
+  };
+
+  const test = it.extend<{
+    telemetry: Telemetry;
+    databaseClient: DatabaseClient;
+    engine: TestEngine;
+  }>({
+    telemetry: async ({ onTestFinished }, use) => {
+      onTestFinished(() => { vi.restoreAllMocks(); });
+      await use(new Telemetry());
+    },
+    databaseClient: async ({ telemetry }, use) => {
+      await use(new DatabaseClient(new Model<DataModel>(schema), telemetry, null));
+    },
+    engine: async ({ telemetry, databaseClient }, use) => {
+      const model = new Model<DataModel>(schema);
+      const client = databaseClient as unknown as AbstractDatabaseClient<DataModel>;
+      await use(new Engine<DataModel>(model, telemetry, client) as TestEngine);
+    },
   });
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    delete process.env.NO_RESULT;
-    engine = new Engine<DataModel>(model, logger, databaseClient) as TestEngine;
-  });
-
-  test('[getRelationFilters]', () => {
-    expect(engine.getRelationFilters('test', {} as DataModel['test'], '', [], {}, context)).toEqual({
-      _id: [],
-    });
-  });
-
-  describe('[rbac]', () => {
-    test('USER_NOT_VERIFIED error', async () => {
-      const fullContext = { ...context, user: { ...context.user, _verifiedAt: null } };
-      await expect(async () => (
-        engine.rbac(new Set(['VIEW_TEST']), null, null, fullContext)
-      )).rejects.toThrow(new EngineError('USER_NOT_VERIFIED'));
-    });
-
-    test('FORBIDDEN error', async () => {
-      await expect(async () => (
-        engine.rbac(new Set(['_PRIVATE']), null, null, context)
-      )).rejects.toThrow(new EngineError('FORBIDDEN', { permission: null }));
-      await expect(async () => (
-        engine.rbac(new Set(['VIEW_TEST']), null, null, context)
-      )).rejects.toThrow(new EngineError('FORBIDDEN', { permission: 'VIEW_TEST' }));
-      await expect(async () => (
-        engine.rbac(new Set(['UPDATE_USERS']), null, { roles: [] }, context)
-      )).rejects.toThrow(new EngineError('FORBIDDEN', { permission: 'UPDATE_USERS_ROLES' }));
-    });
-
-    test('no error', async () => {
-      await expect(engine.rbac(new Set(['UPDATE_USERS']), {
-        _id: new Id('000000000000000000000001'),
-      } as DataModel['users'], {}, context)).resolves.toBeUndefined();
-    });
-  });
-
-  describe('[parseFields]', () => {
-    test('UNKNOWN_FIELD error', () => {
-      expect(() => (
-        engine.parseFields('test', new Set(['_id', 'indexedString', 'invalid']))
-      )).toThrow(new EngineError('UNKNOWN_FIELD', { path: 'invalid' }));
-      expect(() => (
-        engine.parseFields('test', new Set(['objectOne.objectTwo.optionalNestedArray.data.flatArray.*']))
-      )).toThrow(new EngineError('UNKNOWN_FIELD', { path: 'objectOne.objectTwo.optionalNestedArray.data.flatArray.*' }));
-    });
-
-    test('MAXIMUM_DEPTH_EXCEEDED error', () => {
-      expect(() => (
-        engine.parseFields('test', new Set([
-          'indexedString',
-          'objectOne.optionalRelations.optionalRelation',
-        ]), 1)
-      )).toThrow(new EngineError('MAXIMUM_DEPTH_EXCEEDED', { path: 'invalid' }));
-    });
-
-    test('root *', () => {
-      expect(engine.parseFields('test', new Set(['*']))).toEqual({
-        permissions: new Set(),
-        fields: new Set([
-          '_id',
-          '_isDeleted',
-          'indexedString',
-          'objectOne.boolean',
-          'objectOne.optionalRelations',
-          'objectOne.objectTwo.optionalIndexedString',
-          'objectOne.objectTwo.optionalNestedArray.data.optionalInteger',
-          'objectOne.objectTwo.optionalNestedArray.data.flatArray',
-          'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation',
-          'objectOne.objectTwo.optionalNestedArray.data.nestedArray.key',
-        ]),
+  describe('[create]', () => {
+    test('creates a resource with its automatic fields', async ({ engine, databaseClient }) => {
+      vi.spyOn(databaseClient, 'view').mockImplementation((resource, id, options) => Promise.resolve((
+        resource === 'test'
+        && options?.fields?.includes('indexedString') === true
+        && !options.fields.includes('_isDeleted')
+      ) ? { _id: id, indexedString: 'test' } : null));
+      const result = await engine.create('test', testPayload, {
+        queryOptions: { fields: ['*'] },
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.CREATE', 'TEST.VIEW']),
+          },
+        },
       });
-    });
-
-    test('root primitive and array of primitives', () => {
-      expect(engine.parseFields('test', new Set([
-        'indexedString',
-        'objectOne.objectTwo.optionalNestedArray.data.flatArray',
-      ]))).toEqual({
-        permissions: new Set(),
-        fields: new Set([
-          '_id',
-          'indexedString',
-          'objectOne.objectTwo.optionalNestedArray.data.flatArray',
-        ]),
-      });
-    });
-
-    test('array of objects with *', () => {
-      expect(engine.parseFields('test', new Set([
-        'objectOne.objectTwo.optionalNestedArray.data.*',
-      ]))).toEqual({
-        permissions: new Set(),
-        fields: new Set([
-          '_id',
-          'objectOne.objectTwo.optionalNestedArray.data.optionalInteger',
-          'objectOne.objectTwo.optionalNestedArray.data.flatArray',
-          'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation',
-          'objectOne.objectTwo.optionalNestedArray.data.nestedArray.key',
-        ]),
-      });
-    });
-
-    test('array of objects without *', () => {
-      expect(engine.parseFields('test', new Set([
-        'objectOne.objectTwo.optionalNestedArray.data',
-      ]))).toEqual({
-        permissions: new Set(),
-        fields: new Set([
-          '_id',
-          'objectOne.objectTwo.optionalNestedArray.data.optionalInteger',
-          'objectOne.objectTwo.optionalNestedArray.data.flatArray',
-          'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation',
-          'objectOne.objectTwo.optionalNestedArray.data.nestedArray.key',
-        ]),
-      });
-    });
-
-    test('array of external relations with *', () => {
-      expect(engine.parseFields('test', new Set([
-        'objectOne.optionalRelations.*',
-      ]))).toEqual({
-        permissions: new Set(['VIEW_SNAKE_CASED_otherTest']),
-        fields: new Set([
-          '_id',
-          'objectOne.optionalRelations._id',
-          'objectOne.optionalRelations._createdAt',
-          'objectOne.optionalRelations.binary',
-          'objectOne.optionalRelations.optionalRelation',
-          'objectOne.optionalRelations.enum',
-          'objectOne.optionalRelations.data.optionalRelation',
-          'objectOne.optionalRelations.data.optionalFlatArray',
-        ]),
-      });
-    });
-
-    test('array of external relations without *', () => {
-      expect(engine.parseFields('test', new Set([
-        'objectOne.optionalRelations',
-      ]))).toEqual({
-        permissions: new Set(),
-        fields: new Set([
-          'objectOne.optionalRelations',
-          '_id',
-        ]),
-      });
-    });
-
-    test('external relation with *', () => {
-      expect(engine.parseFields('otherTest', new Set([
-        'optionalRelation.*',
-      ]))).toEqual({
-        permissions: new Set(['VIEW_SNAKE_CASED_test']),
-        fields: new Set([
-          '_id',
-          'optionalRelation._id',
-          'optionalRelation._isDeleted',
-          'optionalRelation.indexedString',
-          'optionalRelation.objectOne.boolean',
-          'optionalRelation.objectOne.optionalRelations',
-          'optionalRelation.objectOne.objectTwo.optionalIndexedString',
-          'optionalRelation.objectOne.objectTwo.optionalNestedArray.data.optionalInteger',
-          'optionalRelation.objectOne.objectTwo.optionalNestedArray.data.flatArray',
-          'optionalRelation.objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation',
-          'optionalRelation.objectOne.objectTwo.optionalNestedArray.data.nestedArray.key',
-        ]),
-      });
-    });
-
-    test('external relation without *', () => {
-      expect(engine.parseFields('otherTest', new Set([
-        'optionalRelation',
-      ]))).toEqual({
-        permissions: new Set(),
-        fields: new Set([
-          'optionalRelation',
-          '_id',
-        ]),
-      });
-    });
-
-    test('users resource with specific permissions', () => {
-      expect(engine.parseFields('users', new Set([
-        'roles',
-        'password',
-        '_verifiedAt',
-      ]))).toEqual({
-        permissions: new Set([
-          'VIEW_USERS_ROLES',
-          '_PRIVATE',
-          'VIEW_USERS_AUTH_DETAILS',
-        ]),
-        fields: new Set([
-          'roles',
-          'password',
-          '_verifiedAt',
-          '_id',
-        ]),
-      });
-    });
-  });
-
-  describe('[withAutomaticFields]', () => {
-    test('create mode', async () => {
-      const newContext = { user: {} } as CommandContext<DataModel>;
-      expect(await engine.withAutomaticFields('test', null, {}, newContext)).toEqual({
-        _id: new Id('000000000000000000000001'),
-        _version: 1,
+      expect(result).toEqual({ _id: expect.any(Id) as Id, indexedString: 'test' });
+      expect(databaseClient.create).toHaveBeenCalledOnce();
+      expect(databaseClient.create).toHaveBeenCalledWith('test', {
+        ...testPayload,
+        _id: (result as { _id: Id; })._id,
+        _isDeleted: false,
         _updatedAt: null,
         _updatedBy: null,
-        _createdBy: null,
-        _isDeleted: false,
+        _createdBy: userId,
         _createdAt: new Date('2023-01-01T00:00:00.000Z'),
+      }, {
+        fields: ['_id', 'indexedString', 'objectOne.boolean', 'objectOne.objectTwo'],
+        poolOrSession: 'SESSION',
       });
     });
 
-    test('update mode', async () => {
-      const existingResource = {} as DataModel['test'];
-      const newContext = {} as CommandContext<DataModel>;
-      expect(await engine.withAutomaticFields('test', existingResource, {}, newContext)).toEqual({
-        _updatedBy: null,
-        _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
-      });
+    test('creates a resource without author when there is no session', async ({ engine, databaseClient }) => {
+      const result = await engine.create('test', testPayload, {});
+      expect(databaseClient.create).toHaveBeenCalledOnce();
+      expect(databaseClient.create).toHaveBeenCalledWith('test', {
+        ...testPayload,
+        _id: (result as { _id: Id; })._id,
+        _isDeleted: false,
+        _updatedAt: null,
+        _createdAt: new Date('2023-01-01T00:00:00.000Z'),
+      }, { fields: ['_id'], poolOrSession: 'SESSION' });
     });
-  });
 
-  describe('[checkAndUpdatePayload]', () => {
-    test('no error', async () => {
-      vi.spyOn(engine, 'withAutomaticFields').mockImplementation((_, __, payload) => (
-        Promise.resolve(payload)
+    test('creates a resource without timestamps nor deletion flag', async ({ engine, databaseClient }) => {
+      const result = await engine.create('otherTest', otherTestPayload, {});
+      expect(databaseClient.create).toHaveBeenCalledOnce();
+      expect(databaseClient.create).toHaveBeenCalledWith('otherTest', {
+        ...otherTestPayload,
+        _id: (result as { _id: Id; })._id,
+      }, { fields: ['_id'], poolOrSession: 'SESSION' });
+    });
+
+    test('rejects a payload referencing a resource that does not exist', async ({ engine, databaseClient }) => {
+      const error = new EngineError('NO_RESOURCE', { id: relationId2 });
+      vi.spyOn(databaseClient, 'checkRelations').mockImplementation((resource, relations) => (
+        (resource === 'test' && relations.get('objectOne.optionalRelations')?.filters?._id.includes(relationId2))
+          ? Promise.reject(error)
+          : Promise.resolve()
       ));
-      expect(await engine.checkAndUpdatePayload('test', null, {
-        indexedString: 'test',
-        objectOne: {
-          boolean: true,
-          optionalRelations: [new Id('000000000000000000000004'), new Id('000000000000000000000005')],
-          objectTwo: {
-            optionalIndexedString: 'test',
-            optionalNestedArray: [{ data: { flatArray: [], optionalInteger: 1 } }],
-          },
-        },
-      }, context)).toEqual({
-        indexedString: 'test',
-        objectOne: {
-          boolean: true,
-          optionalRelations: [new Id('000000000000000000000004'), new Id('000000000000000000000005')],
-          objectTwo: {
-            optionalIndexedString: 'test',
-            optionalNestedArray: [{ data: { flatArray: [], optionalInteger: 1 } }],
-          },
-        },
+      await expect(engine.create('test', testPayload, {})).rejects.toBe(error);
+      expect(databaseClient.create).not.toHaveBeenCalled();
+    });
+
+    test('rejects a payload referencing a nested resource that does not exist', async ({ engine, databaseClient }) => {
+      const error = new EngineError('NO_RESOURCE', { id: relationId3 });
+      const path = 'objectOne.objectTwo.optionalNestedArray.data.nestedArray.optionalRelation';
+      vi.spyOn(databaseClient, 'checkRelations').mockImplementation((resource, relations) => (
+        (resource === 'test' && relations.get(path)?.filters?._id.includes(relationId3))
+          ? Promise.reject(error)
+          : Promise.resolve()
+      ));
+      await expect(engine.create('test', testPayload, {})).rejects.toBe(error);
+      expect(databaseClient.create).not.toHaveBeenCalled();
+    });
+
+    test('rejects a resource that cannot be viewed', async ({ engine, databaseClient }) => {
+      await expect(engine.create('notImplemented', {}, {})).rejects.toMatchObject({
+        code: 'OPERATION_NOT_ALLOWED',
+        details: { operation: 'VIEW' },
       });
-      expect(databaseClient.checkForeignIds).toHaveBeenCalledOnce();
-      expect(databaseClient.checkForeignIds).toHaveBeenCalledWith('test', new Map([[
-        'objectOne.optionalRelations',
-        {
-          resource: 'otherTest',
-          filters: {
-            _id: [new Id('000000000000000000000004'), new Id('000000000000000000000005')],
-          },
-        },
-      ]]));
-    });
-  });
-
-  test('[reset]', async () => {
-    vi.useRealTimers();
-    vi.useFakeTimers();
-    const promise = engine.reset();
-    vi.runAllTimers();
-    await promise;
-    expect(logger.warn).toHaveBeenCalledOnce();
-    expect(logger.warn).toHaveBeenCalledWith(
-      '[Engine][reset] 🕐 Resetting system in 5 seconds, it\'s still time to abort...',
-    );
-    expect(databaseClient.reset).toHaveBeenCalledOnce();
-    vi.useRealTimers();
-  });
-
-  describe('[generateContext]', () => {
-    test('NO_RESOURCE error', async () => {
-      process.env.NO_RESULT = 'true';
-      const userId = new Id('000000000000000000000001');
-      await expect(async () => {
-        await engine.generateContext(new Id());
-      }).rejects.toEqual(new EngineError('NO_RESOURCE', { id: userId }));
+      expect(databaseClient.create).not.toHaveBeenCalled();
     });
 
-    test('no error', async () => {
-      const userId = new Id('000000000000000000000001');
-      const fullContext = await engine.generateContext(userId, 'valid', 'UNKNOWN');
-      expect(fullContext).toEqual({
-        deviceId: 'valid',
-        userAgent: 'UNKNOWN',
-        user: {
-          _id: userId,
-          roles: [{
-            name: 'TEST',
-            permissions: ['TEST'],
-          }],
-          _permissions: new Set(['TEST']),
-        },
+    test('lets a registered module override creation', async ({ engine, databaseClient }) => {
+      engine.registerModule('test', {
+        create: (payload, context, baseCreate) => baseCreate({ ...payload, indexedString: 'overridden' }, context),
       });
+      const result = await engine.create('test', testPayload, {});
+      expect(databaseClient.create).toHaveBeenCalledOnce();
+      expect(databaseClient.create).toHaveBeenCalledWith('test', {
+        ...testPayload,
+        indexedString: 'overridden',
+        _id: (result as { _id: Id; })._id,
+        _isDeleted: false,
+        _updatedAt: null,
+        _createdAt: new Date('2023-01-01T00:00:00.000Z'),
+      }, { fields: ['_id'], poolOrSession: 'SESSION' });
     });
-  });
-
-  test('[create]', async () => {
-    const permissions = new Set(['CREATE_SNAKE_CASED_test']);
-    vi.spyOn(engine, 'rbac').mockImplementation(mockedRbac);
-    (vi.spyOn(engine, 'view').mockImplementation as Fn)(mockedView);
-    vi.spyOn(engine, 'parseFields').mockImplementation(mockedParseFields);
-    vi.spyOn(engine, 'withAutomaticFields').mockImplementation(mockedCheckAndUpdatePayload);
-    vi.spyOn(engine, 'checkAndUpdatePayload').mockImplementation(mockedCheckAndUpdatePayload);
-    const updatedPayload = { indexedString: 'test', updated: true };
-    const payload = { indexedString: 'test' } as unknown as CreatePayload<DataModel['test']>;
-    await engine.create('test', payload, {}, context);
-    expect(engine.rbac).toHaveBeenCalledOnce();
-    expect(engine.rbac).toHaveBeenCalledWith(permissions, null, payload, context);
-    expect(engine.parseFields).toHaveBeenCalledOnce();
-    expect(engine.parseFields).toHaveBeenCalledWith('test', new Set(), undefined);
-    expect(engine.checkAndUpdatePayload).toHaveBeenCalledOnce();
-    expect(engine.checkAndUpdatePayload).toHaveBeenCalledWith('test', null, payload, context);
-    expect(engine.withAutomaticFields).toHaveBeenCalledOnce();
-    expect(engine.withAutomaticFields).toHaveBeenCalledWith('test', null, updatedPayload, context);
-    expect(databaseClient.create).toHaveBeenCalledOnce();
-    expect(databaseClient.create).toHaveBeenCalledWith('test', updatedPayload);
-    expect(engine.view).toHaveBeenCalledOnce();
-    expect(engine.view).toHaveBeenCalledWith('test', undefined, { fields: new Set(['_id']) }, context);
   });
 
   describe('[update]', () => {
-    test('NO_RESOURCE error', async () => {
-      process.env.NO_RESULT = 'true';
-      const id = new Id('000000000000000000000002');
-      vi.spyOn(engine, 'getResourceFields').mockImplementation(vi.fn(() => new Set(['indexedString'])));
-      await expect(async () => (
-        engine.update('test', id, { indexedString: 'test' }, {}, context)
-      )).rejects.toThrow(new EngineError('NO_RESOURCE', { id }));
+    test('updates a resource with its automatic fields', async ({ engine, databaseClient }) => {
+      const result = await engine.update('test', resourceId, { indexedString: 'updated' }, {
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.UPDATE', 'TEST.VIEW']),
+          },
+        },
+      });
+      expect(result).toEqual({ _id: resourceId });
+      expect(databaseClient.update).toHaveBeenCalledOnce();
+      expect(databaseClient.update).toHaveBeenCalledWith('test', resourceId, {
+        _updatedBy: userId,
+        indexedString: 'updated',
+        _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
+      }, { fields: ['_id'], poolOrSession: 'SESSION' });
     });
 
-    test('no error', async () => {
-      const id = new Id('000000000000000000000002');
-      const permissions = new Set(['UPDATE_SNAKE_CASED_test']);
-      vi.spyOn(engine, 'rbac').mockImplementation(mockedRbac);
-      (vi.spyOn(engine, 'view').mockImplementation as Fn)(mockedView);
-      vi.spyOn(engine, 'parseFields').mockImplementation(mockedParseFields);
-      vi.spyOn(engine, 'withAutomaticFields').mockImplementation(mockedCheckAndUpdatePayload);
-      vi.spyOn(engine, 'checkAndUpdatePayload').mockImplementation(mockedCheckAndUpdatePayload);
-      const currentResource = { _id: id };
-      const updatedPayload = { indexedString: 'test', updated: true };
-      const payload = { indexedString: 'test' } as UpdatePayload<DataModel['test']>;
-      await engine.update('test', id, payload, {}, context);
-      expect(engine.rbac).toHaveBeenCalledOnce();
-      expect(engine.rbac).toHaveBeenCalledWith(permissions, currentResource, payload, context);
-      expect(engine.parseFields).toHaveBeenCalledOnce();
-      expect(engine.parseFields).toHaveBeenCalledWith('test', new Set(), undefined);
-      expect(engine.checkAndUpdatePayload).toHaveBeenCalledOnce();
-      expect(engine.checkAndUpdatePayload).toHaveBeenCalledWith('test', currentResource, payload, context);
-      expect(engine.withAutomaticFields).toHaveBeenCalledOnce();
-      expect(engine.withAutomaticFields).toHaveBeenCalledWith('test', currentResource, updatedPayload, context);
+    test('updates a resource without author when there is no session', async ({ engine, databaseClient }) => {
+      await engine.update('test', resourceId, { indexedString: 'updated' }, {});
       expect(databaseClient.update).toHaveBeenCalledOnce();
-      expect(databaseClient.update).toHaveBeenCalledWith('test', id, updatedPayload);
-      expect(engine.view).toHaveBeenCalledOnce();
-      expect(engine.view).toHaveBeenCalledWith('test', id, { fields: new Set(['_id']) }, context);
+      expect(databaseClient.update).toHaveBeenCalledWith('test', resourceId, {
+        indexedString: 'updated',
+        _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
+      }, { fields: ['_id'], poolOrSession: 'SESSION' });
+    });
+
+    test('updates a resource without timestamps', async ({ engine, databaseClient }) => {
+      await engine.update('otherTest', resourceId, { enum: 'TWO' }, {});
+      expect(databaseClient.update).toHaveBeenCalledOnce();
+      expect(databaseClient.update).toHaveBeenCalledWith('otherTest', resourceId, {
+        enum: 'TWO',
+      }, { fields: ['_id'], poolOrSession: 'SESSION' });
+    });
+
+    test('returns the resource untouched when the payload is empty', async ({ engine, databaseClient }) => {
+      expect(await engine.update('test', resourceId, {}, {})).toEqual({ _id: resourceId });
+      expect(databaseClient.update).not.toHaveBeenCalled();
+    });
+
+    test('rejects a payload referencing a resource that does not exist', async ({ engine, databaseClient }) => {
+      const error = new EngineError('NO_RESOURCE', { id: relationId1 });
+      vi.spyOn(databaseClient, 'checkRelations').mockImplementation((resource, relations) => (
+        (resource === 'test' && relations.get('objectOne.optionalRelations')?.filters?._id.includes(relationId1))
+          ? Promise.reject(error)
+          : Promise.resolve()
+      ));
+      await expect(engine.update('test', resourceId, testPayload, {})).rejects.toBe(error);
+      expect(databaseClient.update).not.toHaveBeenCalled();
+    });
+
+    test('rejects a resource that does not exist', async ({ engine, databaseClient }) => {
+      vi.spyOn(databaseClient, 'update').mockResolvedValueOnce(false);
+      await expect(engine.update('test', resourceId, { indexedString: 'updated' }, {})).rejects.toMatchObject({
+        code: 'NO_RESOURCE',
+        details: { id: resourceId },
+      });
+    });
+
+    test('rejects a resource that cannot be viewed', async ({ engine, databaseClient }) => {
+      await expect(engine.update('notImplemented', resourceId, {}, {})).rejects.toMatchObject({
+        code: 'OPERATION_NOT_ALLOWED',
+        details: { operation: 'VIEW' },
+      });
+      expect(databaseClient.update).not.toHaveBeenCalled();
+    });
+
+    test('lets a registered module override update', async ({ engine, databaseClient }) => {
+      engine.registerModule('test', {
+        update: (_id, payload, context, baseUpdate) => (
+          baseUpdate(otherResourceId, payload, context)
+        ),
+      });
+      expect(await engine.update('test', resourceId, { indexedString: 'updated' }, {})).toEqual({
+        _id: otherResourceId,
+      });
+      expect(databaseClient.update).toHaveBeenCalledOnce();
+      expect(databaseClient.update).toHaveBeenCalledWith('test', otherResourceId, {
+        indexedString: 'updated',
+        _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
+      }, { fields: ['_id'], poolOrSession: 'SESSION' });
     });
   });
 
   describe('[view]', () => {
-    test('NO_RESOURCE error', async () => {
-      process.env.NO_RESULT = 'true';
-      const id = new Id('000000000000000000000002');
-      vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
-      await expect(async () => {
-        await engine.view('test', id, {}, context);
-      }).rejects.toThrow(new EngineError('NO_RESOURCE'));
+    test('fetches a resource with the fields user is allowed to view', async ({ engine, databaseClient }) => {
+      vi.spyOn(databaseClient, 'view').mockImplementation((resource, id, options) => Promise.resolve((
+        resource === 'test'
+        && String(id) === String(resourceId)
+        && options?.fields?.includes('objectOne.optionalRelations._id') === true
+        && !options.fields.includes('_isDeleted')
+      ) ? { _id: id, indexedString: 'test' } : null));
+      expect(await engine.view('test', resourceId, {
+        queryOptions: { fields: ['*', 'objectOne.optionalRelations.*'] },
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.VIEW', 'OTHER_TEST.VIEW']),
+          },
+        },
+      })).toEqual({ _id: resourceId, indexedString: 'test' });
     });
 
-    test('no error', async () => {
-      const id = new Id('000000000000000000000002');
-      vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
-      vi.spyOn(engine, 'parseFields').mockImplementation(() => ({ fields: new Set(['_id']), permissions: new Set() }));
-      await engine.view('test', id, {}, context);
-      expect(databaseClient.view).toHaveBeenCalledOnce();
-      expect(databaseClient.view).toHaveBeenCalledWith('test', id, { fields: new Set(['_id']) });
+    test('rejects a field user is not allowed to view', async ({ engine }) => {
+      await expect(engine.view('test', resourceId, {
+        queryOptions: { fields: ['_isDeleted'] },
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.VIEW']),
+          },
+        },
+      })).rejects.toMatchObject({ code: 'FORBIDDEN', details: { permission: 'TEST.IS_DELETED.VIEW' } });
+    });
+
+    test('rejects a field nobody is allowed to view', async ({ engine }) => {
+      await expect(engine.view('users', resourceId, {
+        queryOptions: { fields: ['password'] },
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['USERS.VIEW']),
+          },
+        },
+      })).rejects.toMatchObject({ code: 'FORBIDDEN', details: { permission: null } });
+    });
+
+    test('rejects an unknown field', async ({ engine }) => {
+      await expect(engine.view('test', resourceId, {
+        queryOptions: { fields: ['objectOne.invalid'] },
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.VIEW']),
+          },
+        },
+      })).rejects.toMatchObject({ code: 'UNKNOWN_QUERY_FIELD', details: { path: 'objectOne.invalid' } });
+    });
+
+    test('rejects a wildcard on a field that is not a relation', async ({ engine }) => {
+      await expect(engine.view('test', resourceId, {
+        queryOptions: { fields: ['_id.*'] },
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.VIEW']),
+          },
+        },
+      })).rejects.toMatchObject({ code: 'UNKNOWN_QUERY_FIELD', details: { path: '_id.*' } });
+    });
+
+    test('rejects an unverified user', async ({ engine }) => {
+      await expect(engine.view('test', resourceId, {
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: null,
+            _permissions: new Set(['TEST.VIEW']),
+          },
+        },
+      })).rejects.toMatchObject({ code: 'USER_NOT_VERIFIED' });
+    });
+
+    test('rejects a user missing the operation permission', async ({ engine }) => {
+      await expect(engine.view('otherTest', resourceId, {
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.VIEW']),
+          },
+        },
+      })).rejects.toMatchObject({ code: 'FORBIDDEN', details: { permission: 'OTHER_TEST.VIEW' } });
+    });
+
+    test('rejects a resource that does not exist', async ({ engine, databaseClient }) => {
+      vi.spyOn(databaseClient, 'view').mockResolvedValueOnce(null);
+      await expect(engine.view('test', resourceId, {})).rejects.toMatchObject({
+        code: 'NO_RESOURCE',
+        details: { id: resourceId },
+      });
+    });
+
+    test('rejects a resource that cannot be viewed', async ({ engine }) => {
+      await expect(engine.view('notImplemented', resourceId, {})).rejects.toMatchObject({
+        code: 'OPERATION_NOT_ALLOWED',
+        details: { operation: 'VIEW' },
+      });
+    });
+
+    test('lets a registered module override view', async ({ engine }) => {
+      engine.registerModule('test', {
+        view: (_id, context, baseView) => baseView(otherResourceId, context),
+      });
+      expect(await engine.view('test', resourceId, {})).toEqual({ _id: otherResourceId });
     });
   });
 
-  test('[list]', async () => {
-    vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
-    vi.spyOn(engine, 'parseFields').mockImplementation(() => ({ fields: new Set(['_id']), permissions: new Set() }));
-    await engine.list('test', { limit: 10, offset: 2 }, context);
-    await engine.list('test', { sortBy: { _id: 1 } }, context);
-    expect(databaseClient.list).toHaveBeenCalledTimes(2);
-    expect(databaseClient.list).toHaveBeenCalledWith('test', {
-      limit: 10,
-      offset: 2,
-      fields: new Set(['_id']),
+  describe('[list]', () => {
+    test('lists resources matching search body, with the fields user is allowed to view', async ({ engine, databaseClient }) => {
+      const searchBody = {
+        query: { text: 'test', on: ['enum'] },
+        filters: { 'data.optionalFlatArray': 'test1' },
+      };
+      vi.spyOn(databaseClient, 'list').mockImplementation((resource, body, options) => Promise.resolve((
+        resource === 'otherTest'
+        && body === searchBody
+        && options?.fields?.includes('enum') === true
+      ) ? { total: 1, results: [{ _id: resourceId }] } : { total: 0, results: [] }));
+      expect(await engine.list('otherTest', searchBody, {
+        queryOptions: { fields: ['enum'], sortBy: { _createdAt: -1 } },
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['OTHER_TEST.LIST', 'OTHER_TEST.VIEW']),
+          },
+        },
+      })).toEqual({ total: 1, results: [{ _id: resourceId }] });
     });
-    expect(databaseClient.list).toHaveBeenCalledWith('test', {
-      sortBy: { _id: 1 },
-      fields: new Set(['_id']),
-    });
-  });
 
-  test('[search]', async () => {
-    const searchBody = { query: { on: new Set(['indexedString']), text: 'test' }, filters: null };
-    vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
-    vi.spyOn(engine, 'parseFields').mockImplementation(() => ({ fields: new Set(['_id']), permissions: new Set() }));
-    await engine.search('test', searchBody, { limit: 10, offset: 2 }, context);
-    await engine.search('test', searchBody, { sortBy: { _id: 1 } }, context);
-    expect(databaseClient.search).toHaveBeenCalledTimes(2);
-    expect(databaseClient.search).toHaveBeenCalledWith('test', searchBody, {
-      offset: 2,
-      limit: 10,
-      fields: new Set(['_id']),
+    test('lists all resources when there is no search criteria', async ({ engine, databaseClient }) => {
+      vi.spyOn(databaseClient, 'list').mockImplementation((resource) => Promise.resolve((resource === 'test')
+        ? { total: 1, results: [{ _id: resourceId }] }
+        : { total: 0, results: [] }));
+      expect(await engine.list('test', { query: null, filters: null }, {
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.LIST', 'TEST.VIEW']),
+          },
+        },
+      })).toEqual({ total: 1, results: [{ _id: resourceId }] });
     });
-    expect(databaseClient.search).toHaveBeenCalledWith('test', searchBody, {
-      sortBy: { _id: 1 },
-      fields: new Set(['_id']),
+
+    test('rejects a filter on a field user is not allowed to view', async ({ engine }) => {
+      await expect(engine.list('test', { query: null, filters: { _isDeleted: true } }, {
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.LIST', 'TEST.VIEW']),
+          },
+        },
+      })).rejects.toMatchObject({ code: 'FORBIDDEN', details: { permission: 'TEST.IS_DELETED.VIEW' } });
     });
-    // Covers other specific cases.
-    await engine.search('test', { query: null, filters: null }, {}, context);
+
+    test('lists all resources when there is no search body', async ({ engine, databaseClient }) => {
+      vi.spyOn(databaseClient, 'list').mockImplementation((resource) => Promise.resolve((resource === 'test')
+        ? { total: 1, results: [{ _id: resourceId }] }
+        : { total: 0, results: [] }));
+      expect(await engine.list('test', null, {
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.LIST', 'TEST.VIEW']),
+          },
+        },
+      })).toEqual({ total: 1, results: [{ _id: resourceId }] });
+    });
+
+    test('rejects a resource that cannot be listed', async ({ engine }) => {
+      await expect(engine.list('notImplemented', null, {})).rejects.toMatchObject({
+        code: 'OPERATION_NOT_ALLOWED',
+        details: { operation: 'LIST' },
+      });
+    });
+
+    test('lets a registered module override list', async ({ engine, databaseClient }) => {
+      const searchBody = { query: null, filters: { indexedString: 'test' } };
+      vi.spyOn(databaseClient, 'list').mockImplementation((resource, body) => Promise.resolve((
+        resource === 'test' && body === searchBody
+      ) ? { total: 1, results: [{ _id: resourceId }] } : { total: 0, results: [] }));
+      engine.registerModule('test', {
+        list: (_searchBody, context, baseList) => baseList(searchBody, context),
+      });
+      expect(await engine.list('test', null, {})).toEqual({ total: 1, results: [{ _id: resourceId }] });
+    });
   });
 
   describe('[delete]', () => {
-    test('NO_RESOURCE error', async () => {
-      process.env.NO_RESULT = 'true';
-      const id = new Id('000000000000000000000002');
-      vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
-      await expect(async () => {
-        await engine.delete('test', id, context);
-      }).rejects.toThrow(new EngineError('NO_RESOURCE'));
-    });
-
-    test('hard deletion', async () => {
-      const id = new Id('000000000000000000000002');
-      vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
-      await engine.delete('otherTest', id, context);
-      expect(databaseClient.delete).toHaveBeenCalledOnce();
-      expect(databaseClient.delete).toHaveBeenCalledWith('otherTest', id);
-    });
-
-    test('soft deletion', async () => {
-      const id = new Id('000000000000000000000002');
-      vi.spyOn(engine, 'withAutomaticFields').mockImplementation(mockedCheckAndUpdatePayload);
-      vi.spyOn(engine, 'checkAndUpdatePayload').mockImplementation(mockedCheckAndUpdatePayload);
-      vi.spyOn(engine, 'rbac').mockImplementation(() => Promise.resolve());
-      await engine.delete('test', id, context);
-      expect(databaseClient.update).toHaveBeenCalledOnce();
-      expect(databaseClient.update).toHaveBeenCalledWith('test', id, {
-        _isDeleted: true,
-        updated: true,
+    test('flags a resource as deleted, with its automatic fields', async ({ engine, databaseClient }) => {
+      await engine.delete('test', resourceId, {
+        session: {
+          user: {
+            _id: userId,
+            _devices: [],
+            email: 'test@test.test',
+            _verifiedAt: new Date('2022-01-01T00:00:00.000Z'),
+            _permissions: new Set(['TEST.DELETE', 'TEST.VIEW']),
+          },
+        },
       });
+      expect(databaseClient.delete).not.toHaveBeenCalled();
+      expect(databaseClient.update).toHaveBeenCalledOnce();
+      expect(databaseClient.update).toHaveBeenCalledWith('test', resourceId, {
+        _isDeleted: true,
+        _updatedBy: userId,
+        _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
+      }, { fields: ['_id'] });
+    });
+
+    test('flags a resource as deleted without author when there is no session', async ({ engine, databaseClient }) => {
+      await engine.delete('test', resourceId, {});
+      expect(databaseClient.update).toHaveBeenCalledOnce();
+      expect(databaseClient.update).toHaveBeenCalledWith('test', resourceId, {
+        _isDeleted: true,
+        _updatedAt: new Date('2023-01-01T00:00:00.000Z'),
+      }, { fields: ['_id'] });
+    });
+
+    test('flags a resource without timestamps as deleted', async ({ engine, databaseClient }) => {
+      await engine.delete('users', resourceId, {});
+      expect(databaseClient.update).toHaveBeenCalledOnce();
+      expect(databaseClient.update).toHaveBeenCalledWith('users', resourceId, {
+        _isDeleted: true,
+      }, { fields: ['_id'] });
+    });
+
+    test('deletes a resource for good when its schema allows it', async ({ engine, databaseClient }) => {
+      await engine.delete('otherTest', resourceId, {});
+      expect(databaseClient.update).not.toHaveBeenCalled();
+      expect(databaseClient.delete).toHaveBeenCalledOnce();
+      expect(databaseClient.delete).toHaveBeenCalledWith('otherTest', resourceId, { fields: ['_id'] });
+    });
+
+    test('rejects a resource that does not exist', async ({ engine, databaseClient }) => {
+      vi.spyOn(databaseClient, 'delete').mockResolvedValueOnce(false);
+      await expect(engine.delete('otherTest', resourceId, {})).rejects.toMatchObject({
+        code: 'NO_RESOURCE',
+        details: { id: resourceId },
+      });
+    });
+
+    test('rejects a resource that cannot be deleted', async ({ engine, databaseClient }) => {
+      await expect(engine.delete('notImplemented', resourceId, {})).rejects.toMatchObject({
+        code: 'OPERATION_NOT_ALLOWED',
+        details: { operation: 'DELETE' },
+      });
+      expect(databaseClient.update).not.toHaveBeenCalled();
+      expect(databaseClient.delete).not.toHaveBeenCalled();
+    });
+
+    test('lets a registered module override deletion', async ({ engine, databaseClient }) => {
+      engine.registerModule('otherTest', {
+        delete: (_id, context, baseDelete) => baseDelete(otherResourceId, context),
+      });
+      await engine.delete('otherTest', resourceId, {});
+      expect(databaseClient.delete).toHaveBeenCalledOnce();
+      expect(databaseClient.delete).toHaveBeenCalledWith('otherTest', otherResourceId, { fields: ['_id'] });
     });
   });
 });

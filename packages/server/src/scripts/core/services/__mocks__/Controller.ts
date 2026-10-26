@@ -7,17 +7,17 @@
  */
 
 import { Id } from '@perseid/core';
+import { type UserDataModel } from '@perseid/core';
 import type Model from 'scripts/core/services/Model';
-import type Logger from 'scripts/core/services/Logger';
 import type Engine from 'scripts/core/services/Engine';
-import { type DefaultDataModel } from '@perseid/core';
+import type Logger from 'scripts/core/services/Telemetry';
 import { type ControllerSettings } from 'scripts/core/services/Controller';
 
 /**
  * `core/services/Controller` mock.
  */
 
-export default class <DataModel extends DefaultDataModel> {
+export default class <DataModel extends UserDataModel> {
   protected AJV_FORMATTERS: unknown;
 
   protected ajv: unknown;
@@ -26,7 +26,7 @@ export default class <DataModel extends DefaultDataModel> {
 
   protected version: string;
 
-  protected model: Model;
+  protected model: Model<DataModel>;
 
   protected logger: Logger;
 
@@ -79,7 +79,7 @@ export default class <DataModel extends DefaultDataModel> {
   protected catchErrors = vi.fn((callback: () => unknown) => callback());
 
   public constructor(
-    model: Model,
+    model: Model<DataModel>,
     logger: Logger,
     engine: Engine<DataModel>,
     settings: ControllerSettings<DataModel>,

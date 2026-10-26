@@ -8,17 +8,15 @@
 
 import { createHash } from 'crypto';
 import { existsSync, promises } from 'fs';
-import { HttpClient } from '@perseid/core';
+import Telemetry from 'scripts/core/services/Telemetry';
+import { HttpClient, type HttpClientSettings, type Telemetry as TelemetryType } from '@perseid/core';
 
 /**
  * Cache client settings.
  */
-export interface CacheClientSettings {
+export interface CacheClientSettings extends HttpClientSettings {
   /** Path to the cache directory on file system. */
   cachePath: string;
-
-  /** Maximum request duration (in ms) before generating a timeout. */
-  connectTimeout: number;
 }
 
 /**
@@ -33,10 +31,12 @@ export default class CacheClient extends HttpClient {
   /**
    * Class constructor.
    *
+   * @param telemetry Telemetry system to use.
+   *
    * @param settings Cache client settings.
    */
-  constructor(settings: CacheClientSettings) {
-    super(settings.connectTimeout);
+  constructor(telemetry: Telemetry, settings: CacheClientSettings) {
+    super(telemetry as unknown as TelemetryType, settings);
     this.cachePath = settings.cachePath;
   }
 

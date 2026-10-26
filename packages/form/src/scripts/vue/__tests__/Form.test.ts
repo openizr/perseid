@@ -19,7 +19,7 @@ describe('vue/Form', () => {
     })),
   }));
   vi.mock('@perseid/store/connectors/vue', () => ({
-    default: vi.fn(() => (_: string, callback: (data: unknown) => unknown): unknown => {
+    default: vi.fn(() => (): unknown => {
       const state = {
         loading: process.env.LOADING === 'true',
         steps: process.env.LOADING === 'true' ? [] : [
@@ -27,7 +27,7 @@ describe('vue/Form', () => {
           { path: 'end', fields: [] },
         ],
       };
-      return ref(callback(state));
+      return ref(state);
     }),
   }));
 

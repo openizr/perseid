@@ -35,7 +35,7 @@ export default function connect(store: Store): UseSubscription {
   const defaultReducer = <T>(newState: T): T => newState;
   const getState = (moduleId: string): unknown => (privateStore.modules[moduleId] as Module).state;
 
-  return (id, reducer = defaultReducer) => {
+  return ((id, reducer = defaultReducer) => {
     const combinedModule = privateStore.combinedModules[id];
 
     if (combinedModule !== undefined) {
@@ -55,5 +55,5 @@ export default function connect(store: Store): UseSubscription {
       return state;
     }
     throw new Error(`Could not subscribe to module with id "${id}": module does not exist.`);
-  };
+  }) as UseSubscription;
 }

@@ -6,7 +6,7 @@
  *
  */
 
-import * as exports from 'scripts/core/index';
+import * as exports from 'scripts/core';
 
 describe('core', () => {
   vi.mock('scripts/core/services/JobScheduler');
